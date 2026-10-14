@@ -44,7 +44,10 @@ ALLOWED_COMMANDS: Dict[str, dict] = {
     "mkdir":      {"description": "Create directory",        "risk": 1},
     "chmod":      {"description": "Change permissions",      "risk": 2},
     "chown":      {"description": "Change owner",            "risk": 3},
-    "apt-get":    {"description": "Package manager",         "risk": 3},
+    "code":       {"description": "VS Code editor",          "risk": 1},
+    "mousepad":   {"description": "Desktop text editor",     "risk": 1},
+    "lxterminal": {"description": "Desktop terminal",        "risk": 1},
+    "xdg-open":   {"description": "Open default application","risk": 1},
     "raspi-config": {"description": "Pi configuration",     "risk": 4},
 }
 

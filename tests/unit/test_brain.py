@@ -72,6 +72,27 @@ class TestJARVISBrain:
         assert result is not None
         assert "Stored in memory" in result["response"]
 
+    def test_open_vs_code(self, brain):
+        result = brain.chat("open vs code")
+        assert result is not None
+        assert "VS Code" in result["response"] or "code" in result["response"].lower()
+        assert any(t["tool"] == "open_app" for t in result["tools_used"])
+
+    def test_create_and_run_calculator(self, brain):
+        result = brain.chat("can you write a python program for running a normal calculator and open in the vs code and please run the program in the vs code")
+        assert result is not None
+        assert "calculator.py" in result["response"]
+        assert "Execution Output" in result["response"]
+        assert any(t["tool"] == "write_file" for t in result["tools_used"])
+        assert any(t["tool"] == "run_code" for t in result["tools_used"])
+        assert any(t["tool"] == "open_app" for t in result["tools_used"])
+
+    def test_run_code(self, brain):
+        result = brain.chat("run the program")
+        assert result is not None
+        assert "Executed" in result["response"] or "calculator.py" in result["response"]
+        assert any(t["tool"] == "run_code" for t in result["tools_used"])
+
 
 class TestLocalIntelligenceEngine:
     def test_classify_intents(self, engine):

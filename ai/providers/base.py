@@ -151,6 +151,30 @@ JARVIS_TOOLS: List[Dict] = [
             },
             "required": ["text"]
         }
+    },
+    {
+        "name": "open_app",
+        "description": "Open a desktop application like VS Code, text editor, terminal, or browser.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "app_name": {"type": "string", "description": "e.g. 'code', 'vs code', 'mousepad', 'terminal'"},
+                "target": {"type": "string", "description": "Optional file path to open in the app"}
+            },
+            "required": ["app_name"]
+        }
+    },
+    {
+        "name": "run_code",
+        "description": "Run Python or Bash code directly and get output.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "code": {"type": "string", "description": "Source code string to execute"},
+                "file_path": {"type": "string", "description": "Path to file to execute"},
+                "language": {"type": "string", "enum": ["python", "bash"], "default": "python"}
+            }
+        }
     }
 ]
 
@@ -228,47 +252,43 @@ class OllamaProvider(AIProvider):
                  system: Optional[str] = None) -> Dict[str, Any]:
         import requests
 
-        # Build prompt from messages
-        prompt_parts = []
-        if system:
-            prompt_parts.append(f"System: {system}\n")
+        chat_messages = []
+        sys_prompt = system or "You are JARVIS, an advanced AI operating environment on Raspberry Pi 5."
+        if tools:
+            tool_desc = "\n".join(f"- {t['name']}: {t['description']}" for t in tools)
+            sys_prompt += (
+                f"\n\nAvailable tools:\n{tool_desc}\n\n"
+                "If you need to perform an action (e.g. open an application, write a file, run code, or control hardware), respond with:\n"
+                "TOOL_CALL: {\"name\": \"tool_name\", \"args\": {...}}\n"
+                "Otherwise answer directly and concisely."
+            )
+        chat_messages.append({"role": "system", "content": sys_prompt})
+
         for m in messages:
             role = m.get("role", "user")
             content = m.get("content", "")
-            if role == "user":
-                prompt_parts.append(f"Human: {content}")
-            elif role == "assistant":
-                prompt_parts.append(f"Assistant: {content}")
-            elif role == "tool":
-                prompt_parts.append(f"Tool Result: {content}")
-
-        if tools:
-            tool_desc = "\n".join(f"- {t['name']}: {t['description']}" for t in tools)
-            prompt_parts.append(
-                f"\nOptional tools available if needed:\n{tool_desc}\n"
-                "Only if the user explicitly requested a physical action or hardware data, use: TOOL_CALL: {\"name\": \"tool_name\", \"args\": {...}}\n"
-                "Otherwise, directly answer the user's question in a helpful and conversational manner."
-            )
-
-        prompt_parts.append("Assistant:")
-        full_prompt = "\n".join(prompt_parts)
+            if role == "tool":
+                chat_messages.append({"role": "user", "content": f"[Tool Result]: {content}"})
+            else:
+                chat_messages.append({"role": role, "content": content})
 
         try:
             r = requests.post(
-                f"{self.base_url}/api/generate",
+                f"{self.base_url}/api/chat",
                 json={
                     "model": self.model,
-                    "prompt": full_prompt,
+                    "messages": chat_messages,
                     "stream": False,
-                    "options": {"temperature": 0.5, "num_predict": 256}
+                    "options": {"temperature": 0.3, "num_predict": 256}
                 },
                 timeout=60
             )
             r.raise_for_status()
             data = r.json()
-            text = (data.get("response") or data.get("thinking") or "").strip()
+            msg = data.get("message", {})
+            text = (msg.get("content") or msg.get("thinking") or "").strip()
             tool_calls = self._extract_tool_calls(text)
-            if tool_calls:
+            if tool_calls and "TOOL_CALL:" in text:
                 text = text[:text.find("TOOL_CALL:")].strip()
             return {"text": text, "tool_calls": tool_calls,
                     "provider": "ollama", "model": self.model, "tokens": data.get("eval_count", 0)}

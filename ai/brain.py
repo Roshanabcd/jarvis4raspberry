@@ -144,7 +144,8 @@ class JARVISBrain:
             "robot_stop", "robot_estop", "servo_set", "system_status",
             "read_sensors", "calculate", "camera_capture", "memory_store",
             "list_files", "read_file", "write_file", "schedule_task",
-            "identity", "help"
+            "identity", "help", "open_app", "create_calculator",
+            "write_code", "run_code"
         }
 
         if intent in FAST_PATH_INTENTS:

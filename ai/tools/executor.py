@@ -196,3 +196,85 @@ class ToolExecutor:
             return {"status": "spoken", "text": text[:80]}
         except Exception as e:
             return {"error": str(e), "text": text[:80]}
+
+    # ── Desktop & Applications ────────────────────────────────
+
+    def _tool_open_app(self, app_name: str, target: Optional[str] = None) -> Dict:
+        """Launch desktop applications (VS Code, mousepad, terminal, etc.)"""
+        import shutil
+        import subprocess
+
+        aliases = {
+            "vs code": "code",
+            "vscode": "code",
+            "visual studio code": "code",
+            "code editor": "code",
+            "editor": "code",
+            "terminal": "lxterminal",
+            "browser": "chromium-browser",
+            "calculator": "galculator",
+            "text editor": "mousepad",
+        }
+        cmd = aliases.get(app_name.lower().strip(), app_name.lower().strip())
+        path = shutil.which(cmd)
+        if not path:
+            local_p = os.path.expanduser(f"~/.local/bin/{cmd}")
+            if os.path.exists(local_p):
+                path = local_p
+
+        if not path:
+            if cmd == "code" and shutil.which("mousepad"):
+                cmd = "mousepad"
+                path = shutil.which("mousepad")
+            else:
+                return {"error": f"Application '{app_name}' is not installed.", "status": "not_installed"}
+
+        env = os.environ.copy()
+        if "DISPLAY" not in env:
+            env["DISPLAY"] = ":0"
+
+        args = [path]
+        if target:
+            args.append(target)
+
+        try:
+            p = subprocess.Popen(args, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return {"status": "opened", "app": app_name, "executable": path, "pid": p.pid, "target": target}
+        except Exception as e:
+            return {"error": f"Failed to launch '{app_name}': {e}", "status": "failed"}
+
+    # ── Code Execution ────────────────────────────────────────
+
+    def _tool_run_code(self, code: Optional[str] = None, file_path: Optional[str] = None,
+                       language: str = "python") -> Dict:
+        """Execute Python or Bash code directly on the system."""
+        import subprocess
+        import tempfile
+
+        if file_path:
+            target_file = file_path
+        elif code:
+            ext = ".py" if language == "python" else ".sh"
+            tmp = tempfile.NamedTemporaryFile(suffix=ext, delete=False, mode="w")
+            tmp.write(code)
+            tmp.flush()
+            tmp.close()
+            target_file = tmp.name
+        else:
+            return {"error": "No code or file_path provided", "status": "failed"}
+
+        cmd = ["python3", target_file] if language == "python" else ["bash", target_file]
+        try:
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            return {
+                "status": "success" if res.returncode == 0 else "error",
+                "stdout": res.stdout,
+                "stderr": res.stderr,
+                "exit_code": res.returncode,
+                "file": target_file
+            }
+        except subprocess.TimeoutExpired:
+            return {"status": "timeout", "error": "Execution timed out (15s limit)"}
+        except Exception as e:
+            return {"status": "error", "error": str(e)}
+
