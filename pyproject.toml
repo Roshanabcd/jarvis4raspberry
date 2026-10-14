@@ -1,0 +1,23 @@
+[project]
+name = "jarvis-os"
+version = "0.1.0"
+description = "JARVIS AI Operating Environment"
+authors = [{name = "Astra", email = "astra@example.com"}]
+dependencies = [
+    "fastapi>=0.100",
+    "uvicorn[standard]>=0.20",
+    "pydantic>=2.0",
+    "pyyaml>=6.0",
+    "smbus2>=0.4.0",
+    "pyserial>=3.5",
+    "requests>=2.31.0",
+    "psutil>=5.9.0",
+]
+requires-python = ">=3.11"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["apps", "hardware", "ai", "memory", "tools", "security", "config"]

@@ -1,0 +1,15 @@
+default_max_risk: 2
+require_confirmation_above: 3
+allowed_tools:
+  - system_status
+  - read_file
+  - write_file
+  - run_command
+  - sensor_read
+  - memory_search
+denied_tools: []
+high_risk_tools:
+  - delete_file
+  - motor_control
+  - push_git
+  - install_package

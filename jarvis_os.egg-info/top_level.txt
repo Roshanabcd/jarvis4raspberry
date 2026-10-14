@@ -1,0 +1,7 @@
+ai
+apps
+config
+hardware
+memory
+security
+tools

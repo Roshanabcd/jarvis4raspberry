@@ -1,0 +1,10 @@
+providers:
+  - name: ollama
+    base_url: 'http://localhost:11434'
+    model: 'llama3.2'
+    enabled: true
+  - name: openai
+    model: 'gpt-4o'
+    enabled: false
+default_provider: ollama
+fallback_message: 'I am operating in offline mode. Cloud AI is unavailable.'

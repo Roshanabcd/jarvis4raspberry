@@ -1,0 +1,35 @@
+[Unit]
+Description=JARVIS OS Core Service — AI Operating Environment
+Documentation=https://github.com/your-user/jarvis-os
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/jarvis-os
+ExecStart=/home/pi/jarvis-os/venv/bin/python3 -m uvicorn apps.core.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --log-level info \
+    --access-log
+EnvironmentFile=/home/pi/jarvis-os/.env
+Environment=JARVIS_HOME=/home/pi/jarvis-os
+Environment=JARVIS_SIMULATION=true
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=5
+KillMode=mixed
+TimeoutStopSec=15
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=jarvis-core
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/home/pi/jarvis-os /var/log/jarvis /tmp
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

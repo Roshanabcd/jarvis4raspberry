@@ -1,0 +1,22 @@
+motors:
+  type: "tb6612"
+  simulated: true
+servos:
+  type: "pca9685"
+  simulated: true
+sensors:
+  bme280:
+    i2c_bus: 1
+    address: 0x76
+  bh1750:
+    i2c_bus: 1
+    address: 0x23
+  vl53l0x:
+    i2c_bus: 1
+    address: 0x29
+  hcsr501:
+    pin: 4
+  hcsr04:
+    trig_pin: 23
+    echo_pin: 24
+

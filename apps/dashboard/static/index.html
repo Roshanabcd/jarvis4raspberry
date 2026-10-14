@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS OS</title>
+<style>
+  :root{--bg:#0a0a1a;--card:#12122a;--accent:#00d2ff;--accent2:#7b2fff;--green:#00ff88;--warn:#ffcc00;--err:#ff4466;--text:#e0e8ff;--muted:#6070a0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+  nav{display:flex;align-items:center;gap:4px;padding:12px 20px;background:var(--card);border-bottom:1px solid #1e2050;flex-wrap:wrap}
+  .logo{font-size:1.3rem;font-weight:700;color:var(--accent);letter-spacing:2px;margin-right:16px}
+  nav button{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px 12px;border-radius:6px;font-size:.85rem;transition:.2s}
+  nav button:hover,nav button.active{background:rgba(0,210,255,.12);color:var(--accent)}
+  .tab{display:none;padding:24px;max-width:1400px;margin:0 auto}
+  .tab.active{display:block}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px}
+  .card{background:var(--card);border-radius:10px;padding:18px;border-left:3px solid var(--accent)}
+  .card h3{font-size:.75rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
+  .card .val{font-size:2rem;font-weight:700;color:var(--accent)}
+  .card .sub{font-size:.8rem;color:var(--muted);margin-top:4px}
+  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .ok{background:var(--green)}.warn{background:var(--warn)}.err{background:var(--err)}
+  .panel{background:var(--card);border-radius:10px;padding:20px;margin-bottom:16px}
+  .panel h2{font-size:1rem;color:var(--accent);margin-bottom:14px;border-bottom:1px solid #1e2050;padding-bottom:8px}
+  input,textarea,select{background:#0d0d20;color:var(--text);border:1px solid #1e2050;border-radius:6px;padding:8px 12px;width:100%;font-size:.9rem;outline:none;margin-bottom:8px}
+  input:focus,textarea:focus{border-color:var(--accent)}
+  button.btn{background:var(--accent);color:#000;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;font-size:.85rem;transition:.2s;margin:3px}
+  button.btn:hover{opacity:.85}
+  button.btn.danger{background:var(--err);color:#fff}
+  button.btn.warn{background:var(--warn);color:#000}
+  button.btn.dark{background:#1e2050;color:var(--text)}
+  #chat-box{height:340px;overflow-y:auto;background:#070714;border:1px solid #1e2050;border-radius:8px;padding:12px;margin-bottom:10px;font-size:.9rem}
+  .msg{margin-bottom:10px;line-height:1.5}
+  .msg.user{color:var(--accent)}.msg.jarvis{color:var(--green)}.msg.err-msg{color:var(--err)}
+  .robot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:320px}
+  .robot-grid button{padding:14px;font-size:1rem}
+  .sensor-table{width:100%;border-collapse:collapse;font-size:.85rem}
+  .sensor-table th{text-align:left;color:var(--muted);font-weight:500;padding:6px 10px;border-bottom:1px solid #1e2050}
+  .sensor-table td{padding:8px 10px;border-bottom:1px solid #0d0d20}
+  #log-area{font-family:monospace;font-size:.78rem;background:#050510;color:#8899cc;height:340px;overflow-y:auto;padding:12px;border-radius:8px;border:1px solid #1e2050;white-space:pre-wrap;word-break:break-all}
+  .servo-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .servo-row label{width:80px;font-size:.85rem;color:var(--muted)}
+  .servo-row input[type=range]{flex:1;accent-color:var(--accent)}
+  .servo-row span{width:40px;text-align:right;font-size:.85rem}
+  .ws-status{font-size:.7rem;color:var(--muted);padding:4px 8px;border-radius:4px;background:#0d0d20}
+  .ws-status.connected{color:var(--green)}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+  <span class="logo">⚡ JARVIS</span>
+  <button class="active" onclick="show('home')">HOME</button>
+  <button onclick="show('system')">SYSTEM</button>
+  <button onclick="show('chat')">CHAT</button>
+  <button onclick="show('robot')">ROBOT</button>
+  <button onclick="show('sensors')">SENSORS</button>
+  <button onclick="show('memory')">MEMORY</button>
+  <button onclick="show('logs')">LOGS</button>
+  <button onclick="show('settings')">SETTINGS</button>
+  <span class="ws-status" id="ws-status">● Connecting…</span>
+</nav>
+
+<!-- HOME -->
+<div id="tab-home" class="tab active">
+  <div class="grid">
+    <div class="card"><h3>CPU</h3><div class="val" id="h-cpu">—</div><div class="sub">utilisation</div></div>
+    <div class="card"><h3>RAM</h3><div class="val" id="h-ram">—</div><div class="sub">used</div></div>
+    <div class="card"><h3>Temperature</h3><div class="val" id="h-temp">—</div><div class="sub">CPU core</div></div>
+    <div class="card"><h3>Disk</h3><div class="val" id="h-disk">—</div><div class="sub">used</div></div>
+    <div class="card"><h3>Robot</h3><div class="val" style="font-size:1.1rem" id="h-robot">—</div><div class="sub">state machine</div></div>
+    <div class="card"><h3>Voice</h3><div class="val" style="font-size:1.1rem" id="h-voice">—</div><div class="sub">pipeline</div></div>
+  </div>
+  <div class="panel">
+    <h2>Component Health</h2>
+    <div id="health-table">Loading…</div>
+  </div>
+</div>
+
+<!-- SYSTEM -->
+<div id="tab-system" class="tab">
+  <div class="panel"><h2>System Information</h2><pre id="sys-data" style="font-size:.82rem;color:var(--muted)">Loading…</pre></div>
+</div>
+
+<!-- CHAT -->
+<div id="tab-chat" class="tab">
+  <div class="panel">
+    <h2>Converse with JARVIS</h2>
+    <div id="chat-box"></div>
+    <div style="display:flex;gap:8px">
+      <input id="chat-in" placeholder="Type a message…" onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="btn" onclick="sendChat()">Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ROBOT -->
+<div id="tab-robot" class="tab">
+  <div style="display:flex;gap:20px;flex-wrap:wrap">
+    <div class="panel" style="flex:0 0 auto">
+      <h2>Motor Control</h2>
+      <div class="robot-grid">
+        <div></div>
+        <button class="btn" onclick="robotCmd('forward')">▲ FWD</button>
+        <div></div>
+        <button class="btn" onclick="robotCmd('left')">◄ LEFT</button>
+        <button class="btn dark" onclick="robotCmd('stop')">■ STOP</button>
+        <button class="btn" onclick="robotCmd('right')">RIGHT ►</button>
+        <div></div>
+        <button class="btn" onclick="robotCmd('backward')">▼ REV</button>
+        <div></div>
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn danger" style="width:100%;padding:14px;font-size:1rem" onclick="robotCmd('estop')">🛑 EMERGENCY STOP</button>
+      </div>
+      <div id="robot-status" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
+    </div>
+    <div class="panel" style="flex:1;min-width:260px">
+      <h2>Servo Control (PCA9685)</h2>
+      <div id="servo-sliders"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SENSORS -->
+<div id="tab-sensors" class="tab">
+  <div class="panel">
+    <h2>Live Sensor Readings</h2>
+    <button class="btn dark" onclick="loadSensors()">↺ Refresh</button>
+    <div style="margin-top:12px" id="sensor-content">Loading…</div>
+  </div>
+</div>
+
+<!-- MEMORY -->
+<div id="tab-memory" class="tab">
+  <div class="panel">
+    <h2>Memory Search</h2>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="mem-q" placeholder="Search memories…">
+      <button class="btn" onclick="searchMem()">Search</button>
+    </div>
+    <div id="mem-results"></div>
+  </div>
+</div>
+
+<!-- LOGS -->
+<div id="tab-logs" class="tab">
+  <div class="panel">
+    <h2>Audit Log</h2>
+    <button class="btn dark" onclick="loadLogs()">↺ Refresh</button>
+    <div id="log-area" style="margin-top:12px"></div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="tab-settings" class="tab">
+  <div class="panel">
+    <h2>Settings</h2>
+    <div id="settings-content">
+      <p style="color:var(--muted);font-size:.9rem">Adjust <code>config/config.yaml</code> and restart the JARVIS service to apply changes.</p>
+      <br>
+      <table class="sensor-table">
+        <tr><th>Setting</th><th>Current</th></tr>
+        <tr><td>Dashboard URL</td><td>http://localhost:8000/</td></tr>
+        <tr><td>API Base</td><td>http://localhost:8000/api/</td></tr>
+        <tr><td>Simulation Mode</td><td id="sim-mode">—</td></tr>
+        <tr><td>Wake Word</td><td id="wake-word">—</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── Tab navigation ─────────────────────────────────────────
+function show(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.target.classList.add('active');
+  if(name==='system') loadSystem();
+  if(name==='sensors') loadSensors();
+  if(name==='logs') loadLogs();
+  if(name==='memory') searchMem();
+}
+
+// ─── WebSocket live telemetry ────────────────────────────────
+let ws, wsRetries=0;
+function connectWS(){
+  const proto = location.protocol==='https:'?'wss:':'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+  ws.onopen=()=>{document.getElementById('ws-status').textContent='● Live';document.getElementById('ws-status').className='ws-status connected';wsRetries=0;}
+  ws.onerror=()=>{document.getElementById('ws-status').textContent='● Offline';document.getElementById('ws-status').className='ws-status';}
+  ws.onclose=()=>{document.getElementById('ws-status').textContent='● Reconnecting…';setTimeout(()=>{if(wsRetries<10){wsRetries++;connectWS();}},3000);}
+  ws.onmessage=(e)=>{
+    const d=JSON.parse(e.data);
+    document.getElementById('h-cpu').textContent=(d.cpu_pct??0).toFixed(1)+'%';
+    document.getElementById('h-ram').textContent=(d.ram_pct??0).toFixed(1)+'%';
+    document.getElementById('h-temp').textContent=d.temp_c!=null?d.temp_c.toFixed(1)+'°C':'N/A';
+    document.getElementById('h-disk').textContent=(d.disk_pct??0).toFixed(1)+'%';
+    document.getElementById('h-robot').textContent=d.robot_state??'UNKNOWN';
+    document.getElementById('h-voice').textContent=d.voice_state??'UNKNOWN';
+  };
+}
+connectWS();
+
+// ─── Health ─────────────────────────────────────────────────
+async function loadHealth(){
+  try{
+    const r=await fetch('/api/health');
+    const d=await r.json();
+    let html='<table class="sensor-table"><tr><th>Component</th><th>Status</th></tr>';
+    for(const[k,v] of Object.entries(d.components||{})){
+      const ok=String(v).toUpperCase().includes('OK');
+      const cls=ok?'ok':String(v).toUpperCase().includes('WARN')?'warn':'err';
+      html+=`<tr><td>${k}</td><td><span class="status-dot ${cls}"></span>${v}</td></tr>`;
+    }
+    html+='</table>';
+    document.getElementById('health-table').innerHTML=html;
+  }catch(e){document.getElementById('health-table').textContent='Health check unavailable';}
+}
+loadHealth(); setInterval(loadHealth,15000);
+
+// ─── System ─────────────────────────────────────────────────
+async function loadSystem(){
+  try{
+    const r=await fetch('/api/system');
+    const d=await r.json();
+    document.getElementById('sys-data').textContent=JSON.stringify(d,null,2);
+  }catch(e){}
+}
+
+// ─── Chat ────────────────────────────────────────────────────
+async function sendChat(){
+  const inp=document.getElementById('chat-in');
+  const msg=inp.value.trim(); if(!msg) return;
+  addMsg('user','You: '+msg); inp.value='';
+  try{
+    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:msg})});
+    const d=await r.json();
+    addMsg('jarvis','JARVIS: '+(d.response||'No response'));
+  }catch(e){addMsg('err-msg','Error: could not reach JARVIS API');}
+}
+function addMsg(cls,text){
+  const box=document.getElementById('chat-box');
+  const div=document.createElement('div');
+  div.className='msg '+cls; div.textContent=text;
+  box.appendChild(div); box.scrollTop=box.scrollHeight;
+}
+
+// ─── Robot ──────────────────────────────────────────────────
+async function robotCmd(action){
+  try{
+    const r=await fetch(`/api/robot/${action}`,{method:'POST'});
+    const d=await r.json();
+    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
+  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+}
+// Servo sliders (ch 0–7)
+(function buildServos(){
+  const c=document.getElementById('servo-sliders');
+  for(let i=0;i<8;i++){
+    c.innerHTML+=`<div class="servo-row"><label>CH ${i}</label>
+      <input type="range" min="0" max="180" value="90" oninput="document.getElementById('sv${i}').textContent=this.value" onchange="setServo(${i},this.value)">
+      <span id="sv${i}">90</span>°</div>`;
+  }
+})();
+async function setServo(ch,angle){
+  await fetch('/api/robot/servo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:ch,angle:parseInt(angle)})});
+}
+
+// ─── Sensors ────────────────────────────────────────────────
+async function loadSensors(){
+  try{
+    const r=await fetch('/api/sensors/all');
+    const d=await r.json();
+    let html='<table class="sensor-table"><tr><th>Sensor</th><th>Reading</th><th>Status</th></tr>';
+    for(const[name,data] of Object.entries(d||{})){
+      const status=data.status||'OK';
+      const cls=status.includes('OK')?'ok':status.includes('WARN')?'warn':'err';
+      const vals=Object.entries(data).filter(([k])=>!['timestamp','status'].includes(k)).map(([k,v])=>`${k}: ${v}`).join(' | ');
+      html+=`<tr><td>${name}</td><td style="font-size:.8rem">${vals||'—'}</td><td><span class="status-dot ${cls}"></span>${status}</td></tr>`;
+    }
+    html+='</table>';
+    document.getElementById('sensor-content').innerHTML=html;
+  }catch(e){document.getElementById('sensor-content').textContent='Sensor data unavailable';}
+}
+
+// ─── Memory ─────────────────────────────────────────────────
+async function searchMem(){
+  const q=document.getElementById('mem-q').value.trim();
+  try{
+    const r=await fetch(`/api/memory/search?query=${encodeURIComponent(q)}`);
+    const d=await r.json();
+    const items=d.data||[];
+    if(!items.length){document.getElementById('mem-results').innerHTML='<p style="color:var(--muted)">No memories found.</p>';return;}
+    let html='<table class="sensor-table"><tr><th>ID</th><th>Category</th><th>Content</th><th>Importance</th></tr>';
+    items.forEach(m=>{html+=`<tr><td>${m.id}</td><td>${m.category}</td><td>${m.content}</td><td>${m.importance??5}</td></tr>`;});
+    html+='</table>';
+    document.getElementById('mem-results').innerHTML=html;
+  }catch(e){document.getElementById('mem-results').textContent='Error fetching memories';}
+}
+
+// ─── Logs ────────────────────────────────────────────────────
+async function loadLogs(){
+  try{
+    const r=await fetch('/api/logs');
+    const d=await r.json();
+    const lines=(d.lines||[]).join('');
+    document.getElementById('log-area').textContent=lines||'No audit log entries yet.';
+  }catch(e){document.getElementById('log-area').textContent='Log unavailable: '+e;}
+}
+
+// ─── Settings ────────────────────────────────────────────────
+async function loadSettings(){
+  try{
+    const r=await fetch('/api/status');
+    const d=await r.json();
+    document.getElementById('sim-mode').textContent=d.simulation_mode!==undefined?d.simulation_mode:'see config.yaml';
+    document.getElementById('wake-word').textContent=d.wake_word||'see config.yaml';
+  }catch(e){}
+}
+loadSettings();
+</script>
+</body>
+</html>

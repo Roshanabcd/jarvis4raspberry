@@ -1,0 +1,45 @@
+api_port: 8000
+simulation_mode: true
+hardware_mode: false
+wake_word: jarvis
+voice:
+  engine: espeak
+  rate: 150
+  volume: 0.9
+  language: en
+stt:
+  model: tiny
+  device: cpu
+audio:
+  record_duration: 5
+  sample_rate: 16000
+memory:
+  db_path: jarvis_memory.db
+  max_context: 20
+robot:
+  default_speed: 50
+  max_speed: 100
+  acceleration_ramp_ms: 500
+sensors:
+  poll_interval_secs: 5
+health:
+  cpu_warn_pct: 80
+  temp_warn_c: 75
+  disk_warn_pct: 85
+notifications:
+  proactive: true
+  interval_secs: 60
+ai:
+  ollama:
+    enabled: true
+    base_url: http://localhost:11434
+    model: llama3.2:1b
+  gemini:
+    enabled: true
+    model: gemini-2.0-flash
+  openai:
+    enabled: true
+    model: gpt-4o-mini
+  anthropic:
+    enabled: true
+    model: claude-3-haiku-20240307
