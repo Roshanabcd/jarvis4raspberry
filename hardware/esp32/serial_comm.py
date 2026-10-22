@@ -1,4 +1,3 @@
-import serial
 import threading
 import time
 import logging
@@ -14,7 +13,8 @@ class ESP32Controller:
         
         if not self.simulated:
             try:
-                self.serial = serial.Serial(port, baudrate, timeout=1)
+                import serial as _serial  # lazy import — not needed in simulation
+                self.serial = _serial.Serial(port, baudrate, timeout=1)
                 self.running = True
                 self.read_thread = threading.Thread(target=self._read_loop, daemon=True)
                 self.read_thread.start()
