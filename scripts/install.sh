@@ -7,8 +7,10 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-JARVIS_USER="${JARVIS_USER:-pi}"
-JARVIS_HOME="${JARVIS_HOME:-/home/${JARVIS_USER}/jarvis-os}"
+ACTUAL_USER="${SUDO_USER:-$(id -un)}"
+JARVIS_USER="${JARVIS_USER:-$ACTUAL_USER}"
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+JARVIS_HOME="${JARVIS_HOME:-$SCRIPT_ROOT}"
 VENV_DIR="${JARVIS_HOME}/venv"
 SERVICE_DIR="/etc/systemd/system"
 LOG_DIR="/var/log/jarvis"

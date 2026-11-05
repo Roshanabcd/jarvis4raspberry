@@ -93,6 +93,7 @@ class TB6612Controller:
         if self._emergency_stopped:
             logger.warning("Cannot move: EMERGENCY STOP active.")
             return
+        speed = max(0, min(100, int(speed)))
         logger.info(f"Moving FORWARD speed={speed}")
         self._esp32.send_command(f"ROBOT_FWD {speed}")
 
@@ -100,17 +101,22 @@ class TB6612Controller:
         if self._emergency_stopped:
             logger.warning("Cannot move: EMERGENCY STOP active.")
             return
+        speed = max(0, min(100, int(speed)))
         logger.info(f"Moving BACKWARD speed={speed}")
         self._esp32.send_command(f"ROBOT_REV {speed}")
 
     def turn_left(self, speed: int = 40) -> None:
         if self._emergency_stopped:
+            logger.warning("Cannot move: EMERGENCY STOP active.")
             return
+        speed = max(0, min(100, int(speed)))
         self._esp32.send_command(f"ROBOT_LEFT {speed}")
 
     def turn_right(self, speed: int = 40) -> None:
         if self._emergency_stopped:
+            logger.warning("Cannot move: EMERGENCY STOP active.")
             return
+        speed = max(0, min(100, int(speed)))
         self._esp32.send_command(f"ROBOT_RIGHT {speed}")
 
     def stop(self) -> None:

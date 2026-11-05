@@ -38,7 +38,7 @@ class OpenAICompatibleProvider(AIProvider):
                 openai_cfg = p
                 break
 
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "").strip()
+        self.api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY", "").strip()
         default_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.base_url = (base_url or openai_cfg.get("base_url") or default_base_url).rstrip("/")
         self.model = model or openai_cfg.get("model") or "gpt-4o"

@@ -1,23 +1,26 @@
 [Unit]
 Description=JARVIS OS Core Service — AI Operating Environment
 Documentation=https://github.com/your-user/jarvis-os
-After=network-online.target
+After=network-online.target ollama.service
 Wants=network-online.target
+Requires=ollama.service
 
 [Service]
-User=pi
-WorkingDirectory=/home/pi/jarvis-os
-ExecStart=/home/pi/jarvis-os/venv/bin/python3 -m uvicorn apps.core.main:app \
+User=roshan
+WorkingDirectory=/home/roshan/.gemini/antigravity/scratch/jarvis-os
+ExecStart=/home/roshan/miniconda3/bin/python3 -m uvicorn apps.core.main:app \
     --host 0.0.0.0 \
     --port 8000 \
     --log-level info \
     --access-log
-EnvironmentFile=/home/pi/jarvis-os/.env
-Environment=JARVIS_HOME=/home/pi/jarvis-os
+Environment=PYTHONPATH=/home/roshan/.gemini/antigravity/scratch/jarvis-os
+Environment=JARVIS_HOME=/home/roshan/.gemini/antigravity/scratch/jarvis-os
 Environment=JARVIS_SIMULATION=true
-Restart=always
+Environment=DISPLAY=:0
+EnvironmentFile=-/home/roshan/.gemini/antigravity/scratch/jarvis-os/.env
+Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=60
+StartLimitIntervalSec=120
 StartLimitBurst=5
 KillMode=mixed
 TimeoutStopSec=15
@@ -27,9 +30,7 @@ SyslogIdentifier=jarvis-core
 
 # Security hardening
 NoNewPrivileges=yes
-ProtectSystem=strict
-ReadWritePaths=/home/pi/jarvis-os /var/log/jarvis /tmp
-PrivateTmp=true
+PrivateTmp=false
 
 [Install]
 WantedBy=multi-user.target

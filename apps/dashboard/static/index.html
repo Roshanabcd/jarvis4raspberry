@@ -98,8 +98,23 @@
 <!-- ROBOT -->
 <div id="tab-robot" class="tab">
   <div style="display:flex;gap:20px;flex-wrap:wrap">
-    <div class="panel" style="flex:0 0 auto">
-      <h2>Motor Control</h2>
+    <div class="panel" style="flex:0 0 auto;min-width:320px">
+      <h2>Actuator Safety & Control</h2>
+      <div style="margin-bottom:12px;padding:10px;background:#070714;border-radius:6px;border:1px solid #1e2050">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:.85rem;color:var(--muted)">Actuator State:</span>
+          <span id="actuator-gate-state" style="font-weight:700;color:var(--warn)">DISARMED</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn ok" style="flex:1" onclick="armRobot()">⚡ Arm</button>
+          <button class="btn dark" style="flex:1" onclick="disarmRobot()">🔒 Disarm</button>
+          <button class="btn warn" style="flex:1" onclick="clearEstop()">↺ Clear E-Stop</button>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="font-size:.85rem;color:var(--muted)">Motor Speed: <span id="motor-speed-val">50</span>%</label>
+        <input type="range" id="motor-speed-slider" min="10" max="100" value="50" oninput="document.getElementById('motor-speed-val').textContent=this.value">
+      </div>
       <div class="robot-grid">
         <div></div>
         <button class="btn" onclick="robotCmd('forward')">▲ FWD</button>
@@ -182,6 +197,7 @@ function show(name){
   if(name==='sensors') loadSensors();
   if(name==='logs') loadLogs();
   if(name==='memory') searchMem();
+  if(name==='robot') updateRobotGateStatus();
 }
 
 // ─── WebSocket live telemetry ────────────────────────────────
@@ -249,13 +265,69 @@ function addMsg(cls,text){
 }
 
 // ─── Robot ──────────────────────────────────────────────────
-async function robotCmd(action){
+async function updateRobotGateStatus(){
   try{
-    const r=await fetch(`/api/robot/${action}`,{method:'POST'});
+    const r=await fetch('/api/robot/state');
+    const d=await r.json();
+    const lbl=document.getElementById('actuator-gate-state');
+    if(d.emergency_stopped){
+      lbl.textContent='EMERGENCY STOP (LATCHED)';
+      lbl.style.color='var(--err)';
+    }else if(d.armed){
+      lbl.textContent='ARMED (ACTIVE)';
+      lbl.style.color='var(--green)';
+    }else{
+      lbl.textContent='DISARMED (SAFE)';
+      lbl.style.color='var(--warn)';
+    }
+  }catch(e){}
+}
+
+async function armRobot(){
+  try{
+    const r=await fetch('/api/robot/arm',{method:'POST'});
     const d=await r.json();
     document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
   }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+  updateRobotGateStatus();
 }
+
+async function disarmRobot(){
+  try{
+    const r=await fetch('/api/robot/disarm',{method:'POST'});
+    const d=await r.json();
+    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
+  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+  updateRobotGateStatus();
+}
+
+async function clearEstop(){
+  try{
+    const r=await fetch('/api/robot/clear_estop',{method:'POST'});
+    const d=await r.json();
+    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
+  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+  updateRobotGateStatus();
+}
+
+async function robotCmd(action){
+  const spd=document.getElementById('motor-speed-slider')?document.getElementById('motor-speed-slider').value:50;
+  let url=`/api/robot/${action}`;
+  if(['forward','backward','left','right'].includes(action)){
+    url+=`?speed=${spd}`;
+  }
+  try{
+    const r=await fetch(url,{method:'POST'});
+    const d=await r.json();
+    if(!r.ok){
+      document.getElementById('robot-status').textContent='⚠️ '+(d.detail||JSON.stringify(d));
+    }else{
+      document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
+    }
+  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+  updateRobotGateStatus();
+}
+updateRobotGateStatus(); setInterval(updateRobotGateStatus, 3000);
 // Servo sliders (ch 0–7)
 (function buildServos(){
   const c=document.getElementById('servo-sliders');

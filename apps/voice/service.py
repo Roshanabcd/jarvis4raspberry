@@ -174,9 +174,16 @@ class VoiceService:
 
         self.conversation.add_turn(role="assistant", text=response)
         try:
-            self.tts.speak_sync(response)
+            from apps.voice.gradio_tts import gradio_cloner
+            res = gradio_cloner.synthesize(response)
+            if res.audio_path:
+                gradio_cloner.play(res)
         except Exception as exc:
-            logger.error("TTS error: %s", exc)
+            logger.error("Voice output error: %s; falling back to direct TTS", exc)
+            try:
+                self.tts.speak_sync(response)
+            except Exception as e2:
+                logger.error("TTS direct speak error: %s", e2)
         return response
 
 

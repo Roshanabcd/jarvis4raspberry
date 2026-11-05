@@ -87,18 +87,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         from tools.robotics.controller import robot
         robot.emergency_stop()
         robot.stop()
-    except Exception:
-        pass
-    try:
-        from apps.vision.service import VisionService
-        vs = VisionService(simulation=True)
-        vs.shutdown()
+        robot.disarm()
     except Exception:
         pass
     try:
         from hardware.servos.controller import ServoController
         sc = ServoController()
-        sc.home_all()
+        for ch in range(8):
+            sc.stop(ch)
     except Exception:
         pass
     logger.info("JARVIS OS — Shutdown complete.")

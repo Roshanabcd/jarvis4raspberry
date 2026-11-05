@@ -9,4 +9,10 @@ done
 SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
 
 export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
-exec /home/roshan/miniconda3/bin/python3 "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+if [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
+  exec "$SCRIPT_DIR/venv/bin/python3" "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+elif [ -f "/home/roshan/miniconda3/bin/python3" ]; then
+  exec /home/roshan/miniconda3/bin/python3 "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+else
+  exec python3 "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+fi

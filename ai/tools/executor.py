@@ -35,22 +35,33 @@ class ToolExecutor:
                          duration_ms: int = 0) -> Dict:
         try:
             from tools.robotics.controller import robot
+            # Clamp duration to safe range: max 10,000ms (10 seconds)
+            safe_duration_ms = max(0, min(10000, int(duration_ms)))
+            safe_speed = max(0, min(100, int(speed)))
+
             actions = {
-                "forward":  lambda: robot.forward(speed),
-                "backward": lambda: robot.backward(speed),
-                "left":     lambda: robot.turn_left(speed),
-                "right":    lambda: robot.turn_right(speed),
+                "forward":  lambda: robot.forward(safe_speed),
+                "backward": lambda: robot.backward(safe_speed),
+                "left":     lambda: robot.turn_left(safe_speed),
+                "right":    lambda: robot.turn_right(safe_speed),
                 "stop":     robot.stop,
                 "estop":    robot.emergency_stop,
             }
             fn = actions.get(direction.lower())
             if fn:
                 fn()
-                if duration_ms > 0:
-                    time.sleep(duration_ms / 1000)
+                if safe_duration_ms > 0:
+                    time.sleep(safe_duration_ms / 1000)
                     robot.stop()
-                return {"status": "ok", "direction": direction, "speed": speed,
-                        "duration_ms": duration_ms, "simulated": getattr(robot, "simulated", True)}
+                return {
+                    "status": "ok",
+                    "direction": direction,
+                    "speed": safe_speed,
+                    "duration_ms": safe_duration_ms,
+                    "state": getattr(robot, "state", "UNKNOWN"),
+                    "armed": getattr(robot, "armed", False),
+                    "simulated": getattr(robot, "simulated", True),
+                }
             return {"error": f"Unknown direction: {direction}"}
         except Exception as e:
             return {"error": str(e)}
@@ -251,6 +262,8 @@ class ToolExecutor:
         import subprocess
         import tempfile
 
+        created_temp = False
+        target_file = None
         if file_path:
             target_file = file_path
         elif code:
@@ -260,6 +273,7 @@ class ToolExecutor:
             tmp.flush()
             tmp.close()
             target_file = tmp.name
+            created_temp = True
         else:
             return {"error": "No code or file_path provided", "status": "failed"}
 
@@ -277,4 +291,10 @@ class ToolExecutor:
             return {"status": "timeout", "error": "Execution timed out (15s limit)"}
         except Exception as e:
             return {"status": "error", "error": str(e)}
+        finally:
+            if created_temp and target_file and os.path.exists(target_file):
+                try:
+                    os.remove(target_file)
+                except OSError:
+                    pass
 

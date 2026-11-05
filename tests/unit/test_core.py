@@ -132,7 +132,8 @@ class TestRobotStateMachine:
 # ─────────────────────────────────────────────────────────────
 class TestAPI:
     @pytest.fixture(scope="class")
-    def client(self):
+    @classmethod
+    def client(cls):
         from fastapi.testclient import TestClient
         from apps.core.main import app
         return TestClient(app)
@@ -156,10 +157,20 @@ class TestAPI:
         resp = client.post("/api/robot/estop")
         assert resp.status_code == 200
         assert resp.json()["status"] in ("emergency_stop_activated", "emergency_stop")
+        # Verify forward is blocked while estop is active
+        fwd_resp = client.post("/api/robot/forward?speed=50")
+        assert fwd_resp.status_code == 400
 
     def test_robot_forward(self, client):
+        # Clear estop and arm robot
+        client.post("/api/robot/clear_estop")
+        arm_resp = client.post("/api/robot/arm")
+        assert arm_resp.status_code == 200
+        assert arm_resp.json()["armed"] is True
+
         resp = client.post("/api/robot/forward?speed=50")
         assert resp.status_code == 200
+        assert resp.json()["status"] == "moving"
 
     def test_memory_store_and_search(self, client):
         resp = client.post("/api/memory/store",

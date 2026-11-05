@@ -20,7 +20,17 @@ class MemoryDB:
     Never stores: API keys, passwords, tokens, private secrets.
     """
 
-    VALID_CATEGORIES = {"USER", "PROJECT", "ROBOT", "SYSTEM", "CONVERSATION", "TASK", "KNOWLEDGE"}
+    VALID_CATEGORIES = {
+        "USER",
+        "PROJECT",
+        "ROBOT",
+        "SYSTEM",
+        "CONVERSATION",
+        "TASK",
+        "KNOWLEDGE",
+        "PREFERENCE",
+        "EVENT",
+    }
 
     def __init__(self, db_path: str = "jarvis_memory.db") -> None:
         self.db_path = db_path
@@ -183,6 +193,10 @@ class MemoryDB:
         return [dict(r) for r in rows]
 
 
-# Module-level singleton
-_db_path = os.environ.get("JARVIS_DB_PATH", "jarvis_memory.db")
+# Module-level singleton — use absolute path so JARVIS works from any CWD
+_default_db_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "..", "jarvis_memory.db"
+)
+_default_db_path = os.path.normpath(_default_db_path)
+_db_path = os.environ.get("JARVIS_DB_PATH", _default_db_path)
 db = MemoryDB(db_path=_db_path)

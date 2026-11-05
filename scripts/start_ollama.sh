@@ -8,11 +8,12 @@ set -euo pipefail
 OLLAMA_BIN="${HOME}/.local/bin/ollama"
 OLLAMA_MODEL="${1:-llama3.2:1b}"
 OLLAMA_HOST="127.0.0.1:11434"
+OLLAMA_URL="http://${OLLAMA_HOST}"
 LOG="/tmp/ollama_jarvis.log"
 
 export PATH="${HOME}/.local/bin:${PATH}"
 export LD_LIBRARY_PATH="${HOME}/.local/lib/ollama:${LD_LIBRARY_PATH:-}"
-export OLLAMA_HOST="http://${OLLAMA_HOST}"
+export OLLAMA_HOST="${OLLAMA_HOST}"
 export OLLAMA_MODELS="${HOME}/.ollama/models"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -24,13 +25,13 @@ if [ ! -f "$OLLAMA_BIN" ]; then
 fi
 
 # Check if already running
-if curl -sf "http://${OLLAMA_HOST}/" > /dev/null 2>&1; then
+if curl -sf "${OLLAMA_URL}/" > /dev/null 2>&1 || curl -sf "${OLLAMA_URL}/api/tags" > /dev/null 2>&1; then
   echo -e "${GREEN}Ollama already running${NC}"
 else
   echo "Starting Ollama..."
   nohup "$OLLAMA_BIN" serve > "$LOG" 2>&1 &
   sleep 5
-  if curl -sf "http://${OLLAMA_HOST}/" > /dev/null 2>&1; then
+  if curl -sf "${OLLAMA_URL}/" > /dev/null 2>&1 || curl -sf "${OLLAMA_URL}/api/tags" > /dev/null 2>&1; then
     echo -e "${GREEN}Ollama started successfully${NC}"
   else
     echo "Failed to start Ollama. See $LOG"
@@ -39,7 +40,7 @@ else
 fi
 
 # Check model
-MODELS=$(curl -s "http://${OLLAMA_HOST}/api/tags" | python3 -c "
+MODELS=$(curl -s "${OLLAMA_URL}/api/tags" | python3 -c "
 import sys, json
 d = json.load(sys.stdin)
 print(' '.join(m['name'] for m in d.get('models', [])))
@@ -49,7 +50,7 @@ if echo "$MODELS" | grep -q "${OLLAMA_MODEL}"; then
   echo -e "${GREEN}Model ${OLLAMA_MODEL} ready${NC}"
 else
   echo "Pulling model ${OLLAMA_MODEL}..."
-  curl -s "http://${OLLAMA_HOST}/api/pull" \
+  curl -s "${OLLAMA_URL}/api/pull" \
     -d "{\"model\":\"${OLLAMA_MODEL}\",\"stream\":false}" \
     --max-time 600 | python3 -c "
 import sys, json

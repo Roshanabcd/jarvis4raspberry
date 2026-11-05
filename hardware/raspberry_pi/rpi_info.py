@@ -40,6 +40,11 @@ def get_system_status() -> Dict[str, Any]:
     net  = psutil.net_io_counters()
     temp = get_cpu_temp()
 
+    ram_total = mem.total // (1024 * 1024)
+    ram_used = mem.used // (1024 * 1024)
+    disk_total = round(disk.total / (1024**3), 1)
+    disk_used = round(disk.used / (1024**3), 1)
+
     return {
         "os": platform.system(),
         "os_version": platform.version(),
@@ -50,15 +55,20 @@ def get_system_status() -> Dict[str, Any]:
         "cpu_freq_mhz": psutil.cpu_freq().current if psutil.cpu_freq() else None,
         "cpu_cores": psutil.cpu_count(logical=False),
         "temp_c": temp,
-        "ram_total_mb": mem.total // (1024 * 1024),
-        "ram_used_mb": mem.used  // (1024 * 1024),
+        "cpu_temp_c": temp if temp is not None else 0.0,
+        "ram_total_mb": ram_total,
+        "ram_used_mb": ram_used,
+        "memory_total_mb": ram_total,
+        "memory_used_mb": ram_used,
         "ram_pct": mem.percent,
+        "memory_pct": mem.percent,
         "swap_total_mb": psutil.swap_memory().total // (1024 * 1024),
-        "disk_total_gb": round(disk.total / (1024**3), 1),
-        "disk_used_gb":  round(disk.used  / (1024**3), 1),
+        "disk_total_gb": disk_total,
+        "disk_used_gb": disk_used,
         "disk_pct": disk.percent,
-        "net_sent_mb": round(net.bytes_sent  / (1024 * 1024), 1),
-        "net_recv_mb": round(net.bytes_recv  / (1024 * 1024), 1),
+        "disk_used_percent": disk.percent,
+        "net_sent_mb": round(net.bytes_sent / (1024 * 1024), 1),
+        "net_recv_mb": round(net.bytes_recv / (1024 * 1024), 1),
         "timestamp": time.time(),
     }
 

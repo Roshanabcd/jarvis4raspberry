@@ -45,33 +45,69 @@ class SensorManager:
         self._initialize_sensors()
 
     def _initialize_sensors(self) -> None:
-        """Instantiate and register all supported sensors."""
+        """Instantiate and register all supported sensors with hardware configuration."""
         self.logger.info(
             f"Initializing sensor suite (simulation_mode={self.simulation_mode})..."
         )
+        hw_cfg = config.get("hardware", {}).get("sensors", {}) if hasattr(config, "get") else {}
+        if not hw_cfg:
+            # Fallback check under 'sensors' root
+            hw_cfg = config.get("sensors", {}) if hasattr(config, "get") else {}
 
+        # 1. BME280 Environmental Sensor
         try:
-            self.sensors["bme280"] = BME280Sensor(simulation_mode=self.simulation_mode)
+            bme_cfg = hw_cfg.get("bme280", {}) if isinstance(hw_cfg, dict) else {}
+            i2c_bus = int(bme_cfg.get("i2c_bus", 1))
+            addr = bme_cfg.get("address")
+            addr_int = int(addr, 16) if isinstance(addr, str) and addr.startswith("0x") else addr
+            self.sensors["bme280"] = BME280Sensor(
+                i2c_bus=i2c_bus, address=addr_int, simulation_mode=self.simulation_mode
+            )
         except Exception as e:
             self.logger.error(f"Failed to instantiate BME280Sensor: {e}")
 
+        # 2. BH1750 Ambient Light Sensor
         try:
-            self.sensors["bh1750"] = BH1750Sensor(simulation_mode=self.simulation_mode)
+            bh_cfg = hw_cfg.get("bh1750", {}) if isinstance(hw_cfg, dict) else {}
+            i2c_bus = int(bh_cfg.get("i2c_bus", 1))
+            addr = bh_cfg.get("address")
+            addr_int = int(addr, 16) if isinstance(addr, str) and addr.startswith("0x") else (addr or 0x23)
+            self.sensors["bh1750"] = BH1750Sensor(
+                i2c_bus=i2c_bus, address=addr_int, simulation_mode=self.simulation_mode
+            )
         except Exception as e:
             self.logger.error(f"Failed to instantiate BH1750Sensor: {e}")
 
+        # 3. VL53L0X Time-of-Flight Distance Sensor
         try:
-            self.sensors["vl53l0x"] = VL53L0XSensor(simulation_mode=self.simulation_mode)
+            vl_cfg = hw_cfg.get("vl53l0x", {}) if isinstance(hw_cfg, dict) else {}
+            i2c_bus = int(vl_cfg.get("i2c_bus", 1))
+            addr = vl_cfg.get("address")
+            addr_int = int(addr, 16) if isinstance(addr, str) and addr.startswith("0x") else (addr or 0x29)
+            self.sensors["vl53l0x"] = VL53L0XSensor(
+                i2c_bus=i2c_bus, address=addr_int, simulation_mode=self.simulation_mode
+            )
         except Exception as e:
             self.logger.error(f"Failed to instantiate VL53L0XSensor: {e}")
 
+        # 4. HC-SR501 PIR Motion Sensor
         try:
-            self.sensors["hcsr501"] = PIRSensor(simulation_mode=self.simulation_mode)
+            pir_cfg = hw_cfg.get("hcsr501", {}) if isinstance(hw_cfg, dict) else {}
+            pin = int(pir_cfg.get("pin", 4))
+            self.sensors["hcsr501"] = PIRSensor(
+                pin=pin, simulation_mode=self.simulation_mode
+            )
         except Exception as e:
             self.logger.error(f"Failed to instantiate PIRSensor: {e}")
 
+        # 5. HC-SR04 Ultrasonic Distance Sensor
         try:
-            self.sensors["hcsr04"] = UltrasonicSensor(simulation_mode=self.simulation_mode)
+            us_cfg = hw_cfg.get("hcsr04", {}) if isinstance(hw_cfg, dict) else {}
+            trig = int(us_cfg.get("trig_pin", 23))
+            echo = int(us_cfg.get("echo_pin", 24))
+            self.sensors["hcsr04"] = UltrasonicSensor(
+                trig_pin=trig, echo_pin=echo, simulation_mode=self.simulation_mode
+            )
         except Exception as e:
             self.logger.error(f"Failed to instantiate UltrasonicSensor: {e}")
 
