@@ -116,3 +116,61 @@ class TestGradioVoiceCloner:
             readme_content = f.read()
         assert "sdk: gradio" in readme_content
         assert "title:" in readme_content
+
+    def test_cloner_reference_voice_configuration(self, tmp_path):
+        """Verify cloner accepts HF space URL and reference voice sample path."""
+        ref_sample = tmp_path / "myvoice.wav"
+        with wave.open(str(ref_sample), "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(24000)
+            wf.writeframes(b"\x00\x00" * 2400)
+
+        cloner = GradioVoiceCloner(
+            gradio_url="https://roshan-omnivoice-jarvis.hf.space",
+            reference_voice_path=str(ref_sample),
+            cache_dir=str(tmp_path / "cache")
+        )
+
+        status = cloner.get_provider_status()
+        assert status["has_reference_audio"] is True
+        assert status["reference_audio_path"] == str(ref_sample)
+        assert status["url"] == "https://roshan-omnivoice-jarvis.hf.space"
+        assert cloner.is_hf_space is True
+
+    def test_synthesize_with_mocked_clone_voice_endpoint(self, tmp_path, monkeypatch):
+        """Verify synthesis succeeds and caches audio when remote /clone_voice endpoint responds."""
+        ref_sample = tmp_path / "ref.wav"
+        with wave.open(str(ref_sample), "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(24000)
+            wf.writeframes(b"\x00\x00" * 2400)
+
+        mock_out_wav = tmp_path / "mock_generated.wav"
+        with wave.open(str(mock_out_wav), "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(24000)
+            wf.writeframes(b"\x00\x00" * 4800)
+
+        cloner = GradioVoiceCloner(
+            gradio_url="https://roshan-omnivoice-jarvis.hf.space",
+            reference_voice_path=str(ref_sample),
+            cache_dir=str(tmp_path / "cache")
+        )
+
+        class MockGradioClient:
+            def predict(self, *args, **kwargs):
+                return (str(mock_out_wav), "Synthesized 2.0s audio")
+
+        cloner._client = MockGradioClient()
+        cloner._api_info = {"named_endpoints": {"/clone_voice": {"parameters": []}}}
+        cloner._online = True
+        cloner._last_probe = 9999999999.0
+
+        res = cloner.synthesize("Hello JARVIS online test")
+        assert res.success is True
+        assert res.provider == "gradio_voice_clone"
+        assert res.cached is False
+        assert os.path.exists(res.audio_path)

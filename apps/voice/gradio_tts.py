@@ -69,6 +69,20 @@ class GradioVoiceCloner:
             or os.environ.get("GRADIO_VOICE_SAMPLE")
             or v_cfg.get("reference_audio_path")
         )
+        if not self.reference_voice_path:
+            # Check default standard sample location in jarvis-os
+            default_sample = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                "data", "voice_samples", "myvoice.wav"
+            )
+            if os.path.exists(default_sample):
+                self.reference_voice_path = default_sample
+
+        self.is_hf_space = bool(
+            "hf.space" in self.gradio_url
+            or "huggingface.co/spaces" in self.gradio_url
+            or ("/" in self.gradio_url and not self.gradio_url.startswith("http"))
+        )
 
         self.cache_dir = cache_dir or os.path.join(
             os.path.expanduser("~"), ".cache", "jarvis_voice_cache"
@@ -134,8 +148,10 @@ class GradioVoiceCloner:
         return {
             "name": "gradio_voice_clone",
             "url": self.gradio_url,
+            "is_hf_space": self.is_hf_space,
             "online": is_online,
             "has_reference_audio": bool(self.reference_voice_path and os.path.exists(self.reference_voice_path)),
+            "reference_audio_path": self.reference_voice_path,
             "api_endpoints": list(self._api_info.get("named_endpoints", {}).keys()) if self._api_info else [],
             "fallback_backend": self.fallback_tts.backend,
             "cache_entries": len(os.listdir(self.cache_dir)) if os.path.exists(self.cache_dir) else 0,
@@ -199,30 +215,41 @@ class GradioVoiceCloner:
         if self._probe_gradio_client():
             try:
                 result_audio_path = None
+                from gradio_client import handle_file
+                ref_handle = handle_file(self.reference_voice_path) if (self.reference_voice_path and os.path.exists(self.reference_voice_path)) else None
+
                 # Check endpoints discovered from view_api
                 named = self._api_info.get("named_endpoints", {}) if self._api_info else {}
-                if "/predict" in named:
-                    # Dynamically inspect parameter requirements
-                    ep = named["/predict"]
+                if "/clone_voice" in named or "clone_voice" in named:
+                    ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
+                    job = self._client.predict(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name)
+                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                elif "/generate" in named or "generate" in named:
+                    ep_name = "/generate" if "/generate" in named else "generate"
+                    job = self._client.predict(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name)
+                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                elif "/predict" in named or "predict" in named:
+                    ep_name = "/predict" if "/predict" in named else "predict"
+                    ep = named[ep_name]
                     params = ep.get("parameters", [])
                     args = []
                     for param in params:
                         label = (param.get("label") or param.get("name") or "").lower()
-                        if "audio" in label or "voice" in label:
-                            from gradio_client import handle_file
-                            ref_path = self.reference_voice_path or cache_path
-                            args.append(handle_file(ref_path) if os.path.exists(ref_path) else None)
+                        if "audio" in label or "voice" in label or "ref" in label:
+                            args.append(ref_handle)
                         elif "text" in label or "prompt" in label:
                             args.append(clean_text)
+                        elif "mode" in label:
+                            args.append("Voice Cloning")
                         else:
                             args.append(param.get("default", None))
                     
-                    job = self._client.predict(*args, api_name="/predict")
-                    result_audio_path = job
+                    job = self._client.predict(*args, api_name=ep_name)
+                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
                 else:
                     # Default prediction if endpoint schema is generic
                     job = self._client.predict(clean_text)
-                    result_audio_path = job
+                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
 
                 if result_audio_path and self._validate_audio_file(result_audio_path):
                     shutil.copy2(result_audio_path, cache_path)
