@@ -4,18 +4,18 @@ Production Hugging Face Space application with ZeroGPU acceleration.
 Exposes both an interactive Gradio web UI and a dedicated `/clone_voice` API endpoint.
 """
 
-import os
-import tempfile
-import torch
-import torchaudio
-import gradio as gr
-
-# Support Hugging Face Spaces ZeroGPU if available
+# IMPORTANT: ZeroGPU requires 'import spaces' BEFORE importing torch/torchaudio
 try:
     import spaces
     gpu_decorator = spaces.GPU
 except ImportError:
     gpu_decorator = lambda fn: fn
+
+import os
+import tempfile
+import torch
+import torchaudio
+import gradio as gr
 
 from omnivoice import OmniVoice
 
@@ -72,6 +72,7 @@ def synthesize_core(text, ref_audio=None, ref_text="", instruct="", num_steps=32
 
     audio = model.generate(**kwargs)
     tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    tmp.close()
     audio_tensor = audio[0] if isinstance(audio[0], torch.Tensor) else torch.tensor(audio[0])
     if audio_tensor.dim() == 1:
         audio_tensor = audio_tensor.unsqueeze(0)
@@ -80,7 +81,6 @@ def synthesize_core(text, ref_audio=None, ref_text="", instruct="", num_steps=32
     return tmp.name, f"Synthesized {duration:.2f}s audio"
 
 
-@gpu_decorator
 def clone_voice_api(text: str, ref_audio, ref_text: str = "", num_steps: int = 32, speed: float = 1.0):
     """
     Dedicated programmatic endpoint for JARVIS OS.

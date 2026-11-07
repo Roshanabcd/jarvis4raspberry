@@ -17,6 +17,7 @@ import hashlib
 import logging
 import threading
 import subprocess
+import re
 import shutil
 from dataclasses import dataclass
 from typing import Optional, Dict, Any
@@ -25,6 +26,27 @@ from config.config_manager import config
 from apps.voice.tts import TextToSpeech
 
 logger = logging.getLogger("JARVIS.Voice.GradioTTS")
+
+
+def sanitize_speech_text(text: str) -> str:
+    """
+    Sanitize text for speech synthesis:
+    - Removes markdown syntax (bold, italic, inline code, headers)
+    - Removes non-verbal bracketed tags (e.g. [laughter], [sigh], [question-en])
+    - Collapses multiple whitespace
+    """
+    if not text:
+        return ""
+    # Remove bracketed non-verbal tags like [laughter], [sigh]
+    cleaned = re.sub(r'\[[a-zA-Z0-9_\-]+\]', '', text)
+    # Remove markdown headers (# Title)
+    cleaned = re.sub(r'#+\s*', '', cleaned)
+    # Remove markdown bold/italic/code: **bold**, *italic*, `code`
+    cleaned = re.sub(r'[*_`]', '', cleaned)
+    # Collapse whitespace before punctuation and normalize spaces
+    cleaned = re.sub(r'\s+([.,!?;:])', r'\1', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+    return cleaned.strip()
 
 
 @dataclass
@@ -56,8 +78,14 @@ class GradioVoiceCloner:
         reference_voice_path: Optional[str] = None,
         cache_dir: Optional[str] = None,
         fallback_tts: Optional[TextToSpeech] = None,
+        cloning_enabled: Optional[bool] = None,
     ):
         v_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+        self.cloning_enabled = (
+            cloning_enabled
+            if cloning_enabled is not None
+            else v_cfg.get("cloning_enabled", True)
+        )
         self.gradio_url = (
             gradio_url
             or os.environ.get("GRADIO_VOICE_URL")
@@ -77,6 +105,9 @@ class GradioVoiceCloner:
             )
             if os.path.exists(default_sample):
                 self.reference_voice_path = default_sample
+        elif not os.path.isabs(self.reference_voice_path):
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            self.reference_voice_path = os.path.join(project_root, self.reference_voice_path)
 
         self.is_hf_space = bool(
             "hf.space" in self.gradio_url
@@ -144,10 +175,11 @@ class GradioVoiceCloner:
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Return provider connectivity and configuration status."""
-        is_online = self._probe_gradio_client(force=False)
+        is_online = self._probe_gradio_client(force=False) if self.cloning_enabled else False
         return {
             "name": "gradio_voice_clone",
             "url": self.gradio_url,
+            "cloning_enabled": self.cloning_enabled,
             "is_hf_space": self.is_hf_space,
             "online": is_online,
             "has_reference_audio": bool(self.reference_voice_path and os.path.exists(self.reference_voice_path)),
@@ -195,7 +227,14 @@ class GradioVoiceCloner:
                 error="Empty text"
             )
 
-        clean_text = text.strip()
+        clean_text = sanitize_speech_text(text)
+        if not clean_text:
+            return AudioResult(
+                audio_path=None, format="none", duration_s=0.0,
+                cached=False, provider="none", text="", success=False,
+                error="Empty text after sanitization"
+            )
+
         cache_path = self._get_cache_path(clean_text)
 
         # 1. Cache hit check
@@ -211,62 +250,79 @@ class GradioVoiceCloner:
                 success=True,
             )
 
-        # 2. Try Gradio remote synthesis if online
-        if self._probe_gradio_client():
-            try:
-                result_audio_path = None
-                from gradio_client import handle_file
-                ref_handle = handle_file(self.reference_voice_path) if (self.reference_voice_path and os.path.exists(self.reference_voice_path)) else None
-
-                # Check endpoints discovered from view_api
-                named = self._api_info.get("named_endpoints", {}) if self._api_info else {}
-                if "/clone_voice" in named or "clone_voice" in named:
-                    ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
-                    job = self._client.predict(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name)
-                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
-                elif "/generate" in named or "generate" in named:
-                    ep_name = "/generate" if "/generate" in named else "generate"
-                    job = self._client.predict(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name)
-                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
-                elif "/predict" in named or "predict" in named:
-                    ep_name = "/predict" if "/predict" in named else "predict"
-                    ep = named[ep_name]
-                    params = ep.get("parameters", [])
-                    args = []
-                    for param in params:
-                        label = (param.get("label") or param.get("name") or "").lower()
-                        if "audio" in label or "voice" in label or "ref" in label:
-                            args.append(ref_handle)
-                        elif "text" in label or "prompt" in label:
-                            args.append(clean_text)
-                        elif "mode" in label:
-                            args.append("Voice Cloning")
-                        else:
-                            args.append(param.get("default", None))
-                    
-                    job = self._client.predict(*args, api_name=ep_name)
-                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
-                else:
-                    # Default prediction if endpoint schema is generic
-                    job = self._client.predict(clean_text)
-                    result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
-
-                if result_audio_path and self._validate_audio_file(result_audio_path):
-                    shutil.copy2(result_audio_path, cache_path)
-                    return AudioResult(
-                        audio_path=cache_path,
-                        format="wav",
-                        duration_s=0.0,
-                        cached=False,
-                        provider="gradio_voice_clone",
-                        text=clean_text,
-                        success=True,
-                    )
-            except Exception as exc:
+        # 2. Try Gradio remote synthesis if enabled and reference sample exists
+        if self.cloning_enabled:
+            if not self.reference_voice_path or not os.path.exists(self.reference_voice_path):
                 logger.warning(
-                    "Gradio voice synthesis failed: %s. Falling back to local TTS.",
-                    exc
+                    "Reference voice sample '%s' not found. Falling back to local TTS.",
+                    self.reference_voice_path
                 )
+            elif self._probe_gradio_client():
+                try:
+                    result_audio_path = None
+                    from gradio_client import handle_file
+                    ref_handle = handle_file(self.reference_voice_path)
+
+                    # Check endpoints discovered from view_api
+                    named = self._api_info.get("named_endpoints", {}) if self._api_info else {}
+                    if "/clone_voice" in named or "clone_voice" in named:
+                        ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
+                        # Use submit().result(timeout=10.0) or predict
+                        try:
+                            job = self._client.submit(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name).result(timeout=10.0)
+                        except AttributeError:
+                            job = self._client.predict(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name)
+                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                    elif "/generate" in named or "generate" in named:
+                        ep_name = "/generate" if "/generate" in named else "generate"
+                        try:
+                            job = self._client.submit(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name).result(timeout=10.0)
+                        except AttributeError:
+                            job = self._client.predict(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name)
+                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                    elif "/predict" in named or "predict" in named:
+                        ep_name = "/predict" if "/predict" in named else "predict"
+                        ep = named[ep_name]
+                        params = ep.get("parameters", [])
+                        args = []
+                        for param in params:
+                            label = (param.get("label") or param.get("name") or "").lower()
+                            if "audio" in label or "voice" in label or "ref" in label:
+                                args.append(ref_handle)
+                            elif "text" in label or "prompt" in label:
+                                args.append(clean_text)
+                            elif "mode" in label:
+                                args.append("Voice Cloning")
+                            else:
+                                args.append(param.get("default", None))
+                        try:
+                            job = self._client.submit(*args, api_name=ep_name).result(timeout=10.0)
+                        except AttributeError:
+                            job = self._client.predict(*args, api_name=ep_name)
+                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                    else:
+                        try:
+                            job = self._client.submit(clean_text).result(timeout=10.0)
+                        except AttributeError:
+                            job = self._client.predict(clean_text)
+                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+
+                    if result_audio_path and self._validate_audio_file(result_audio_path):
+                        shutil.copy2(result_audio_path, cache_path)
+                        return AudioResult(
+                            audio_path=cache_path,
+                            format="wav",
+                            duration_s=0.0,
+                            cached=False,
+                            provider="gradio_voice_clone",
+                            text=clean_text,
+                            success=True,
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "Gradio voice synthesis failed: %s. Falling back to local TTS.",
+                        exc
+                    )
 
         # 3. Fallback: Local TTS synthesis
         logger.info("[Gradio Offline/Fallback] Synthesizing via fallback TTS: '%s'", clean_text[:50])

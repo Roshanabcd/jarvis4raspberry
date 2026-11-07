@@ -174,3 +174,49 @@ class TestGradioVoiceCloner:
         assert res.provider == "gradio_voice_clone"
         assert res.cached is False
         assert os.path.exists(res.audio_path)
+
+    def test_missing_reference_voice_fallback(self, tmp_path):
+        """When reference audio is missing, cloner must fall back to local TTS."""
+        cloner = GradioVoiceCloner(
+            gradio_url="https://roshan-omnivoice-jarvis.hf.space",
+            reference_voice_path=str(tmp_path / "non_existent.wav"),
+            cache_dir=str(tmp_path / "cache")
+        )
+        cloner._online = True
+        cloner._last_probe = 9999999999.0
+        res = cloner.synthesize("Testing missing reference audio")
+        assert res.success is True
+        assert res.provider == "fallback_local_tts"
+
+    def test_cloning_disabled_toggle(self, tmp_path):
+        """When cloning_enabled is False, cloner must bypass remote Gradio."""
+        cloner = GradioVoiceCloner(
+            gradio_url="https://roshan-omnivoice-jarvis.hf.space",
+            cache_dir=str(tmp_path / "cache"),
+            cloning_enabled=False
+        )
+        cloner._online = True
+        cloner._last_probe = 9999999999.0
+        res = cloner.synthesize("Testing disabled cloning toggle")
+        assert res.success is True
+        assert res.provider == "fallback_local_tts"
+
+    def test_sanitize_text_for_speech(self):
+        """Verify markdown and non-verbal tags are sanitized before speech synthesis."""
+        from apps.voice.gradio_tts import sanitize_speech_text
+        raw = "Hello **world**! [laughter] Here is `git status` with *emphasis* and [sigh]."
+        clean = sanitize_speech_text(raw)
+        assert clean == "Hello world! Here is git status with emphasis and."
+
+    def test_hf_space_app_import_order(self):
+        """Verify hf_spaces/omnivoice/app.py imports spaces before torch for ZeroGPU compliance."""
+        app_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "hf_spaces", "omnivoice", "app.py"
+        )
+        with open(app_path, "r") as f:
+            code = f.read()
+        spaces_idx = code.find("import spaces")
+        torch_idx = code.find("import torch")
+        assert spaces_idx != -1 and torch_idx != -1
+        assert spaces_idx < torch_idx, "'import spaces' must appear before 'import torch' in app.py"
