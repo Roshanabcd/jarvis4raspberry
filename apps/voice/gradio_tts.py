@@ -152,15 +152,18 @@ class GradioVoiceCloner:
         try:
             with open(file_path, "rb") as f:
                 header = f.read(12)
-            # Check for WAV (RIFF....WAVE) or MP3 (ID3 or 0xFFFB) or OGG (OggS)
+            # Check for WAV (RIFF....WAVE) or MP3 (ID3 or 0xFFFB) or OGG (OggS) or FLAC
             if header[:4] == b"RIFF" and header[8:12] == b"WAVE":
                 return True
-            if header[:3] == b"ID3" or (header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
+            if header[:3] == b"ID3":
+                return True
+            if len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0:
                 return True
             if header[:4] == b"OggS":
                 return True
-            # Allow custom binary audio if at least non-empty
-            return size > 100
+            if header[:4] == b"fLaC":
+                return True
+            return False
         except Exception:
             return False
 

@@ -80,3 +80,23 @@ class TestGradioVoiceCloner:
         """Calling stop_playback when nothing is playing should be a clean no-op."""
         cloner.stop_playback()
         assert cloner._current_player is None
+
+    def test_validate_mp3_and_reference_audio(self, tmp_path):
+        """Verify audio validator accepts MPEG/MP3 audio and rejects non-audio."""
+        cache_dir = str(tmp_path / "voice_cache")
+        cloner = GradioVoiceCloner(gradio_url="http://disabled", cache_dir=cache_dir)
+        
+        # Valid MP3 sync frame header (MPEG-1 Layer 3)
+        valid_mp3 = tmp_path / "sample.mp3"
+        valid_mp3.write_bytes(b"\xff\xfb\x90\x44" + b"\x00" * 300)
+        assert cloner._validate_audio_file(str(valid_mp3)) is True
+
+        # Valid ID3v2 tag
+        valid_id3 = tmp_path / "sample_id3.mp3"
+        valid_id3.write_bytes(b"ID3\x03\x00\x00\x00\x00\x00\x10" + b"\x00" * 300)
+        assert cloner._validate_audio_file(str(valid_id3)) is True
+
+        # HTML 404 or text file pretending to be audio (>100 bytes)
+        fake_audio = tmp_path / "fake.wav"
+        fake_audio.write_bytes(b"<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></body></html>" + b" " * 100)
+        assert cloner._validate_audio_file(str(fake_audio)) is False
