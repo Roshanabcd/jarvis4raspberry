@@ -100,3 +100,19 @@ class TestGradioVoiceCloner:
         fake_audio = tmp_path / "fake.wav"
         fake_audio.write_bytes(b"<html><head><title>404 Not Found</title></head><body><h1>404 Not Found</h1><p>The requested URL was not found on this server.</p></body></html>" + b" " * 100)
         assert cloner._validate_audio_file(str(fake_audio)) is False
+
+    def test_hf_space_package_structure(self):
+        """Verify the Hugging Face Space deployment directory contains required files."""
+        base_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "hf_spaces", "omnivoice"
+        )
+        assert os.path.exists(os.path.join(base_dir, "app.py")), "app.py must exist in hf_spaces/omnivoice"
+        assert os.path.exists(os.path.join(base_dir, "requirements.txt")), "requirements.txt must exist"
+        assert os.path.exists(os.path.join(base_dir, "README.md")), "README.md must exist"
+        assert os.path.exists(os.path.join(base_dir, "deploy.sh")), "deploy.sh must exist"
+
+        with open(os.path.join(base_dir, "README.md"), "r") as f:
+            readme_content = f.read()
+        assert "sdk: gradio" in readme_content
+        assert "title:" in readme_content

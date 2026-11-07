@@ -1,0 +1,5 @@
+omnivoice
+gradio>=5.0.0
+torch
+torchaudio
+spaces
