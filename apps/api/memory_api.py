@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter
 from memory.long_term.database import db
 from pydantic import BaseModel
@@ -10,10 +11,10 @@ class MemoryStoreRequest(BaseModel):
 
 @memory_router.post("/store")
 def store_memory(req: MemoryStoreRequest):
-    db.store(req.category, req.content)
-    return {"status": "stored"}
+    row_id = db.store(req.category, req.content)
+    return {"status": "stored", "id": row_id}
 
 @memory_router.get("/search")
-def search_memory(category: str = None):
-    results = db.search(category)
+def search_memory(query: str = "", category: Optional[str] = None, limit: int = 20):
+    results = db.search(query=query, category=category, limit=limit)
     return {"status": "ok", "data": results}
