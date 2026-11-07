@@ -7,6 +7,9 @@ voice:
   rate: 150
   volume: 0.9
   language: en
+  gradio_url: "https://roshan-omnivoice-jarvis.hf.space"
+  reference_audio_path: "/home/roshan/.gemini/antigravity/scratch/jarvis-os/data/voice_samples/myvoice.wav"
+  cloning_enabled: true
 stt:
   model: tiny
   device: cpu
