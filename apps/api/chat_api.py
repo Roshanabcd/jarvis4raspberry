@@ -112,3 +112,36 @@ def clear_history():
     brain = get_brain()
     brain._history.clear()
     return {"status": "cleared"}
+
+
+class PromptTestRequest(BaseModel):
+    system_prompt: Optional[str] = None
+    user_message: str = Field(..., min_length=1)
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    temperature: float = 0.7
+    max_tokens: int = 1024
+
+
+@chat_router.post("/prompt_test")
+def test_prompt(req: PromptTestRequest):
+    """Direct playground test endpoint for AI Studio."""
+    import time
+    from ai.brain import get_brain
+    brain = get_brain()
+    t0 = time.perf_counter()
+    if req.provider:
+        brain.set_active_provider(req.provider, req.model)
+    res = brain.chat(
+        user_message=req.user_message,
+        use_tools=False,
+    )
+    latency_ms = round((time.perf_counter() - t0) * 1000, 2)
+    return {
+        "status": "ok",
+        "response": res.get("response", ""),
+        "provider": res.get("provider", "unknown"),
+        "model": res.get("model", ""),
+        "latency_ms": latency_ms,
+        "token_usage": res.get("token_usage", {}),
+    }

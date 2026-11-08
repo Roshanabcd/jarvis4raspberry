@@ -176,6 +176,18 @@ class RobotController:
     def is_emergency_stopped(self) -> bool:
         return self._emergency_stopped
 
+    def get_state(self) -> Dict[str, Any]:
+        """Return full actuator state dictionary."""
+        return {
+            "state": self.state,
+            "armed": self.armed,
+            "emergency_stopped": self._emergency_stopped,
+            "speed": self.default_speed,
+            "max_speed": self.max_speed,
+            "simulated": self.simulated,
+            "mode": "simulation" if self.simulated else "hardware",
+        }
+
 
 # Global default instance
 robot = RobotController()

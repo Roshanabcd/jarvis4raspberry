@@ -3,286 +3,893 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JARVIS OS</title>
+<title>JARVIS OS — Neural & Robotics Command Suite</title>
 <style>
-  :root{--bg:#0a0a1a;--card:#12122a;--accent:#00d2ff;--accent2:#7b2fff;--green:#00ff88;--warn:#ffcc00;--err:#ff4466;--text:#e0e8ff;--muted:#6070a0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-  nav{display:flex;align-items:center;gap:4px;padding:12px 20px;background:var(--card);border-bottom:1px solid #1e2050;flex-wrap:wrap}
-  .logo{font-size:1.3rem;font-weight:700;color:var(--accent);letter-spacing:2px;margin-right:16px}
-  nav button{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px 12px;border-radius:6px;font-size:.85rem;transition:.2s}
-  nav button:hover,nav button.active{background:rgba(0,210,255,.12);color:var(--accent)}
-  .tab{display:none;padding:24px;max-width:1400px;margin:0 auto}
-  .tab.active{display:block}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-bottom:20px}
-  .card{background:var(--card);border-radius:10px;padding:18px;border-left:3px solid var(--accent)}
-  .card h3{font-size:.75rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px}
-  .card .val{font-size:2rem;font-weight:700;color:var(--accent)}
-  .card .sub{font-size:.8rem;color:var(--muted);margin-top:4px}
-  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
-  .ok{background:var(--green)}.warn{background:var(--warn)}.err{background:var(--err)}
-  .panel{background:var(--card);border-radius:10px;padding:20px;margin-bottom:16px}
-  .panel h2{font-size:1rem;color:var(--accent);margin-bottom:14px;border-bottom:1px solid #1e2050;padding-bottom:8px}
-  input,textarea,select{background:#0d0d20;color:var(--text);border:1px solid #1e2050;border-radius:6px;padding:8px 12px;width:100%;font-size:.9rem;outline:none;margin-bottom:8px}
-  input:focus,textarea:focus{border-color:var(--accent)}
-  button.btn{background:var(--accent);color:#000;border:none;border-radius:6px;padding:8px 18px;cursor:pointer;font-weight:600;font-size:.85rem;transition:.2s;margin:3px}
-  button.btn:hover{opacity:.85}
-  button.btn.danger{background:var(--err);color:#fff}
-  button.btn.warn{background:var(--warn);color:#000}
-  button.btn.dark{background:#1e2050;color:var(--text)}
-  #chat-box{height:420px;overflow-y:auto;background:#070714;border:1px solid #1e2050;border-radius:8px;padding:14px;margin-bottom:10px;font-size:.9rem}
-  .msg-container{margin-bottom:12px;display:flex;flex-direction:column}
-  .msg{padding:10px 14px;border-radius:8px;line-height:1.5;max-width:88%;word-wrap:break-word}
-  .msg.user{background:#0e1e38;color:var(--accent);align-self:flex-end;border-left:3px solid var(--accent)}
-  .msg.jarvis{background:#0d1825;color:var(--text);align-self:flex-start;border-left:3px solid var(--green)}
-  .msg.err-msg{background:#2a0e14;color:var(--err);align-self:flex-start;border-left:3px solid var(--err)}
-  .msg-meta{font-size:.72rem;color:var(--muted);margin-top:3px;display:flex;gap:8px;align-items:center}
-  .cursor-blink{display:inline-block;animation:blink 1s infinite;color:var(--accent);font-weight:bold}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-  .code-block{background:#04040d;border:1px solid #1e2050;border-radius:6px;margin:8px 0;overflow:hidden}
-  .code-header{background:#0e1028;padding:4px 10px;display:flex;justify-content:space-between;align-items:center;font-size:.75rem;color:var(--muted)}
-  .code-header button{background:none;border:none;color:var(--accent);cursor:pointer;font-size:.75rem}
-  .code-block pre{padding:10px;overflow-x:auto;margin:0;font-family:monospace;font-size:.82rem;color:#c0d0f0}
-  .chat-toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-  .chat-toolbar select{max-width:260px;margin-bottom:0;padding:6px 10px;font-size:.8rem}
-  .badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:12px;font-size:.72rem;font-weight:600}
-  .badge.online{background:rgba(0,255,136,.15);color:var(--green);border:1px solid rgba(0,255,136,.3)}
-  .badge.loading{background:rgba(255,204,0,.15);color:var(--warn);border:1px solid rgba(255,204,0,.3)}
-  .badge.offline{background:rgba(255,68,102,.15);color:var(--err);border:1px solid rgba(255,68,102,.3)}
-  .robot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:320px}
-  .robot-grid button{padding:14px;font-size:1rem}
-  .sensor-table{width:100%;border-collapse:collapse;font-size:.85rem}
-  .sensor-table th{text-align:left;color:var(--muted);font-weight:500;padding:6px 10px;border-bottom:1px solid #1e2050}
-  .sensor-table td{padding:8px 10px;border-bottom:1px solid #0d0d20}
-  #log-area{font-family:monospace;font-size:.78rem;background:#050510;color:#8899cc;height:340px;overflow-y:auto;padding:12px;border-radius:8px;border:1px solid #1e2050;white-space:pre-wrap;word-break:break-all}
-  .servo-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
-  .servo-row label{width:80px;font-size:.85rem;color:var(--muted)}
-  .servo-row input[type=range]{flex:1;accent-color:var(--accent)}
-  .servo-row span{width:40px;text-align:right;font-size:.85rem}
-  .ws-status{font-size:.7rem;color:var(--muted);padding:4px 8px;border-radius:4px;background:#0d0d20}
-  .ws-status.connected{color:var(--green)}
-  @media(max-width:600px){.grid{grid-template-columns:1fr}}
+  :root {
+    --bg: #070913;
+    --card: #0e1224;
+    --card-border: #1a2342;
+    --accent: #00d2ff;
+    --accent-glow: rgba(0, 210, 255, 0.25);
+    --purple: #8a3ffc;
+    --green: #00ff88;
+    --warn: #ffb000;
+    --err: #ff3366;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #090d1f;
+    border-bottom: 1px solid var(--card-border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand .logo {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--accent);
+    text-shadow: 0 0 12px var(--accent-glow);
+  }
+  .brand .tagline {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .ws-badge {
+    font-size: 0.72rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: #111827;
+    border: 1px solid var(--card-border);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ws-badge.live {
+    color: var(--green);
+    border-color: rgba(0, 255, 136, 0.4);
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.2);
+  }
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 16px;
+    background: #0b1026;
+    border-bottom: 1px solid var(--card-border);
+    overflow-x: auto;
+    white-space: nowrap;
+    scrollbar-width: thin;
+  }
+  nav button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  nav button:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  nav button.active {
+    color: var(--accent);
+    background: rgba(0, 210, 255, 0.12);
+    box-shadow: inset 0 -2px 0 var(--accent);
+  }
+  main {
+    flex: 1;
+    padding: 20px;
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .tab { display: none; }
+  .tab.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 3px; height: 100%;
+    background: var(--accent);
+  }
+  .card h3 {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .card .val {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .card .sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .panel h2 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  input, textarea, select {
+    background: #080c1d;
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.88rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 6px var(--accent-glow);
+  }
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .form-group { margin-bottom: 14px; }
+
+  button.btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.84rem;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  button.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  button.btn:active { transform: translateY(0); }
+  button.btn.dark { background: #182042; color: var(--text); border: 1px solid var(--card-border); }
+  button.btn.dark:hover { background: #222d5c; }
+  button.btn.danger { background: var(--err); color: #fff; }
+  button.btn.warn { background: var(--warn); color: #000; }
+  button.btn.ok { background: var(--green); color: #000; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .badge.online { background: rgba(0, 255, 136, 0.15); color: var(--green); border: 1px solid rgba(0, 255, 136, 0.3); }
+  .badge.warning { background: rgba(255, 176, 0, 0.15); color: var(--warn); border: 1px solid rgba(255, 176, 0, 0.3); }
+  .badge.offline { background: rgba(255, 51, 102, 0.15); color: var(--err); border: 1px solid rgba(255, 51, 102, 0.3); }
+
+  .sensor-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.84rem;
+  }
+  .sensor-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--card-border);
+  }
+  .sensor-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(26, 35, 66, 0.5);
+  }
+  .sensor-table tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+  /* Chat specific */
+  #chat-box {
+    height: 440px;
+    overflow-y: auto;
+    background: #060914;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .msg-container { display: flex; flex-direction: column; width: 100%; }
+  .msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    line-height: 1.5;
+    max-width: 85%;
+    word-break: break-word;
+    font-size: 0.88rem;
+  }
+  .msg.user {
+    background: #0f1d3a;
+    color: var(--accent);
+    align-self: flex-end;
+    border-left: 3px solid var(--accent);
+  }
+  .msg.jarvis {
+    background: #0d1a29;
+    color: var(--text);
+    align-self: flex-start;
+    border-left: 3px solid var(--green);
+  }
+  .msg.err-msg {
+    background: #2b111a;
+    color: var(--err);
+    align-self: flex-start;
+    border-left: 3px solid var(--err);
+  }
+  .msg-meta {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 4px;
+    display: flex;
+    gap: 10px;
+  }
+  .cursor-blink { display: inline-block; animation: blink 1s infinite; color: var(--accent); font-weight: bold; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .code-block {
+    background: #03050c;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    margin: 8px 0;
+    overflow: hidden;
+  }
+  .code-header {
+    background: #0a0e22;
+    padding: 4px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .code-header button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.72rem;
+  }
+  .code-block pre {
+    padding: 10px;
+    overflow-x: auto;
+    font-family: monospace;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+  }
+
+  /* Robot controls */
+  .robot-dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 80px);
+    grid-template-rows: repeat(3, 60px);
+    gap: 8px;
+    margin: 0 auto;
+    justify-content: center;
+  }
+  .robot-dpad button {
+    font-size: 1.1rem;
+    font-weight: bold;
+    border-radius: 8px;
+  }
+
+  /* Settings Categories */
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 20px;
+  }
+  @media(max-width: 800px) {
+    .settings-layout { grid-template-columns: 1fr; }
+  }
+  .cat-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: #080c1c;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 8px;
+    max-height: 700px;
+    overflow-y: auto;
+  }
+  .cat-btn {
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--muted);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cat-btn:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+  .cat-btn.active { background: rgba(0, 210, 255, 0.15); color: var(--accent); border-left: 3px solid var(--accent); }
+
+  .settings-form-panel {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+  .ok { background: var(--green); }
+  .warn { background: var(--warn); }
+  .err { background: var(--err); }
 </style>
 </head>
 <body>
+
+<header>
+  <div class="brand">
+    <span class="logo">⚡ JARVIS OS</span>
+    <span class="tagline">Raspberry Pi 5 AI & Robotics</span>
+  </div>
+  <div class="header-actions">
+    <span id="ws-badge" class="ws-badge">● Connecting...</span>
+    <button class="btn danger" style="padding: 4px 12px; font-size: 0.75rem;" onclick="robotCmd('estop')">🛑 E-STOP</button>
+  </div>
+</header>
+
 <nav>
-  <span class="logo">⚡ JARVIS</span>
-  <button class="active" onclick="show('home')">HOME</button>
-  <button onclick="show('system')">SYSTEM</button>
-  <button onclick="show('chat')">CHAT</button>
-  <button onclick="show('robot')">ROBOT</button>
-  <button onclick="show('sensors')">SENSORS</button>
-  <button onclick="show('memory')">MEMORY</button>
-  <button onclick="show('logs')">LOGS</button>
-  <button onclick="show('settings')">SETTINGS</button>
-  <span class="ws-status" id="ws-status">● Connecting…</span>
+  <button class="active" onclick="showTab('home')">🏠 Home</button>
+  <button onclick="showTab('chat')">💬 AI Chat</button>
+  <button onclick="showTab('voice')">🎙️ Voice</button>
+  <button onclick="showTab('aistudio')">🧪 AI Studio</button>
+  <button onclick="showTab('vision')">👁️ Vision</button>
+  <button onclick="showTab('robot')">🤖 Robot</button>
+  <button onclick="showTab('sensors')">🌡️ Sensors</button>
+  <button onclick="showTab('memory')">🧠 Memory</button>
+  <button onclick="showTab('automations')">⏱️ Automations</button>
+  <button onclick="showTab('tools')">🛠️ Tools</button>
+  <button onclick="showTab('integrations')">🔌 Integrations</button>
+  <button onclick="showTab('system')">📊 System</button>
+  <button onclick="showTab('logs')">📜 Logs</button>
+  <button onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
 
-<!-- HOME -->
-<div id="tab-home" class="tab active">
-  <div class="grid">
-    <div class="card"><h3>CPU</h3><div class="val" id="h-cpu">—</div><div class="sub">utilisation</div></div>
-    <div class="card"><h3>RAM</h3><div class="val" id="h-ram">—</div><div class="sub">used</div></div>
-    <div class="card"><h3>Temperature</h3><div class="val" id="h-temp">—</div><div class="sub">CPU core</div></div>
-    <div class="card"><h3>Disk</h3><div class="val" id="h-disk">—</div><div class="sub">used</div></div>
-    <div class="card"><h3>Robot</h3><div class="val" style="font-size:1.1rem" id="h-robot">—</div><div class="sub">state machine</div></div>
-    <div class="card"><h3>Voice</h3><div class="val" style="font-size:1.1rem" id="h-voice">—</div><div class="sub">pipeline</div></div>
+<main>
+  <!-- 1. HOME -->
+  <div id="tab-home" class="tab active">
+    <div class="grid">
+      <div class="card"><h3>CPU Load</h3><div class="val" id="h-cpu">—</div><div class="sub">4× Cortex-A76</div></div>
+      <div class="card"><h3>RAM Usage</h3><div class="val" id="h-ram">—</div><div class="sub">8 GB LPDDR4X</div></div>
+      <div class="card"><h3>Temperature</h3><div class="val" id="h-temp">—</div><div class="sub">Thermal sensor</div></div>
+      <div class="card"><h3>Storage</h3><div class="val" id="h-disk">—</div><div class="sub">Root filesystem</div></div>
+      <div class="card"><h3>Robot State</h3><div class="val" style="font-size:1.1rem" id="h-robot">—</div><div class="sub">Actuator gate</div></div>
+      <div class="card"><h3>Voice Pipeline</h3><div class="val" style="font-size:1.1rem" id="h-voice">—</div><div class="sub">OmniVoice / ReSpeaker</div></div>
+    </div>
+    <div class="panel">
+      <h2>System Diagnostics & Health <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="loadHealth()">↺ Refresh</button></h2>
+      <div id="health-table">Checking health...</div>
+    </div>
   </div>
-  <div class="panel">
-    <h2>Component Health</h2>
-    <div id="health-table">Loading…</div>
+
+  <!-- 2. AI CHAT -->
+  <div id="tab-chat" class="tab">
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h2>Neural Dialogue Engine</h2>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <select id="chat-model-select" style="max-width:280px" onchange="switchChatModel(this.value)">
+            <option value="ollama:llama3.2:1b">🟢 OLLAMA: llama3.2:1b (Fast Local)</option>
+            <option value="ollama:qwen3.5:4b">🟢 OLLAMA: qwen3.5:4b (Advanced Local)</option>
+            <option value="gemini:gemini-2.0-flash">⚪ GEMINI: gemini-2.0-flash</option>
+            <option value="openai:gpt-4o-mini">⚪ OPENAI: gpt-4o-mini</option>
+            <option value="anthropic:claude-3-haiku-20240307">⚪ ANTHROPIC: claude-3-haiku</option>
+          </select>
+          <span id="chat-status-badge" class="badge online">🟢 Ready</span>
+          <span id="chat-telemetry-badge" style="font-size:0.75rem;color:var(--muted)">⚡ --</span>
+          <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="clearChat()">🗑️ Clear</button>
+          <button id="cancel-chat-btn" class="btn warn" style="display:none;padding:4px 10px;font-size:0.75rem" onclick="cancelChat()">⏹️ Stop</button>
+          <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="stopSpeech()">🔇 Mute</button>
+        </div>
+      </div>
+      <div id="chat-box"></div>
+      <div style="display:flex;gap:8px">
+        <button id="mic-btn" class="btn dark" style="border:1px solid var(--accent);color:var(--accent)" onclick="toggleVoiceRecord()" title="Capture ReSpeaker microphone">
+          <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
+        </button>
+        <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button id="chat-send-btn" class="btn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
   </div>
-</div>
 
-<!-- SYSTEM -->
-<div id="tab-system" class="tab">
-  <div class="panel"><h2>System Information</h2><pre id="sys-data" style="font-size:.82rem;color:var(--muted)">Loading…</pre></div>
-</div>
+  <!-- 3. VOICE CENTER -->
+  <div id="tab-voice" class="tab">
+    <div class="panel">
+      <h2>OmniVoice & Audio Subsystem</h2>
+      <div class="grid" style="margin-bottom:16px">
+        <div class="card">
+          <h3>Microphone State</h3>
+          <div class="val" id="voice-state-val" style="font-size:1.2rem">STANDBY</div>
+          <div class="sub">PipeWire ReSpeaker Lite</div>
+        </div>
+        <div class="card">
+          <h3>Cloned Voice Engine</h3>
+          <div class="val" id="cloner-provider-val" style="font-size:1.2rem">READY</div>
+          <div class="sub" id="cloner-sub-val">Gradio / HF Space</div>
+        </div>
+        <div class="card">
+          <h3>Voice Disk Cache</h3>
+          <div class="val" id="voice-cache-count">0</div>
+          <div class="sub">Cached audio files (&lt;0.5ms)</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (4s)</button>
+        <button class="btn dark" onclick="testVoiceSpeak()">🔊 Test Voice Output Aloud</button>
+        <button class="btn dark" onclick="clearVoiceCache()">🗑️ Clear Voice Cache</button>
+        <button class="btn warn" onclick="stopSpeech()">⏹️ Interrupt Audio</button>
+      </div>
+      <div class="form-group">
+        <label>Manual Speech Synthesis (Speak in Cloned Voice)</label>
+        <div style="display:flex;gap:8px">
+          <input id="voice-test-text" placeholder="Enter text to speak aloud in your cloned voice..." value="Systems fully operational. I am JARVIS.">
+          <button class="btn" onclick="speakCustomText()">Synthesize</button>
+        </div>
+      </div>
+      <div id="voice-log" style="font-family:monospace;font-size:0.8rem;background:#050711;padding:12px;border-radius:6px;border:1px solid var(--card-border);min-height:80px">Voice events will appear here...</div>
+    </div>
+  </div>
 
-<!-- CHAT -->
-<div id="tab-chat" class="tab">
-  <div class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-      <h2 style="margin:0;border:none;padding:0">Converse with JARVIS</h2>
-      <div class="chat-toolbar">
-        <label style="font-size:.8rem;color:var(--muted)">AI Model:</label>
-        <select id="chat-model-select" onchange="switchChatModel(this.value)">
-          <option value="ollama:llama3.2:1b">🟢 OLLAMA: llama3.2:1b (Fast Local)</option>
-          <option value="ollama:qwen3.5:4b">🟢 OLLAMA: qwen3.5:4b (Advanced Local)</option>
-          <option value="gemini:gemini-2.0-flash">⚪ GEMINI: gemini-2.0-flash</option>
-          <option value="openai:gpt-4o-mini">⚪ OPENAI: gpt-4o-mini</option>
-          <option value="anthropic:claude-3-haiku-20240307">⚪ ANTHROPIC: claude-3-haiku</option>
+  <!-- 4. AI STUDIO -->
+  <div id="tab-aistudio" class="tab">
+    <div class="panel">
+      <h2>AI Model Playground & Prompt Studio</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div class="form-group">
+            <label>Target Provider & Model</label>
+            <select id="studio-model-select">
+              <option value="ollama:llama3.2:1b">Ollama: llama3.2:1b</option>
+              <option value="ollama:qwen3.5:4b">Ollama: qwen3.5:4b</option>
+              <option value="gemini:gemini-2.0-flash">Google Gemini 2.0 Flash</option>
+              <option value="openai:gpt-4o-mini">OpenAI GPT-4o-mini</option>
+              <option value="anthropic:claude-3-haiku-20240307">Anthropic Claude 3 Haiku</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>System Prompt Override</label>
+            <textarea id="studio-system" rows="4">You are JARVIS, an autonomous robotics AI operating on Raspberry Pi 5. Be concise, direct, and execute instructions precisely.</textarea>
+          </div>
+          <div class="form-group">
+            <label>User Input Message</label>
+            <textarea id="studio-user" rows="4" placeholder="Enter test query or instruction...">Explain your hardware topology on the Raspberry Pi 5 in two sentences.</textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>Temperature (<span id="temp-val">0.7</span>)</label>
+              <input type="range" min="0" max="1" step="0.1" value="0.7" oninput="document.getElementById('temp-val').textContent=this.value">
+            </div>
+            <div class="form-group">
+              <label>Max Tokens</label>
+              <input type="number" id="studio-tokens" value="512">
+            </div>
+          </div>
+          <button class="btn" onclick="runStudioTest()">⚡ Execute Prompt Test</button>
+        </div>
+        <div>
+          <label>Inference Output & Telemetry</label>
+          <div style="margin-bottom:8px;font-size:0.75rem;color:var(--muted)" id="studio-metrics">Latency: -- | Tokens: --</div>
+          <pre id="studio-output" style="background:#050711;padding:14px;border:1px solid var(--card-border);border-radius:6px;height:340px;overflow-y:auto;white-space:pre-wrap;font-size:0.84rem;color:#cbd5e1">Run a test to see raw response output...</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. VISION CENTER -->
+  <div id="tab-vision" class="tab">
+    <div class="panel">
+      <h2>Vision Subsystem (Sony IMX708 Camera Module 3)</h2>
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:20px">
+        <div>
+          <div style="background:#050711;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;min-height:360px;display:flex;align-items:center;justify-content:center;position:relative">
+            <img id="vision-viewfinder" src="" alt="Camera Viewfinder" style="max-width:100%;max-height:480px;display:none;border-radius:6px">
+            <div id="vision-placeholder" style="color:var(--muted);text-align:center;padding:40px">
+              <span style="font-size:3rem;display:block;margin-bottom:8px">📷</span>
+              Click "Capture Still Frame" to acquire image from Sony IMX708
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:14px">
+            <button class="btn" onclick="captureVisionFrame()">📸 Capture Still Frame</button>
+            <button class="btn dark" onclick="describeVisionScene()">🧠 Neural Scene Description</button>
+            <button class="btn dark" onclick="checkCameraStatus()">ℹ️ Hardware Status</button>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <h3>Camera Backend</h3>
+            <div class="val" id="cam-backend-val" style="font-size:1.1rem">IMX708</div>
+            <div class="sub" id="cam-sub-val">rpicam-still / picamera2</div>
+          </div>
+          <div class="panel" style="padding:14px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Scene Description</h3>
+            <p id="vision-desc" style="font-size:0.84rem;color:var(--text);line-height:1.5">No capture yet.</p>
+          </div>
+          <div class="panel" style="padding:14px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Detected Objects</h3>
+            <div id="vision-objects" style="font-size:0.82rem;color:var(--muted)">None</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. ROBOT CONTROL -->
+  <div id="tab-robot" class="tab">
+    <div style="display:grid;grid-template-columns:360px 1fr;gap:20px">
+      <div class="panel">
+        <h2>Actuator Gate & Motion</h2>
+        <div style="margin-bottom:16px;padding:12px;background:#060814;border:1px solid var(--card-border);border-radius:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:0.82rem;color:var(--muted)">Actuator State:</span>
+            <span id="actuator-gate-state" style="font-weight:700;color:var(--warn)">DISARMED</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn ok" style="flex:1" onclick="armRobot()">⚡ Arm</button>
+            <button class="btn dark" style="flex:1" onclick="disarmRobot()">🔒 Disarm</button>
+            <button class="btn warn" style="flex:1" onclick="clearEstop()">↺ Clear E-Stop</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Motor Speed: <span id="motor-speed-val">50</span>%</label>
+          <input type="range" id="motor-speed-slider" min="10" max="100" value="50" oninput="document.getElementById('motor-speed-val').textContent=this.value">
+        </div>
+        <div class="robot-dpad">
+          <div></div>
+          <button class="btn" onclick="robotCmd('forward')">▲ FWD</button>
+          <div></div>
+          <button class="btn" onclick="robotCmd('left')">◄ L</button>
+          <button class="btn dark" onclick="robotCmd('stop')">■ STOP</button>
+          <button class="btn" onclick="robotCmd('right')">R ►</button>
+          <div></div>
+          <button class="btn" onclick="robotCmd('backward')">▼ REV</button>
+          <div></div>
+        </div>
+        <div style="margin-top:20px">
+          <button class="btn danger" style="width:100%;padding:14px;font-size:0.95rem" onclick="robotCmd('estop')">🛑 EMERGENCY STOP</button>
+        </div>
+        <div id="robot-status" style="margin-top:12px;font-size:0.82rem;color:var(--muted)"></div>
+      </div>
+      <div class="panel">
+        <h2>Servo Driver Control (PCA9685 16-CH)</h2>
+        <div id="servo-sliders"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. SENSORS -->
+  <div id="tab-sensors" class="tab">
+    <div class="panel">
+      <h2>Live Telemetry & Sensors <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="loadSensors()">↺ Refresh</button></h2>
+      <div style="margin-top:12px" id="sensor-content">Reading sensor array...</div>
+    </div>
+  </div>
+
+  <!-- 8. MEMORY & KNOWLEDGE -->
+  <div id="tab-memory" class="tab">
+    <div class="panel">
+      <h2>Long-Term Memory Search & Storage</h2>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <input id="mem-q" style="flex:1;min-width:200px" placeholder="Search memories..." onkeydown="if(event.key==='Enter')searchMem()">
+        <select id="mem-cat-filter" style="max-width:180px" onchange="searchMem()">
+          <option value="">All Categories</option>
+          <option value="USER">USER</option>
+          <option value="PROJECT">PROJECT</option>
+          <option value="ROBOT">ROBOT</option>
+          <option value="SYSTEM">SYSTEM</option>
+          <option value="TASK">TASK</option>
+          <option value="KNOWLEDGE">KNOWLEDGE</option>
         </select>
-        <span id="chat-status-badge" class="badge online">🟢 Ready</span>
-        <span id="chat-telemetry-badge" style="font-size:.75rem;color:var(--muted)">⚡ --</span>
-        <button class="btn dark" style="padding:4px 10px;font-size:.75rem" onclick="clearChat()">🗑️ Clear</button>
-        <button id="cancel-chat-btn" class="btn warn" style="display:none;padding:4px 10px;font-size:.75rem" onclick="cancelChat()">⏹️ Stop</button>
-        <button class="btn dark" style="padding:4px 10px;font-size:.75rem" onclick="stopSpeech()">🔇 Mute Voice</button>
+        <button class="btn" onclick="searchMem()">🔍 Search</button>
+        <button class="btn dark" onclick="openAddMemoryModal()">➕ Add Memory</button>
       </div>
-    </div>
-    <div id="chat-box"></div>
-    <div style="display:flex;gap:8px">
-      <button id="mic-btn" class="btn" style="background:#1a1c3d;border:1px solid var(--accent);color:var(--accent);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleVoiceRecord()" title="Speak into ReSpeaker Lite microphone">
-        <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
-      </button>
-      <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'calculate 42*17')..." onkeydown="if(event.key==='Enter')sendChat()">
-      <button id="chat-send-btn" class="btn" onclick="sendChat()">Send</button>
+      <div id="mem-results"></div>
     </div>
   </div>
-</div>
 
-<!-- ROBOT -->
-<div id="tab-robot" class="tab">
-  <div style="display:flex;gap:20px;flex-wrap:wrap">
-    <div class="panel" style="flex:0 0 auto;min-width:320px">
-      <h2>Actuator Safety & Control</h2>
-      <div style="margin-bottom:12px;padding:10px;background:#070714;border-radius:6px;border:1px solid #1e2050">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-          <span style="font-size:.85rem;color:var(--muted)">Actuator State:</span>
-          <span id="actuator-gate-state" style="font-weight:700;color:var(--warn)">DISARMED</span>
+  <!-- 9. AUTOMATIONS & WORKFLOWS -->
+  <div id="tab-automations" class="tab">
+    <div class="panel">
+      <h2>Scheduled Tasks & Background Automations</h2>
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+        <span style="font-size:0.82rem;color:var(--muted)">Background Task Scheduler (SQLite-backed)</span>
+        <button class="btn" onclick="openAddTaskModal()">➕ Schedule New Task</button>
+      </div>
+      <div id="automations-table">Loading scheduled tasks...</div>
+    </div>
+  </div>
+
+  <!-- 10. TOOLS & SKILLS -->
+  <div id="tab-tools" class="tab">
+    <div class="panel">
+      <h2>Agent Tools Catalog (Categories A–H)</h2>
+      <div style="display:grid;grid-template-columns:300px 1fr;gap:20px">
+        <div>
+          <label>Filter by Category</label>
+          <select id="tool-cat-select" onchange="filterTools(this.value)">
+            <option value="">All Categories (A–H)</option>
+            <option value="A">Category A: System</option>
+            <option value="B">Category B: Robot</option>
+            <option value="C">Category C: Sensors</option>
+            <option value="D">Category D: Vision</option>
+            <option value="E">Category E: Memory</option>
+            <option value="F">Category F: Productivity</option>
+            <option value="G">Category G: Internet</option>
+            <option value="H">Category H: Applications</option>
+          </select>
+          <div id="tool-list" style="margin-top:12px;max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:6px"></div>
         </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn ok" style="flex:1" onclick="armRobot()">⚡ Arm</button>
-          <button class="btn dark" style="flex:1" onclick="disarmRobot()">🔒 Disarm</button>
-          <button class="btn warn" style="flex:1" onclick="clearEstop()">↺ Clear E-Stop</button>
+        <div class="panel" style="padding:16px">
+          <h3 id="selected-tool-name" style="font-size:0.95rem;color:var(--accent);margin-bottom:6px">Select a tool</h3>
+          <p id="selected-tool-desc" style="font-size:0.82rem;color:var(--muted);margin-bottom:14px">Choose a tool from the catalog to inspect schema and execute.</p>
+          <div class="form-group">
+            <label>Arguments (JSON Object)</label>
+            <textarea id="tool-args-input" rows="5">{}</textarea>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:14px">
+            <button class="btn" onclick="executeSelectedTool()">⚡ Run Tool</button>
+          </div>
+          <label>Execution Output</label>
+          <pre id="tool-exec-output" style="background:#050711;padding:12px;border:1px solid var(--card-border);border-radius:6px;max-height:260px;overflow-y:auto;font-size:0.82rem;color:#cbd5e1">Output will appear here...</pre>
         </div>
       </div>
-      <div style="margin-bottom:12px">
-        <label style="font-size:.85rem;color:var(--muted)">Motor Speed: <span id="motor-speed-val">50</span>%</label>
-        <input type="range" id="motor-speed-slider" min="10" max="100" value="50" oninput="document.getElementById('motor-speed-val').textContent=this.value">
+    </div>
+  </div>
+
+  <!-- 11. INTEGRATIONS -->
+  <div id="tab-integrations" class="tab">
+    <div class="panel">
+      <h2>Cloud AI & Service Integrations</h2>
+      <p style="font-size:0.84rem;color:var(--muted);margin-bottom:16px">API keys are saved securely to <code>.env</code> and loaded at runtime.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group">
+          <label>Google Gemini API Key</label>
+          <input type="password" id="key-gemini" placeholder="AIzaSy...">
+        </div>
+        <div class="form-group">
+          <label>OpenAI API Key</label>
+          <input type="password" id="key-openai" placeholder="sk-...">
+        </div>
+        <div class="form-group">
+          <label>Anthropic Claude API Key</label>
+          <input type="password" id="key-anthropic" placeholder="sk-ant-...">
+        </div>
+        <div class="form-group">
+          <label>NVIDIA NIM API Key</label>
+          <input type="password" id="key-nvidia" placeholder="nvapi-...">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Hugging Face OmniVoice Space URL</label>
+          <input type="text" id="url-hf-space" placeholder="https://username-space.hf.space">
+        </div>
       </div>
-      <div class="robot-grid">
-        <div></div>
-        <button class="btn" onclick="robotCmd('forward')">▲ FWD</button>
-        <div></div>
-        <button class="btn" onclick="robotCmd('left')">◄ LEFT</button>
-        <button class="btn dark" onclick="robotCmd('stop')">■ STOP</button>
-        <button class="btn" onclick="robotCmd('right')">RIGHT ►</button>
-        <div></div>
-        <button class="btn" onclick="robotCmd('backward')">▼ REV</button>
-        <div></div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="btn" onclick="saveIntegrations()">💾 Save Keys to .env</button>
+        <button class="btn dark" onclick="loadIntegrations()">↺ Reload Current</button>
       </div>
-      <div style="margin-top:14px">
-        <button class="btn danger" style="width:100%;padding:14px;font-size:1rem" onclick="robotCmd('estop')">🛑 EMERGENCY STOP</button>
+      <div id="integrations-status" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- 12. SYSTEM -->
+  <div id="tab-system" class="tab">
+    <div class="panel">
+      <h2>Hardware & Host Architecture <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="loadSystem()">↺ Refresh</button></h2>
+      <pre id="sys-data" style="font-size:0.82rem;color:var(--muted);background:#050711;padding:14px;border-radius:6px;border:1px solid var(--card-border);max-height:500px;overflow-y:auto">Loading system telemetry...</pre>
+    </div>
+  </div>
+
+  <!-- 13. LOGS -->
+  <div id="tab-logs" class="tab">
+    <div class="panel">
+      <h2>Audit & Security Event Log <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="loadLogs()">↺ Refresh</button></h2>
+      <div id="log-area" style="font-family:monospace;font-size:0.78rem;background:#050711;color:#8899cc;height:420px;overflow-y:auto;padding:14px;border-radius:8px;border:1px solid var(--card-border);white-space:pre-wrap;word-break:break-all;margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- 14. SETTINGS CENTER (Categories A through P) -->
+  <div id="tab-settings" class="tab">
+    <div class="panel">
+      <h2>Interactive Configuration & Settings Center (Categories A–P)</h2>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="exportConfigBackup()">📦 Export Config Backup</button>
+        <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="testComponent('camera')">🧪 Test Camera</button>
+        <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="testComponent('robot')">🧪 Test Robot State</button>
+        <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="testComponent('voice_clone')">🧪 Test Cloned Voice</button>
+        <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="testComponent('ai_provider')">🧪 Test AI Brain</button>
       </div>
-      <div id="robot-status" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
-    </div>
-    <div class="panel" style="flex:1;min-width:260px">
-      <h2>Servo Control (PCA9685)</h2>
-      <div id="servo-sliders"></div>
-    </div>
-  </div>
-</div>
 
-<!-- SENSORS -->
-<div id="tab-sensors" class="tab">
-  <div class="panel">
-    <h2>Live Sensor Readings</h2>
-    <button class="btn dark" onclick="loadSensors()">↺ Refresh</button>
-    <div style="margin-top:12px" id="sensor-content">Loading…</div>
-  </div>
-</div>
-
-<!-- MEMORY -->
-<div id="tab-memory" class="tab">
-  <div class="panel">
-    <h2>Memory Search</h2>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <input id="mem-q" placeholder="Search memories…">
-      <button class="btn" onclick="searchMem()">Search</button>
-    </div>
-    <div id="mem-results"></div>
-  </div>
-</div>
-
-<!-- LOGS -->
-<div id="tab-logs" class="tab">
-  <div class="panel">
-    <h2>Audit Log</h2>
-    <button class="btn dark" onclick="loadLogs()">↺ Refresh</button>
-    <div id="log-area" style="margin-top:12px"></div>
-  </div>
-</div>
-
-<!-- SETTINGS -->
-<div id="tab-settings" class="tab">
-  <div class="panel">
-    <h2>Settings</h2>
-    <div id="settings-content">
-      <p style="color:var(--muted);font-size:.9rem">Adjust <code>config/config.yaml</code> and restart the JARVIS service to apply changes.</p>
-      <br>
-      <table class="sensor-table">
-        <tr><th>Setting</th><th>Current</th></tr>
-        <tr><td>Dashboard URL</td><td>http://localhost:8000/</td></tr>
-        <tr><td>API Base</td><td>http://localhost:8000/api/</td></tr>
-        <tr><td>Simulation Mode</td><td id="sim-mode">—</td></tr>
-        <tr><td>Wake Word</td><td id="wake-word">—</td></tr>
-      </table>
+      <div class="settings-layout">
+        <div class="cat-menu" id="settings-cat-menu">
+          <!-- Injected via JS -->
+        </div>
+        <div class="settings-form-panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <h3 id="current-cat-title" style="font-size:0.95rem;color:var(--accent);text-transform:uppercase">Category Configuration</h3>
+            <button class="btn" onclick="saveActiveCategory()">💾 Save Changes</button>
+          </div>
+          <div id="cat-fields-container">Loading category settings...</div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
+</main>
 
 <script>
-// ─── Tab navigation ─────────────────────────────────────────
-function show(name){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  event.target.classList.add('active');
-  if(name==='system') loadSystem();
-  if(name==='sensors') loadSensors();
-  if(name==='logs') loadLogs();
-  if(name==='memory') searchMem();
-  if(name==='robot') updateRobotGateStatus();
+// ─── Tab Navigation ──────────────────────────────────────────
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  const target = document.getElementById('tab-' + name);
+  if (target) target.classList.add('active');
+  const btn = Array.from(document.querySelectorAll('nav button')).find(b => b.getAttribute('onclick')?.includes(name));
+  if (btn) btn.classList.add('active');
+
+  if (name === 'system') loadSystem();
+  if (name === 'sensors') loadSensors();
+  if (name === 'logs') loadLogs();
+  if (name === 'memory') searchMem();
+  if (name === 'robot') updateRobotGateStatus();
+  if (name === 'voice') loadVoiceStatus();
+  if (name === 'automations') loadAutomations();
+  if (name === 'tools') loadTools();
+  if (name === 'integrations') loadIntegrations();
+  if (name === 'settings') initSettingsCategories();
 }
 
-// ─── WebSocket live telemetry ────────────────────────────────
-let ws, wsRetries=0;
-function connectWS(){
-  const proto = location.protocol==='https:'?'wss:':'ws:';
+// ─── WebSocket Live Telemetry ────────────────────────────────
+let ws, wsRetries = 0;
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   ws = new WebSocket(`${proto}//${location.host}/ws`);
-  ws.onopen=()=>{document.getElementById('ws-status').textContent='● Live';document.getElementById('ws-status').className='ws-status connected';wsRetries=0;}
-  ws.onerror=()=>{document.getElementById('ws-status').textContent='● Offline';document.getElementById('ws-status').className='ws-status';}
-  ws.onclose=()=>{document.getElementById('ws-status').textContent='● Reconnecting…';setTimeout(()=>{if(wsRetries<10){wsRetries++;connectWS();}},3000);}
-  ws.onmessage=(e)=>{
-    const d=JSON.parse(e.data);
-    document.getElementById('h-cpu').textContent=(d.cpu_pct??0).toFixed(1)+'%';
-    document.getElementById('h-ram').textContent=(d.ram_pct??0).toFixed(1)+'%';
-    document.getElementById('h-temp').textContent=d.temp_c!=null?d.temp_c.toFixed(1)+'°C':'N/A';
-    document.getElementById('h-disk').textContent=(d.disk_pct??0).toFixed(1)+'%';
-    document.getElementById('h-robot').textContent=d.robot_state??'UNKNOWN';
-    document.getElementById('h-voice').textContent=d.voice_state??'UNKNOWN';
+  ws.onopen = () => {
+    const b = document.getElementById('ws-badge');
+    if (b) { b.textContent = '● Live'; b.className = 'ws-badge live'; }
+    wsRetries = 0;
+  };
+  ws.onerror = () => {
+    const b = document.getElementById('ws-badge');
+    if (b) { b.textContent = '● Offline'; b.className = 'ws-badge'; }
+  };
+  ws.onclose = () => {
+    const b = document.getElementById('ws-badge');
+    if (b) { b.textContent = '● Reconnecting...'; b.className = 'ws-badge'; }
+    setTimeout(() => { if (wsRetries < 10) { wsRetries++; connectWS(); } }, 3000);
+  };
+  ws.onmessage = (e) => {
+    try {
+      const d = JSON.parse(e.data);
+      const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setVal('h-cpu', (d.cpu_pct ?? 0).toFixed(1) + '%');
+      setVal('h-ram', (d.ram_pct ?? 0).toFixed(1) + '%');
+      setVal('h-temp', d.temp_c != null ? d.temp_c.toFixed(1) + '°C' : 'N/A');
+      setVal('h-disk', (d.disk_pct ?? 0).toFixed(1) + '%');
+      setVal('h-robot', d.robot_state ?? 'DISARMED');
+      setVal('h-voice', d.voice_state ?? 'STANDBY');
+    } catch(err) {}
   };
 }
 connectWS();
 
-// ─── Health ─────────────────────────────────────────────────
-async function loadHealth(){
-  try{
-    const r=await fetch('/api/health');
-    const d=await r.json();
-    let html='<table class="sensor-table"><tr><th>Component</th><th>Status</th></tr>';
-    for(const[k,v] of Object.entries(d.components||{})){
-      const ok=String(v).toUpperCase().includes('OK');
-      const cls=ok?'ok':String(v).toUpperCase().includes('WARN')?'warn':'err';
-      html+=`<tr><td>${k}</td><td><span class="status-dot ${cls}"></span>${v}</td></tr>`;
+// ─── Health Diagnostics ───────────────────────────────────────
+async function loadHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    let html = '<table class="sensor-table"><tr><th>Component</th><th>Status</th></tr>';
+    for (const [k, v] of Object.entries(d.components || {})) {
+      const ok = String(v).toUpperCase().includes('OK');
+      const cls = ok ? 'ok' : String(v).toUpperCase().includes('WARN') ? 'warn' : 'err';
+      html += `<tr><td>${k}</td><td><span class="status-dot ${cls}"></span>${v}</td></tr>`;
     }
-    html+='</table>';
-    document.getElementById('health-table').innerHTML=html;
-  }catch(e){document.getElementById('health-table').textContent='Health check unavailable';}
+    html += '</table>';
+    document.getElementById('health-table').innerHTML = html;
+  } catch (e) {
+    document.getElementById('health-table').textContent = 'Health diagnostics unavailable';
+  }
 }
-loadHealth(); setInterval(loadHealth,15000);
+loadHealth();
+setInterval(loadHealth, 15000);
 
-// ─── System ─────────────────────────────────────────────────
-async function loadSystem(){
-  try{
-    const r=await fetch('/api/system');
-    const d=await r.json();
-    document.getElementById('sys-data').textContent=JSON.stringify(d,null,2);
-  }catch(e){}
-}
-
-// ─── Chat Subsystem ──────────────────────────────────────────
+// ─── AI Chat Subsystem ───────────────────────────────────────
 let currentChatAbort = null;
 let lastUserMessage = "";
 
@@ -292,9 +899,11 @@ async function initChatModels() {
     if (!r.ok) return;
     const data = await r.json();
     const sel = document.getElementById('chat-model-select');
+    const studioSel = document.getElementById('studio-model-select');
     if (!sel || !data.providers) return;
     sel.innerHTML = '';
-    
+    if (studioSel) studioSel.innerHTML = '';
+
     data.providers.forEach(p => {
       const avail = p.available ? '🟢' : '⚪';
       const models = (p.models && p.models.length > 0) ? p.models : [p.model || p.name];
@@ -302,15 +911,12 @@ async function initChatModels() {
         const opt = document.createElement('option');
         opt.value = `${p.name}:${m}`;
         opt.textContent = `${avail} ${p.name.toUpperCase()}: ${m}`;
-        if (p.active && (p.model === m || !p.model)) {
-          opt.selected = true;
-        }
+        if (p.active && (p.model === m || !p.model)) opt.selected = true;
         sel.appendChild(opt);
+        if (studioSel) studioSel.appendChild(opt.cloneNode(true));
       });
     });
-  } catch (e) {
-    console.warn("Could not load AI providers:", e);
-  }
+  } catch (e) {}
 }
 initChatModels();
 
@@ -322,36 +928,29 @@ async function switchChatModel(val) {
   try {
     await fetch('/api/chat/model', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({provider, model})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider, model })
     });
     setChatStatus('ready', `Active: ${provider} (${model})`);
-  } catch (e) {
-    console.error("Failed to switch model:", e);
-  }
+  } catch (e) {}
 }
 
 function setChatStatus(state, msg) {
   const badge = document.getElementById('chat-status-badge');
   if (!badge) return;
-  badge.className = 'badge ' + (state === 'ready' ? 'online' : (state === 'loading' ? 'loading' : 'offline'));
+  badge.className = 'badge ' + (state === 'ready' ? 'online' : (state === 'loading' ? 'warning' : 'offline'));
   badge.textContent = (state === 'ready' ? '🟢 ' : (state === 'loading' ? '🟡 ' : '🔴 ')) + msg;
 }
 
 function renderMarkdown(raw) {
   if (!raw) return "";
   let esc = raw.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  // Code blocks: ```lang\ncode\n```
   esc = esc.replace(/```([a-zA-Z0-9_\-\.]*)\n([\s\S]*?)```/g, (match, lang, code) => {
     return `<div class="code-block"><div class="code-header"><span>${lang || 'code'}</span><button onclick="navigator.clipboard.writeText(this.closest('.code-block').querySelector('code').innerText);this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',2000)">Copy</button></div><pre><code>${code.trim()}</code></pre></div>`;
   });
-  // Inline code
   esc = esc.replace(/`([^`]+)`/g, '<code style="background:#0e1028;padding:2px 5px;border-radius:4px;color:#00e5ff">$1</code>');
-  // Bold
   esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  // Italic
   esc = esc.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  // Linebreaks
   esc = esc.replace(/\n/g, '<br>');
   return esc;
 }
@@ -370,37 +969,34 @@ async function sendChat() {
   const [provider, ...rest] = selVal.split(':');
   const model = rest.join(':');
 
-  setChatStatus('loading', 'Model Loading...');
+  setChatStatus('loading', 'Model Thinking...');
   document.getElementById('cancel-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-send-btn').disabled = true;
 
   const tStart = performance.now();
   currentChatAbort = new AbortController();
-
   const assistantMsgElem = createStreamingBubble();
   let fullText = "";
 
   try {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({message: msg, provider, model}),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, provider, model }),
       signal: currentChatAbort.signal
     });
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-    setChatStatus('loading', 'Generating...');
+    setChatStatus('loading', 'Streaming...');
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
 
     while (true) {
-      const {done, value} = await reader.read();
+      const { done, value } = await reader.read();
       if (done) break;
-      buffer += decoder.decode(value, {stream: true});
+      buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop();
 
@@ -430,17 +1026,16 @@ async function sendChat() {
         } catch (parseErr) {}
       }
     }
-
     assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
   } catch (err) {
     if (err.name === 'AbortError') {
-      fullText += '\n[Generation Stopped by User]';
+      fullText += '\n[Stopped by User]';
       assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
       setChatStatus('ready', 'Stopped');
     } else {
       assistantMsgElem.classList.add('err-msg');
       assistantMsgElem.querySelector('.msg-content').innerHTML = `Error: ${err.message}`;
-      setChatStatus('error', 'Connection Failed');
+      setChatStatus('error', 'Failed');
     }
   } finally {
     document.getElementById('cancel-chat-btn').style.display = 'none';
@@ -450,24 +1045,19 @@ async function sendChat() {
 }
 
 function cancelChat() {
-  if (currentChatAbort) {
-    currentChatAbort.abort();
-  }
+  if (currentChatAbort) currentChatAbort.abort();
 }
 
 function createStreamingBubble() {
   const box = document.getElementById('chat-box');
   const container = document.createElement('div');
   container.className = 'msg-container';
-
   const div = document.createElement('div');
   div.className = 'msg jarvis';
-  div.innerHTML = '<span class="msg-author" style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px">⚡ JARVIS</span><div class="msg-content"><span class="cursor-blink">▊</span></div>';
-
+  div.innerHTML = '<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">⚡ JARVIS</span><div class="msg-content"><span class="cursor-blink">▊</span></div>';
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.innerHTML = `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.72rem" onclick="retryLastChat()">↺ Retry</button>`;
-
+  meta.innerHTML = `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
   container.appendChild(div);
   container.appendChild(meta);
   box.appendChild(container);
@@ -479,12 +1069,10 @@ function addMsg(cls, text) {
   const box = document.getElementById('chat-box');
   const container = document.createElement('div');
   container.className = 'msg-container';
-
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
-  const author = cls === 'user' ? '👤 You' : (cls === 'jarvis' ? '⚡ JARVIS' : '⚠️ System');
-  div.innerHTML = `<span class="msg-author" style="font-size:.75rem;color:var(--muted);display:block;margin-bottom:4px">${author}</span><div class="msg-content">${renderMarkdown(text)}</div>`;
-
+  const author = cls === 'user' ? '👤 Operator' : (cls === 'jarvis' ? '⚡ JARVIS' : '⚠️ System');
+  div.innerHTML = `<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">${author}</span><div class="msg-content">${renderMarkdown(text)}</div>`;
   container.appendChild(div);
   box.appendChild(container);
   box.scrollTop = box.scrollHeight;
@@ -507,12 +1095,12 @@ function retryLastChat() {
 
 function clearChat() {
   document.getElementById('chat-box').innerHTML = '';
-  fetch('/api/chat/history', {method: 'DELETE'}).catch(() => {});
+  fetch('/api/chat/history', { method: 'DELETE' }).catch(() => {});
 }
 
 async function stopSpeech() {
   try {
-    await fetch('/api/voice/stop', {method: 'POST'});
+    await fetch('/api/voice/stop', { method: 'POST' });
   } catch(e) {}
 }
 
@@ -528,31 +1116,26 @@ async function toggleVoiceRecord() {
   btn.style.background = '#e74c3c';
   btn.style.borderColor = '#ff6b6b';
   icon.textContent = '🔴';
-  lbl.textContent = 'Recording (4s)...';
+  lbl.textContent = 'Listening (4s)...';
   chatStatus.textContent = '🎤 Capturing Microphone...';
   chatStatus.className = 'badge warning';
 
   try {
     const res = await fetch('/api/voice/listen_once', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({duration_secs: 4})
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ duration_secs: 4 })
     });
     const d = await res.json();
     if (d.status === 'ok' && d.transcribed) {
-      appendChatMessage('user', d.transcribed);
-      if (d.response) {
-        appendChatMessage('assistant', d.response);
-      }
+      addMsg('user', d.transcribed);
+      if (d.response) addMsg('jarvis', d.response);
       chatStatus.textContent = '🟢 Ready';
       chatStatus.className = 'badge online';
     } else if (d.status === 'empty') {
       chatStatus.textContent = '⚠️ No speech detected';
       chatStatus.className = 'badge warning';
-      setTimeout(() => {
-        chatStatus.textContent = '🟢 Ready';
-        chatStatus.className = 'badge online';
-      }, 3000);
+      setTimeout(() => { chatStatus.textContent = '🟢 Ready'; chatStatus.className = 'badge online'; }, 3000);
     } else {
       chatStatus.textContent = '⚠️ ' + (d.message || 'Capture failed');
       chatStatus.className = 'badge offline';
@@ -562,142 +1145,588 @@ async function toggleVoiceRecord() {
     chatStatus.className = 'badge offline';
   } finally {
     isVoiceRecording = false;
-    btn.style.background = '#1a1c3d';
-    btn.style.borderColor = 'var(--accent)';
+    btn.style.background = '#182042';
+    btn.style.borderColor = 'var(--card-border)';
     icon.textContent = '🎤';
     lbl.textContent = 'Speak';
   }
 }
 
-// ─── Robot ──────────────────────────────────────────────────
-async function updateRobotGateStatus(){
-  try{
-    const r=await fetch('/api/robot/state');
-    const d=await r.json();
-    const lbl=document.getElementById('actuator-gate-state');
-    if(d.emergency_stopped){
-      lbl.textContent='EMERGENCY STOP (LATCHED)';
-      lbl.style.color='var(--err)';
-    }else if(d.armed){
-      lbl.textContent='ARMED (ACTIVE)';
-      lbl.style.color='var(--green)';
-    }else{
-      lbl.textContent='DISARMED (SAFE)';
-      lbl.style.color='var(--warn)';
-    }
-  }catch(e){}
+// ─── Voice Center App ────────────────────────────────────────
+async function loadVoiceStatus() {
+  try {
+    const res = await fetch('/api/voice/status');
+    const d = await res.json();
+    document.getElementById('voice-state-val').textContent = d.voice_state || 'STANDBY';
+    document.getElementById('cloner-provider-val').textContent = d.cloner_status ? d.cloner_status.toUpperCase() : 'READY';
+
+    const cacheRes = await fetch('/api/voice/cache/stats');
+    const cacheData = await cacheRes.json();
+    document.getElementById('voice-cache-count').textContent = cacheData.cached_files || 0;
+  } catch(e) {}
 }
 
-async function armRobot(){
-  try{
-    const r=await fetch('/api/robot/arm',{method:'POST'});
-    const d=await r.json();
-    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
-  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
-  updateRobotGateStatus();
-}
-
-async function disarmRobot(){
-  try{
-    const r=await fetch('/api/robot/disarm',{method:'POST'});
-    const d=await r.json();
-    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
-  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
-  updateRobotGateStatus();
-}
-
-async function clearEstop(){
-  try{
-    const r=await fetch('/api/robot/clear_estop',{method:'POST'});
-    const d=await r.json();
-    document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
-  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
-  updateRobotGateStatus();
-}
-
-async function robotCmd(action){
-  const spd=document.getElementById('motor-speed-slider')?document.getElementById('motor-speed-slider').value:50;
-  let url=`/api/robot/${action}`;
-  if(['forward','backward','left','right'].includes(action)){
-    url+=`?speed=${spd}`;
+async function testVoiceListen() {
+  const log = document.getElementById('voice-log');
+  log.textContent = "🎙️ Capturing 4s audio from ReSpeaker Lite USB microphone (card 2)...";
+  try {
+    const r = await fetch('/api/voice/listen_once', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({duration_secs: 4})
+    });
+    const d = await r.json();
+    log.textContent = "Result: " + JSON.stringify(d, null, 2);
+  } catch (e) {
+    log.textContent = "Error capturing audio: " + e;
   }
-  try{
-    const r=await fetch(url,{method:'POST'});
-    const d=await r.json();
-    if(!r.ok){
-      document.getElementById('robot-status').textContent='⚠️ '+(d.detail||JSON.stringify(d));
-    }else{
-      document.getElementById('robot-status').textContent='→ '+JSON.stringify(d);
+}
+
+async function testVoiceSpeak() {
+  const log = document.getElementById('voice-log');
+  log.textContent = "🔊 Synthesizing test phrase in cloned voice...";
+  try {
+    const r = await fetch('/api/voice/speak', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: "JARVIS OS online. Voice synthesis active."})
+    });
+    const d = await r.json();
+    log.textContent = "Spoken result: " + JSON.stringify(d, null, 2);
+    loadVoiceStatus();
+  } catch(e) {
+    log.textContent = "Speech error: " + e;
+  }
+}
+
+async function speakCustomText() {
+  const text = document.getElementById('voice-test-text').value.trim();
+  if (!text) return;
+  const log = document.getElementById('voice-log');
+  log.textContent = `🔊 Synthesizing: "${text}"...`;
+  try {
+    const r = await fetch('/api/voice/speak', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text})
+    });
+    const d = await r.json();
+    log.textContent = "Synthesis result: " + JSON.stringify(d, null, 2);
+    loadVoiceStatus();
+  } catch(e) {
+    log.textContent = "Error: " + e;
+  }
+}
+
+async function clearVoiceCache() {
+  try {
+    await fetch('/api/voice/cache/clear', {method: 'POST'});
+    loadVoiceStatus();
+    document.getElementById('voice-log').textContent = "Voice cache purged successfully.";
+  } catch(e) {}
+}
+
+// ─── AI Studio App ───────────────────────────────────────────
+async function runStudioTest() {
+  const sel = document.getElementById('studio-model-select').value;
+  const [provider, ...rest] = sel.split(':');
+  const model = rest.join(':');
+  const systemPrompt = document.getElementById('studio-system').value;
+  const userMessage = document.getElementById('studio-user').value;
+  const temp = parseFloat(document.getElementById('temp-val').textContent);
+  const maxTokens = parseInt(document.getElementById('studio-tokens').value) || 512;
+
+  const out = document.getElementById('studio-output');
+  const metrics = document.getElementById('studio-metrics');
+  out.textContent = "Invoking neural provider...";
+  metrics.textContent = "Latency: measuring... | Tokens: --";
+
+  try {
+    const r = await fetch('/api/chat/prompt_test', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        system_prompt: systemPrompt,
+        user_message: userMessage,
+        provider,
+        model,
+        temperature: temp,
+        max_tokens: maxTokens
+      })
+    });
+    const d = await r.json();
+    out.textContent = d.response || JSON.stringify(d, null, 2);
+    metrics.textContent = `Latency: ${d.latency_ms || '--'}ms | Provider: ${d.provider} (${d.model || model})`;
+  } catch(e) {
+    out.textContent = "Execution error: " + e;
+  }
+}
+
+// ─── Vision Center App ───────────────────────────────────────
+async function captureVisionFrame() {
+  const ph = document.getElementById('vision-placeholder');
+  const img = document.getElementById('vision-viewfinder');
+  ph.style.display = 'block';
+  ph.textContent = 'Acquiring frame from Sony IMX708...';
+  img.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/vision/capture');
+    const d = await r.json();
+    const frame = d.data || {};
+    if (frame.data_b64) {
+      img.src = 'data:image/jpeg;base64,' + frame.data_b64;
+      img.style.display = 'block';
+      ph.style.display = 'none';
+    } else {
+      ph.textContent = `Simulation mode capture (${frame.width}x${frame.height}). Objects: ${(frame.objects_detected || []).join(', ')}`;
     }
-  }catch(e){document.getElementById('robot-status').textContent='Error: '+e;}
+    document.getElementById('cam-backend-val').textContent = frame.backend || 'IMX708';
+    document.getElementById('vision-desc').textContent = frame.description || 'Raw frame captured.';
+    document.getElementById('vision-objects').textContent = (frame.objects_detected || ['desk', 'workbench']).join(', ');
+  } catch(e) {
+    ph.textContent = 'Camera capture error: ' + e;
+  }
+}
+
+async function describeVisionScene() {
+  document.getElementById('vision-desc').textContent = 'Analyzing scene with AI...';
+  try {
+    const r = await fetch('/api/vision/describe');
+    const d = await r.json();
+    document.getElementById('vision-desc').textContent = d.description || 'Scene analyzed.';
+  } catch(e) {
+    document.getElementById('vision-desc').textContent = 'Error: ' + e;
+  }
+}
+
+async function checkCameraStatus() {
+  try {
+    const r = await fetch('/api/vision/status');
+    const d = await r.json();
+    alert('Camera Status:\n' + JSON.stringify(d, null, 2));
+  } catch(e) {
+    alert('Could not retrieve camera status: ' + e);
+  }
+}
+
+// ─── Robot Actuator Subsystem ────────────────────────────────
+async function updateRobotGateStatus() {
+  try {
+    const r = await fetch('/api/robot/state');
+    const d = await r.json();
+    const lbl = document.getElementById('actuator-gate-state');
+    if (!lbl) return;
+    if (d.emergency_stopped) {
+      lbl.textContent = 'EMERGENCY STOP (LATCHED)';
+      lbl.style.color = 'var(--err)';
+    } else if (d.armed) {
+      lbl.textContent = 'ARMED (ACTIVE)';
+      lbl.style.color = 'var(--green)';
+    } else {
+      lbl.textContent = 'DISARMED (SAFE)';
+      lbl.style.color = 'var(--warn)';
+    }
+  } catch(e) {}
+}
+
+async function armRobot() {
+  try {
+    const r = await fetch('/api/robot/arm', {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('robot-status').textContent = '→ ' + JSON.stringify(d);
+  } catch(e) { document.getElementById('robot-status').textContent = 'Error: ' + e; }
   updateRobotGateStatus();
 }
-updateRobotGateStatus(); setInterval(updateRobotGateStatus, 3000);
-// Servo sliders (ch 0–7)
-(function buildServos(){
-  const c=document.getElementById('servo-sliders');
-  for(let i=0;i<8;i++){
-    c.innerHTML+=`<div class="servo-row"><label>CH ${i}</label>
+
+async function disarmRobot() {
+  try {
+    const r = await fetch('/api/robot/disarm', {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('robot-status').textContent = '→ ' + JSON.stringify(d);
+  } catch(e) { document.getElementById('robot-status').textContent = 'Error: ' + e; }
+  updateRobotGateStatus();
+}
+
+async function clearEstop() {
+  try {
+    const r = await fetch('/api/robot/clear_estop', {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('robot-status').textContent = '→ ' + JSON.stringify(d);
+  } catch(e) { document.getElementById('robot-status').textContent = 'Error: ' + e; }
+  updateRobotGateStatus();
+}
+
+async function robotCmd(action) {
+  const spd = document.getElementById('motor-speed-slider') ? document.getElementById('motor-speed-slider').value : 50;
+  let url = `/api/robot/${action}`;
+  if (['forward', 'backward', 'left', 'right'].includes(action)) url += `?speed=${spd}`;
+  try {
+    const r = await fetch(url, {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('robot-status').textContent = r.ok ? '→ ' + JSON.stringify(d) : '⚠️ ' + (d.detail || JSON.stringify(d));
+  } catch(e) { document.getElementById('robot-status').textContent = 'Error: ' + e; }
+  updateRobotGateStatus();
+}
+
+(function buildServos() {
+  const c = document.getElementById('servo-sliders');
+  if (!c) return;
+  for (let i = 0; i < 8; i++) {
+    c.innerHTML += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <label style="width:70px;margin-bottom:0">CH ${i}</label>
       <input type="range" min="0" max="180" value="90" oninput="document.getElementById('sv${i}').textContent=this.value" onchange="setServo(${i},this.value)">
-      <span id="sv${i}">90</span>°</div>`;
+      <span id="sv${i}" style="width:40px;text-align:right;font-size:0.85rem">90</span>°
+    </div>`;
   }
 })();
-async function setServo(ch,angle){
-  await fetch('/api/robot/servo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({channel:ch,angle:parseInt(angle)})});
+
+async function setServo(ch, angle) {
+  await fetch('/api/robot/servo', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({channel: ch, angle: parseInt(angle)})
+  });
 }
 
-// ─── Sensors ────────────────────────────────────────────────
-async function loadSensors(){
-  try{
-    const r=await fetch('/api/sensors/all');
-    const d=await r.json();
-    let html='<table class="sensor-table"><tr><th>Sensor</th><th>Reading</th><th>Status</th></tr>';
-    for(const[name,data] of Object.entries(d||{})){
-      const status=data.status||'OK';
-      const cls=status.includes('OK')?'ok':status.includes('WARN')?'warn':'err';
-      const vals=Object.entries(data).filter(([k])=>!['timestamp','status'].includes(k)).map(([k,v])=>`${k}: ${v}`).join(' | ');
-      html+=`<tr><td>${name}</td><td style="font-size:.8rem">${vals||'—'}</td><td><span class="status-dot ${cls}"></span>${status}</td></tr>`;
+// ─── Sensors App ─────────────────────────────────────────────
+async function loadSensors() {
+  try {
+    const r = await fetch('/api/sensors/all');
+    const d = await r.json();
+    let html = '<table class="sensor-table"><tr><th>Sensor Board / Bus</th><th>Readings</th><th>Health</th></tr>';
+    for (const [name, data] of Object.entries(d || {})) {
+      const status = data.status || 'OK';
+      const cls = status.includes('OK') ? 'ok' : status.includes('WARN') ? 'warn' : 'err';
+      const vals = Object.entries(data).filter(([k]) => !['timestamp', 'status'].includes(k)).map(([k, v]) => `${k}: ${v}`).join(' | ');
+      html += `<tr><td>${name}</td><td style="font-size:0.82rem">${vals || 'Simulated telemetry'}</td><td><span class="status-dot ${cls}"></span>${status}</td></tr>`;
     }
-    html+='</table>';
-    document.getElementById('sensor-content').innerHTML=html;
-  }catch(e){document.getElementById('sensor-content').textContent='Sensor data unavailable';}
+    html += '</table>';
+    document.getElementById('sensor-content').innerHTML = html;
+  } catch(e) {
+    document.getElementById('sensor-content').textContent = 'Sensor telemetry unavailable';
+  }
 }
 
-// ─── Memory ─────────────────────────────────────────────────
-async function searchMem(){
-  const q=document.getElementById('mem-q').value.trim();
-  try{
-    const r=await fetch(`/api/memory/search?query=${encodeURIComponent(q)}`);
-    const d=await r.json();
-    const items=d.data||[];
-    if(!items.length){document.getElementById('mem-results').innerHTML='<p style="color:var(--muted)">No memories found.</p>';return;}
-    let html='<table class="sensor-table"><tr><th>ID</th><th>Category</th><th>Content</th><th>Importance</th></tr>';
-    items.forEach(m=>{html+=`<tr><td>${m.id}</td><td>${m.category}</td><td>${m.content}</td><td>${m.importance??5}</td></tr>`;});
-    html+='</table>';
-    document.getElementById('mem-results').innerHTML=html;
-  }catch(e){document.getElementById('mem-results').textContent='Error fetching memories';}
+// ─── Memory App ──────────────────────────────────────────────
+async function searchMem() {
+  const q = document.getElementById('mem-q').value.trim();
+  const cat = document.getElementById('mem-cat-filter').value;
+  try {
+    const r = await fetch(`/api/memory/search?query=${encodeURIComponent(q)}&category=${encodeURIComponent(cat)}`);
+    const d = await r.json();
+    const items = d.data || [];
+    if (!items.length) {
+      document.getElementById('mem-results').innerHTML = '<p style="color:var(--muted)">No matching memories found.</p>';
+      return;
+    }
+    let html = '<table class="sensor-table"><tr><th>ID</th><th>Category</th><th>Content</th><th>Importance</th><th>Action</th></tr>';
+    items.forEach(m => {
+      html += `<tr><td>${m.id}</td><td><span class="badge online">${m.category}</span></td><td>${m.content}</td><td>${m.importance ?? 5}/10</td><td><button class="btn danger" style="padding:2px 8px;font-size:0.72rem" onclick="deleteMem(${m.id})">Delete</button></td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('mem-results').innerHTML = html;
+  } catch(e) {
+    document.getElementById('mem-results').textContent = 'Error querying memory store.';
+  }
 }
 
-// ─── Logs ────────────────────────────────────────────────────
-async function loadLogs(){
-  try{
-    const r=await fetch('/api/logs');
-    const d=await r.json();
-    const lines=(d.lines||[]).join('');
-    document.getElementById('log-area').textContent=lines||'No audit log entries yet.';
-  }catch(e){document.getElementById('log-area').textContent='Log unavailable: '+e;}
+async function deleteMem(id) {
+  if (!confirm(`Delete memory #${id}?`)) return;
+  await fetch(`/api/memory/${id}`, {method: 'DELETE'});
+  searchMem();
 }
 
-// ─── Settings ────────────────────────────────────────────────
-async function loadSettings(){
-  try{
-    const r=await fetch('/api/status');
-    const d=await r.json();
-    document.getElementById('sim-mode').textContent=d.simulation_mode!==undefined?d.simulation_mode:'see config.yaml';
-    document.getElementById('wake-word').textContent=d.wake_word||'see config.yaml';
-  }catch(e){}
+function openAddMemoryModal() {
+  const cat = prompt("Enter Memory Category (USER, PROJECT, ROBOT, SYSTEM, TASK, KNOWLEDGE):", "USER");
+  if (!cat) return;
+  const content = prompt("Enter Memory Content:");
+  if (!content) return;
+  fetch('/api/memory/store', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({category: cat.toUpperCase(), content, importance: 8})
+  }).then(() => searchMem());
 }
-loadSettings();
+
+// ─── Automations App ─────────────────────────────────────────
+async function loadAutomations() {
+  try {
+    const r = await fetch('/api/automations/tasks');
+    const d = await r.json();
+    const tasks = d.tasks || [];
+    if (!tasks.length) {
+      document.getElementById('automations-table').innerHTML = '<p style="color:var(--muted)">No background automations registered.</p>';
+      return;
+    }
+    let html = '<table class="sensor-table"><tr><th>Task Name</th><th>Schedule</th><th>Command</th><th>Status</th><th>Run Count</th><th>Actions</th></tr>';
+    tasks.forEach(t => {
+      const active = t.enabled === 1;
+      html += `<tr><td><strong>${t.name}</strong><br><small style="color:var(--muted)">${t.description || ''}</small></td><td>${t.schedule}</td><td><code>${t.command}</code></td><td><span class="badge ${active ? 'online' : 'offline'}">${active ? 'ACTIVE' : 'PAUSED'}</span></td><td>${t.run_count || 0}</td><td><button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="toggleTask(${t.id}, ${!active})">${active ? 'Pause' : 'Resume'}</button> <button class="btn danger" style="padding:2px 8px;font-size:0.72rem" onclick="deleteTask(${t.id})">Delete</button></td></tr>`;
+    });
+    html += '</table>';
+    document.getElementById('automations-table').innerHTML = html;
+  } catch(e) {
+    document.getElementById('automations-table').textContent = 'Could not load scheduled tasks.';
+  }
+}
+
+async function toggleTask(id, enable) {
+  await fetch(`/api/automations/tasks/${id}/toggle?enable=${enable}`, {method: 'POST'});
+  loadAutomations();
+}
+
+async function deleteTask(id) {
+  if (!confirm(`Delete scheduled task #${id}?`)) return;
+  await fetch(`/api/automations/tasks/${id}`, {method: 'DELETE'});
+  loadAutomations();
+}
+
+function openAddTaskModal() {
+  const name = prompt("Task Name:", "hourly_health_check");
+  if (!name) return;
+  const schedule = prompt("Schedule (e.g. 'every 3600s', '12:00', or 'once'):", "every 3600s");
+  if (!schedule) return;
+  const command = prompt("Command or Tool Name:", "system_diagnostics");
+  if (!command) return;
+
+  fetch('/api/automations/tasks', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, schedule, command, description: "Registered via dashboard"})
+  }).then(() => loadAutomations());
+}
+
+// ─── Tools & Skills App ──────────────────────────────────────
+let allRegisteredTools = [];
+let selectedTool = null;
+
+async function loadTools() {
+  try {
+    const r = await fetch('/api/tools');
+    const d = await r.json();
+    allRegisteredTools = d.tools || [];
+    filterTools('');
+  } catch(e) {}
+}
+
+function filterTools(cat) {
+  const list = document.getElementById('tool-list');
+  list.innerHTML = '';
+  const filtered = cat ? allRegisteredTools.filter(t => t.category?.toLowerCase() === cat.toLowerCase()) : allRegisteredTools;
+  filtered.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'btn dark';
+    b.style.textAlign = 'left';
+    b.style.justifyContent = 'space-between';
+    b.innerHTML = `<span>⚡ ${t.name}</span><small style="color:var(--muted)">Cat ${t.category || '-'}</small>`;
+    b.onclick = () => selectTool(t);
+    list.appendChild(b);
+  });
+  if (filtered.length > 0 && !selectedTool) selectTool(filtered[0]);
+}
+
+function selectTool(t) {
+  selectedTool = t;
+  document.getElementById('selected-tool-name').textContent = `${t.name} (Cat ${t.category || '-'}, Risk ${t.risk_level ?? 0})`;
+  document.getElementById('selected-tool-desc').textContent = t.description || 'No description provided.';
+  const defaultArgs = {};
+  if (t.schema && t.schema.properties) {
+    Object.keys(t.schema.properties).forEach(k => {
+      defaultArgs[k] = t.schema.properties[k].default ?? "";
+    });
+  }
+  document.getElementById('tool-args-input').value = JSON.stringify(defaultArgs, null, 2);
+}
+
+async function executeSelectedTool() {
+  if (!selectedTool) return;
+  const out = document.getElementById('tool-exec-output');
+  out.textContent = `Executing tool ${selectedTool.name}...`;
+  let args = {};
+  try {
+    args = JSON.parse(document.getElementById('tool-args-input').value);
+  } catch(e) {
+    out.textContent = "Invalid JSON in arguments field.";
+    return;
+  }
+  try {
+    const r = await fetch('/api/tools/execute', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({tool_name: selectedTool.name, arguments: args, confirmed: true})
+    });
+    const d = await r.json();
+    out.textContent = JSON.stringify(d, null, 2);
+  } catch(e) {
+    out.textContent = "Error running tool: " + e;
+  }
+}
+
+// ─── Integrations App ────────────────────────────────────────
+async function loadIntegrations() {
+  try {
+    const r = await fetch('/api/settings/integrations');
+    const d = await r.json();
+    const cfg = d.settings || {};
+    const set = (id, v) => { const el = document.getElementById(id); if (el && v) el.value = v; };
+    set('key-gemini', cfg.gemini_api_key);
+    set('key-openai', cfg.openai_api_key);
+    set('key-anthropic', cfg.anthropic_api_key);
+    set('key-nvidia', cfg.nvidia_api_key);
+    set('url-hf-space', cfg.huggingface_space_url);
+  } catch(e) {}
+}
+
+async function saveIntegrations() {
+  const payload = {
+    gemini_api_key: document.getElementById('key-gemini').value.trim(),
+    openai_api_key: document.getElementById('key-openai').value.trim(),
+    anthropic_api_key: document.getElementById('key-anthropic').value.trim(),
+    nvidia_api_key: document.getElementById('key-nvidia').value.trim(),
+    huggingface_space_url: document.getElementById('url-hf-space').value.trim(),
+  };
+  try {
+    const r = await fetch('/api/settings/integrations', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    document.getElementById('integrations-status').textContent = '✅ Keys saved to .env and active configuration.';
+  } catch(e) {
+    document.getElementById('integrations-status').textContent = '❌ Failed to save: ' + e;
+  }
+}
+
+// ─── System Telemetry ────────────────────────────────────────
+async function loadSystem() {
+  try {
+    const r = await fetch('/api/system');
+    const d = await r.json();
+    document.getElementById('sys-data').textContent = JSON.stringify(d, null, 2);
+  } catch(e) {}
+}
+
+// ─── Audit Logs ──────────────────────────────────────────────
+async function loadLogs() {
+  try {
+    const r = await fetch('/api/logs');
+    const d = await r.json();
+    document.getElementById('log-area').textContent = (d.lines || []).join('') || 'Audit log clean.';
+  } catch(e) {
+    document.getElementById('log-area').textContent = 'Error loading logs: ' + e;
+  }
+}
+
+// ─── Settings Center (Categories A through P) ────────────────
+let allSettingsCategories = {};
+let activeSettingsCat = 'core';
+
+async function initSettingsCategories() {
+  try {
+    const r = await fetch('/api/settings');
+    const d = await r.json();
+    allSettingsCategories = d.categories || {};
+
+    const menu = document.getElementById('settings-cat-menu');
+    menu.innerHTML = '';
+    Object.keys(allSettingsCategories).forEach(catKey => {
+      const b = document.createElement('button');
+      b.className = 'cat-btn' + (catKey === activeSettingsCat ? ' active' : '');
+      b.textContent = `⚙️ ${catKey.toUpperCase()}`;
+      b.onclick = () => selectSettingsCategory(catKey);
+      menu.appendChild(b);
+    });
+    selectSettingsCategory(activeSettingsCat);
+  } catch(e) {}
+}
+
+function selectSettingsCategory(catKey) {
+  activeSettingsCat = catKey;
+  document.querySelectorAll('.cat-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase().includes(catKey));
+  });
+  document.getElementById('current-cat-title').textContent = `Category: ${catKey.toUpperCase()}`;
+
+  const container = document.getElementById('cat-fields-container');
+  container.innerHTML = '';
+  const fields = allSettingsCategories[catKey] || {};
+
+  if (Object.keys(fields).length === 0) {
+    container.innerHTML = '<p style="color:var(--muted)">No configurable settings in this category.</p>';
+    return;
+  }
+
+  for (const [k, v] of Object.entries(fields)) {
+    const div = document.createElement('div');
+    div.className = 'form-group';
+    const isBool = typeof v === 'boolean';
+    const isNum = typeof v === 'number';
+
+    if (isBool) {
+      div.innerHTML = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="set-${k}" ${v ? 'checked' : ''} style="width:auto;margin-bottom:0">
+        <span>${k.replace(/_/g, ' ').toUpperCase()}</span>
+      </label>`;
+    } else {
+      div.innerHTML = `<label>${k.replace(/_/g, ' ').toUpperCase()}</label>
+        <input type="${isNum ? 'number' : (k.includes('key') || k.includes('secret') ? 'password' : 'text')}" id="set-${k}" value="${v ?? ''}">`;
+    }
+    container.appendChild(div);
+  }
+}
+
+async function saveActiveCategory() {
+  const fields = allSettingsCategories[activeSettingsCat] || {};
+  const payload = {};
+  for (const [k, v] of Object.entries(fields)) {
+    const el = document.getElementById('set-' + k);
+    if (!el) continue;
+    if (typeof v === 'boolean') payload[k] = el.checked;
+    else if (typeof v === 'number') payload[k] = Number(el.value);
+    else payload[k] = el.value;
+  }
+
+  try {
+    const r = await fetch(`/api/settings/${activeSettingsCat}`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    alert(`Category ${activeSettingsCat.toUpperCase()} settings saved successfully.`);
+    allSettingsCategories[activeSettingsCat] = payload;
+  } catch(e) {
+    alert("Error saving settings: " + e);
+  }
+}
+
+async function testComponent(comp) {
+  try {
+    const r = await fetch(`/api/settings/test/${comp}`, {method: 'POST'});
+    const d = await r.json();
+    alert(`Diagnostics test [${comp}]:\n` + JSON.stringify(d, null, 2));
+  } catch(e) {
+    alert(`Failed testing component [${comp}]: ` + e);
+  }
+}
+
+async function exportConfigBackup() {
+  try {
+    const r = await fetch('/api/settings/export/backup');
+    const d = await r.json();
+    const blob = new Blob([JSON.stringify(d, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `jarvis_config_backup_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert("Export backup failed: " + e);
+  }
+}
 </script>
 </body>
 </html>

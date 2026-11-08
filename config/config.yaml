@@ -7,8 +7,8 @@ voice:
   rate: 150
   volume: 0.9
   language: en
-  gradio_url: "https://roshan-omnivoice-jarvis.hf.space"
-  reference_audio_path: "data/voice_samples/myvoice.wav"
+  gradio_url: https://roshan-omnivoice-jarvis.hf.space
+  reference_audio_path: data/voice_samples/myvoice.wav
   cloning_enabled: true
 stt:
   model: tiny
@@ -20,11 +20,24 @@ memory:
   db_path: jarvis_memory.db
   max_context: 20
 robot:
-  default_speed: 50
+  default_speed: 55
   max_speed: 100
   acceleration_ramp_ms: 500
 sensors:
-  poll_interval_secs: 5
+  bme280:
+    i2c_bus: 1
+    address: 118
+  bh1750:
+    i2c_bus: 1
+    address: 35
+  vl53l0x:
+    i2c_bus: 1
+    address: 41
+  hcsr501:
+    pin: 4
+  hcsr04:
+    trig_pin: 23
+    echo_pin: 24
 health:
   cpu_warn_pct: 80
   temp_warn_c: 75
@@ -46,3 +59,34 @@ ai:
   anthropic:
     enabled: true
     model: claude-3-haiku-20240307
+motors:
+  type: tb6612
+  simulated: true
+servos:
+  type: pca9685
+  simulated: true
+providers:
+- name: ollama
+  base_url: http://localhost:11434
+  model: llama3.2
+  enabled: true
+- name: openai
+  model: gpt-4o
+  enabled: false
+default_provider: ollama
+fallback_message: I am operating in offline mode. Cloud AI is unavailable.
+default_max_risk: 2
+require_confirmation_above: 3
+allowed_tools:
+- system_status
+- read_file
+- write_file
+- run_command
+- sensor_read
+- memory_search
+denied_tools: []
+high_risk_tools:
+- delete_file
+- motor_control
+- push_git
+- install_package
