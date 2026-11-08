@@ -523,6 +523,48 @@
           <div class="sub">Instant replay cache (&lt;0.5ms)</div>
         </div>
       </div>
+
+      <!-- Google Colab OmniVoice Dynamic Integration -->
+      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.3rem">☁️</span>
+            <div>
+              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Google Colab OmniVoice Server</h3>
+              <div style="font-size:0.75rem;color:var(--muted)">Dynamic Gradio URL registration & personal voice cloning</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="colab-status-badge" class="badge" style="background:#ffaa00;color:#000;font-weight:600">CHECKING...</span>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="loadColabOmniVoiceStatus()">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:14px">
+          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+            <div style="font-size:0.75rem;color:var(--muted)">Active Server URL</div>
+            <div id="colab-active-url-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);word-break:break-all;margin-top:2px">Not connected</div>
+          </div>
+          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+            <div style="font-size:0.75rem;color:var(--muted)">Voice Reference Profile</div>
+            <div id="colab-ref-sample-display" style="font-family:monospace;font-size:0.85rem;color:#00e5ff;word-break:break-all;margin-top:2px">~/Downloads/myvoice.mp3 (Verified)</div>
+          </div>
+          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+            <div style="font-size:0.75rem;color:var(--muted)">Registration Secret Token</div>
+            <div id="colab-token-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);margin-top:2px">jarvis_omnivoice_secret_2026</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <input id="colab-url-input" placeholder="Paste Colab Gradio share URL (e.g. https://xxxx.gradio.live)..." style="flex:1;min-width:280px;background:#0d1127;border:1px solid var(--card-border);padding:8px 12px;border-radius:4px;color:var(--text);font-family:monospace;font-size:0.85rem">
+          <button class="btn" onclick="registerColabUrl()">🔗 Connect & Register</button>
+          <button class="btn dark" onclick="verifyColabUrl()">🔍 Verify Link</button>
+          <button class="btn" style="background:#7928ca;border-color:#7928ca" onclick="testClonedVoiceAloud()">🗣️ Test Cloned Voice Aloud</button>
+          <button class="btn warn" onclick="disconnectColabOmniVoice()">Disconnect</button>
+        </div>
+        <div id="colab-conn-msg" style="font-size:0.8rem;color:var(--muted);font-family:monospace"></div>
+      </div>
+
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
         <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (3s)</button>
         <button class="btn dark" onclick="testPhysicalSpeaker()">🔊 Test Physical Speaker</button>
@@ -900,6 +942,7 @@ async function loadHealth() {
 }
 loadHealth();
 setInterval(loadHealth, 15000);
+loadVoiceStatus();
 
 // ─── AI Chat Subsystem ───────────────────────────────────────
 let currentChatAbort = null;
@@ -1298,6 +1341,8 @@ async function loadVoiceStatus() {
     const cacheData = await cacheRes.json();
     const cacheCount = document.getElementById('voice-cache-count');
     if (cacheCount) cacheCount.textContent = cacheData.cached_files || 0;
+
+    await loadColabOmniVoiceStatus();
   } catch(e) {}
 }
 
@@ -1378,6 +1423,163 @@ async function clearVoiceCache() {
     loadVoiceStatus();
     document.getElementById('voice-log').textContent = "Voice cache purged successfully.";
   } catch(e) {}
+}
+
+// ─── Google Colab OmniVoice Integration Functions ────────────
+async function loadColabOmniVoiceStatus() {
+  try {
+    const res = await fetch('/api/integrations/omnivoice/status');
+    const d = await res.json();
+    const badge = document.getElementById('colab-status-badge');
+    const urlDisp = document.getElementById('colab-active-url-display');
+    const tokDisp = document.getElementById('colab-token-display');
+    const msg = document.getElementById('colab-conn-msg');
+
+    if (badge) {
+      if (d.cloned_voice_ready) {
+        badge.textContent = '🟢 CLONED VOICE READY';
+        badge.style.background = '#00e5ff';
+        badge.style.color = '#000';
+      } else if (d.runtime_status === 'waiting_for_verification') {
+        badge.textContent = '🟡 PENDING VERIFY';
+        badge.style.background = '#ffaa00';
+        badge.style.color = '#000';
+      } else {
+        badge.textContent = '🔴 OFFLINE (FALLBACK)';
+        badge.style.background = '#e53935';
+        badge.style.color = '#fff';
+      }
+    }
+
+    if (urlDisp) {
+      urlDisp.textContent = d.active_url || 'No active Gradio link registered';
+      urlDisp.style.color = d.cloned_voice_ready ? '#00e5ff' : 'var(--muted)';
+    }
+
+    if (tokDisp && d.registration_token_masked) {
+      tokDisp.textContent = d.registration_token_masked;
+    }
+
+    if (msg && d.last_error) {
+      msg.textContent = 'Status notice: ' + d.last_error;
+      msg.style.color = '#ffaa00';
+    }
+  } catch(e) {
+    console.warn("Failed to load Colab OmniVoice status:", e);
+  }
+}
+
+async function registerColabUrl() {
+  const input = document.getElementById('colab-url-input');
+  const msg = document.getElementById('colab-conn-msg');
+  const url = input ? input.value.trim() : '';
+  if (!url) {
+    if (msg) { msg.textContent = '⚠️ Please enter a valid Gradio share URL.'; msg.style.color = '#ffaa00'; }
+    return;
+  }
+  if (msg) { msg.textContent = '⏳ Verifying and registering Gradio URL with OmniVoice engine...'; msg.style.color = 'var(--accent)'; }
+
+  try {
+    const res = await fetch('/api/integrations/omnivoice/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        gradio_url: url,
+        token: 'jarvis_omnivoice_secret_2026',
+        session_id: 'dashboard_manual',
+        verify: true
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      if (msg) {
+        msg.textContent = `✅ Registered successfully! Session: ${data.session_id}. OmniVoice cloned voice is now ACTIVE.`;
+        msg.style.color = '#00e5ff';
+      }
+      if (input) input.value = '';
+    } else {
+      if (msg) {
+        msg.textContent = `❌ Registration failed: ${data.detail || data.message || 'Verification error'}`;
+        msg.style.color = '#e53935';
+      }
+    }
+    await loadVoiceStatus();
+    await loadColabOmniVoiceStatus();
+  } catch(err) {
+    if (msg) { msg.textContent = 'Network error during registration: ' + err; msg.style.color = '#e53935'; }
+  }
+}
+
+async function verifyColabUrl() {
+  const input = document.getElementById('colab-url-input');
+  const msg = document.getElementById('colab-conn-msg');
+  const url = input ? input.value.trim() : '';
+  if (msg) { msg.textContent = '🔍 Checking Gradio remote schema and latency...'; msg.style.color = 'var(--accent)'; }
+
+  try {
+    const res = await fetch('/api/integrations/omnivoice/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gradio_url: url || undefined })
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      if (msg) {
+        msg.textContent = `✅ Gradio endpoints verified: [${(data.endpoints || []).join(', ')}]`;
+        msg.style.color = '#00e5ff';
+      }
+    } else {
+      if (msg) {
+        msg.textContent = `⚠️ Verification warning: ${data.message}`;
+        msg.style.color = '#ffaa00';
+      }
+    }
+  } catch(err) {
+    if (msg) { msg.textContent = 'Verification error: ' + err; msg.style.color = '#e53935'; }
+  }
+}
+
+async function testClonedVoiceAloud() {
+  const log = document.getElementById('voice-log');
+  const msg = document.getElementById('colab-conn-msg');
+  if (msg) { msg.textContent = '🗣️ Generating test phrase via OmniVoice and playing on SBC speaker...'; msg.style.color = 'var(--accent)'; }
+  if (log) log.textContent = '🗣️ Contacting OmniVoice remote engine for cloned voice synthesis...\n(Diffusion steps on Tesla T4 typically take ~15-20s)';
+
+  try {
+    const res = await fetch('/api/integrations/omnivoice/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: "Google Colab OmniVoice connection verified. My personal voice model is active.",
+        play_speaker: true
+      })
+    });
+    const data = await res.json();
+    if (log) log.textContent = 'OmniVoice Test Result:\n' + JSON.stringify(data, null, 2);
+    if (data.audio_url) {
+      playJarvisAudio(data.audio_url);
+    }
+    if (msg) {
+      msg.textContent = data.is_cloned
+        ? '✅ Cloned voice synthesis succeeded! Played through ReSpeaker speaker.'
+        : '⚠️ Synthesis succeeded using fallback voice: ' + data.provider;
+      msg.style.color = data.is_cloned ? '#00e5ff' : '#ffaa00';
+    }
+    await loadVoiceStatus();
+    await loadColabOmniVoiceStatus();
+  } catch(err) {
+    if (msg) { msg.textContent = 'Error testing cloned voice: ' + err; msg.style.color = '#e53935'; }
+  }
+}
+
+async function disconnectColabOmniVoice() {
+  try {
+    await fetch('/api/integrations/omnivoice/disconnect', { method: 'POST' });
+    const msg = document.getElementById('colab-conn-msg');
+    if (msg) { msg.textContent = 'Disconnected. Fallback neural voice is now active.'; msg.style.color = '#ffaa00'; }
+    await loadVoiceStatus();
+    await loadColabOmniVoiceStatus();
+  } catch(err) {}
 }
 
 // ─── AI Studio App ───────────────────────────────────────────

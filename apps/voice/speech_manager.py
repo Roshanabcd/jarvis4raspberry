@@ -81,6 +81,8 @@ class SpeechOutputManager:
                 "cloning_available": cloner_status.get("online", False),
                 "cloning_enabled": cloner_status.get("cloning_enabled", True),
                 "reference_voice": cloner_status.get("has_reference_audio", False),
+                "reference_audio_path": cloner_status.get("reference_audio_path"),
+                "active_url": cloner_status.get("url", ""),
                 "status_label": (
                     "OMNIVOICE CLONED VOICE READY"
                     if cloner_status.get("online")

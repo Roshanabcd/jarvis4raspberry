@@ -135,6 +135,7 @@ _include("", "apps.api.router",       "router",       prefix="",         tags=["
 _include("", "apps.api.robot_api",    "robot_router", prefix="/api",     tags=["robot"])
 _include("", "apps.api.memory_api",   "memory_router",prefix="/api",     tags=["memory"])
 _include("", "apps.api.voice_api",    "voice_router", prefix="/api",     tags=["voice"])
+_include("", "apps.api.omnivoice_api","omnivoice_router", prefix="/api", tags=["omnivoice"])
 _include("", "apps.api.vision_api",   "vision_router",prefix="/api",     tags=["vision"])
 _include("", "apps.api.sensors_api",  "sensors_router", prefix="/api",   tags=["sensors"])
 _include("", "apps.api.sensors_api",  "sensors_router", prefix="",      tags=["sensors"])

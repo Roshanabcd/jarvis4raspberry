@@ -24,7 +24,7 @@ class TestPhase4VoiceCloning:
         cloner = GradioVoiceCloner()
         status = cloner.get_provider_status()
         assert status["has_reference_audio"] is True
-        assert "myvoice.wav" in status["reference_audio_path"]
+        assert "myvoice" in status["reference_audio_path"]
         assert os.path.exists(status["reference_audio_path"])
 
     def test_sha256_cache_hit_under_5ms(self):

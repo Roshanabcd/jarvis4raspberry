@@ -68,6 +68,7 @@ class AudioResult:
     success: bool
     error: Optional[str] = None
     latency_ms: float = 0.0
+    is_cloned: bool = False
 
 
 class GradioVoiceCloner:
@@ -78,6 +79,7 @@ class GradioVoiceCloner:
     - play(audio_result)
     - stop_playback()
     - get_provider_status()
+    - update_url(new_url, api_info)
     """
 
     def __init__(
@@ -94,28 +96,46 @@ class GradioVoiceCloner:
             if cloning_enabled is not None
             else v_cfg.get("cloning_enabled", True)
         )
+
+        self._explicit_url = bool(gradio_url)
+
+        # Dynamic URL resolution: colab_manager takes precedence if active and not explicitly overridden
+        try:
+            from apps.voice.colab_registration import colab_manager
+            active_colab = colab_manager.get_active_url() if not self._explicit_url else ""
+        except Exception:
+            active_colab = ""
+
         self.gradio_url = (
             gradio_url
+            or active_colab
             or os.environ.get("GRADIO_VOICE_URL")
             or v_cfg.get("gradio_url", "https://roshan-omnivoice-jarvis.hf.space")
         ).strip()
 
-        self.reference_voice_path = (
-            reference_voice_path
-            or os.environ.get("GRADIO_VOICE_SAMPLE")
-            or v_cfg.get("reference_audio_path")
-        )
-        if not self.reference_voice_path:
-            # Check default standard sample location in jarvis-os
-            default_sample = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                "data", "voice_samples", "myvoice.wav"
-            )
-            if os.path.exists(default_sample):
-                self.reference_voice_path = default_sample
-        elif not os.path.isabs(self.reference_voice_path):
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            self.reference_voice_path = os.path.join(project_root, self.reference_voice_path)
+        # Find reference voice sample
+        if reference_voice_path is not None:
+            self.reference_voice_path = reference_voice_path
+        else:
+            candidates = [
+                os.environ.get("GRADIO_VOICE_SAMPLE"),
+                "/home/roshan/Downloads/myvoice.mp3",
+                "/home/roshan/Downloads/myvoice.mpeg",
+                "/home/roshan/Downloads/myvoice.wav",
+                "/home/roshan/Music/myvoice.mpeg",
+                "/home/roshan/Music/myvoice.mp3",
+                "/home/roshan/myvoice.mp3",
+                v_cfg.get("reference_audio_path"),
+                os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    "data", "voice_samples", "myvoice.wav"
+                ),
+            ]
+            self.reference_voice_path = None
+            for cand in candidates:
+                if cand and isinstance(cand, str) and os.path.exists(cand) and os.path.getsize(cand) > 100:
+                    self.reference_voice_path = os.path.abspath(cand)
+                    break
 
         self.is_hf_space = bool(
             "hf.space" in self.gradio_url
@@ -140,9 +160,33 @@ class GradioVoiceCloner:
         self._current_player: Optional[subprocess.Popen] = None
 
         logger.info(
-            "GradioVoiceCloner initialized (url=%s, cache_dir=%s)",
-            self.gradio_url, self.cache_dir
+            "GradioVoiceCloner initialized (url=%s, ref_audio=%s, cache_dir=%s)",
+            self.gradio_url, self.reference_voice_path, self.cache_dir
         )
+
+    def update_url(self, new_url: str, api_info: Optional[Dict[str, Any]] = None) -> None:
+        """Dynamically update active Gradio server URL and reset client."""
+        with self._playback_lock:
+            self.gradio_url = new_url.strip() if new_url else ""
+            self._client = None
+            self._api_info = api_info
+            self._online = None
+            self._last_probe = 0.0
+            self.is_hf_space = bool(
+                "hf.space" in self.gradio_url
+                or "huggingface.co/spaces" in self.gradio_url
+                or ("/" in self.gradio_url and not self.gradio_url.startswith("http"))
+            )
+            logger.info("GradioVoiceCloner URL dynamically updated to: %s", self.gradio_url)
+
+    def _count_cache_entries(self) -> int:
+        """Count audio files in cache directory."""
+        if os.path.exists(self.cache_dir):
+            try:
+                return len(os.listdir(self.cache_dir))
+            except Exception:
+                return 0
+        return 0
 
     def _get_cache_path(self, text: str) -> str:
         """Generate deterministic cache filename based on text hash."""
@@ -151,29 +195,48 @@ class GradioVoiceCloner:
 
     def _probe_gradio_client(self, force: bool = False) -> bool:
         """Inspect and connect to the remote Gradio instance without guessing."""
+        if not getattr(self, "_explicit_url", False):
+            try:
+                from apps.voice.colab_registration import colab_manager
+                dynamic_url = colab_manager.get_active_url()
+                if dynamic_url and dynamic_url != self.gradio_url:
+                    self.update_url(dynamic_url)
+            except Exception:
+                pass
+
         now = time.time()
-        if not force and self._online is not None and (now - self._last_probe < self._probe_interval):
-            return bool(self._online)
+        if not force and self._client is not None and self._online is True and (now - self._last_probe < self._probe_interval):
+            return True
 
         self._last_probe = now
         if not self.gradio_url or self.gradio_url.startswith("http://disabled") or not self.gradio_url.startswith("http"):
             self._online = False
             return False
 
-        # Fast pre-flight HTTP check with 1.5s timeout to prevent blocking on dead URLs
+        # Fast pre-flight HTTP check with 3.0s timeout to prevent blocking on dead URLs
         import requests
         try:
-            resp = requests.head(self.gradio_url, timeout=1.5, allow_redirects=True)
+            resp = requests.head(self.gradio_url, timeout=3.0, allow_redirects=True)
             if resp.status_code == 405:
                 # Server doesn't support HEAD, fallback to GET
-                resp = requests.get(self.gradio_url, timeout=1.5)
+                resp = requests.get(self.gradio_url, timeout=3.0)
             if resp.status_code >= 400:
                 logger.info("Gradio voice server at '%s' returned HTTP %d. Using fallback.", self.gradio_url, resp.status_code)
                 self._online = False
+                try:
+                    from apps.voice.colab_registration import colab_manager
+                    colab_manager.mark_offline(f"HTTP {resp.status_code}")
+                except Exception:
+                    pass
                 return False
         except Exception as exc:
             logger.info("Pre-flight ping to Gradio URL '%s' failed (%s). Using local fallback.", self.gradio_url, exc)
             self._online = False
+            try:
+                from apps.voice.colab_registration import colab_manager
+                colab_manager.mark_offline(str(exc))
+            except Exception:
+                pass
             return False
 
         try:
@@ -195,10 +258,24 @@ class GradioVoiceCloner:
             )
             self._client = None
             self._online = False
+            try:
+                from apps.voice.colab_registration import colab_manager
+                colab_manager.mark_offline(str(exc))
+            except Exception:
+                pass
             return False
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Return provider connectivity and configuration status."""
+        if not getattr(self, "_explicit_url", False):
+            try:
+                from apps.voice.colab_registration import colab_manager
+                dynamic_url = colab_manager.get_active_url()
+                if dynamic_url and dynamic_url != self.gradio_url:
+                    self.update_url(dynamic_url)
+            except Exception:
+                pass
+
         is_online = self._probe_gradio_client(force=False) if self.cloning_enabled else False
         return {
             "name": "gradio_voice_clone",
@@ -210,7 +287,7 @@ class GradioVoiceCloner:
             "reference_audio_path": self.reference_voice_path,
             "api_endpoints": list(self._api_info.get("named_endpoints", {}).keys()) if self._api_info else [],
             "fallback_backend": self.fallback_tts.backend,
-            "cache_entries": len(os.listdir(self.cache_dir)) if os.path.exists(self.cache_dir) else 0,
+            "cache_entries": self._count_cache_entries(),
         }
 
     def _validate_audio_file(self, file_path: str) -> bool:
@@ -249,7 +326,7 @@ class GradioVoiceCloner:
             return AudioResult(
                 audio_path=None, format="none", duration_s=0.0,
                 cached=False, provider="none", text="", success=False,
-                error="Empty text", latency_ms=0.0
+                error="Empty text", latency_ms=0.0, is_cloned=False
             )
 
         clean_text = sanitize_speech_text(text)
@@ -257,7 +334,7 @@ class GradioVoiceCloner:
             return AudioResult(
                 audio_path=None, format="none", duration_s=0.0,
                 cached=False, provider="none", text="", success=False,
-                error="Empty text after sanitization", latency_ms=0.0
+                error="Empty text after sanitization", latency_ms=0.0, is_cloned=False
             )
 
         cache_path = self._get_cache_path(clean_text)
@@ -271,6 +348,7 @@ class GradioVoiceCloner:
                 duration_s=0.0,
                 cached=True,
                 provider="cache",
+                is_cloned=True,
                 text=clean_text,
                 success=True,
                 latency_ms=(time.perf_counter() - t_start) * 1000,
@@ -278,6 +356,15 @@ class GradioVoiceCloner:
 
         # 2. Try Gradio remote synthesis if enabled and reference sample exists
         if self.cloning_enabled:
+            if not getattr(self, "_explicit_url", False):
+                try:
+                    from apps.voice.colab_registration import colab_manager
+                    dynamic_url = colab_manager.get_active_url()
+                    if dynamic_url and dynamic_url != self.gradio_url:
+                        self.update_url(dynamic_url)
+                except Exception:
+                    pass
+
             if not self.reference_voice_path or not os.path.exists(self.reference_voice_path):
                 logger.warning(
                     "Reference voice sample '%s' not found. Falling back to local TTS.",
@@ -291,20 +378,42 @@ class GradioVoiceCloner:
 
                     # Check endpoints discovered from view_api
                     named = self._api_info.get("named_endpoints", {}) if self._api_info else {}
-                    if "/clone_voice" in named or "clone_voice" in named:
-                        ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
-                        # Use submit().result(timeout=10.0) or predict
-                        try:
-                            job = self._client.submit(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name).result(timeout=10.0)
-                        except AttributeError:
-                            job = self._client.predict(clean_text, ref_handle, "", 32, 1.0, api_name=ep_name)
-                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
-                    elif "/generate" in named or "generate" in named:
+                    num_steps = (voice_config or {}).get("num_steps", 16)
+                    speed = (voice_config or {}).get("speed", 1.0)
+
+                    if "/generate" in named or "generate" in named:
                         ep_name = "/generate" if "/generate" in named else "generate"
                         try:
-                            job = self._client.submit(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name).result(timeout=10.0)
+                            job = self._client.submit(
+                                clean_text,
+                                "Voice Cloning",
+                                ref_handle,
+                                "",
+                                "Custom (type your own)",
+                                "",
+                                num_steps,
+                                speed,
+                                api_name=ep_name
+                            ).result(timeout=90.0)
                         except AttributeError:
-                            job = self._client.predict(clean_text, "Voice Cloning", ref_handle, "", "", "", 32, 1.0, api_name=ep_name)
+                            job = self._client.predict(
+                                clean_text,
+                                "Voice Cloning",
+                                ref_handle,
+                                "",
+                                "Custom (type your own)",
+                                "",
+                                num_steps,
+                                speed,
+                                api_name=ep_name
+                            )
+                        result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
+                    elif "/clone_voice" in named or "clone_voice" in named:
+                        ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
+                        try:
+                            job = self._client.submit(clean_text, ref_handle, "", num_steps, speed, api_name=ep_name).result(timeout=90.0)
+                        except AttributeError:
+                            job = self._client.predict(clean_text, ref_handle, "", num_steps, speed, api_name=ep_name)
                         result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
                     elif "/predict" in named or "predict" in named:
                         ep_name = "/predict" if "/predict" in named else "predict"
@@ -322,34 +431,55 @@ class GradioVoiceCloner:
                             else:
                                 args.append(param.get("default", None))
                         try:
-                            job = self._client.submit(*args, api_name=ep_name).result(timeout=10.0)
+                            job = self._client.submit(*args, api_name=ep_name).result(timeout=90.0)
                         except AttributeError:
                             job = self._client.predict(*args, api_name=ep_name)
                         result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
                     else:
                         try:
-                            job = self._client.submit(clean_text).result(timeout=10.0)
+                            job = self._client.submit(clean_text).result(timeout=90.0)
                         except AttributeError:
                             job = self._client.predict(clean_text)
                         result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
 
                     if result_audio_path and self._validate_audio_file(result_audio_path):
                         shutil.copy2(result_audio_path, cache_path)
+                        try:
+                            from apps.voice.colab_registration import colab_manager
+                            with colab_manager._lock:
+                                colab_manager.state["last_generation_time"] = time.time()
+                                colab_manager.state["last_error"] = None
+                        except Exception:
+                            pass
+
+                        provider_name = "omnivoice_clone" if ("/generate" in ep_name or "generate" in ep_name) else "gradio_voice_clone"
                         return AudioResult(
                             audio_path=cache_path,
                             format="wav",
                             duration_s=0.0,
                             cached=False,
-                            provider="gradio_voice_clone",
+                            provider=provider_name,
+                            is_cloned=True,
                             text=clean_text,
                             success=True,
                             latency_ms=(time.perf_counter() - t_start) * 1000,
                         )
                 except Exception as exc:
+                    err_msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                     logger.warning(
                         "Gradio voice synthesis failed: %s. Falling back to local TTS.",
-                        exc
+                        err_msg
                     )
+                    try:
+                        from apps.voice.colab_registration import colab_manager
+                        with colab_manager._lock:
+                            colab_manager.state["last_error"] = err_msg
+                    except Exception:
+                        pass
+                        with colab_manager._lock:
+                            colab_manager.state["last_error"] = str(exc)
+                    except Exception:
+                        pass
 
         # 3. Fallback: High quality Neural TTS or local espeak saved to cache_path
         logger.info("[Gradio Offline/Fallback] Synthesizing via neural/local TTS: '%s'", clean_text[:50])
@@ -372,6 +502,7 @@ class GradioVoiceCloner:
                     duration_s=0.0,
                     cached=False,
                     provider="edge_neural_tts",
+                    is_cloned=False,
                     text=clean_text,
                     success=True,
                     latency_ms=(time.perf_counter() - t_start) * 1000,
@@ -394,6 +525,7 @@ class GradioVoiceCloner:
                         duration_s=0.0,
                         cached=False,
                         provider="espeak_local_tts",
+                        is_cloned=False,
                         text=clean_text,
                         success=True,
                         latency_ms=(time.perf_counter() - t_start) * 1000,
@@ -409,6 +541,7 @@ class GradioVoiceCloner:
             duration_s=0.0,
             cached=False,
             provider="fallback_local_tts",
+            is_cloned=False,
             text=clean_text,
             success=True,
             latency_ms=(time.perf_counter() - t_start) * 1000,
@@ -461,15 +594,16 @@ class GradioVoiceCloner:
 
     def stop_playback(self) -> None:
         """Immediately halt currently playing audio."""
-        if self._current_player and self._current_player.poll() is None:
-            try:
-                self._current_player.terminate()
-                self._current_player.wait(timeout=1.0)
-            except Exception:
+        if self._current_player:
+            if self._current_player.poll() is None:
                 try:
-                    self._current_player.kill()
+                    self._current_player.terminate()
+                    self._current_player.wait(timeout=1.0)
                 except Exception:
-                    pass
+                    try:
+                        self._current_player.kill()
+                    except Exception:
+                        pass
             self._current_player = None
 
 

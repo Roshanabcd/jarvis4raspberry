@@ -175,3 +175,67 @@ def clear_voice_cache():
             except Exception:
                 pass
     return {"status": "ok", "purged": purged}
+
+
+# ─── Google Colab OmniVoice Integration Aliases ──────────────
+from fastapi import Request
+from apps.voice.colab_registration import colab_manager
+
+
+class ColabVoiceRegisterRequest(BaseModel):
+    gradio_url: str
+    session_id: Optional[str] = None
+    token: Optional[str] = None
+    verify: Optional[bool] = True
+
+
+@voice_router.post("/colab/register")
+def register_colab_url_alias(req: ColabVoiceRegisterRequest, request: Request):
+    """Alias for POST /api/integrations/omnivoice/register."""
+    client_ip = request.client.host if request.client else "unknown"
+    is_local = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
+    result = colab_manager.register_url(
+        gradio_url=req.gradio_url,
+        session_id=req.session_id,
+        token=req.token,
+        is_local_request=is_local,
+        client_ip=client_ip,
+        verify_now=bool(req.verify),
+    )
+    if result.get("status") == "error":
+        raise HTTPException(status_code=result.get("code", 400), detail=result.get("message", "Registration failed"))
+    return result
+
+
+@voice_router.get("/colab/status")
+def get_colab_status_alias():
+    """Alias for GET /api/integrations/omnivoice/status."""
+    return colab_manager.get_status()
+
+
+@voice_router.post("/colab/verify")
+def verify_colab_url_alias(gradio_url: Optional[str] = None):
+    """Alias for POST /api/integrations/omnivoice/verify."""
+    url = (gradio_url or "").strip() or colab_manager.get_active_url()
+    if not url:
+        raise HTTPException(status_code=400, detail="No Gradio URL specified or active")
+    ok, msg, endpoints = colab_manager.verify_remote_gradio(url)
+    return {"status": "ok" if ok else "error", "gradio_url": url, "verified": ok, "message": msg, "endpoints": endpoints}
+
+
+@voice_router.post("/colab/test")
+def test_colab_voice_alias():
+    """Alias for POST /api/integrations/omnivoice/test."""
+    from apps.voice.speech_manager import speech_manager
+    res = speech_manager.synthesize_and_stage(
+        "Google Colab OmniVoice connection verified. My personal voice model is active.",
+        play_system=True
+    )
+    return {
+        "status": "ok" if res.get("success") else "error",
+        "synthesis": res,
+        "is_cloned": res.get("is_cloned", False),
+        "provider": res.get("provider", "unknown"),
+        "audio_url": res.get("audio_url"),
+    }
+

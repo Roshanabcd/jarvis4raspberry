@@ -276,6 +276,8 @@ class OllamaProvider(AIProvider):
     ) -> None:
         cfg = config.get("ai", {}).get("ollama", {}) or {}
         self.base_url = (base_url or cfg.get("base_url") or "http://127.0.0.1:11434").rstrip("/")
+        if "localhost" in self.base_url:
+            self.base_url = self.base_url.replace("localhost", "127.0.0.1")
         self.model = model or cfg.get("model") or "llama3.2:1b"
         self.timeout = timeout
         self.enabled = enabled
@@ -355,12 +357,11 @@ class OllamaProvider(AIProvider):
         chat_messages = []
         sys_prompt = system or "You are JARVIS, an advanced AI operating environment on Raspberry Pi 5."
         if tools:
-            tool_desc = "\n".join(f"- {t['name']}: {t.get('description', '')}" for t in tools)
+            tool_desc = ", ".join(t['name'] for t in tools)
             sys_prompt += (
-                f"\n\nAvailable tools:\n{tool_desc}\n\n"
-                "IMPORTANT: For greetings, conversations, and questions, DO NOT use tools; answer directly and conversationally as JARVIS.\n"
-                "Only when a physical action or hardware task is explicitly commanded, respond with:\n"
-                "TOOL_CALL: {\"name\": \"tool_name\", \"args\": {...}}\n"
+                f"\nTools available: {tool_desc}.\n"
+                "To invoke a tool, output: TOOL_CALL: {\"name\": \"<name>\", \"args\": {...}}\n"
+                "Otherwise answer conversationally without tools."
             )
         chat_messages.append({"role": "system", "content": sys_prompt})
 

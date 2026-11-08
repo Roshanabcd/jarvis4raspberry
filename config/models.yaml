@@ -1,7 +1,7 @@
 providers:
   - name: ollama
-    base_url: 'http://localhost:11434'
-    model: 'llama3.2'
+    base_url: 'http://127.0.0.1:11434'
+    model: 'llama3.2:1b'
     enabled: true
   - name: openai
     model: 'gpt-4o'

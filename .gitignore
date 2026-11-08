@@ -22,6 +22,7 @@ htmlcov/
 # Database and env
 jarvis_memory.db
 .env
+data/omnivoice_state.json
 
 # Backups & caches
 backups/
