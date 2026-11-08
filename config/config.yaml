@@ -10,6 +10,10 @@ voice:
   gradio_url: https://roshan-omnivoice-jarvis.hf.space
   reference_audio_path: data/voice_samples/myvoice.wav
   cloning_enabled: true
+  simulation_mode: false
+  routing_policy: both
+  fallback_voice: en-GB-RyanNeural
+  auto_speak: true
 stt:
   model: tiny
   device: cpu

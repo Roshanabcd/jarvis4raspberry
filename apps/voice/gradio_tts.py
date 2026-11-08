@@ -31,14 +31,21 @@ logger = logging.getLogger("JARVIS.Voice.GradioTTS")
 def sanitize_speech_text(text: str) -> str:
     """
     Sanitize text for speech synthesis:
-    - Removes markdown syntax (bold, italic, inline code, headers)
-    - Removes non-verbal bracketed tags (e.g. [laughter], [sigh], [question-en])
+    - Removes code blocks, URLs, markdown syntax
+    - Removes non-verbal bracketed tags (e.g. [laughter], [sigh])
+    - Removes emojis and unicode decorative symbols
     - Collapses multiple whitespace
     """
     if not text:
         return ""
+    # Remove code blocks
+    cleaned = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
+    # Remove URLs
+    cleaned = re.sub(r'https?://\S+', '', cleaned)
+    # Remove emojis and astral plane symbols
+    cleaned = re.sub(r'[\U00010000-\U0010ffff]', '', cleaned)
     # Remove bracketed non-verbal tags like [laughter], [sigh]
-    cleaned = re.sub(r'\[[a-zA-Z0-9_\-]+\]', '', text)
+    cleaned = re.sub(r'\[[a-zA-Z0-9_\-]+\]', '', cleaned)
     # Remove markdown headers (# Title)
     cleaned = re.sub(r'#+\s*', '', cleaned)
     # Remove markdown bold/italic/code: **bold**, *italic*, `code`
@@ -153,16 +160,17 @@ class GradioVoiceCloner:
             self._online = False
             return False
 
-        # Fast pre-flight HTTP check with 2s timeout to prevent blocking on dead URLs
+        # Fast pre-flight HTTP check with 1.5s timeout to prevent blocking on dead URLs
         import requests
         try:
-            resp = requests.head(self.gradio_url, timeout=2.0, allow_redirects=True)
-            if resp.status_code >= 400 and resp.status_code != 405:
-                resp = requests.get(self.gradio_url, timeout=2.0)
-                if resp.status_code >= 400:
-                    logger.info("Gradio voice server at '%s' returned HTTP %d. Using fallback.", self.gradio_url, resp.status_code)
-                    self._online = False
-                    return False
+            resp = requests.head(self.gradio_url, timeout=1.5, allow_redirects=True)
+            if resp.status_code == 405:
+                # Server doesn't support HEAD, fallback to GET
+                resp = requests.get(self.gradio_url, timeout=1.5)
+            if resp.status_code >= 400:
+                logger.info("Gradio voice server at '%s' returned HTTP %d. Using fallback.", self.gradio_url, resp.status_code)
+                self._online = False
+                return False
         except Exception as exc:
             logger.info("Pre-flight ping to Gradio URL '%s' failed (%s). Using local fallback.", self.gradio_url, exc)
             self._online = False
@@ -346,20 +354,30 @@ class GradioVoiceCloner:
         # 3. Fallback: High quality Neural TTS or local espeak saved to cache_path
         logger.info("[Gradio Offline/Fallback] Synthesizing via neural/local TTS: '%s'", clean_text[:50])
         try:
-            if shutil.which("edge-tts"):
-                cmd = ["edge-tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
-                res = subprocess.run(cmd, capture_output=True, timeout=8)
-                if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
-                    return AudioResult(
-                        audio_path=cache_path,
-                        format="mp3",
-                        duration_s=0.0,
-                        cached=False,
-                        provider="edge_neural_tts",
-                        text=clean_text,
-                        success=True,
-                        latency_ms=(time.perf_counter() - t_start) * 1000,
-                    )
+            import sys
+            edge_bin = (
+                shutil.which("edge-tts")
+                or os.path.join(os.path.dirname(sys.executable), "edge-tts")
+            )
+            if edge_bin and os.path.exists(edge_bin):
+                cmd = [edge_bin, "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+            else:
+                cmd = [sys.executable, "-m", "edge_tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+
+            res = subprocess.run(cmd, capture_output=True, timeout=25)
+            if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
+                return AudioResult(
+                    audio_path=cache_path,
+                    format="mp3",
+                    duration_s=0.0,
+                    cached=False,
+                    provider="edge_neural_tts",
+                    text=clean_text,
+                    success=True,
+                    latency_ms=(time.perf_counter() - t_start) * 1000,
+                )
+            else:
+                logger.warning("edge-tts process returned code %d: %s", res.returncode, res.stderr.decode() if res.stderr else "")
         except Exception as e:
             logger.debug("edge-tts fallback exception: %s", e)
 

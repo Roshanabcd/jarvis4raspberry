@@ -22,12 +22,16 @@ class AudioManager:
 
         Args:
             simulation_mode: Explicit flag to force simulation mode. If None,
-                reads 'simulation_mode' from system config (default True).
+                checks voice-specific config or defaults to False (Real Hardware Mode).
         """
         if simulation_mode is not None:
             self.simulation_mode = simulation_mode
         else:
-            self.simulation_mode = bool(config.get("simulation_mode", True))
+            voice_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+            if "simulation_mode" in voice_cfg:
+                self.simulation_mode = bool(voice_cfg["simulation_mode"])
+            else:
+                self.simulation_mode = False
 
         self.selected_device: Optional[Dict[str, Any]] = None
         logger.info(

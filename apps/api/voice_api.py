@@ -25,7 +25,13 @@ class SynthesizeRequest(BaseModel):
 @voice_router.get("/status")
 def get_voice_status():
     """Return real-time voice pipeline state and hardware device status."""
-    return voice_service.get_state()
+    from apps.voice.speech_manager import speech_manager
+    st = voice_service.get_state()
+    diag = speech_manager.get_status()
+    st["diagnostics"] = diag
+    st["speaker"] = diag["speaker"]
+    st["tts"] = diag["tts"]
+    return st
 
 
 @voice_router.post("/start")
@@ -97,17 +103,55 @@ def run_command(req: CommandRequest):
 @voice_router.post("/synthesize")
 @voice_router.post("/speak")
 def synthesize_speech(req: SynthesizeRequest):
-    """Synthesize text using OmniVoice custom cloned voice or fast offline fallback."""
-    from apps.voice.gradio_tts import gradio_cloner
-    res = gradio_cloner.synthesize(req.text)
-    return {
-        "status": "ok",
-        "audio_path": res.audio_path,
-        "cached": res.cached,
-        "provider": res.provider,
-        "latency_ms": res.latency_ms,
-        "error": res.error,
-    }
+    """Synthesize text using OmniVoice custom cloned voice or fast offline fallback, staging audio."""
+    from apps.voice.speech_manager import speech_manager
+    res = speech_manager.synthesize_and_stage(req.text, play_system=True)
+    return res
+
+
+@voice_router.get("/audio/{audio_id}")
+def get_staged_audio_file(audio_id: str):
+    """Serve staged audio file for browser HTML5 audio element."""
+    from fastapi.responses import FileResponse
+    from apps.voice.speech_manager import speech_manager
+    audio = speech_manager.get_staged_audio(audio_id)
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio file not found or expired")
+    file_path, media_type = audio
+    return FileResponse(file_path, media_type=media_type, headers={"Accept-Ranges": "bytes"})
+
+
+@voice_router.post("/test/microphone")
+def test_microphone_endpoint(duration_secs: int = 3):
+    """Record real audio from ReSpeaker microphone and transcribe without simulation."""
+    from apps.voice.speech_manager import speech_manager
+    return speech_manager.test_microphone(duration_secs=duration_secs)
+
+
+@voice_router.post("/test/speaker")
+def test_speaker_endpoint():
+    """Test physical speaker output."""
+    from apps.voice.speech_manager import speech_manager
+    return speech_manager.test_speaker()
+
+
+@voice_router.get("/diagnostics")
+def get_voice_diagnostics():
+    """Return comprehensive diagnostics for audio hardware, cloner, and playback."""
+    from apps.voice.speech_manager import speech_manager
+    return speech_manager.get_status()
+
+
+@voice_router.post("/replay/{audio_id}")
+def replay_audio_endpoint(audio_id: str):
+    """Replay a staged audio file through system speaker."""
+    from apps.voice.speech_manager import speech_manager
+    audio = speech_manager.get_staged_audio(audio_id)
+    if not audio:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    path, _ = audio
+    ok = speech_manager.play_system_audio(path)
+    return {"status": "ok" if ok else "error", "audio_id": audio_id, "replayed": ok}
 
 
 @voice_router.get("/cache/stats")

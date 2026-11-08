@@ -39,7 +39,11 @@ class SpeechToText:
         if simulation_mode is not None:
             self.simulation_mode = simulation_mode
         else:
-            self.simulation_mode = bool(config.get("simulation_mode", True))
+            voice_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+            if "simulation_mode" in voice_cfg:
+                self.simulation_mode = bool(voice_cfg["simulation_mode"])
+            else:
+                self.simulation_mode = False
 
         self.model = None
         self._init_model()
@@ -97,10 +101,15 @@ class SpeechToText:
 
         if not os.path.exists(audio_file_path):
             logger.warning(
-                "Audio file '%s' not found for transcription; returning simulated.",
+                "Audio file '%s' not found for transcription.",
                 audio_file_path,
             )
-            return self.transcribe_simulated()
+            return ""
+
+        # Check for empty file
+        if os.path.getsize(audio_file_path) < 100:
+            logger.debug("Audio file is empty or near-silent (<100 bytes).")
+            return ""
 
         # 1. Primary fast speech recognition via SpeechRecognition
         try:
@@ -131,11 +140,11 @@ class SpeechToText:
 
     def record_audio(
         self,
-        duration_secs: int,
-        output_path: str,
+        duration_secs: int = 4,
+        output_path: Optional[str] = None,
         device: Optional[str] = None,
     ) -> bool:
-        """Record audio to output_path using ALSA arecord or PipeWire pw-record.
+        """Record audio to output_path using PipeWire pw-record or ALSA arecord.
 
         Args:
             duration_secs: Recording duration in seconds.
@@ -145,6 +154,12 @@ class SpeechToText:
         Returns:
             bool: True if recording succeeded or was simulated, False on error.
         """
+        # Handle swapped or defaulted arguments safely
+        if isinstance(duration_secs, str) and (output_path is None or isinstance(output_path, int)):
+            output_path, duration_secs = duration_secs, output_path or 4
+        if output_path is None:
+            output_path = "/tmp/jarvis_recorded.wav"
+
         # Ensure parent directory exists
         out_dir = os.path.dirname(output_path)
         if out_dir:
@@ -158,68 +173,75 @@ class SpeechToText:
             )
             return self._create_dummy_wav(output_path, duration_secs)
 
-        # Check if arecord exists
-        if not shutil.which("arecord"):
-            logger.warning("arecord binary not found; creating dummy audio file.")
-            return self._create_dummy_wav(output_path, duration_secs)
+        # 1. Primary: PipeWire native recorder (ideal for Debian 13 / Pi 5, avoids device lock conflicts)
+        if shutil.which("pw-record"):
+            try:
+                pw_cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
+                logger.info("Recording %ds via pw-record to %s", duration_secs, output_path)
+                import time
+                pw_proc = subprocess.Popen(pw_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+                time.sleep(duration_secs)
+                pw_proc.terminate()
+                try:
+                    _, err = pw_proc.communicate(timeout=3)
+                except subprocess.TimeoutExpired:
+                    pw_proc.kill()
+                    _, err = pw_proc.communicate(timeout=1)
 
-        # Convert direct hw: identifier to plughw: to ensure automatic rate and format translation
-        rec_dev = device
-        if rec_dev and rec_dev.startswith("hw:"):
-            rec_dev = "plug" + rec_dev
+                if os.path.exists(output_path) and os.path.getsize(output_path) > 500:
+                    logger.info("Successfully recorded %d seconds via pw-record (%d bytes)", duration_secs, os.path.getsize(output_path))
+                    return True
+                else:
+                    logger.warning("pw-record finished without expected audio file: err=%s", err.decode() if err else "")
+            except Exception as e:
+                logger.warning("pw-record failed: %s; trying arecord.", e)
 
-        cmd = [
-            "arecord",
-            "-d",
-            str(duration_secs),
-            "-f",
-            "S16_LE",
-            "-r",
-            "16000",
-        ]
-        if rec_dev and rec_dev != "default":
-            cmd.extend(["-D", rec_dev])
-        cmd.append(output_path)
+        # 2. Secondary: ALSA arecord with plughw format conversion
+        if shutil.which("arecord"):
+            rec_dev = device
+            if not rec_dev or rec_dev == "default":
+                try:
+                    from apps.voice.audio_manager import AudioManager
+                    mgr = AudioManager()
+                    best = mgr.select_best_device()
+                    rec_dev = mgr.get_device_alsa_identifier(best, plug=True)
+                except Exception:
+                    rec_dev = "plughw:2,0"
 
-        try:
-            logger.info("Executing arecord command: %s", " ".join(cmd))
-            proc = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=False,
-                timeout=duration_secs + 5,
-            )
-            if proc.returncode != 0:
-                logger.warning(
-                    "arecord failed with code %d: %s; trying pw-record fallback.",
-                    proc.returncode,
-                    proc.stderr.strip(),
+            if rec_dev and rec_dev.startswith("hw:"):
+                rec_dev = "plug" + rec_dev
+
+            cmd = [
+                "arecord",
+                "-d",
+                str(duration_secs),
+                "-f",
+                "S16_LE",
+                "-r",
+                "16000",
+            ]
+            if rec_dev and rec_dev != "default":
+                cmd.extend(["-D", rec_dev])
+            cmd.append(output_path)
+
+            try:
+                logger.info("Executing arecord command: %s", " ".join(cmd))
+                proc = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=duration_secs + 5,
                 )
-                if shutil.which("pw-record"):
-                    try:
-                        pw_cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
-                        import time
-                        pw_proc = subprocess.Popen(pw_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        time.sleep(duration_secs)
-                        pw_proc.terminate()
-                        pw_proc.wait(timeout=2)
-                        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                            logger.info("Recorded %d seconds via pw-record", duration_secs)
-                            return True
-                    except Exception as e:
-                        logger.warning("pw-record fallback error: %s", e)
-                return self._create_dummy_wav(output_path, duration_secs)
+                if proc.returncode == 0 and os.path.exists(output_path) and os.path.getsize(output_path) > 500:
+                    logger.info("Recorded %d seconds of audio to %s", duration_secs, output_path)
+                    return True
+                logger.warning("arecord failed with code %d: %s", proc.returncode, proc.stderr.strip())
+            except Exception as exc:
+                logger.error("Error during arecord execution: %s", exc)
 
-            logger.info("Recorded %d seconds of audio to %s", duration_secs, output_path)
-            return True
-
-        except subprocess.TimeoutExpired:
-            logger.error("arecord timed out after %d seconds.", duration_secs + 5)
-            return self._create_dummy_wav(output_path, duration_secs)
-        except Exception as exc:
-            logger.error("Unexpected error during arecord: %s", exc)
-            return self._create_dummy_wav(output_path, duration_secs)
+        logger.error("All physical audio recording backends failed for %s", output_path)
+        return False
 
     def _create_dummy_wav(self, path: str, duration_secs: int) -> bool:
         """Create a valid silent WAV file for simulation and test compatibility.

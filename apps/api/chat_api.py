@@ -29,6 +29,7 @@ class ModelSwitchRequest(BaseModel):
 def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
     """Process a chat message through the JARVIS AI brain synchronously."""
     from ai.brain import get_brain
+    from apps.voice.speech_manager import speech_manager
     brain = get_brain()
     if req.provider:
         brain.set_active_provider(req.provider, req.model)
@@ -38,6 +39,19 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
         use_tools=req.use_tools,
         session_id=req.session_id,
     )
+    # Generate speech for every final response
+    resp_text = result.get("response", "")
+    if resp_text:
+        try:
+            audio_info = speech_manager.synthesize_and_stage(resp_text)
+            result["audio_id"] = audio_info.get("audio_id")
+            result["audio_url"] = audio_info.get("audio_url")
+            result["audio_provider"] = audio_info.get("provider")
+            result["audio_provider_label"] = audio_info.get("provider_label")
+            result["is_cloned"] = audio_info.get("is_cloned", False)
+        except Exception as ae:
+            logger.warning(f"Voice generation error in chat: {ae}")
+
     return result
 
 
@@ -45,12 +59,14 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
 def chat_stream_endpoint(req: ChatRequest):
     """
     Stream chat tokens in real-time using Server-Sent Events (SSE).
-    Allows sub-second Time-to-First-Token (TTFT) on Raspberry Pi 5.
+    Generates audio on completion and streams audio_url event.
     """
     from ai.brain import get_brain
+    from apps.voice.speech_manager import speech_manager
     brain = get_brain()
 
     def event_stream():
+        full_text = ""
         try:
             for event in brain.stream_chat(
                 user_message=req.message,
@@ -58,8 +74,27 @@ def chat_stream_endpoint(req: ChatRequest):
                 provider_name=req.provider,
                 model_name=req.model,
             ):
+                if event.get("type") == "token":
+                    full_text += event.get("content", "")
                 payload = json.dumps(event)
                 yield f"data: {payload}\n\n"
+
+            # Stream complete: synthesize speech for the full final response
+            if full_text.strip():
+                try:
+                    audio_info = speech_manager.synthesize_and_stage(full_text.strip())
+                    audio_event = {
+                        "type": "audio",
+                        "audio_id": audio_info.get("audio_id"),
+                        "audio_url": audio_info.get("audio_url"),
+                        "provider": audio_info.get("provider"),
+                        "provider_label": audio_info.get("provider_label"),
+                        "is_cloned": audio_info.get("is_cloned", False),
+                    }
+                    yield f"data: {json.dumps(audio_event)}\n\n"
+                except Exception as ae:
+                    logger.warning(f"Post-stream audio error: {ae}")
+
         except Exception as e:
             logger.error(f"Event stream error: {e}")
             err_payload = json.dumps({"type": "error", "message": str(e)})

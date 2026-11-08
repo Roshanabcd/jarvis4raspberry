@@ -38,7 +38,11 @@ class VoiceService:
         if simulation_mode is not None:
             self.simulation_mode = simulation_mode
         else:
-            self.simulation_mode = bool(config.get("simulation_mode", True))
+            voice_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+            if "simulation_mode" in voice_cfg:
+                self.simulation_mode = bool(voice_cfg["simulation_mode"])
+            else:
+                self.simulation_mode = False
 
         self.audio_manager = AudioManager(simulation_mode=self.simulation_mode)
         self.wake_detector = WakeWordDetector(
@@ -156,10 +160,16 @@ class VoiceService:
 
             response = self.process_command(text)
             self.state = prev_state
+            from apps.voice.speech_manager import speech_manager
+            staged = speech_manager.synthesize_and_stage(response, play_system=True)
             return {
                 "status": "ok",
                 "transcribed": text,
                 "response": response,
+                "audio_id": staged.get("audio_id"),
+                "audio_url": staged.get("audio_url"),
+                "provider": staged.get("provider"),
+                "provider_label": staged.get("provider_label"),
             }
         except Exception as e:
             self.state = prev_state

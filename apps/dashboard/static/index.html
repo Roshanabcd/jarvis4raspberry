@@ -415,6 +415,11 @@
 </head>
 <body>
 
+<audio id="jarvis-audio-player" preload="auto" style="display:none"></audio>
+<div id="audio-unlock-banner" style="display:none;background:linear-gradient(90deg,#e65100,#ff8f00);color:#ffffff;padding:8px 16px;text-align:center;font-size:0.85rem;font-weight:600;cursor:pointer;position:sticky;top:0;z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,0.5)" onclick="unlockAudioPlayback()">
+  🔊 Browser blocked automatic audio playback. Click anywhere or click here to enable speech output!
+</div>
+
 <header>
   <div class="brand">
     <span class="logo">⚡ JARVIS OS</span>
@@ -475,6 +480,7 @@
           </select>
           <span id="chat-status-badge" class="badge online">🟢 Ready</span>
           <span id="chat-telemetry-badge" style="font-size:0.75rem;color:var(--muted)">⚡ --</span>
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text);background:var(--card-bg);padding:4px 8px;border-radius:4px;border:1px solid var(--card-border);cursor:pointer" title="Speak every final AI response aloud"><input type="checkbox" id="chat-auto-speak" checked> 🔊 Auto-Speak</label>
           <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="clearChat()">🗑️ Clear</button>
           <button id="cancel-chat-btn" class="btn warn" style="display:none;padding:4px 10px;font-size:0.75rem" onclick="cancelChat()">⏹️ Stop</button>
           <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="stopSpeech()">🔇 Mute</button>
@@ -497,35 +503,41 @@
       <h2>OmniVoice & Audio Subsystem</h2>
       <div class="grid" style="margin-bottom:16px">
         <div class="card">
-          <h3>Microphone State</h3>
-          <div class="val" id="voice-state-val" style="font-size:1.2rem">STANDBY</div>
-          <div class="sub">PipeWire ReSpeaker Lite</div>
+          <h3>Microphone Device</h3>
+          <div class="val" id="voice-state-val" style="font-size:1.1rem">STANDBY</div>
+          <div class="sub" id="voice-mic-sub">ReSpeaker Lite USB (plughw:2,0)</div>
         </div>
         <div class="card">
           <h3>Cloned Voice Engine</h3>
-          <div class="val" id="cloner-provider-val" style="font-size:1.2rem">READY</div>
-          <div class="sub" id="cloner-sub-val">Gradio / HF Space</div>
+          <div class="val" id="cloner-provider-val" style="font-size:0.95rem;color:#ffaa00">OMNIVOICE OFFLINE — FALLBACK ACTIVE</div>
+          <div class="sub" id="cloner-sub-val">Neural Fallback (Edge-TTS Ryan)</div>
+        </div>
+        <div class="card">
+          <h3>Physical Speaker</h3>
+          <div class="val" id="voice-speaker-val" style="font-size:1.1rem">READY</div>
+          <div class="sub" id="voice-speaker-sub">PipeWire ReSpeaker Lite (pw-play)</div>
         </div>
         <div class="card">
           <h3>Voice Disk Cache</h3>
           <div class="val" id="voice-cache-count">0</div>
-          <div class="sub">Cached audio files (&lt;0.5ms)</div>
+          <div class="sub">Instant replay cache (&lt;0.5ms)</div>
         </div>
       </div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-        <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (4s)</button>
-        <button class="btn dark" onclick="testVoiceSpeak()">🔊 Test Voice Output Aloud</button>
+      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+        <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (3s)</button>
+        <button class="btn dark" onclick="testPhysicalSpeaker()">🔊 Test Physical Speaker</button>
+        <button class="btn dark" onclick="testBrowserAudio()">🎧 Test Browser Audio</button>
         <button class="btn dark" onclick="clearVoiceCache()">🗑️ Clear Voice Cache</button>
         <button class="btn warn" onclick="stopSpeech()">⏹️ Interrupt Audio</button>
       </div>
       <div class="form-group">
-        <label>Manual Speech Synthesis (Speak in Cloned Voice)</label>
+        <label>Manual Speech Synthesis (Speak Aloud in Cloned Voice or Fallback)</label>
         <div style="display:flex;gap:8px">
-          <input id="voice-test-text" placeholder="Enter text to speak aloud in your cloned voice..." value="Systems fully operational. I am JARVIS.">
-          <button class="btn" onclick="speakCustomText()">Synthesize</button>
+          <input id="voice-test-text" placeholder="Enter text to speak aloud in your voice..." value="Systems fully operational. I am JARVIS.">
+          <button class="btn" onclick="speakCustomText()">Synthesize & Speak</button>
         </div>
       </div>
-      <div id="voice-log" style="font-family:monospace;font-size:0.8rem;background:#050711;padding:12px;border-radius:6px;border:1px solid var(--card-border);min-height:80px">Voice events will appear here...</div>
+      <div id="voice-log" style="font-family:monospace;font-size:0.8rem;background:#050711;padding:12px;border-radius:6px;border:1px solid var(--card-border);min-height:90px;white-space:pre-wrap">Voice events will appear here...</div>
     </div>
   </div>
 
@@ -1018,6 +1030,12 @@ async function sendChat() {
             const tokSec = totalMs > 0 ? ((fullText.split(/\s+/).length / (totalMs / 1000)).toFixed(1)) : '--';
             document.getElementById('chat-telemetry-badge').textContent = `⚡ ${totalMs}ms (${tokSec} tok/s) • ${event.provider || provider}`;
             setChatStatus('ready', 'Completed');
+          } else if (event.type === 'audio') {
+            attachAudioToBubble(assistantMsgElem, event.audio_url, event.provider_label, event.is_cloned);
+            const autoSpeak = document.getElementById('chat-auto-speak');
+            if (!autoSpeak || autoSpeak.checked) {
+              playJarvisAudio(event.audio_url);
+            }
           } else if (event.type === 'error') {
             fullText += `\n[Error: ${event.message}]`;
             assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
@@ -1054,10 +1072,10 @@ function createStreamingBubble() {
   container.className = 'msg-container';
   const div = document.createElement('div');
   div.className = 'msg jarvis';
-  div.innerHTML = '<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">⚡ JARVIS</span><div class="msg-content"><span class="cursor-blink">▊</span></div>';
+  div.innerHTML = '<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span>⚡ JARVIS</span><span class="voice-badge"></span></span><div class="msg-content"><span class="cursor-blink">▊</span></div>';
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.innerHTML = `<button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
+  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
   container.appendChild(div);
   container.appendChild(meta);
   box.appendChild(container);
@@ -1065,18 +1083,90 @@ function createStreamingBubble() {
   return div;
 }
 
-function addMsg(cls, text) {
+function addMsg(cls, text, audioInfo) {
   const box = document.getElementById('chat-box');
   const container = document.createElement('div');
   container.className = 'msg-container';
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
   const author = cls === 'user' ? '👤 Operator' : (cls === 'jarvis' ? '⚡ JARVIS' : '⚠️ System');
-  div.innerHTML = `<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">${author}</span><div class="msg-content">${renderMarkdown(text)}</div>`;
+  div.innerHTML = `<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span>${author}</span><span class="voice-badge"></span></span><div class="msg-content">${renderMarkdown(text)}</div>`;
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
   container.appendChild(div);
+  container.appendChild(meta);
   box.appendChild(container);
   box.scrollTop = box.scrollHeight;
+
+  if (cls === 'jarvis' && audioInfo && audioInfo.audio_url) {
+    attachAudioToBubble(div, audioInfo.audio_url, audioInfo.provider_label, audioInfo.is_cloned);
+  }
 }
+
+function attachAudioToBubble(bubbleElem, audioUrl, providerLabel, isCloned) {
+  if (!bubbleElem) return;
+  const container = bubbleElem.closest('.msg-container');
+  if (!container) return;
+
+  const badgeElem = bubbleElem.querySelector('.voice-badge');
+  if (badgeElem) {
+    if (isCloned) {
+      badgeElem.innerHTML = `<span class="badge online" style="font-size:0.65rem;padding:2px 6px">👤 ${providerLabel || 'OmniVoice Cloned'}</span>`;
+    } else {
+      badgeElem.innerHTML = `<span class="badge" style="font-size:0.65rem;padding:2px 6px;background:#2d2105;color:#ffaa00;border:1px solid #775500">🔊 ${providerLabel || 'Neural Fallback (Edge-TTS)'}</span>`;
+    }
+  }
+
+  const audioControls = container.querySelector('.audio-controls');
+  if (audioControls && audioUrl) {
+    audioControls.innerHTML = `<button style="background:rgba(0,229,255,0.12);border:1px solid rgba(0,229,255,0.3);color:#00e5ff;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:0.72rem;margin-right:8px" onclick="playJarvisAudio('${audioUrl}')">🔊 Listen</button>`;
+  }
+}
+
+let lastStagedAudioUrl = null;
+let audioUnlocked = false;
+
+function playJarvisAudio(url) {
+  if (!url) return;
+  lastStagedAudioUrl = url;
+  const player = document.getElementById('jarvis-audio-player');
+  if (!player) return;
+  player.pause();
+  player.src = url;
+  const playPromise = player.play();
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      audioUnlocked = true;
+      const banner = document.getElementById('audio-unlock-banner');
+      if (banner) banner.style.display = 'none';
+    }).catch(err => {
+      console.warn("Audio autoplay blocked by browser:", err);
+      const banner = document.getElementById('audio-unlock-banner');
+      if (banner) banner.style.display = 'block';
+    });
+  }
+}
+
+function unlockAudioPlayback() {
+  audioUnlocked = true;
+  const banner = document.getElementById('audio-unlock-banner');
+  if (banner) banner.style.display = 'none';
+  if (lastStagedAudioUrl) {
+    playJarvisAudio(lastStagedAudioUrl);
+  } else {
+    const player = document.getElementById('jarvis-audio-player');
+    if (player) {
+      player.play().catch(() => {});
+    }
+  }
+}
+
+document.addEventListener('click', () => {
+  if (!audioUnlocked && lastStagedAudioUrl) {
+    unlockAudioPlayback();
+  }
+}, { once: true });
 
 function copyBubbleText(btn) {
   const container = btn.closest('.msg-container');
@@ -1099,6 +1189,11 @@ function clearChat() {
 }
 
 async function stopSpeech() {
+  const player = document.getElementById('jarvis-audio-player');
+  if (player) {
+    player.pause();
+    player.currentTime = 0;
+  }
   try {
     await fetch('/api/voice/stop', { method: 'POST' });
   } catch(e) {}
@@ -1116,7 +1211,7 @@ async function toggleVoiceRecord() {
   btn.style.background = '#e74c3c';
   btn.style.borderColor = '#ff6b6b';
   icon.textContent = '🔴';
-  lbl.textContent = 'Listening (4s)...';
+  lbl.textContent = 'Listening (3s)...';
   chatStatus.textContent = '🎤 Capturing Microphone...';
   chatStatus.className = 'badge warning';
 
@@ -1124,16 +1219,28 @@ async function toggleVoiceRecord() {
     const res = await fetch('/api/voice/listen_once', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ duration_secs: 4 })
+      body: JSON.stringify({ duration_secs: 3 })
     });
     const d = await res.json();
     if (d.status === 'ok' && d.transcribed) {
       addMsg('user', d.transcribed);
-      if (d.response) addMsg('jarvis', d.response);
+      if (d.response) {
+        addMsg('jarvis', d.response, {
+          audio_url: d.audio_url,
+          provider_label: d.provider_label,
+          is_cloned: d.is_cloned
+        });
+        if (d.audio_url) {
+          const autoSpeak = document.getElementById('chat-auto-speak');
+          if (!autoSpeak || autoSpeak.checked) {
+            playJarvisAudio(d.audio_url);
+          }
+        }
+      }
       chatStatus.textContent = '🟢 Ready';
       chatStatus.className = 'badge online';
-    } else if (d.status === 'empty') {
-      chatStatus.textContent = '⚠️ No speech detected';
+    } else if (d.status === 'empty' || !d.transcribed) {
+      chatStatus.textContent = '⚠️ No speech detected (silence)';
       chatStatus.className = 'badge warning';
       setTimeout(() => { chatStatus.textContent = '🟢 Ready'; chatStatus.className = 'badge online'; }, 3000);
     } else {
@@ -1157,45 +1264,89 @@ async function loadVoiceStatus() {
   try {
     const res = await fetch('/api/voice/status');
     const d = await res.json();
-    document.getElementById('voice-state-val').textContent = d.voice_state || 'STANDBY';
-    document.getElementById('cloner-provider-val').textContent = d.cloner_status ? d.cloner_status.toUpperCase() : 'READY';
+
+    const micElem = document.getElementById('voice-state-val');
+    const micSub = document.getElementById('voice-mic-sub');
+    if (micElem) micElem.textContent = d.voice_state || (d.listening ? 'LISTENING' : 'STANDBY');
+    if (micSub && d.diagnostics && d.diagnostics.microphone) {
+      micSub.textContent = d.diagnostics.microphone.device || 'PipeWire ReSpeaker Lite';
+    }
+
+    const clonerElem = document.getElementById('cloner-provider-val');
+    const clonerSub = document.getElementById('cloner-sub-val');
+    if (d.diagnostics && d.diagnostics.tts) {
+      const tts = d.diagnostics.tts;
+      if (clonerElem) {
+        clonerElem.textContent = tts.status_label || 'OMNIVOICE OFFLINE — FALLBACK ACTIVE';
+        clonerElem.style.color = tts.cloning_available ? '#00e5ff' : '#ffaa00';
+      }
+      if (clonerSub) {
+        clonerSub.textContent = tts.cloning_available 
+          ? 'OmniVoice Cloned Speech Ready'
+          : 'Neural Fallback Active (Edge-TTS Ryan)';
+      }
+    }
+
+    const spkElem = document.getElementById('voice-speaker-val');
+    const spkSub = document.getElementById('voice-speaker-sub');
+    if (d.diagnostics && d.diagnostics.speaker) {
+      if (spkElem) spkElem.textContent = d.diagnostics.speaker.playing ? 'PLAYING 🔊' : 'READY';
+      if (spkSub) spkSub.textContent = d.diagnostics.speaker.device || 'PipeWire ReSpeaker Lite';
+    }
 
     const cacheRes = await fetch('/api/voice/cache/stats');
     const cacheData = await cacheRes.json();
-    document.getElementById('voice-cache-count').textContent = cacheData.cached_files || 0;
+    const cacheCount = document.getElementById('voice-cache-count');
+    if (cacheCount) cacheCount.textContent = cacheData.cached_files || 0;
   } catch(e) {}
 }
 
 async function testVoiceListen() {
   const log = document.getElementById('voice-log');
-  log.textContent = "🎙️ Capturing 4s audio from ReSpeaker Lite USB microphone (card 2)...";
+  log.textContent = "🎙️ Capturing 3s audio from ReSpeaker Lite USB microphone (hw:2,0)...";
   try {
-    const r = await fetch('/api/voice/listen_once', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({duration_secs: 4})
+    const r = await fetch('/api/voice/test/microphone?duration_secs=3', {
+      method: 'POST'
     });
     const d = await r.json();
-    log.textContent = "Result: " + JSON.stringify(d, null, 2);
+    log.textContent = "🎙️ Microphone Test Result:\n" + JSON.stringify(d, null, 2);
+    if (d.status === 'ok') {
+      log.textContent += `\n\n✅ Captured ${d.bytes_captured} bytes from physical device '${d.device}'.`;
+      if (d.transcription) {
+        log.textContent += `\nTranscribed speech: "${d.transcription}"`;
+      } else {
+        log.textContent += `\n(Silence detected - no speech recognized)`;
+      }
+    }
   } catch (e) {
-    log.textContent = "Error capturing audio: " + e;
+    log.textContent = "Error testing microphone: " + e;
   }
 }
 
-async function testVoiceSpeak() {
+async function testPhysicalSpeaker() {
   const log = document.getElementById('voice-log');
-  log.textContent = "🔊 Synthesizing test phrase in cloned voice...";
+  log.textContent = "🔊 Dispatching test phrase to physical SBC speaker (pw-play)...";
   try {
-    const r = await fetch('/api/voice/speak', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text: "JARVIS OS online. Voice synthesis active."})
-    });
+    const r = await fetch('/api/voice/test/speaker', { method: 'POST' });
     const d = await r.json();
-    log.textContent = "Spoken result: " + JSON.stringify(d, null, 2);
+    log.textContent = "🔊 Speaker Test Result:\n" + JSON.stringify(d, null, 2);
+    if (d.audio_url) {
+      playJarvisAudio(d.audio_url);
+    }
     loadVoiceStatus();
   } catch(e) {
-    log.textContent = "Speech error: " + e;
+    log.textContent = "Speaker test error: " + e;
+  }
+}
+
+function testBrowserAudio() {
+  const log = document.getElementById('voice-log');
+  log.textContent = "🎧 Testing browser audio synthesis...";
+  if (lastStagedAudioUrl) {
+    playJarvisAudio(lastStagedAudioUrl);
+    log.textContent = "🎧 Playing last staged audio in browser: " + lastStagedAudioUrl;
+  } else {
+    testPhysicalSpeaker();
   }
 }
 
@@ -1211,7 +1362,10 @@ async function speakCustomText() {
       body: JSON.stringify({text})
     });
     const d = await r.json();
-    log.textContent = "Synthesis result: " + JSON.stringify(d, null, 2);
+    log.textContent = "Synthesis Result:\n" + JSON.stringify(d, null, 2);
+    if (d.audio_url) {
+      playJarvisAudio(d.audio_url);
+    }
     loadVoiceStatus();
   } catch(e) {
     log.textContent = "Error: " + e;

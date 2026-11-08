@@ -27,3 +27,5 @@ jarvis_memory.db
 backups/
 .cache/
 tmp/
+data/audio_stage/*.mp3
+data/audio_stage/*.wav
