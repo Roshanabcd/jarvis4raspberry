@@ -1627,14 +1627,20 @@ async function initSettingsCategories() {
   try {
     const r = await fetch('/api/settings');
     const d = await r.json();
-    allSettingsCategories = d.categories || {};
+    allSettingsCategories = d.categories || d || {};
 
     const menu = document.getElementById('settings-cat-menu');
     menu.innerHTML = '';
-    Object.keys(allSettingsCategories).forEach(catKey => {
+    const keys = Object.keys(allSettingsCategories);
+    if (!keys.includes(activeSettingsCat) && keys.length > 0) {
+      activeSettingsCat = keys[0];
+    }
+    keys.forEach(catKey => {
+      const catObj = allSettingsCategories[catKey] || {};
+      const label = catObj.name ? `${catKey.replace('category_', 'CAT ').toUpperCase()}: ${catObj.name}` : catKey.toUpperCase();
       const b = document.createElement('button');
       b.className = 'cat-btn' + (catKey === activeSettingsCat ? ' active' : '');
-      b.textContent = `⚙️ ${catKey.toUpperCase()}`;
+      b.textContent = `⚙️ ${label}`;
       b.onclick = () => selectSettingsCategory(catKey);
       menu.appendChild(b);
     });
@@ -1663,12 +1669,16 @@ function selectSettingsCategory(catKey) {
     div.className = 'form-group';
     const isBool = typeof v === 'boolean';
     const isNum = typeof v === 'number';
+    const isObj = typeof v === 'object' && v !== null;
 
     if (isBool) {
       div.innerHTML = `<label style="display:flex;align-items:center;gap:8px;cursor:pointer">
         <input type="checkbox" id="set-${k}" ${v ? 'checked' : ''} style="width:auto;margin-bottom:0">
         <span>${k.replace(/_/g, ' ').toUpperCase()}</span>
       </label>`;
+    } else if (isObj) {
+      div.innerHTML = `<label>${k.replace(/_/g, ' ').toUpperCase()}</label>
+        <textarea id="set-${k}" rows="3">${JSON.stringify(v, null, 2)}</textarea>`;
     } else {
       div.innerHTML = `<label>${k.replace(/_/g, ' ').toUpperCase()}</label>
         <input type="${isNum ? 'number' : (k.includes('key') || k.includes('secret') ? 'password' : 'text')}" id="set-${k}" value="${v ?? ''}">`;
@@ -1685,6 +1695,9 @@ async function saveActiveCategory() {
     if (!el) continue;
     if (typeof v === 'boolean') payload[k] = el.checked;
     else if (typeof v === 'number') payload[k] = Number(el.value);
+    else if (typeof v === 'object' && v !== null) {
+      try { payload[k] = JSON.parse(el.value); } catch(e) { payload[k] = el.value; }
+    }
     else payload[k] = el.value;
   }
 

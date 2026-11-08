@@ -95,6 +95,7 @@ def run_command(req: CommandRequest):
 
 
 @voice_router.post("/synthesize")
+@voice_router.post("/speak")
 def synthesize_speech(req: SynthesizeRequest):
     """Synthesize text using OmniVoice custom cloned voice or fast offline fallback."""
     from apps.voice.gradio_tts import gradio_cloner
@@ -107,3 +108,26 @@ def synthesize_speech(req: SynthesizeRequest):
         "latency_ms": res.latency_ms,
         "error": res.error,
     }
+
+
+@voice_router.get("/cache/stats")
+def voice_cache_stats():
+    from apps.voice.gradio_tts import gradio_cloner
+    entries = gradio_cloner._count_cache_entries()
+    return {"status": "ok", "cached_files": entries}
+
+
+@voice_router.post("/cache/clear")
+def clear_voice_cache():
+    import glob
+    import os
+    from apps.voice.gradio_tts import gradio_cloner
+    purged = 0
+    if os.path.isdir(gradio_cloner.cache_dir):
+        for f in glob.glob(os.path.join(gradio_cloner.cache_dir, "*")):
+            try:
+                os.remove(f)
+                purged += 1
+            except Exception:
+                pass
+    return {"status": "ok", "purged": purged}
