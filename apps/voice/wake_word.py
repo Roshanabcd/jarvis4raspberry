@@ -82,6 +82,14 @@ class WakeWordDetector:
             logger.info("Wake word '%s' detected in text: '%s'", self.wake_word, audio_text)
             return True
 
+        # Acoustic/STT phonetic variations if wake word is jarvis
+        if self.wake_word == "jarvis":
+            variations = [r"\bjarvis\b", r"\bjarves\b", r"\bjavis\b", r"\bjar\s*vis\b", r"\bhey\s+jarvis\b"]
+            for var in variations:
+                if re.search(var, normalized_text):
+                    logger.info("Wake word variation matched in text: '%s'", audio_text)
+                    return True
+
         # Fallback substring check in case punctuation or spelling attaches to it
         if self.wake_word in normalized_text:
             logger.info(

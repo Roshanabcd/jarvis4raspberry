@@ -90,3 +90,20 @@ Learnings:
 - Dynamic inspect.signature reflection in _build_default_validator requires optional parameters to have default values or be omitted from schema required checks to prevent rejecting tools that accept alternate argument formats (e.g. run_code accepting either code string or file_path).
 - Headless execution environments without a GUI display server or missing graphical applications (e.g. code/mousepad) need graceful simulation fallback to prevent crashing agent workflows.
 ==================================================
+=== ITERATION 3: PHASE 3 RE-SPEAKER LITE AUDIO & WAKE-WORD PIPELINE ===
+Date: 2026-11-08
+Status: SUCCESS
+Changes:
+- Fixed ALSA device addressing: switched from direct hardware locking 'hw:2,0' (which triggered PipeWire resource busy errors) to format-converting 'plughw:2,0' via get_record_alsa_identifier.
+- Re-engineered SpeechToText (apps/voice/stt.py) to integrate SpeechRecognition (Google Web Speech API) as primary high-speed recognizer with Whisper fallback, delivering near-instant transcription accuracy.
+- Upgraded WakeWordDetector (apps/voice/wake_word.py) with phonetic and acoustic tolerance for "jarvis" variations.
+- Modernized VoiceService (apps/voice/service.py) with formal state machine (STANDBY, LISTENING, PROCESSING, SPEAKING, MUTED), dynamic hardware detection, mute/unmute toggles, and push-to-talk listen_once endpoint.
+- Corrected websocket_api.py telemetry to stream dynamic, authentic voice states instead of hardcoded 'LISTENING'.
+- Expanded voice_api.py with /api/voice/status, /api/voice/start, /api/voice/stop, /api/voice/mute, /api/voice/unmute, /api/voice/listen_once, and /api/voice/devices.
+- Added live "Speak" (push-to-talk) button and status telemetry to dashboard index.html.
+- Created dedicated test suite tests/unit/test_phase3_voice_pipeline.py (6 tests).
+- Verified full regression: 26 of 26 voice subsystem tests passing (100% PASS).
+Learnings:
+- On Debian 13 Trixie running PipeWire, ALSA hardware handles ('hw:X,Y') fail with EBUSY unless opened through 'plughw:X,Y', which provides user-space PCM resampling and non-exclusive device access.
+- Hardcoded mock values in WebSocket telemetry pollutes UI status indicators; state must always be read dynamically from the underlying singleton service.
+==================================================

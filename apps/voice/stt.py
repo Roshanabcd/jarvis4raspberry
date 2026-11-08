@@ -83,13 +83,16 @@ class SpeechToText:
     def transcribe(self, audio_file_path: str) -> str:
         """Transcribe an audio file into text.
 
+        Uses speech_recognition (Google Web Speech API) as primary fast engine,
+        Whisper model as secondary, and simulated fallback in simulation mode.
+
         Args:
             audio_file_path: Absolute or relative path to the audio file.
 
         Returns:
             str: Transcribed text or simulated transcription.
         """
-        if self.simulation_mode or self.model is None:
+        if self.simulation_mode:
             return self.transcribe_simulated()
 
         if not os.path.exists(audio_file_path):
@@ -99,19 +102,32 @@ class SpeechToText:
             )
             return self.transcribe_simulated()
 
+        # 1. Primary fast speech recognition via SpeechRecognition
         try:
-            logger.info("Transcribing audio file: %s", audio_file_path)
-            result = self.model.transcribe(audio_file_path)
-            transcription = str(result.get("text", "")).strip()
-            logger.info("Transcription result: '%s'", transcription)
-            return transcription or self.transcribe_simulated()
+            import speech_recognition as sr
+            r = sr.Recognizer()
+            with sr.AudioFile(audio_file_path) as source:
+                audio_data = r.record(source)
+            text = r.recognize_google(audio_data)
+            if text and text.strip():
+                logger.info("SpeechRecognition transcribed: '%s'", text)
+                return text.strip()
         except Exception as exc:
-            logger.error(
-                "Transcription failed for '%s': %s; falling back to simulated.",
-                audio_file_path,
-                exc,
-            )
-            return self.transcribe_simulated()
+            logger.debug("SpeechRecognition recognize_google: %s", exc)
+
+        # 2. Whisper fallback if loaded
+        if self.model is not None:
+            try:
+                logger.info("Transcribing audio file with Whisper: %s", audio_file_path)
+                result = self.model.transcribe(audio_file_path)
+                transcription = str(result.get("text", "")).strip()
+                if transcription:
+                    logger.info("Whisper result: '%s'", transcription)
+                    return transcription
+            except Exception as exc:
+                logger.error("Whisper transcription failed: %s", exc)
+
+        return ""
 
     def record_audio(
         self,
@@ -119,12 +135,12 @@ class SpeechToText:
         output_path: str,
         device: Optional[str] = None,
     ) -> bool:
-        """Record audio to output_path using ALSA arecord.
+        """Record audio to output_path using ALSA arecord or PipeWire pw-record.
 
         Args:
             duration_secs: Recording duration in seconds.
             output_path: Target path for the recorded WAV file.
-            device: Optional ALSA device identifier (e.g. 'hw:1,0').
+            device: Optional ALSA device identifier (e.g. 'plughw:2,0').
 
         Returns:
             bool: True if recording succeeded or was simulated, False on error.
@@ -147,6 +163,11 @@ class SpeechToText:
             logger.warning("arecord binary not found; creating dummy audio file.")
             return self._create_dummy_wav(output_path, duration_secs)
 
+        # Convert direct hw: identifier to plughw: to ensure automatic rate and format translation
+        rec_dev = device
+        if rec_dev and rec_dev.startswith("hw:"):
+            rec_dev = "plug" + rec_dev
+
         cmd = [
             "arecord",
             "-d",
@@ -156,8 +177,8 @@ class SpeechToText:
             "-r",
             "16000",
         ]
-        if device:
-            cmd.extend(["-D", device])
+        if rec_dev and rec_dev != "default":
+            cmd.extend(["-D", rec_dev])
         cmd.append(output_path)
 
         try:
@@ -171,10 +192,23 @@ class SpeechToText:
             )
             if proc.returncode != 0:
                 logger.warning(
-                    "arecord failed with code %d: %s; creating dummy wav fallback.",
+                    "arecord failed with code %d: %s; trying pw-record fallback.",
                     proc.returncode,
                     proc.stderr.strip(),
                 )
+                if shutil.which("pw-record"):
+                    try:
+                        pw_cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
+                        import time
+                        pw_proc = subprocess.Popen(pw_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                        time.sleep(duration_secs)
+                        pw_proc.terminate()
+                        pw_proc.wait(timeout=2)
+                        if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
+                            logger.info("Recorded %d seconds via pw-record", duration_secs)
+                            return True
+                    except Exception as e:
+                        logger.warning("pw-record fallback error: %s", e)
                 return self._create_dummy_wav(output_path, duration_secs)
 
             logger.info("Recorded %d seconds of audio to %s", duration_secs, output_path)

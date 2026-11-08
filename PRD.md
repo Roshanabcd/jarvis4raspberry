@@ -24,10 +24,10 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
   - [x] System, Robot, Sensor, Vision, Memory, Productivity, Research, Application tool suites
   - [x] Autonomous tool calling loop with multi-round execution & error recovery
 
-- [ ] **PHASE 3: ReSpeaker Lite Audio Capture & Wake-Word Engine**
-  - [ ] PipeWire/ALSA low-latency audio capture via Seeed ReSpeaker Lite
-  - [ ] Wake-word detector ("JARVIS") without device locking conflicts
-  - [ ] Local & cloud speech-to-text (STT) pipeline with fallback
+- [x] **PHASE 3: ReSpeaker Lite Audio Capture & Wake-Word Engine**
+  - [x] PipeWire/ALSA low-latency audio capture via Seeed ReSpeaker Lite
+  - [x] Wake-word detector ("JARVIS") without device locking conflicts
+  - [x] Local & cloud speech-to-text (STT) pipeline with fallback
 
 - [ ] **PHASE 4: OmniVoice Cloned Speech & Voice Pipeline**
   - [ ] OmniVoice Hugging Face Space & Gradio client adapter

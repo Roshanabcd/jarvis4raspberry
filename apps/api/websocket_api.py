@@ -21,14 +21,27 @@ async def websocket_telemetry(websocket: WebSocket):
                 robot_state = getattr(robot, "state", "UNKNOWN")
             except Exception:
                 robot_state = "UNKNOWN"
+            try:
+                from apps.voice.service import voice_service
+                voice_info = voice_service.get_state()
+                voice_state = voice_info["state"]
+            except Exception:
+                voice_state = "STANDBY"
+
+            try:
+                from ai.providers.base import ai_providers
+                active_prov = getattr(ai_providers, "active_provider_name", "ollama")
+            except Exception:
+                active_prov = "ollama"
+
             payload = {
                 "cpu_pct":    sys_data.get("cpu_usage_pct", 0),
                 "ram_pct":    sys_data.get("ram_pct", 0),
                 "temp_c":     sys_data.get("temp_c"),
                 "disk_pct":   sys_data.get("disk_pct", 0),
                 "robot_state": robot_state,
-                "ai_provider": "ollama",
-                "voice_state": "LISTENING",
+                "ai_provider": active_prov,
+                "voice_state": voice_state,
                 "timestamp":  time.time(),
             }
             await websocket.send_json(payload)

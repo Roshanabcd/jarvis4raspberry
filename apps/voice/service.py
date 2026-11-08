@@ -50,6 +50,8 @@ class VoiceService:
         self.conversation = ConversationManager()
 
         self.listening: bool = False
+        self.state: str = "STANDBY"
+        self._muted: bool = False
         self._thread: Optional[threading.Thread] = None
         self._stop_event = threading.Event()
         self._selected_device: Optional[Dict[str, Any]] = None
@@ -65,6 +67,39 @@ class VoiceService:
             self.simulation_mode,
         )
 
+    def mute(self) -> None:
+        """Mute voice input processing."""
+        self._muted = True
+        if self.listening:
+            self.state = "MUTED"
+        logger.info("VoiceService muted.")
+
+    def unmute(self) -> None:
+        """Unmute voice input processing."""
+        self._muted = False
+        if self.listening:
+            self.state = "LISTENING"
+        else:
+            self.state = "STANDBY"
+        logger.info("VoiceService unmuted.")
+
+    def is_muted(self) -> bool:
+        """Return mute state."""
+        return self._muted
+
+    def get_state(self) -> Dict[str, Any]:
+        """Return the current active voice service status dictionary."""
+        active = bool(self.listening and self._thread and self._thread.is_alive())
+        curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
+        return {
+            "state": curr_state,
+            "listening": active,
+            "muted": self._muted,
+            "device": self._selected_device or self.audio_manager.select_best_device(),
+            "wake_word": self.wake_detector.wake_word,
+            "microphone_available": self.audio_manager.is_microphone_available(),
+        }
+
     def start(self) -> None:
         """Start the background audio listening loop in a dedicated daemon thread."""
         if self.listening:
@@ -72,6 +107,7 @@ class VoiceService:
             return
 
         self.listening = True
+        self.state = "MUTED" if self._muted else "LISTENING"
         self._stop_event.clear()
         self._selected_device = self.audio_manager.select_best_device()
 
@@ -86,6 +122,42 @@ class VoiceService:
             self.wake_detector.wake_word,
         )
 
+    def listen_once(self, duration_secs: int = 4) -> Dict[str, Any]:
+        """One-shot push-to-talk voice capture, transcription, and command execution."""
+        import time
+        if self._muted:
+            return {"status": "error", "message": "Microphone is muted"}
+
+        prev_state = self.state
+        self.state = "LISTENING"
+        cmd_file = os.path.join(self._temp_dir, f"cmd_once_{int(time.time())}.wav")
+        dev = self._selected_device or self.audio_manager.select_best_device()
+        device_id = self.audio_manager.get_device_alsa_identifier(dev, plug=True)
+
+        try:
+            recorded = self.stt.record_audio(duration_secs=duration_secs, output_path=cmd_file, device=device_id)
+            if not recorded:
+                self.state = prev_state
+                return {"status": "error", "message": "Failed to capture audio from microphone"}
+
+            self.state = "PROCESSING"
+            text = self.stt.transcribe(cmd_file)
+            if not text or not text.strip():
+                self.state = prev_state
+                return {"status": "empty", "transcribed": "", "message": "No audible speech recognized"}
+
+            response = self.process_command(text)
+            self.state = prev_state
+            return {
+                "status": "ok",
+                "transcribed": text,
+                "response": response,
+            }
+        except Exception as e:
+            self.state = prev_state
+            logger.error("Error in listen_once: %s", e)
+            return {"status": "error", "message": str(e)}
+
     def _listen_loop(self) -> None:
         """Background listening thread.
 
@@ -99,11 +171,14 @@ class VoiceService:
            c. Transcribe command
            d. Process command
         """
-        device_id = self.audio_manager.get_device_alsa_identifier(self._selected_device)
+        device_id = self.audio_manager.get_device_alsa_identifier(self._selected_device, plug=True)
         chunk_file = os.path.join(self._temp_dir, "wake_chunk.wav")
         cmd_file = os.path.join(self._temp_dir, "command.wav")
 
         while self.listening and not self._stop_event.is_set():
+            if self._muted:
+                self._stop_event.wait(0.5)
+                continue
             try:
                 # 1. Record 2s audio chunk
                 recorded = self.stt.record_audio(
@@ -190,6 +265,7 @@ class VoiceService:
     def stop(self) -> None:
         """Stop background listening loop and cleanly terminate thread."""
         self.listening = False
+        self.state = "STANDBY"
         self._stop_event.set()
 
         if self._thread and self._thread.is_alive():

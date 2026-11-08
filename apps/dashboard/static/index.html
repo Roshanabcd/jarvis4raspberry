@@ -122,6 +122,9 @@
     </div>
     <div id="chat-box"></div>
     <div style="display:flex;gap:8px">
+      <button id="mic-btn" class="btn" style="background:#1a1c3d;border:1px solid var(--accent);color:var(--accent);display:flex;align-items:center;gap:6px;cursor:pointer" onclick="toggleVoiceRecord()" title="Speak into ReSpeaker Lite microphone">
+        <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
+      </button>
       <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'calculate 42*17')..." onkeydown="if(event.key==='Enter')sendChat()">
       <button id="chat-send-btn" class="btn" onclick="sendChat()">Send</button>
     </div>
@@ -511,6 +514,59 @@ async function stopSpeech() {
   try {
     await fetch('/api/voice/stop', {method: 'POST'});
   } catch(e) {}
+}
+
+let isVoiceRecording = false;
+async function toggleVoiceRecord() {
+  if (isVoiceRecording) return;
+  const btn = document.getElementById('mic-btn');
+  const icon = document.getElementById('mic-icon');
+  const lbl = document.getElementById('mic-label');
+  const chatStatus = document.getElementById('chat-status-badge');
+
+  isVoiceRecording = true;
+  btn.style.background = '#e74c3c';
+  btn.style.borderColor = '#ff6b6b';
+  icon.textContent = '🔴';
+  lbl.textContent = 'Recording (4s)...';
+  chatStatus.textContent = '🎤 Capturing Microphone...';
+  chatStatus.className = 'badge warning';
+
+  try {
+    const res = await fetch('/api/voice/listen_once', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({duration_secs: 4})
+    });
+    const d = await res.json();
+    if (d.status === 'ok' && d.transcribed) {
+      appendChatMessage('user', d.transcribed);
+      if (d.response) {
+        appendChatMessage('assistant', d.response);
+      }
+      chatStatus.textContent = '🟢 Ready';
+      chatStatus.className = 'badge online';
+    } else if (d.status === 'empty') {
+      chatStatus.textContent = '⚠️ No speech detected';
+      chatStatus.className = 'badge warning';
+      setTimeout(() => {
+        chatStatus.textContent = '🟢 Ready';
+        chatStatus.className = 'badge online';
+      }, 3000);
+    } else {
+      chatStatus.textContent = '⚠️ ' + (d.message || 'Capture failed');
+      chatStatus.className = 'badge offline';
+    }
+  } catch (err) {
+    chatStatus.textContent = '❌ Microphone error: ' + err.message;
+    chatStatus.className = 'badge offline';
+  } finally {
+    isVoiceRecording = false;
+    btn.style.background = '#1a1c3d';
+    btn.style.borderColor = 'var(--accent)';
+    icon.textContent = '🎤';
+    lbl.textContent = 'Speak';
+  }
 }
 
 // ─── Robot ──────────────────────────────────────────────────
