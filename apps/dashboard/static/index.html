@@ -547,7 +547,7 @@
           </div>
           <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
             <div style="font-size:0.75rem;color:var(--muted)">Voice Reference Profile</div>
-            <div id="colab-ref-sample-display" style="font-family:monospace;font-size:0.85rem;color:#00e5ff;word-break:break-all;margin-top:2px">~/Downloads/myvoice.mp3 (Verified)</div>
+            <div id="colab-ref-sample-display" style="font-family:monospace;font-size:0.85rem;color:#00e5ff;word-break:break-all;margin-top:2px">myvoice_ref_clean.wav (5.2s HD Isolated Sample)</div>
           </div>
           <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
             <div style="font-size:0.75rem;color:var(--muted)">Registration Secret Token</div>
@@ -555,11 +555,43 @@
           </div>
         </div>
 
+        <!-- Voice Quality & Pacing Calibration Panel -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+            <span style="font-size:0.85rem;font-weight:600;color:var(--accent)">🎛️ Voice Sound Quality & Speed Calibration</span>
+            <button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="saveVoiceTuning()">💾 Save Voice Tuning</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:12px">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label style="font-size:0.72rem;color:var(--muted);margin:0">Speaking Speed (Pacing)</label>
+                <span id="colab-speed-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">0.85x (Clear & Calm)</span>
+              </div>
+              <input id="colab-speed-slider" type="range" min="0.65" max="1.35" step="0.05" value="0.85" style="width:100%;margin-top:4px" oninput="updateSpeedLabel(this.value)">
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label style="font-size:0.72rem;color:var(--muted);margin:0">Acoustic Clarity (Diffusion Steps)</label>
+                <span id="colab-steps-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">32 Steps</span>
+              </div>
+              <select id="colab-steps-select" style="width:100%;margin-top:4px;background:#0d1127;border:1px solid var(--card-border);padding:4px 8px;border-radius:4px;color:var(--text);font-size:0.8rem" onchange="document.getElementById('colab-steps-val').textContent = this.value + ' Steps'">
+                <option value="32" selected>32 Steps — Crystal Clear (Best Sound)</option>
+                <option value="24">24 Steps — Balanced Quality</option>
+                <option value="16">16 Steps — Fast Inference</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:0.72rem;color:var(--muted);margin:0">Phonetic Alignment Guide</label>
+              <input id="colab-ref-text-input" value="Good morning everyone, my name is Roshan Sharma." style="width:100%;margin-top:4px;background:#0d1127;border:1px solid var(--card-border);padding:4px 8px;border-radius:4px;color:var(--text);font-size:0.8rem">
+            </div>
+          </div>
+        </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <input id="colab-url-input" placeholder="Paste Colab Gradio share URL (e.g. https://xxxx.gradio.live)..." style="flex:1;min-width:280px;background:#0d1127;border:1px solid var(--card-border);padding:8px 12px;border-radius:4px;color:var(--text);font-family:monospace;font-size:0.85rem">
           <button class="btn" onclick="registerColabUrl()">🔗 Connect & Register</button>
           <button class="btn dark" onclick="verifyColabUrl()">🔍 Verify Link</button>
-          <button class="btn" style="background:#7928ca;border-color:#7928ca" onclick="testClonedVoiceAloud()">🗣️ Test Cloned Voice Aloud</button>
+          <button class="btn" style="background:#7928ca;border-color:#7928ca" onclick="testClonedVoiceAloud()">🗣️ Test Cloned Voice (Crystal Clear)</button>
           <button class="btn warn" onclick="disconnectColabOmniVoice()">Disconnect</button>
         </div>
         <div id="colab-conn-msg" style="font-size:0.8rem;color:var(--muted);font-family:monospace"></div>
@@ -1395,16 +1427,81 @@ function testBrowserAudio() {
   }
 }
 
+function getVoiceTuningPayload() {
+  const speed = parseFloat(document.getElementById('colab-speed-slider')?.value || '0.85');
+  const num_steps = parseInt(document.getElementById('colab-steps-select')?.value || '32');
+  const reference_text = (document.getElementById('colab-ref-text-input')?.value || '').trim();
+  return { speed, num_steps, reference_text };
+}
+
+function updateSpeedLabel(val) {
+  const num = parseFloat(val);
+  let label = `${num.toFixed(2)}x `;
+  if (num < 0.80) label += '(Slow & Measured)';
+  else if (num <= 0.88) label += '(Clear & Calm - Optimal)';
+  else if (num <= 0.98) label += '(Natural Pacing)';
+  else label += '(Fast Pacing)';
+  const el = document.getElementById('colab-speed-val');
+  if (el) el.textContent = label;
+}
+
+async function saveVoiceTuning() {
+  const tuning = getVoiceTuningPayload();
+  const msg = document.getElementById('colab-conn-msg');
+  try {
+    const res = await fetch('/api/voice/tuning', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(tuning)
+    });
+    const d = await res.json();
+    if (msg) {
+      msg.textContent = `✅ Voice tuning saved: Speed ${d.current.speed}x, ${d.current.num_steps} Steps. Applied immediately.`;
+      msg.style.color = '#00e5ff';
+    }
+    loadVoiceStatus();
+  } catch(e) {
+    if (msg) { msg.textContent = "Failed to save voice tuning: " + e; msg.style.color = '#e53935'; }
+  }
+}
+
+async function loadVoiceTuning() {
+  try {
+    const res = await fetch('/api/voice/tuning');
+    const d = await res.json();
+    if (d.status === 'ok') {
+      const slider = document.getElementById('colab-speed-slider');
+      const select = document.getElementById('colab-steps-select');
+      const refInput = document.getElementById('colab-ref-text-input');
+      if (slider && d.speed) {
+        slider.value = d.speed;
+        updateSpeedLabel(d.speed);
+      }
+      if (select && d.num_steps) {
+        select.value = d.num_steps;
+        const valSpan = document.getElementById('colab-steps-val');
+        if (valSpan) valSpan.textContent = d.num_steps + ' Steps';
+      }
+      if (refInput && d.reference_text) {
+        refInput.value = d.reference_text;
+      }
+    }
+  } catch(e) {
+    console.debug("Failed to load voice tuning:", e);
+  }
+}
+
 async function speakCustomText() {
   const text = document.getElementById('voice-test-text').value.trim();
   if (!text) return;
   const log = document.getElementById('voice-log');
   log.textContent = `🔊 Synthesizing: "${text}"...`;
+  const tuning = getVoiceTuningPayload();
   try {
     const r = await fetch('/api/voice/speak', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({text})
+      body: JSON.stringify({text, ...tuning})
     });
     const d = await r.json();
     log.textContent = "Synthesis Result:\n" + JSON.stringify(d, null, 2);
@@ -1427,6 +1524,7 @@ async function clearVoiceCache() {
 
 // ─── Google Colab OmniVoice Integration Functions ────────────
 async function loadColabOmniVoiceStatus() {
+  loadVoiceTuning();
   try {
     const res = await fetch('/api/integrations/omnivoice/status');
     const d = await res.json();
@@ -1542,16 +1640,18 @@ async function verifyColabUrl() {
 async function testClonedVoiceAloud() {
   const log = document.getElementById('voice-log');
   const msg = document.getElementById('colab-conn-msg');
-  if (msg) { msg.textContent = '🗣️ Generating test phrase via OmniVoice and playing on SBC speaker...'; msg.style.color = 'var(--accent)'; }
-  if (log) log.textContent = '🗣️ Contacting OmniVoice remote engine for cloned voice synthesis...\n(Diffusion steps on Tesla T4 typically take ~15-20s)';
+  if (msg) { msg.textContent = '🗣️ Generating crystal clear cloned voice and playing on SBC speaker...'; msg.style.color = 'var(--accent)'; }
+  if (log) log.textContent = '🗣️ Contacting OmniVoice remote engine for crystal clear cloned voice synthesis...\n(32 diffusion steps on Tesla T4 with 5.2s HD reference audio and phonetic alignment)';
 
+  const tuning = getVoiceTuningPayload();
   try {
     const res = await fetch('/api/integrations/omnivoice/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: "Google Colab OmniVoice connection verified. My personal voice model is active.",
-        play_speaker: true
+        text: "Hello Roshan, I am JARVIS. Voice quality calibration is complete.",
+        play_speaker: true,
+        ...tuning
       })
     });
     const data = await res.json();
@@ -1561,7 +1661,7 @@ async function testClonedVoiceAloud() {
     }
     if (msg) {
       msg.textContent = data.is_cloned
-        ? '✅ Cloned voice synthesis succeeded! Played through ReSpeaker speaker.'
+        ? '✅ Crystal-clear cloned voice synthesis succeeded! Played through ReSpeaker Lite.'
         : '⚠️ Synthesis succeeded using fallback voice: ' + data.provider;
       msg.style.color = data.is_cloned ? '#00e5ff' : '#ffaa00';
     }

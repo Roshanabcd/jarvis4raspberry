@@ -104,7 +104,8 @@ class SpeechOutputManager:
         self,
         text: str,
         play_system: Optional[bool] = None,
-        conversation_id: Optional[str] = None
+        conversation_id: Optional[str] = None,
+        voice_config: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Synthesize speech text, stage the audio file with a unique ID, and optionally play on speaker.
@@ -129,7 +130,7 @@ class SpeechOutputManager:
             play_system = route_policy in ("system", "both")
 
         # 1. Synthesize via gradio_cloner (OmniVoice or neural fallback)
-        result = gradio_cloner.synthesize(clean_text)
+        result = gradio_cloner.synthesize(clean_text, voice_config=voice_config)
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
         if not result.success or not result.audio_path or not os.path.exists(result.audio_path):

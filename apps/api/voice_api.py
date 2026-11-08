@@ -20,6 +20,16 @@ class ListenOnceRequest(BaseModel):
 class SynthesizeRequest(BaseModel):
     text: str
     voice_type: Optional[str] = "cloned"
+    speed: Optional[float] = None
+    num_steps: Optional[int] = None
+    reference_text: Optional[str] = None
+
+
+class VoiceTuningRequest(BaseModel):
+    speed: Optional[float] = None
+    num_steps: Optional[int] = None
+    reference_text: Optional[str] = None
+    reference_audio_path: Optional[str] = None
 
 
 @voice_router.get("/status")
@@ -105,8 +115,58 @@ def run_command(req: CommandRequest):
 def synthesize_speech(req: SynthesizeRequest):
     """Synthesize text using OmniVoice custom cloned voice or fast offline fallback, staging audio."""
     from apps.voice.speech_manager import speech_manager
-    res = speech_manager.synthesize_and_stage(req.text, play_system=True)
+    v_cfg = {}
+    if req.speed is not None:
+        v_cfg["speed"] = req.speed
+    if req.num_steps is not None:
+        v_cfg["num_steps"] = req.num_steps
+    if req.reference_text is not None:
+        v_cfg["reference_text"] = req.reference_text
+    res = speech_manager.synthesize_and_stage(req.text, play_system=True, voice_config=v_cfg or None)
     return res
+
+
+@voice_router.post("/tuning")
+def update_voice_tuning(req: VoiceTuningRequest):
+    """Update voice speed, diffusion steps, reference text, or reference audio."""
+    from apps.voice.gradio_tts import gradio_cloner
+    updates = {}
+    if req.speed is not None and 0.5 <= req.speed <= 2.0:
+        gradio_cloner.default_speed = float(req.speed)
+        updates["speed"] = gradio_cloner.default_speed
+    if req.num_steps is not None and 8 <= req.num_steps <= 64:
+        gradio_cloner.default_num_steps = int(req.num_steps)
+        updates["num_steps"] = gradio_cloner.default_num_steps
+    if req.reference_text is not None and req.reference_text.strip():
+        gradio_cloner.reference_text = req.reference_text.strip()
+        updates["reference_text"] = gradio_cloner.reference_text
+    if req.reference_audio_path is not None and os.path.exists(req.reference_audio_path):
+        gradio_cloner.reference_voice_path = req.reference_audio_path
+        updates["reference_audio_path"] = gradio_cloner.reference_voice_path
+
+    return {
+        "status": "ok",
+        "applied": updates,
+        "current": {
+            "speed": gradio_cloner.default_speed,
+            "num_steps": gradio_cloner.default_num_steps,
+            "reference_text": gradio_cloner.reference_text,
+            "reference_audio_path": gradio_cloner.reference_voice_path,
+        }
+    }
+
+
+@voice_router.get("/tuning")
+def get_voice_tuning():
+    """Get current voice generation tuning parameters."""
+    from apps.voice.gradio_tts import gradio_cloner
+    return {
+        "status": "ok",
+        "speed": gradio_cloner.default_speed,
+        "num_steps": gradio_cloner.default_num_steps,
+        "reference_text": gradio_cloner.reference_text,
+        "reference_audio_path": gradio_cloner.reference_voice_path,
+    }
 
 
 @voice_router.get("/audio/{audio_id}")

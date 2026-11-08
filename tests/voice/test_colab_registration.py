@@ -105,7 +105,9 @@ class TestGradioVoiceClonerIntegration:
     def test_reference_audio_discovery(self):
         cloner = GradioVoiceCloner()
         # Should have found a valid reference sample if myvoice exists
-        if os.path.exists("/home/roshan/Downloads/myvoice.mp3"):
-            assert cloner.reference_voice_path == "/home/roshan/Downloads/myvoice.mp3"
+        if os.path.exists("/home/roshan/Downloads/myvoice.mp3") or os.path.exists("/home/roshan/Downloads/myvoice_clean.wav"):
+            assert cloner.reference_voice_path is not None
+            assert "myvoice" in cloner.reference_voice_path
+            assert os.path.exists(cloner.reference_voice_path)
         elif os.path.exists("/home/roshan/.gemini/antigravity/scratch/jarvis-os/data/voice_samples/myvoice.wav"):
             assert cloner.reference_voice_path is not None

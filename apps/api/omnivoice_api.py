@@ -33,6 +33,16 @@ class VerifyUrlRequest(BaseModel):
 class TestVoiceRequest(BaseModel):
     text: Optional[str] = "Google Colab OmniVoice connection verified. My personal voice model is active."
     play_speaker: Optional[bool] = True
+    speed: Optional[float] = None
+    num_steps: Optional[int] = None
+    reference_text: Optional[str] = None
+
+
+class OmniVoiceTuningRequest(BaseModel):
+    speed: Optional[float] = None
+    num_steps: Optional[int] = None
+    reference_text: Optional[str] = None
+    reference_audio_path: Optional[str] = None
 
 
 @omnivoice_router.post("/register")
@@ -89,7 +99,15 @@ def test_cloned_voice(req: TestVoiceRequest = TestVoiceRequest()):
     from apps.voice.speech_manager import speech_manager
 
     text = (req.text or "Google Colab OmniVoice connection verified. My personal voice model is active.").strip()
-    result = speech_manager.synthesize_and_stage(text, play_system=req.play_speaker)
+    v_cfg = {}
+    if req.speed is not None:
+        v_cfg["speed"] = req.speed
+    if req.num_steps is not None:
+        v_cfg["num_steps"] = req.num_steps
+    if req.reference_text is not None:
+        v_cfg["reference_text"] = req.reference_text
+
+    result = speech_manager.synthesize_and_stage(text, play_system=req.play_speaker, voice_config=v_cfg or None)
 
     return {
         "status": "ok" if result.get("success") else "error",
@@ -98,6 +116,45 @@ def test_cloned_voice(req: TestVoiceRequest = TestVoiceRequest()):
         "provider": result.get("provider", "unknown"),
         "audio_url": result.get("audio_url"),
         "message": "Speech synthesized and staged successfully." if result.get("success") else result.get("error"),
+    }
+
+
+@omnivoice_router.post("/tuning")
+def update_omnivoice_tuning(req: OmniVoiceTuningRequest):
+    """Tune voice speed, diffusion steps, and reference text."""
+    from apps.voice.gradio_tts import gradio_cloner
+    updates = {}
+    if req.speed is not None and 0.5 <= req.speed <= 2.0:
+        gradio_cloner.default_speed = float(req.speed)
+        updates["speed"] = gradio_cloner.default_speed
+    if req.num_steps is not None and 8 <= req.num_steps <= 64:
+        gradio_cloner.default_num_steps = int(req.num_steps)
+        updates["num_steps"] = gradio_cloner.default_num_steps
+    if req.reference_text is not None and req.reference_text.strip():
+        gradio_cloner.reference_text = req.reference_text.strip()
+        updates["reference_text"] = gradio_cloner.reference_text
+    return {
+        "status": "ok",
+        "applied": updates,
+        "current": {
+            "speed": gradio_cloner.default_speed,
+            "num_steps": gradio_cloner.default_num_steps,
+            "reference_text": gradio_cloner.reference_text,
+            "reference_audio_path": gradio_cloner.reference_voice_path,
+        }
+    }
+
+
+@omnivoice_router.get("/tuning")
+def get_omnivoice_tuning():
+    """Get current OmniVoice tuning parameters."""
+    from apps.voice.gradio_tts import gradio_cloner
+    return {
+        "status": "ok",
+        "speed": gradio_cloner.default_speed,
+        "num_steps": gradio_cloner.default_num_steps,
+        "reference_text": gradio_cloner.reference_text,
+        "reference_audio_path": gradio_cloner.reference_voice_path,
     }
 
 

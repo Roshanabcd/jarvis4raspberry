@@ -113,29 +113,45 @@ class GradioVoiceCloner:
             or v_cfg.get("gradio_url", "https://roshan-omnivoice-jarvis.hf.space")
         ).strip()
 
-        # Find reference voice sample
+        # Find reference voice sample (prioritize 3-10s clean reference clip)
         if reference_voice_path is not None:
             self.reference_voice_path = reference_voice_path
         else:
-            candidates = [
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            raw_candidates = [
                 os.environ.get("GRADIO_VOICE_SAMPLE"),
+                v_cfg.get("reference_audio_path"),
+                os.path.join(project_root, "data", "voice_samples", "myvoice_ref_clean.wav"),
+                "/home/roshan/Downloads/myvoice_clean.wav",
+                "/home/roshan/Downloads/myvoice_ref_clean.wav",
+                os.path.join(project_root, "data", "voice_samples", "myvoice.wav"),
                 "/home/roshan/Downloads/myvoice.mp3",
                 "/home/roshan/Downloads/myvoice.mpeg",
                 "/home/roshan/Downloads/myvoice.wav",
                 "/home/roshan/Music/myvoice.mpeg",
                 "/home/roshan/Music/myvoice.mp3",
                 "/home/roshan/myvoice.mp3",
-                v_cfg.get("reference_audio_path"),
-                os.path.join(
-                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-                    "data", "voice_samples", "myvoice.wav"
-                ),
             ]
             self.reference_voice_path = None
-            for cand in candidates:
-                if cand and isinstance(cand, str) and os.path.exists(cand) and os.path.getsize(cand) > 100:
-                    self.reference_voice_path = os.path.abspath(cand)
+            for cand in raw_candidates:
+                if not cand or not isinstance(cand, str):
+                    continue
+                cand_path = cand if os.path.isabs(cand) else os.path.join(project_root, cand)
+                if os.path.exists(cand_path) and os.path.getsize(cand_path) > 100:
+                    self.reference_voice_path = os.path.abspath(cand_path)
                     break
+
+        # Voice quality, pacing, and phonetic alignment defaults
+        self.reference_text = (
+            os.environ.get("GRADIO_VOICE_REF_TEXT")
+            or v_cfg.get("reference_text", "Good morning everyone, my name is Roshan Sharma.")
+        ).strip()
+        self.default_speed = float(
+            os.environ.get("GRADIO_VOICE_SPEED") or v_cfg.get("speed", 0.85)
+        )
+        self.default_num_steps = int(
+            os.environ.get("GRADIO_VOICE_NUM_STEPS") or v_cfg.get("num_steps", 32)
+        )
 
         self.is_hf_space = bool(
             "hf.space" in self.gradio_url
@@ -160,8 +176,8 @@ class GradioVoiceCloner:
         self._current_player: Optional[subprocess.Popen] = None
 
         logger.info(
-            "GradioVoiceCloner initialized (url=%s, ref_audio=%s, cache_dir=%s)",
-            self.gradio_url, self.reference_voice_path, self.cache_dir
+            "GradioVoiceCloner initialized (url=%s, ref_audio=%s, speed=%.2f, steps=%d, cache_dir=%s)",
+            self.gradio_url, self.reference_voice_path, self.default_speed, self.default_num_steps, self.cache_dir
         )
 
     def update_url(self, new_url: str, api_info: Optional[Dict[str, Any]] = None) -> None:
@@ -188,9 +204,13 @@ class GradioVoiceCloner:
                 return 0
         return 0
 
-    def _get_cache_path(self, text: str) -> str:
-        """Generate deterministic cache filename based on text hash."""
-        text_hash = hashlib.sha256(text.strip().lower().encode("utf-8")).hexdigest()[:16]
+    def _get_cache_path(self, text: str, speed: Optional[float] = None, num_steps: Optional[int] = None) -> str:
+        """Generate deterministic cache filename based on text, speed, steps, and sample hash."""
+        sp = speed if speed is not None else self.default_speed
+        st = num_steps if num_steps is not None else self.default_num_steps
+        ref_id = os.path.basename(self.reference_voice_path) if self.reference_voice_path else "none"
+        key = f"{text.strip().lower()}:{sp:.2f}:{st}:{ref_id}"
+        text_hash = hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
         return os.path.join(self.cache_dir, f"phrase_{text_hash}.wav")
 
     def _probe_gradio_client(self, force: bool = False) -> bool:
@@ -285,6 +305,9 @@ class GradioVoiceCloner:
             "online": is_online,
             "has_reference_audio": bool(self.reference_voice_path and os.path.exists(self.reference_voice_path)),
             "reference_audio_path": self.reference_voice_path,
+            "reference_text": self.reference_text,
+            "speed": self.default_speed,
+            "num_steps": self.default_num_steps,
             "api_endpoints": list(self._api_info.get("named_endpoints", {}).keys()) if self._api_info else [],
             "fallback_backend": self.fallback_tts.backend,
             "cache_entries": self._count_cache_entries(),
@@ -337,7 +360,12 @@ class GradioVoiceCloner:
                 error="Empty text after sanitization", latency_ms=0.0, is_cloned=False
             )
 
-        cache_path = self._get_cache_path(clean_text)
+        v_dict = voice_config or {}
+        num_steps = int(v_dict.get("num_steps", self.default_num_steps))
+        speed = float(v_dict.get("speed", self.default_speed))
+        ref_text = str(v_dict.get("reference_text", self.reference_text)).strip()
+
+        cache_path = self._get_cache_path(clean_text, speed=speed, num_steps=num_steps)
 
         # 1. Cache hit check
         if os.path.exists(cache_path) and self._validate_audio_file(cache_path):
@@ -378,8 +406,6 @@ class GradioVoiceCloner:
 
                     # Check endpoints discovered from view_api
                     named = self._api_info.get("named_endpoints", {}) if self._api_info else {}
-                    num_steps = (voice_config or {}).get("num_steps", 16)
-                    speed = (voice_config or {}).get("speed", 1.0)
 
                     if "/generate" in named or "generate" in named:
                         ep_name = "/generate" if "/generate" in named else "generate"
@@ -388,7 +414,7 @@ class GradioVoiceCloner:
                                 clean_text,
                                 "Voice Cloning",
                                 ref_handle,
-                                "",
+                                ref_text,
                                 "Custom (type your own)",
                                 "",
                                 num_steps,
@@ -400,7 +426,7 @@ class GradioVoiceCloner:
                                 clean_text,
                                 "Voice Cloning",
                                 ref_handle,
-                                "",
+                                ref_text,
                                 "Custom (type your own)",
                                 "",
                                 num_steps,
@@ -411,9 +437,9 @@ class GradioVoiceCloner:
                     elif "/clone_voice" in named or "clone_voice" in named:
                         ep_name = "/clone_voice" if "/clone_voice" in named else "clone_voice"
                         try:
-                            job = self._client.submit(clean_text, ref_handle, "", num_steps, speed, api_name=ep_name).result(timeout=90.0)
+                            job = self._client.submit(clean_text, ref_handle, ref_text, num_steps, speed, api_name=ep_name).result(timeout=90.0)
                         except AttributeError:
-                            job = self._client.predict(clean_text, ref_handle, "", num_steps, speed, api_name=ep_name)
+                            job = self._client.predict(clean_text, ref_handle, ref_text, num_steps, speed, api_name=ep_name)
                         result_audio_path = job[0] if isinstance(job, (list, tuple)) else job
                     elif "/predict" in named or "predict" in named:
                         ep_name = "/predict" if "/predict" in named else "predict"

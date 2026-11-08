@@ -8,7 +8,10 @@ voice:
   volume: 0.9
   language: en
   gradio_url: https://roshan-omnivoice-jarvis.hf.space
-  reference_audio_path: data/voice_samples/myvoice.wav
+  reference_audio_path: data/voice_samples/myvoice_ref_clean.wav
+  reference_text: Good morning everyone, my name is Roshan Sharma.
+  speed: 0.85
+  num_steps: 32
   cloning_enabled: true
   simulation_mode: false
   routing_policy: both
