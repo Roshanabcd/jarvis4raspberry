@@ -60,6 +60,7 @@ class AudioResult:
     text: str
     success: bool
     error: Optional[str] = None
+    latency_ms: float = 0.0
 
 
 class GradioVoiceCloner:
@@ -89,7 +90,7 @@ class GradioVoiceCloner:
         self.gradio_url = (
             gradio_url
             or os.environ.get("GRADIO_VOICE_URL")
-            or v_cfg.get("gradio_url", "https://13f7044a4e78090fd2.gradio.live/")
+            or v_cfg.get("gradio_url", "https://roshan-omnivoice-jarvis.hf.space")
         ).strip()
 
         self.reference_voice_path = (
@@ -148,7 +149,22 @@ class GradioVoiceCloner:
             return bool(self._online)
 
         self._last_probe = now
-        if not self.gradio_url or self.gradio_url.startswith("http://disabled"):
+        if not self.gradio_url or self.gradio_url.startswith("http://disabled") or not self.gradio_url.startswith("http"):
+            self._online = False
+            return False
+
+        # Fast pre-flight HTTP check with 2s timeout to prevent blocking on dead URLs
+        import requests
+        try:
+            resp = requests.head(self.gradio_url, timeout=2.0, allow_redirects=True)
+            if resp.status_code >= 400 and resp.status_code != 405:
+                resp = requests.get(self.gradio_url, timeout=2.0)
+                if resp.status_code >= 400:
+                    logger.info("Gradio voice server at '%s' returned HTTP %d. Using fallback.", self.gradio_url, resp.status_code)
+                    self._online = False
+                    return False
+        except Exception as exc:
+            logger.info("Pre-flight ping to Gradio URL '%s' failed (%s). Using local fallback.", self.gradio_url, exc)
             self._online = False
             return False
 
@@ -220,11 +236,12 @@ class GradioVoiceCloner:
         Synthesize speech from text.
         Checks cache -> tries Gradio remote cloner -> falls back to local TTS.
         """
+        t_start = time.perf_counter()
         if not text or not text.strip():
             return AudioResult(
                 audio_path=None, format="none", duration_s=0.0,
                 cached=False, provider="none", text="", success=False,
-                error="Empty text"
+                error="Empty text", latency_ms=0.0
             )
 
         clean_text = sanitize_speech_text(text)
@@ -232,7 +249,7 @@ class GradioVoiceCloner:
             return AudioResult(
                 audio_path=None, format="none", duration_s=0.0,
                 cached=False, provider="none", text="", success=False,
-                error="Empty text after sanitization"
+                error="Empty text after sanitization", latency_ms=0.0
             )
 
         cache_path = self._get_cache_path(clean_text)
@@ -242,12 +259,13 @@ class GradioVoiceCloner:
             logger.debug("Voice synthesis cache hit for: '%s'", clean_text[:40])
             return AudioResult(
                 audio_path=cache_path,
-                format="wav",
+                format="wav" if cache_path.endswith(".wav") else "mp3",
                 duration_s=0.0,
                 cached=True,
                 provider="cache",
                 text=clean_text,
                 success=True,
+                latency_ms=(time.perf_counter() - t_start) * 1000,
             )
 
         # 2. Try Gradio remote synthesis if enabled and reference sample exists
@@ -317,6 +335,7 @@ class GradioVoiceCloner:
                             provider="gradio_voice_clone",
                             text=clean_text,
                             success=True,
+                            latency_ms=(time.perf_counter() - t_start) * 1000,
                         )
                 except Exception as exc:
                     logger.warning(
@@ -324,8 +343,47 @@ class GradioVoiceCloner:
                         exc
                     )
 
-        # 3. Fallback: Local TTS synthesis
-        logger.info("[Gradio Offline/Fallback] Synthesizing via fallback TTS: '%s'", clean_text[:50])
+        # 3. Fallback: High quality Neural TTS or local espeak saved to cache_path
+        logger.info("[Gradio Offline/Fallback] Synthesizing via neural/local TTS: '%s'", clean_text[:50])
+        try:
+            if shutil.which("edge-tts"):
+                cmd = ["edge-tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+                res = subprocess.run(cmd, capture_output=True, timeout=8)
+                if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
+                    return AudioResult(
+                        audio_path=cache_path,
+                        format="mp3",
+                        duration_s=0.0,
+                        cached=False,
+                        provider="edge_neural_tts",
+                        text=clean_text,
+                        success=True,
+                        latency_ms=(time.perf_counter() - t_start) * 1000,
+                    )
+        except Exception as e:
+            logger.debug("edge-tts fallback exception: %s", e)
+
+        # Espeak local offline fallback
+        espeak_bin = shutil.which("espeak") or shutil.which("espeak-ng")
+        if espeak_bin:
+            try:
+                cmd = [espeak_bin, "-w", cache_path, clean_text]
+                res = subprocess.run(cmd, capture_output=True, timeout=5)
+                if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
+                    return AudioResult(
+                        audio_path=cache_path,
+                        format="wav",
+                        duration_s=0.0,
+                        cached=False,
+                        provider="espeak_local_tts",
+                        text=clean_text,
+                        success=True,
+                        latency_ms=(time.perf_counter() - t_start) * 1000,
+                    )
+            except Exception as e:
+                logger.debug("espeak fallback exception: %s", e)
+
+        # Simulation or pyttsx3 fallback
         self.fallback_tts.speak_sync(clean_text)
         return AudioResult(
             audio_path=None,
@@ -335,11 +393,13 @@ class GradioVoiceCloner:
             provider="fallback_local_tts",
             text=clean_text,
             success=True,
+            latency_ms=(time.perf_counter() - t_start) * 1000,
         )
 
-    def play(self, audio_result: AudioResult) -> bool:
+    def play(self, audio_result: AudioResult, wait: bool = False) -> bool:
         """
         Play audio safely without concurrent playback corruption.
+        Uses PipeWire 'pw-play' or ALSA 'aplay'.
         """
         if not audio_result or not audio_result.success:
             return False
@@ -355,7 +415,7 @@ class GradioVoiceCloner:
                 logger.error("Audio file validation failed: %s", audio_result.audio_path)
                 return False
 
-            player_bin = shutil.which("aplay") or shutil.which("paplay") or shutil.which("ffplay")
+            player_bin = shutil.which("pw-play") or shutil.which("paplay") or shutil.which("aplay") or shutil.which("ffplay")
             if not player_bin:
                 logger.warning("No audio playback binary found on system.")
                 return False
@@ -369,8 +429,9 @@ class GradioVoiceCloner:
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                self._current_player.wait(timeout=15)
-                self._current_player = None
+                if wait:
+                    self._current_player.wait(timeout=15)
+                    self._current_player = None
                 return True
             except subprocess.TimeoutExpired:
                 logger.warning("Audio playback timed out after 15 seconds.")

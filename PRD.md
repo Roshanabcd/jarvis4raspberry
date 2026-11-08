@@ -29,10 +29,10 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
   - [x] Wake-word detector ("JARVIS") without device locking conflicts
   - [x] Local & cloud speech-to-text (STT) pipeline with fallback
 
-- [ ] **PHASE 4: OmniVoice Cloned Speech & Voice Pipeline**
-  - [ ] OmniVoice Hugging Face Space & Gradio client adapter
-  - [ ] Local reference voice (`data/voice_samples/myvoice.wav`) binding
-  - [ ] SHA-256 caching and neural fallback (`edge-tts` / `en-GB-RyanNeural`)
+- [x] **PHASE 4: OmniVoice Cloned Speech & Voice Pipeline**
+  - [x] OmniVoice Hugging Face Space & Gradio client adapter
+  - [x] Local reference voice (`data/voice_samples/myvoice.wav`) binding
+  - [x] SHA-256 caching and neural fallback (`edge-tts` / `en-GB-RyanNeural`)
 
 - [ ] **PHASE 5: Real-Time Full-Duplex Audio & Voice Conversation Loop**
   - [ ] Audio playback through ReSpeaker Lite speaker via PipeWire

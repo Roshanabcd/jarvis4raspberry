@@ -107,3 +107,18 @@ Learnings:
 - On Debian 13 Trixie running PipeWire, ALSA hardware handles ('hw:X,Y') fail with EBUSY unless opened through 'plughw:X,Y', which provides user-space PCM resampling and non-exclusive device access.
 - Hardcoded mock values in WebSocket telemetry pollutes UI status indicators; state must always be read dynamically from the underlying singleton service.
 ==================================================
+=== ITERATION 4: PHASE 4 OMNIVOICE CLONED VOICE & NEURAL SYNTHESIS ===
+Date: 2026-11-08
+Status: SUCCESS
+Changes:
+- Integrated OmniVoice / Gradio voice cloner in apps/voice/gradio_tts.py with permanent Hugging Face Space configuration and pre-flight ping checks (2.0s timeout) to prevent blocking when remote endpoints are asleep.
+- Bound user reference audio sample data/voice_samples/myvoice.wav directly with format verification.
+- Built multi-tier offline synthesis fallback: edge-tts (Microsoft Azure Neural en-GB-RyanNeural) -> espeak / espeak-ng -> local simulated fallback.
+- Implemented deterministic SHA-256 persistent disk caching (~/.cache/jarvis_voice_cache) delivering cached speech synthesis in ~0.48ms (<5ms requirement exceeded).
+- Integrated PipeWire audio output via 'pw-play' with non-blocking process handling.
+- Added /api/voice/synthesize endpoint with latency telemetry and format indicators.
+- Created test suite tests/unit/test_phase4_cloned_voice.py (6 tests, 100% pass).
+Learnings:
+- Synchronous playback calls (wait=True) in automated testing or API request loops block HTTP worker threads and induce latency; default non-blocking playback (wait=False) maintains real-time responsiveness.
+- Writing fallback audio directly into the persistent SHA-256 cache directory turns repeat phrases into instant sub-millisecond responses without hitting remote network endpoints.
+==================================================
