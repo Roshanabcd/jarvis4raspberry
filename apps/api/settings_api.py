@@ -13,7 +13,8 @@ settings_router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 class CategoryUpdateRequest(BaseModel):
-    settings: Dict[str, Any]
+    model_config = {"extra": "allow"}
+    settings: Optional[Dict[str, Any]] = None
     env_updates: Optional[Dict[str, str]] = None
 
 
@@ -44,10 +45,14 @@ def get_all_settings():
 
     # 4. AI Provider Info
     try:
-        from ai.providers.base import providers as ai_providers
-        active_p = getattr(ai_providers, "active_provider_name", "ollama")
-        prov_dict = {name: p.is_available() for name, p in ai_providers.providers.items()}
-        mod_list = ai_providers.list_available_models()
+        from ai.brain import get_brain
+        brain = get_brain()
+        ai_st = brain.get_providers_status()
+        active_p = ai_st.get("active_provider", "ollama")
+        prov_dict = {p["name"]: p["available"] for p in ai_st.get("providers", [])}
+        mod_list = []
+        for p in ai_st.get("providers", []):
+            mod_list.extend(p.get("models", []))
     except Exception:
         active_p = "ollama"
         prov_dict = {"ollama": True}
@@ -200,8 +205,28 @@ def get_all_settings():
 @settings_router.get("/{category}")
 def get_category_settings(category: str):
     """Retrieve settings for a specific category (e.g. category_a, category_b, ...)."""
-    all_s = get_all_settings()
     cat_key = category.lower().strip()
+    if cat_key == "integrations":
+        def mask(k):
+            val = os.environ.get(k) or config.get(k.lower(), "")
+            if not val:
+                return ""
+            if len(val) <= 8:
+                return "********"
+            return val[:4] + "****" + val[-4:]
+
+        return {
+            "name": "Cloud AI & Service Integrations",
+            "settings": {
+                "gemini_api_key": mask("GEMINI_API_KEY"),
+                "openai_api_key": mask("OPENAI_API_KEY"),
+                "anthropic_api_key": mask("ANTHROPIC_API_KEY"),
+                "nvidia_api_key": mask("NVIDIA_API_KEY"),
+                "huggingface_space_url": os.environ.get("HUGGINGFACE_SPACE_URL") or config.get("voice", {}).get("gradio_url", ""),
+            }
+        }
+
+    all_s = get_all_settings()
     if cat_key in all_s:
         return all_s[cat_key]
     # Check by short name
@@ -216,6 +241,31 @@ def update_category_settings(category: str, req: CategoryUpdateRequest):
     """Update settings for a category and atomically persist to config.yaml and .env."""
     cat_key = category.lower().strip()
     updates = req.settings
+    if updates is None:
+        updates = getattr(req, "__pydantic_extra__", {}) or {}
+
+    if cat_key == "integrations":
+        env_dict = {}
+        for key_name, env_var in [
+            ("gemini_api_key", "GEMINI_API_KEY"),
+            ("openai_api_key", "OPENAI_API_KEY"),
+            ("anthropic_api_key", "ANTHROPIC_API_KEY"),
+            ("nvidia_api_key", "NVIDIA_API_KEY"),
+            ("huggingface_space_url", "HUGGINGFACE_SPACE_URL"),
+        ]:
+            if updates.get(key_name) and not updates[key_name].startswith("****"):
+                env_dict[env_var] = updates[key_name]
+                os.environ[env_var] = updates[key_name]
+
+        if updates.get("huggingface_space_url"):
+            v = config.get("voice", {})
+            v["gradio_url"] = updates["huggingface_space_url"]
+            config.set("voice", v)
+            config.save()
+
+        if env_dict:
+            config.save_env(env_dict)
+        return {"status": "ok", "category": "integrations", "saved_env": True}
 
     # Update in-memory and write to config.yaml
     if "wake_word" in updates:
