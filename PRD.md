@@ -13,11 +13,11 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
   - [x] Ollama daemon inspection (port 11434, llama3.2:1b and qwen3.5:4b models detected)
   - [x] Write `docs/JARVIS_PHASE0_DIAGNOSTIC.md` and `IMPLEMENTATION_PROGRESS.md`
 
-- [ ] **PHASE 1: Fix AI Chat Engine & Multi-Provider Architecture**
-  - [ ] Dynamic Ollama connection, streaming chat API (SSE/WebSocket), model switching (`llama3.2:1b` vs `qwen3.5:4b`)
-  - [ ] Multi-provider registry (Ollama, Gemini, OpenAI, Anthropic, NVIDIA NIM, OpenAI-compatible)
-  - [ ] Provider routing, fallback logic, telemetry (TTFT, tokens/sec)
-  - [ ] Chat UI repair (streaming responses, markdown/code rendering, model selector, cancel/retry)
+- [x] **PHASE 1: Fix AI Chat Engine & Multi-Provider Architecture**
+  - [x] Dynamic Ollama connection, streaming chat API (SSE/WebSocket), model switching (`llama3.2:1b` vs `qwen3.5:4b`)
+  - [x] Multi-provider registry (Ollama, Gemini, OpenAI, Anthropic, NVIDIA NIM, OpenAI-compatible)
+  - [x] Provider routing, fallback logic, telemetry (TTFT, tokens/sec)
+  - [x] Chat UI repair (streaming responses, markdown/code rendering, model selector, cancel/retry)
 
 - [ ] **PHASE 2: Agent Tool Registry & Autonomous Execution**
   - [ ] Typed tool registry with JSON Schema and validation

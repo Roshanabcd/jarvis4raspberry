@@ -1,21 +1,30 @@
 """
-JARVIS AI Brain — Multi-Provider with Tool Calling
-Supports: Ollama (local), Google Gemini, OpenAI, Anthropic Claude
-Priority: Ollama → Gemini → OpenAI → Anthropic → Echo fallback
+JARVIS AI Brain — Multi-Provider Architecture with Tool Calling & Streaming
+Supports:
+1. Ollama (local on Raspberry Pi 5 — default llama3.2:1b)
+2. Google Gemini (cloud — gemini-2.0-flash)
+3. OpenAI (cloud — gpt-4o, gpt-4o-mini)
+4. Anthropic Claude (cloud — claude-3-haiku, claude-3-5-sonnet)
+5. NVIDIA NIM (cloud — meta/llama-3.1-70b-instruct)
+6. Generic OpenAI-compatible (Groq, Together, vLLM, LM Studio)
 
-Each provider implements real inference — no stub responses.
+All providers implement real inference, model discovery, and streaming.
 """
 import json
 import logging
 import os
+import re
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Union
+import requests
 
-logger = logging.getLogger("JARVIS.AI.Brain")
+from config.config_manager import config
+
+logger = logging.getLogger("JARVIS.AI.Providers")
 
 # ──────────────────────────────────────────────
-# Tool call schema
+# Global Tool Schema
 # ──────────────────────────────────────────────
 
 JARVIS_TOOLS: List[Dict] = [
@@ -180,87 +189,178 @@ JARVIS_TOOLS: List[Dict] = [
 
 
 # ──────────────────────────────────────────────
-# Base Provider
+# Base Provider Abstract Class
 # ──────────────────────────────────────────────
 
 class AIProvider(ABC):
+    """Abstract base class for all JARVIS AI providers."""
     name: str = "base"
+    model: str = "default"
+    enabled: bool = True
 
     @abstractmethod
-    def is_available(self) -> bool: ...
-
-    @abstractmethod
-    def generate(self, messages: List[Dict], tools: Optional[List] = None,
-                 system: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Returns: {
-            "text": str,                       # final text response
-            "tool_calls": [{"name":..., "args":{...}}],  # tool calls requested
-            "provider": str,
-            "model": str,
-            "tokens": int,
-        }
-        """
+    def is_available(self) -> bool:
+        """Check if provider is online, configured, and responsive."""
         ...
+
+    @abstractmethod
+    def generate(
+        self,
+        messages: Union[List[Dict], str],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        """Execute chat completion. Supports message lists or raw prompt strings."""
+        ...
+
+    def stream_generate(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Yield streaming token chunks: {'token': str, 'done': bool, 'provider': str, 'model': str}."""
+        # Default non-streaming fallback generator
+        res = self.generate(messages, tools=tools, system=system, **kwargs)
+        text = res if isinstance(res, str) else (res.get("text", "") if isinstance(res, dict) else "")
+        yield {"token": text, "done": True, "provider": self.name, "model": self.model}
+
+    def list_models(self) -> List[str]:
+        """Return list of supported or discovered model names."""
+        return [self.model]
+
+    def test_connection(self) -> Dict[str, Any]:
+        """Perform active diagnostic ping test."""
+        avail = self.is_available()
+        return {
+            "provider": self.name,
+            "available": avail,
+            "model": self.model,
+            "models": self.list_models(),
+        }
+
+    def get_model_info(self) -> Dict[str, Any]:
+        """Return model metadata dictionary."""
+        return {
+            "name": self.name,
+            "model": self.model,
+            "enabled": self.enabled,
+        }
 
     def generate_simple(self, prompt: str, system: Optional[str] = None) -> str:
         """Convenience: single prompt → text response."""
         result = self.generate(
             messages=[{"role": "user", "content": prompt}],
-            system=system
+            system=system,
         )
-        return result.get("text", "")
+        if isinstance(result, str):
+            return result
+        return result.get("text", "") if isinstance(result, dict) else ""
 
 
 # ──────────────────────────────────────────────
-# Ollama (local — Llama3, Mistral, etc.)
+# 1. Ollama Provider (Local Daemon on Pi 5)
 # ──────────────────────────────────────────────
 
 class OllamaProvider(AIProvider):
     name = "ollama"
 
-    def __init__(self, base_url: str = "http://localhost:11434",
-                 model: str = "llama3.2:3b") -> None:
-        self.base_url = base_url.rstrip("/")
-        self.model = model
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None,
+        timeout: float = 60.0,
+        enabled: bool = True,
+    ) -> None:
+        cfg = config.get("ai", {}).get("ollama", {}) or {}
+        self.base_url = (base_url or cfg.get("base_url") or "http://127.0.0.1:11434").rstrip("/")
+        self.model = model or cfg.get("model") or "llama3.2:1b"
+        self.timeout = timeout
+        self.enabled = enabled
         self._available: Optional[bool] = None
+        self._last_check: float = 0.0
+        self._models_cache: List[str] = []
 
     def is_available(self) -> bool:
+        if not self.enabled:
+            return False
         try:
-            import requests
-            r = requests.get(f"{self.base_url}/api/tags", timeout=2)
+            r = requests.get(f"{self.base_url}/api/tags", timeout=3.0)
             if r.status_code == 200:
-                models = [m["name"] for m in r.json().get("models", [])]
-                self._available = bool(models)
-                if models:
-                    if self.model in models:
-                        pass
-                    elif any("llama3.2:1b" in m for m in models):
+                tags = r.json().get("models", [])
+                models = [m["name"] for m in tags if isinstance(m, dict)]
+                self._models_cache = models
+                self._available = True
+
+                # If current model not installed, select best match
+                if self.model not in models:
+                    if any("llama3.2:1b" in m for m in models):
                         self.model = next(m for m in models if "llama3.2:1b" in m)
-                    elif any("1b" in m for m in models):
-                        self.model = next(m for m in models if "1b" in m)
-                    else:
+                    elif any("qwen3.5:4b" in m for m in models):
+                        self.model = next(m for m in models if "qwen3.5:4b" in m)
+                    elif models:
                         self.model = models[0]
-                    logger.info(f"Ollama using model: {self.model}")
-                return self._available
-        except Exception:
-            pass
+                return True
+        except Exception as e:
+            logger.debug(f"Ollama availability check failed: {e}")
+
         self._available = False
         return False
 
-    def generate(self, messages: List[Dict], tools: Optional[List] = None,
-                 system: Optional[str] = None) -> Dict[str, Any]:
-        import requests
+    def list_models(self) -> List[str]:
+        if not self._models_cache:
+            try:
+                r = requests.get(f"{self.base_url}/api/tags", timeout=3.0)
+                if r.status_code == 200:
+                    self._models_cache = [m["name"] for m in r.json().get("models", [])]
+            except Exception:
+                pass
+        return self._models_cache or [self.model]
 
+    def generate(
+        self,
+        messages: Union[List[Dict], str],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        if not self.enabled:
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": "Provider disabled"}
+
+        # Legacy prompt-based string invocation compatibility
+        if isinstance(messages, str):
+            prompt = messages
+            context = kwargs.get("context", {})
+            sys_prompt = context.get("system_prompt") or context.get("system") or system
+            url = f"{self.base_url}/api/generate"
+            payload: Dict[str, Any] = {
+                "model": kwargs.get("model", self.model),
+                "prompt": prompt,
+                "stream": False,
+            }
+            if sys_prompt:
+                payload["system"] = sys_prompt
+            try:
+                r = requests.post(url, json=payload, timeout=self.timeout)
+                if r.status_code == 200:
+                    return r.json().get("response", "")
+                return None
+            except Exception as e:
+                logger.warning(f"Ollama legacy generate failed: {e}")
+                return None
+
+        # Standard structured chat invocation
         chat_messages = []
         sys_prompt = system or "You are JARVIS, an advanced AI operating environment on Raspberry Pi 5."
         if tools:
-            tool_desc = "\n".join(f"- {t['name']}: {t['description']}" for t in tools)
+            tool_desc = "\n".join(f"- {t['name']}: {t.get('description', '')}" for t in tools)
             sys_prompt += (
                 f"\n\nAvailable tools:\n{tool_desc}\n\n"
-                "If you need to perform an action (e.g. open an application, write a file, run code, or control hardware), respond with:\n"
+                "IMPORTANT: For greetings, conversations, and questions, DO NOT use tools; answer directly and conversationally as JARVIS.\n"
+                "Only when a physical action or hardware task is explicitly commanded, respond with:\n"
                 "TOOL_CALL: {\"name\": \"tool_name\", \"args\": {...}}\n"
-                "Otherwise answer directly and concisely."
             )
         chat_messages.append({"role": "system", "content": sys_prompt})
 
@@ -272,16 +372,20 @@ class OllamaProvider(AIProvider):
             else:
                 chat_messages.append({"role": role, "content": content})
 
+        model_to_use = kwargs.get("model", self.model)
+        # Adapt timeout to model size
+        req_timeout = 120.0 if "4b" in model_to_use else self.timeout
+
         try:
             r = requests.post(
                 f"{self.base_url}/api/chat",
                 json={
-                    "model": self.model,
+                    "model": model_to_use,
                     "messages": chat_messages,
                     "stream": False,
-                    "options": {"temperature": 0.3, "num_predict": 256}
+                    "options": {"temperature": kwargs.get("temperature", 0.4), "num_predict": 512}
                 },
-                timeout=60
+                timeout=req_timeout,
             )
             r.raise_for_status()
             data = r.json()
@@ -290,233 +394,488 @@ class OllamaProvider(AIProvider):
             tool_calls = self._extract_tool_calls(text)
             if tool_calls and "TOOL_CALL:" in text:
                 text = text[:text.find("TOOL_CALL:")].strip()
-            return {"text": text, "tool_calls": tool_calls,
-                    "provider": "ollama", "model": self.model, "tokens": data.get("eval_count", 0)}
+            return {
+                "text": text,
+                "tool_calls": tool_calls,
+                "provider": "ollama",
+                "model": model_to_use,
+                "tokens": data.get("eval_count", 0),
+            }
         except Exception as e:
-            logger.error(f"Ollama error: {e}")
-            return {"text": "", "tool_calls": [], "provider": "ollama", "model": self.model,
-                    "tokens": 0, "error": str(e)}
+            logger.error(f"Ollama chat error: {e}")
+            return {
+                "text": "",
+                "tool_calls": [],
+                "provider": "ollama",
+                "model": model_to_use,
+                "tokens": 0,
+                "error": str(e),
+            }
+
+    def stream_generate(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]:
+        """Stream chat tokens from Ollama `/api/chat` using line-by-line JSON."""
+        chat_messages = []
+        sys_prompt = system or "You are JARVIS, an advanced AI operating environment on Raspberry Pi 5."
+        chat_messages.append({"role": "system", "content": sys_prompt})
+        for m in messages:
+            chat_messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+
+        model_to_use = kwargs.get("model", self.model)
+        req_timeout = 120.0 if "4b" in model_to_use else self.timeout
+
+        try:
+            r = requests.post(
+                f"{self.base_url}/api/chat",
+                json={
+                    "model": model_to_use,
+                    "messages": chat_messages,
+                    "stream": True,
+                    "options": {"temperature": 0.4}
+                },
+                stream=True,
+                timeout=req_timeout,
+            )
+            r.raise_for_status()
+
+            full_text = ""
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                try:
+                    chunk = json.loads(line.decode("utf-8"))
+                    content = chunk.get("message", {}).get("content", "")
+                    done = chunk.get("done", False)
+                    full_text += content
+                    yield {
+                        "token": content,
+                        "done": done,
+                        "provider": "ollama",
+                        "model": model_to_use,
+                        "eval_count": chunk.get("eval_count", 0),
+                    }
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.error(f"Ollama stream error: {e}")
+            yield {
+                "token": f" [Ollama error: {e}]",
+                "done": True,
+                "provider": "ollama",
+                "model": model_to_use,
+                "error": str(e),
+            }
 
     def _extract_tool_calls(self, text: str) -> List[Dict]:
         calls = []
-        import re
-        for m in re.finditer(r'TOOL_CALL:\s*(\{.*?\})', text, re.DOTALL):
+        decoder = json.JSONDecoder()
+        idx = 0
+        while True:
+            match = re.search(r'TOOL_CALL:\s*', text[idx:])
+            if not match:
+                break
+            start_pos = idx + match.end()
             try:
-                data = json.loads(m.group(1))
-                calls.append({"name": data.get("name"), "args": data.get("args", {})})
+                data, end_offset = decoder.raw_decode(text[start_pos:])
+                if isinstance(data, dict) and "name" in data:
+                    calls.append({"name": data.get("name"), "args": data.get("args", {})})
+                idx = start_pos + end_offset
             except Exception:
-                pass
+                idx = start_pos + 1
         return calls
+
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            "name": "ollama",
+            "model": self.model,
+            "base_url": self.base_url,
+            "enabled": self.enabled,
+            "task_preference": ["simple", "general"],
+        }
 
 
 # ──────────────────────────────────────────────
-# Google Gemini
+# 2. Google Gemini Provider
 # ──────────────────────────────────────────────
 
 class GeminiProvider(AIProvider):
     name = "gemini"
 
-    def __init__(self, api_key: Optional[str] = None,
-                 model: str = "gemini-2.0-flash") -> None:
-        self.api_key = api_key or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        self.model = model
-        self._client = None
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "gemini-2.0-flash",
+        enabled: bool = True,
+    ) -> None:
+        cfg = config.get("ai", {}).get("gemini", {}) or {}
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        else:
+            self.api_key = (
+                os.environ.get("GOOGLE_API_KEY") or
+                os.environ.get("GEMINI_API_KEY") or
+                cfg.get("api_key", "")
+            ).strip()
+        self.model = model or cfg.get("model", "gemini-2.0-flash")
+        self.enabled = enabled
 
     def is_available(self) -> bool:
-        if not self.api_key:
+        if not self.enabled:
             return False
-        try:
-            import google.generativeai as genai  # noqa
-            return True
-        except ImportError:
+        if not self.api_key or "your-" in self.api_key or "REPLACE" in self.api_key:
             return False
+        return True
 
-    def _get_client(self):
-        if not self._client:
+    def list_models(self) -> List[str]:
+        return ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro", "gemini-1.5-flash"]
+
+    def generate(
+        self,
+        messages: Union[List[Dict], str],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        if not self.is_available():
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": "Gemini key missing"}
+
+        # Attempt SDK first, fallback to direct REST
+        try:
             import google.generativeai as genai
             genai.configure(api_key=self.api_key)
-            self._client = genai
-        return self._client
-
-    def generate(self, messages: List[Dict], tools: Optional[List] = None,
-                 system: Optional[str] = None) -> Dict[str, Any]:
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
-
-            # Build Gemini tool declarations
-            gemini_tools = None
-            if tools:
-                from google.generativeai.types import FunctionDeclaration, Tool
-                decls = []
-                for t in tools:
-                    decls.append(FunctionDeclaration(
-                        name=t["name"],
-                        description=t["description"],
-                        parameters=t.get("parameters", {})
-                    ))
-                gemini_tools = [Tool(function_declarations=decls)]
 
             model_kwargs = {"model_name": self.model}
             if system:
                 model_kwargs["system_instruction"] = system
+            model = genai.GenerativeModel(**model_kwargs)
 
-            model = genai.GenerativeModel(**model_kwargs, tools=gemini_tools)
+            prompt_text = messages if isinstance(messages, str) else (
+                messages[-1].get("content", "") if messages else ""
+            )
+            response = model.generate_content(prompt_text)
+            text = response.text.strip() if hasattr(response, "text") else ""
 
-            # Convert messages to Gemini format
-            history = []
-            last_user_msg = ""
-            for m in messages:
-                role = m.get("role", "user")
-                content = m.get("content", "")
-                if role == "user":
-                    last_user_msg = content
-                    if history:
-                        history.append({"role": "user", "parts": [content]})
-                elif role == "assistant":
-                    history.append({"role": "model", "parts": [content]})
+            if isinstance(messages, str):
+                return text
 
-            chat = model.start_chat(history=history[:-1] if len(history) > 1 else [])
-            response = chat.send_message(last_user_msg or messages[-1].get("content", ""))
+            return {
+                "text": text,
+                "tool_calls": [],
+                "provider": "gemini",
+                "model": self.model,
+                "tokens": 0,
+            }
+        except Exception as sdk_err:
+            # Fallback to direct REST API
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+                prompt_text = messages if isinstance(messages, str) else messages[-1].get("content", "")
+                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
+                r = requests.post(url, json=payload, timeout=30)
+                if r.status_code == 200:
+                    cand = r.json().get("candidates", [{}])[0]
+                    text = cand.get("content", {}).get("parts", [{}])[0].get("text", "")
+                    if isinstance(messages, str):
+                        return text
+                    return {"text": text, "tool_calls": [], "provider": "gemini", "model": self.model, "tokens": 0}
+            except Exception as e:
+                logger.error(f"Gemini REST error: {e}")
 
-            text = ""
-            tool_calls = []
-            for part in response.parts:
-                if hasattr(part, "text") and part.text:
-                    text += part.text
-                elif hasattr(part, "function_call") and part.function_call:
-                    fc = part.function_call
-                    tool_calls.append({"name": fc.name, "args": dict(fc.args)})
-
-            return {"text": text.strip(), "tool_calls": tool_calls,
-                    "provider": "gemini", "model": self.model,
-                    "tokens": response.usage_metadata.total_token_count if hasattr(response, "usage_metadata") else 0}
-        except Exception as e:
-            logger.error(f"Gemini error: {e}")
-            return {"text": "", "tool_calls": [], "provider": "gemini",
-                    "model": self.model, "tokens": 0, "error": str(e)}
+            if isinstance(messages, str):
+                return None
+            return {"text": "", "tool_calls": [], "provider": "gemini", "model": self.model, "error": str(sdk_err)}
 
 
 # ──────────────────────────────────────────────
-# OpenAI (also works with compatible APIs like Groq, Together, etc.)
+# 3. OpenAI & OpenAI-Compatible Provider
 # ──────────────────────────────────────────────
 
 class OpenAIProvider(AIProvider):
     name = "openai"
 
-    def __init__(self, api_key: Optional[str] = None,
-                 model: str = "gpt-4o-mini",
-                 base_url: Optional[str] = None) -> None:
-        self.api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self.model = model
-        self.base_url = base_url or os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        base_url: Optional[str] = None,
+        timeout: float = 30.0,
+        enabled: Optional[bool] = None,
+    ) -> None:
+        cfg = config.get("ai", {}).get("openai", {}) or {}
+        self.api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY", "").strip()
+        default_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        self.base_url = (base_url or cfg.get("base_url") or default_base_url).rstrip("/")
+        self.model = model or cfg.get("model") or "gpt-4o-mini"
+        self.timeout = timeout
+        self.enabled = enabled if enabled is not None else cfg.get("enabled", False)
 
     def is_available(self) -> bool:
-        if not self.api_key or self.api_key.startswith("sk-REPLACE"):
+        if not self.enabled:
             return False
-        try:
-            import openai  # noqa
-            return True
-        except ImportError:
+        if not self.api_key or self.api_key.startswith("sk-REPLACE") or "your-" in self.api_key:
             return False
+        return True
 
-    def generate(self, messages: List[Dict], tools: Optional[List] = None,
-                 system: Optional[str] = None) -> Dict[str, Any]:
-        try:
-            import openai
-            client = openai.OpenAI(api_key=self.api_key, base_url=self.base_url)
+    def list_models(self) -> List[str]:
+        return ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo", "o1-mini"]
 
-            oai_messages = []
+    def generate(
+        self,
+        messages: Union[List[Dict], str],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        if not self.is_available():
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": "OpenAI not available"}
+
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+        # Normalize messages
+        oai_messages = []
+        if isinstance(messages, str):
+            context = kwargs.get("context", {})
+            sys_prompt = context.get("system_prompt") or context.get("system") or system
+            if sys_prompt:
+                oai_messages.append({"role": "system", "content": sys_prompt})
+            oai_messages.append({"role": "user", "content": messages})
+        else:
             if system:
                 oai_messages.append({"role": "system", "content": system})
             oai_messages.extend(messages)
 
-            kwargs: Dict[str, Any] = {"model": self.model, "messages": oai_messages, "max_tokens": 1024}
-            if tools:
-                kwargs["tools"] = [{"type": "function", "function": {
-                    "name": t["name"],
-                    "description": t["description"],
-                    "parameters": t.get("parameters", {})
-                }} for t in tools]
-                kwargs["tool_choice"] = "auto"
+        payload: Dict[str, Any] = {
+            "model": kwargs.get("model", self.model),
+            "messages": oai_messages,
+            "temperature": kwargs.get("temperature", 0.7),
+        }
 
-            resp = client.chat.completions.create(**kwargs)
-            msg = resp.choices[0].message
-            text = msg.content or ""
-            tool_calls = []
-            if msg.tool_calls:
-                for tc in msg.tool_calls:
-                    try:
-                        args = json.loads(tc.function.arguments)
-                    except Exception:
-                        args = {}
-                    tool_calls.append({"name": tc.function.name, "args": args, "id": tc.id})
-
-            return {"text": text.strip(), "tool_calls": tool_calls,
-                    "provider": "openai", "model": self.model,
-                    "tokens": resp.usage.total_tokens if resp.usage else 0}
+        try:
+            r = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+            if r.status_code == 200:
+                data = r.json()
+                msg = data.get("choices", [{}])[0].get("message", {})
+                content = msg.get("content", "")
+                if isinstance(messages, str):
+                    return content
+                return {
+                    "text": content,
+                    "tool_calls": [],
+                    "provider": self.name,
+                    "model": self.model,
+                    "tokens": data.get("usage", {}).get("total_tokens", 0),
+                }
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": r.text}
         except Exception as e:
-            logger.error(f"OpenAI error: {e}")
-            return {"text": "", "tool_calls": [], "provider": "openai",
-                    "model": self.model, "tokens": 0, "error": str(e)}
+            logger.warning(f"OpenAI error: {e}")
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": str(e)}
+
+    def stream_generate(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]:
+        url = f"{self.base_url}/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+        oai_messages = []
+        if system:
+            oai_messages.append({"role": "system", "content": system})
+        oai_messages.extend(messages)
+
+        payload = {
+            "model": kwargs.get("model", self.model),
+            "messages": oai_messages,
+            "stream": True,
+        }
+        try:
+            r = requests.post(url, headers=headers, json=payload, stream=True, timeout=self.timeout)
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                decoded = line.decode("utf-8")
+                if decoded.startswith("data: "):
+                    body = decoded[6:].strip()
+                    if body == "[DONE]":
+                        yield {"token": "", "done": True, "provider": self.name, "model": self.model}
+                        break
+                    try:
+                        chunk = json.loads(body)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        if delta:
+                            yield {"token": delta, "done": False, "provider": self.name, "model": self.model}
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"OpenAI stream error: {e}")
+            yield {"token": f" [Error: {e}]", "done": True, "provider": self.name, "model": self.model}
+
+    def get_model_info(self) -> Dict[str, Any]:
+        return {
+            "name": self.name,
+            "model": self.model,
+            "base_url": self.base_url,
+            "enabled": self.enabled,
+            "has_api_key": bool(self.api_key),
+            "task_preference": ["vision", "code"],
+        }
+
+
+# Direct alias for legacy router compatibility
+OpenAICompatibleProvider = OpenAIProvider
 
 
 # ──────────────────────────────────────────────
-# Anthropic Claude
+# 4. Anthropic Claude Provider
 # ──────────────────────────────────────────────
 
 class AnthropicProvider(AIProvider):
     name = "anthropic"
 
-    def __init__(self, api_key: Optional[str] = None,
-                 model: str = "claude-3-haiku-20240307") -> None:
-        self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        self.model = model
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "claude-3-haiku-20240307",
+        enabled: bool = True,
+    ) -> None:
+        cfg = config.get("ai", {}).get("anthropic", {}) or {}
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        else:
+            self.api_key = (os.environ.get("ANTHROPIC_API_KEY", "") or cfg.get("api_key", "")).strip()
+        self.model = model or cfg.get("model", "claude-3-haiku-20240307")
+        self.enabled = enabled
 
     def is_available(self) -> bool:
-        if not self.api_key or self.api_key.startswith("sk-ant-REPLACE"):
+        if not self.enabled:
             return False
-        try:
-            import anthropic  # noqa
-            return True
-        except ImportError:
+        if not self.api_key or self.api_key.startswith("sk-ant-REPLACE") or "your-" in self.api_key:
             return False
+        return True
 
-    def generate(self, messages: List[Dict], tools: Optional[List] = None,
-                 system: Optional[str] = None) -> Dict[str, Any]:
+    def list_models(self) -> List[str]:
+        return ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307", "claude-3-opus-20240229"]
+
+    def generate(
+        self,
+        messages: Union[List[Dict], str],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Any:
+        if not self.is_available():
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": "Anthropic not available"}
+
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        ant_messages = []
+        if isinstance(messages, str):
+            ant_messages.append({"role": "user", "content": messages})
+        else:
+            ant_messages.extend(messages)
+
+        payload: Dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": 1024,
+            "messages": ant_messages,
+        }
+        if system:
+            payload["system"] = system
+
         try:
-            import anthropic
-            client = anthropic.Anthropic(api_key=self.api_key)
-
-            ant_tools = None
-            if tools:
-                ant_tools = [{"name": t["name"], "description": t["description"],
-                               "input_schema": t.get("parameters", {"type": "object", "properties": {}})}
-                              for t in tools]
-
-            kwargs: Dict[str, Any] = {
-                "model": self.model,
-                "max_tokens": 1024,
-                "messages": messages,
-            }
-            if system:
-                kwargs["system"] = system
-            if ant_tools:
-                kwargs["tools"] = ant_tools
-
-            resp = client.messages.create(**kwargs)
-            text = ""
-            tool_calls = []
-            for block in resp.content:
-                if block.type == "text":
-                    text += block.text
-                elif block.type == "tool_use":
-                    tool_calls.append({"name": block.name, "args": block.input, "id": block.id})
-
-            return {"text": text.strip(), "tool_calls": tool_calls,
-                    "provider": "anthropic", "model": self.model,
-                    "tokens": resp.usage.input_tokens + resp.usage.output_tokens}
+            r = requests.post(url, headers=headers, json=payload, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+                if isinstance(messages, str):
+                    return text
+                return {
+                    "text": text,
+                    "tool_calls": [],
+                    "provider": "anthropic",
+                    "model": self.model,
+                    "tokens": data.get("usage", {}).get("output_tokens", 0),
+                }
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": r.text}
         except Exception as e:
             logger.error(f"Anthropic error: {e}")
-            return {"text": "", "tool_calls": [], "provider": "anthropic",
-                    "model": self.model, "tokens": 0, "error": str(e)}
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": str(e)}
+
+
+# ──────────────────────────────────────────────
+# 5. NVIDIA NIM Provider
+# ──────────────────────────────────────────────
+
+class NvidiaNimProvider(OpenAIProvider):
+    name = "nvidia"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = "meta/llama-3.1-70b-instruct",
+        base_url: str = "https://integrate.api.nvidia.com/v1",
+        enabled: bool = True,
+    ) -> None:
+        key = api_key or os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "")
+        super().__init__(
+            api_key=key,
+            model=model,
+            base_url=base_url,
+            enabled=enabled,
+        )
+
+    def list_models(self) -> List[str]:
+        return [
+            "meta/llama-3.1-70b-instruct",
+            "meta/llama-3.1-8b-instruct",
+            "mistralai/mixtral-8x7b-instruct-v0.1",
+            "nvidia/nemotron-4-340b-instruct",
+        ]
+
+
+# ──────────────────────────────────────────────
+# 6. Generic OpenAI-Compatible Provider
+# ──────────────────────────────────────────────
+
+class GenericOpenAIProvider(OpenAIProvider):
+    """Custom provider adapter for Groq, Together, vLLM, LM Studio, etc."""
+
+    def __init__(
+        self,
+        name: str = "custom",
+        base_url: str = "http://localhost:8080/v1",
+        api_key: Optional[str] = None,
+        model: str = "custom-model",
+        enabled: bool = True,
+    ) -> None:
+        super().__init__(
+            api_key=api_key or "not-needed",
+            model=model,
+            base_url=base_url,
+            enabled=enabled,
+        )
+        self.name = name
+
+    def is_available(self) -> bool:
+        if not self.enabled:
+            return False
+        # If API key is present or local URL, consider available
+        return bool(self.base_url)

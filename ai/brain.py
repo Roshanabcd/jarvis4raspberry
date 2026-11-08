@@ -13,7 +13,8 @@ from typing import Any, Dict, List, Optional
 from config.config_manager import config
 from ai.providers.base import (
     AIProvider, OllamaProvider, GeminiProvider,
-    OpenAIProvider, AnthropicProvider, JARVIS_TOOLS
+    OpenAIProvider, AnthropicProvider, NvidiaNimProvider,
+    GenericOpenAIProvider, JARVIS_TOOLS
 )
 from ai.tools.executor import ToolExecutor
 
@@ -99,19 +100,79 @@ class JARVISBrain:
         anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
         self._providers.append(AnthropicProvider(api_key=anthropic_key))
 
+        # 6. NVIDIA NIM
+        nvidia_key = os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "")
+        nvidia_model = (cfg.get("nvidia", {}) or {}).get("model", "meta/llama-3.1-70b-instruct")
+        self._providers.append(NvidiaNimProvider(api_key=nvidia_key, model=nvidia_model))
 
-    def _get_provider(self) -> Optional[AIProvider]:
-        """Select the first available provider."""
+        # 7. Generic OpenAI-Compatible
+        custom_cfg = cfg.get("custom", {}) or {}
+        if custom_cfg.get("enabled"):
+            self._providers.append(GenericOpenAIProvider(
+                name=custom_cfg.get("name", "custom"),
+                base_url=custom_cfg.get("base_url", "http://localhost:8080/v1"),
+                api_key=custom_cfg.get("api_key", ""),
+                model=custom_cfg.get("model", "custom-model"),
+            ))
+
+
+    def _get_provider(self, name: Optional[str] = None) -> Optional[AIProvider]:
+        """Select provider by name or choose the first available provider."""
+        if name:
+            for p in self._providers:
+                if p.name.lower() == name.lower():
+                    if p.is_available():
+                        self._active = p
+                        return p
+                    logger.warning(f"Requested provider {name} is not available")
+                    break
+
+        if self._active and self._active.is_available():
+            return self._active
+
         for provider in self._providers:
             try:
                 if provider.is_available():
                     if not self._active or self._active.name != provider.name:
-                        logger.info(f"AI provider: {provider.name} ({provider.model})")
+                        logger.info(f"AI provider selected: {provider.name} ({getattr(provider, 'model', '?')})")
                         self._active = provider
                     return provider
             except Exception as e:
                 logger.debug(f"Provider {provider.name} check failed: {e}")
         return None
+
+    def set_active_provider(self, provider_name: str, model_name: Optional[str] = None) -> bool:
+        """Explicitly switch active provider and optionally its model."""
+        for p in self._providers:
+            if p.name.lower() == provider_name.lower():
+                if model_name:
+                    p.model = model_name
+                self._active = p
+                logger.info(f"Active AI provider changed to {p.name} ({p.model})")
+                return True
+        return False
+
+    def get_providers_status(self) -> Dict[str, Any]:
+        """Return comprehensive list of providers, models, and availability."""
+        provs = []
+        for p in self._providers:
+            avail = False
+            try:
+                avail = p.is_available()
+            except Exception:
+                avail = False
+            provs.append({
+                "name": p.name,
+                "available": avail,
+                "model": getattr(p, "model", ""),
+                "models": p.list_models() if hasattr(p, "list_models") else [getattr(p, "model", "")],
+                "active": bool(self._active and self._active.name == p.name),
+            })
+        return {
+            "providers": provs,
+            "active_provider": self._active.name if self._active else (provs[0]["name"] if provs else None),
+            "active_model": getattr(self._active, "model", "") if self._active else "",
+        }
 
     def status(self) -> Dict[str, Any]:
         """Return status of all providers."""
@@ -124,6 +185,117 @@ class JARVISBrain:
             result[p.name] = {"available": avail, "model": getattr(p, "model", "?")}
         result["active"] = self._active.name if self._active else None
         return result
+
+    def stream_chat(
+        self,
+        user_message: str,
+        session_id: Optional[str] = None,
+        provider_name: Optional[str] = None,
+        model_name: Optional[str] = None,
+    ):
+        """
+        Stream chat response token-by-token.
+        Yields events:
+        - {"type": "start", "provider": ..., "model": ...}
+        - {"type": "token", "content": "..."}
+        - {"type": "done", "provider": ..., "model": ..., "ttft_ms": ..., "total_ms": ...}
+        """
+        import time
+        from ai.local_engine import LocalIntelligenceEngine
+
+        t_start = time.time()
+        engine = LocalIntelligenceEngine()
+        intent, _ = engine.classify_intent(user_message)
+
+        FAST_PATH_INTENTS = {
+            "robot_forward", "robot_backward", "robot_left", "robot_right",
+            "robot_stop", "robot_estop", "servo_set", "system_status",
+            "read_sensors", "calculate", "camera_capture", "memory_store",
+            "list_files", "read_file", "write_file", "schedule_task",
+            "identity", "help", "open_app", "create_calculator",
+            "write_code", "run_code"
+        }
+
+        if intent in FAST_PATH_INTENTS:
+            yield {"type": "start", "provider": "edge_fastpath", "model": "deterministic_hardware_engine"}
+            local_res = engine.respond(user_message)
+            resp_text = local_res.get("response", "Action completed.")
+            self._history.append({"role": "user", "content": user_message})
+            self._history.append({"role": "assistant", "content": resp_text})
+            yield {"type": "token", "content": resp_text}
+            yield {
+                "type": "done",
+                "provider": "edge_fastpath",
+                "model": "deterministic_hardware_engine",
+                "ttft_ms": int((time.time() - t_start) * 1000),
+                "total_ms": int((time.time() - t_start) * 1000),
+                "tokens": len(resp_text.split()),
+            }
+            return
+
+        provider = self._get_provider(provider_name)
+        if not provider:
+            # Fallback
+            fb = self._no_brain_response(user_message)
+            resp_text = fb.get("response", "I processed your request.")
+            yield {"type": "start", "provider": "local_engine", "model": "rule-based"}
+            yield {"type": "token", "content": resp_text}
+            yield {
+                "type": "done",
+                "provider": "local_engine",
+                "model": "rule-based",
+                "ttft_ms": 10,
+                "total_ms": 20,
+                "tokens": len(resp_text.split()),
+            }
+            return
+
+        active_model = model_name or getattr(provider, "model", "")
+        yield {"type": "start", "provider": provider.name, "model": active_model}
+
+        self._history.append({"role": "user", "content": user_message})
+        messages = self._history[-10:]
+
+        full_response = ""
+        ttft_recorded = False
+        ttft_ms = 0
+
+        try:
+            for chunk in provider.stream_generate(messages, system=SYSTEM_PROMPT, model=active_model):
+                token = chunk.get("token", "")
+                if token:
+                    if not ttft_recorded:
+                        ttft_ms = int((time.time() - t_start) * 1000)
+                        ttft_recorded = True
+                    full_response += token
+                    yield {"type": "token", "content": token}
+                if chunk.get("done"):
+                    break
+
+            if not full_response:
+                full_response = "I have processed your request."
+                yield {"type": "token", "content": full_response}
+
+            self._history.append({"role": "assistant", "content": full_response})
+            yield {
+                "type": "done",
+                "provider": provider.name,
+                "model": active_model,
+                "ttft_ms": ttft_ms or int((time.time() - t_start) * 1000),
+                "total_ms": int((time.time() - t_start) * 1000),
+                "tokens": len(full_response.split()),
+            }
+        except Exception as e:
+            logger.error(f"stream_chat failed: {e}")
+            err_msg = f"\n[AI Stream Error: {e}]"
+            yield {"type": "token", "content": err_msg}
+            yield {
+                "type": "done",
+                "provider": provider.name,
+                "model": active_model,
+                "error": str(e),
+                "total_ms": int((time.time() - t_start) * 1000),
+            }
 
     def chat(self, user_message: str, use_tools: bool = True,
              session_id: Optional[str] = None) -> Dict[str, Any]:

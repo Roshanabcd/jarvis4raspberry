@@ -12,8 +12,8 @@
 | Phase | Description | Status | Key Deliverables & Validation |
 | :--- | :--- | :--- | :--- |
 | **Phase 0** | Backup, System Inspection & Diagnostics | **COMPLETED** | `docs/JARVIS_PHASE0_DIAGNOSTIC.md`, `PRD.md`, `progress.txt` |
-| **Phase 1** | Repair Ollama & Multi-Provider AI Architecture | **NEXT (In Progress)** | Native Ollama streaming, multi-provider adapters, SSE chat endpoint |
-| **Phase 2** | Real JARVIS Agent with Tool Registry | PENDING | Typed tool schemas (A–H), multi-turn execution, safety validation |
+| **Phase 1** | Repair Ollama & Multi-Provider AI Architecture | **COMPLETED** | Native Ollama streaming, multi-provider adapters, SSE chat endpoint, Chat UI repair |
+| **Phase 2** | Real JARVIS Agent with Tool Registry | **NEXT (In Progress)** | Typed tool schemas (A–H), multi-turn execution, safety validation |
 | **Phase 3** | ReSpeaker Lite Audio Capture & Wake Word | PENDING | PipeWire duplex audio, wake word engine, speech-to-text pipeline |
 | **Phase 4** | OmniVoice Custom Cloned Voice Integration | PENDING | Gradio/Space client binding, reference voice sample, SHA-256 caching |
 | **Phase 5** | Full-Duplex Audio Output & Real-Time Loop | PENDING | Low-latency playback, barge-in detection, complete voice-to-voice cycle |

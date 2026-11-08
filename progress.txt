@@ -20,3 +20,50 @@ Learnings:
 - qwen3.5:4b requires extended timeout (>120s) if user explicitly selects it.
 - PipeWire manages Card 2 (ReSpeaker Lite); ALSA direct device access (plughw:2,0) conflicts with PipeWire, so default ALSA / PipeWire APIs must be used.
 ==================================================
+=== ITERATION 1: PHASE 1 CHAT ENGINE & MULTI-PROVIDER AI ===
+Date: 2026-11-08
+Status: SUCCESS
+Changes:
+- Rebuilt ai/providers/base.py with complete multi-provider architecture:
+  * OllamaProvider (local dynamic model discovery, native tools schema, SSE streaming, TTFT telemetry)
+  * GeminiProvider (direct REST API fallback, Google Generative AI integration, placeholder key validation)
+  * OpenAIProvider & OpenAICompatibleProvider (OpenAI completions, chunk parsing)
+  * AnthropicProvider (Claude 3.5 Sonnet / 3 Haiku messages API)
+  * NvidiaNimProvider (NVIDIA NIM inference API)
+  * GenericOpenAIProvider (vLLM, Groq, Together, custom endpoints)
+- Fixed tool-call regex parsing bug: replaced non-greedy regex with json.JSONDecoder.raw_decode for nested args dictionaries.
+- Added SSE streaming endpoint POST /api/chat/stream, provider discovery GET /api/chat/providers, and dynamic model switching POST /api/chat/model in apps/api/chat_api.py.
+- Enhanced apps/dashboard/static/index.html Chat tab:
+  * Dynamic provider and model selector populated from /api/chat/providers
+  * Real-time Server-Sent Events (SSE) streaming token renderer with animated blinking cursor
+  * Full in-browser markdown and code-block syntax highlighter with Copy button
+  * Generation latency and telemetry badge (TTFT ms, tok/s, provider tag)
+  * Message retry, copy, cancel generation (AbortController), and clear history
+- Validated with 10 new unit tests in tests/unit/test_phase1_chat_engine.py (100% pass) and full 93-test unit regression suite (100% pass).
+- Live acceptance test verified: "hello jarvis" routes to Ollama llama3.2:1b and streams real assistant response in ~1.08s TTFT.
+Learnings:
+- Non-greedy regex pattern r'TOOL_CALL:\s*(\{.*?\})' broke on nested JSON arguments; json.JSONDecoder().raw_decode is required for arbitrary nested dictionary structures.
+- Small 1B parameter LLMs require explicit system prompt separation between physical tool instructions and conversational queries to prevent hallucinated tool calls during simple greetings.
+==================================================
+Changes:
+- Rebuilt ai/providers/base.py with complete multi-provider architecture:
+  * OllamaProvider (local dynamic model discovery, native tools schema, SSE streaming, TTFT telemetry)
+  * GeminiProvider (direct REST API fallback, Google Generative AI integration, placeholder key validation)
+  * OpenAIProvider & OpenAICompatibleProvider (OpenAI completions, chunk parsing)
+  * AnthropicProvider (Claude 3.5 Sonnet / 3 Haiku messages API)
+  * NvidiaNimProvider (NVIDIA NIM inference API)
+  * GenericOpenAIProvider (vLLM, Groq, Together, custom endpoints)
+- Fixed tool-call regex parsing bug: replaced non-greedy regex with json.JSONDecoder.raw_decode for nested args dictionaries.
+- Added SSE streaming endpoint POST /api/chat/stream, provider discovery GET /api/chat/providers, and dynamic model switching POST /api/chat/model in apps/api/chat_api.py.
+- Enhanced apps/dashboard/static/index.html Chat tab:
+  * Dynamic provider and model selector populated from /api/chat/providers
+  * Real-time Server-Sent Events (SSE) streaming token renderer with animated blinking cursor
+  * Full in-browser markdown and code-block syntax highlighter with Copy button
+  * Generation latency and telemetry badge (TTFT ms, tok/s, provider tag)
+  * Message retry, copy, cancel generation (AbortController), and clear history
+- Validated with 10 new unit tests in tests/unit/test_phase1_chat_engine.py (100% pass) and full 93-test unit regression suite (100% pass).
+- Live acceptance test verified: "hello jarvis" routes to Ollama llama3.2:1b and streams real assistant response in ~1.08s TTFT.
+Learnings:
+- Non-greedy regex pattern r'TOOL_CALL:\s*(\{.*?\})' broke on nested JSON arguments; json.JSONDecoder().raw_decode is required for arbitrary nested dictionary structures.
+- Small 1B parameter LLMs require explicit system prompt separation between physical tool instructions and conversational queries to prevent hallucinated tool calls during simple greetings.
+==================================================

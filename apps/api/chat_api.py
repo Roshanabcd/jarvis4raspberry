@@ -1,10 +1,12 @@
 """
-JARVIS Chat API — Uses the real AI brain with tool calling.
+JARVIS Chat API — Real AI brain with streaming SSE, tool calling, and multi-provider switching.
 """
-from fastapi import APIRouter
-from pydantic import BaseModel, Field
-from typing import Optional
+import json
 import logging
+from typing import Any, Dict, Optional
+from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("JARVIS.API.Chat")
 chat_router = APIRouter(prefix="/chat", tags=["chat"])
@@ -14,19 +16,85 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=4096)
     session_id: Optional[str] = None
     use_tools: bool = True
+    provider: Optional[str] = None
+    model: Optional[str] = None
+
+
+class ModelSwitchRequest(BaseModel):
+    provider: str = Field(..., min_length=1)
+    model: Optional[str] = None
 
 
 @chat_router.post("")
-def chat_endpoint(req: ChatRequest):
-    """Process a chat message through the JARVIS AI brain."""
+def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
+    """Process a chat message through the JARVIS AI brain synchronously."""
     from ai.brain import get_brain
     brain = get_brain()
+    if req.provider:
+        brain.set_active_provider(req.provider, req.model)
+
     result = brain.chat(
         user_message=req.message,
         use_tools=req.use_tools,
         session_id=req.session_id,
     )
     return result
+
+
+@chat_router.post("/stream")
+def chat_stream_endpoint(req: ChatRequest):
+    """
+    Stream chat tokens in real-time using Server-Sent Events (SSE).
+    Allows sub-second Time-to-First-Token (TTFT) on Raspberry Pi 5.
+    """
+    from ai.brain import get_brain
+    brain = get_brain()
+
+    def event_stream():
+        try:
+            for event in brain.stream_chat(
+                user_message=req.message,
+                session_id=req.session_id,
+                provider_name=req.provider,
+                model_name=req.model,
+            ):
+                payload = json.dumps(event)
+                yield f"data: {payload}\n\n"
+        except Exception as e:
+            logger.error(f"Event stream error: {e}")
+            err_payload = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {err_payload}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@chat_router.get("/providers")
+def get_providers_endpoint():
+    """Retrieve all configured AI providers, availability status, and installed models."""
+    from ai.brain import get_brain
+    brain = get_brain()
+    return brain.get_providers_status()
+
+
+@chat_router.post("/model")
+def switch_model_endpoint(req: ModelSwitchRequest):
+    """Dynamically switch the active AI provider and/or target model."""
+    from ai.brain import get_brain
+    brain = get_brain()
+    success = brain.set_active_provider(req.provider, req.model)
+    return {
+        "success": success,
+        "active_provider": brain._active.name if brain._active else req.provider,
+        "active_model": getattr(brain._active, "model", req.model or ""),
+    }
 
 
 @chat_router.get("/status")
