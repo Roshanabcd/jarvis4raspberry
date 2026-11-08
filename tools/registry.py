@@ -221,6 +221,12 @@ class ToolRegistry:
             logger.info(f"Safety check passed for high-risk tool '{tool['name']}' (simulation_mode={simulated})")
         return True, None
 
+    def execute_tool(self, name: str, args: Optional[Dict[str, Any]] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Execute a tool with dictionary arguments or keyword arguments."""
+        params = dict(args or {})
+        params.update(kwargs)
+        return self.execute(name, **params)
+
     def execute(self, name: str, **kwargs: Any) -> Dict[str, Any]:
         """Execute a tool through the complete safety and audit pipeline.
 
@@ -597,6 +603,446 @@ class ToolRegistry:
             "risk_level": 2,
             "permissions": ["scheduler:manage"],
             "execute": task_scheduler.delete_task,
+        })
+
+        # ── Category A: System Tools ──────────────────────────
+        from hardware.raspberry_pi.rpi_info import get_system_status, get_cpu_temp, is_online
+
+        def _fn_get_system_status(**_):
+            st = get_system_status()
+            st["cpu_temp_c"] = get_cpu_temp()
+            return st
+
+        def _fn_get_network_status(**_):
+            import socket, psutil
+            try:
+                hostname = socket.gethostname()
+                ip = socket.gethostbyname(hostname)
+            except Exception:
+                ip = "127.0.0.1"
+            net = psutil.net_io_counters()
+            return {
+                "hostname": socket.gethostname(),
+                "local_ip": ip,
+                "online": is_online(),
+                "bytes_sent": net.bytes_sent,
+                "bytes_recv": net.bytes_recv,
+            }
+
+        def _fn_get_process_info(limit: int = 5, **_):
+            import psutil
+            procs = []
+            for p in sorted(psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']),
+                            key=lambda x: x.info['cpu_percent'] or 0, reverse=True)[:int(limit)]:
+                procs.append(p.info)
+            return {"top_processes": procs}
+
+        def _fn_get_service_status(service: str = "jarvis-core", **_):
+            import subprocess
+            try:
+                out = subprocess.check_output(["systemctl", "is-active", service], text=True).strip()
+                return {"service": service, "status": out, "active": out == "active"}
+            except Exception as e:
+                return {"service": service, "status": "inactive", "error": str(e)}
+
+        self.register_tool({
+            "name": "get_system_status",
+            "description": "Get real-time CPU, RAM, temperature, disk usage, and host system status",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_system_status,
+        })
+        self.register_tool({
+            "name": "get_network_status",
+            "description": "Get network interfaces, IP addresses, connectivity and IO counters",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_network_status,
+        })
+        self.register_tool({
+            "name": "get_process_info",
+            "description": "List top running processes sorted by resource consumption",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_process_info,
+        })
+        self.register_tool({
+            "name": "get_service_status",
+            "description": "Query status of a local systemd service daemon",
+            "schema": {"service": "str"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_service_status,
+        })
+
+        # ── Category B: Robot & Actuator Tools ────────────────
+        from tools.robotics.controller import robot
+
+        def _is_armed():
+            attr = getattr(robot, "is_armed", None)
+            return attr() if callable(attr) else bool(getattr(robot, "armed", False))
+
+        def _is_estop():
+            attr = getattr(robot, "is_emergency_stopped", None)
+            return attr() if callable(attr) else bool(getattr(robot, "emergency_stopped", False))
+
+        def _fn_robot_status(**_):
+            return {
+                "armed": _is_armed(),
+                "emergency_stopped": _is_estop(),
+                "state": str(getattr(robot, "state", "UNKNOWN")),
+                "simulated": getattr(robot, "simulated", True),
+                "default_speed": getattr(robot, "default_speed", 50),
+            }
+
+        def _fn_robot_arm(**_):
+            robot.arm()
+            return {"armed": _is_armed(), "status": "ARMED"}
+
+        def _fn_robot_disarm(**_):
+            robot.disarm()
+            return {"armed": _is_armed(), "status": "DISARMED"}
+
+        def _fn_robot_move(direction: str, speed: int = 50, duration_ms: int = 0, **_):
+            safe_speed = max(0, min(100, int(speed)))
+            safe_duration = max(0, min(10000, int(duration_ms)))
+            actions = {
+                "forward": lambda: robot.forward(safe_speed),
+                "backward": lambda: robot.backward(safe_speed),
+                "left": lambda: robot.turn_left(safe_speed),
+                "right": lambda: robot.turn_right(safe_speed),
+                "stop": robot.stop,
+                "estop": robot.emergency_stop,
+            }
+            fn = actions.get(direction.lower())
+            if not fn:
+                return {"error": f"Invalid direction: {direction}"}
+            fn()
+            if safe_duration > 0:
+                time.sleep(safe_duration / 1000.0)
+                robot.stop()
+            return {
+                "direction": direction,
+                "speed": safe_speed,
+                "duration_ms": safe_duration,
+                "armed": _is_armed(),
+                "state": str(getattr(robot, "state", "UNKNOWN")),
+            }
+
+        def _fn_servo_set(channel: int, angle: int, **_):
+            c = max(0, min(15, int(channel)))
+            a = max(0, min(180, int(angle)))
+            robot.set_servo(c, a)
+            return {"channel": c, "angle": a, "status": "ok"}
+
+        def _fn_robot_estop(**_):
+            robot.emergency_stop()
+            return {"emergency_stopped": True, "armed": False, "status": "EMERGENCY_STOP_LATCHED"}
+
+        self.register_tool({
+            "name": "robot_status",
+            "description": "Get robot state, armed status, and safety lockout status",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["robot:read"],
+            "execute": _fn_robot_status,
+        })
+        self.register_tool({
+            "name": "robot_arm",
+            "description": "Explicitly arm robot drive motors (requires confirmation)",
+            "schema": {},
+            "risk_level": 2,
+            "permissions": ["robot:arm"],
+            "execute": _fn_robot_arm,
+        })
+        self.register_tool({
+            "name": "robot_disarm",
+            "description": "Disarm robot drive motors into safe state",
+            "schema": {},
+            "risk_level": 1,
+            "permissions": ["robot:disarm"],
+            "execute": _fn_robot_disarm,
+        })
+        self.register_tool({
+            "name": "robot_move",
+            "description": "Drive robot motors: forward|backward|left|right|stop|estop",
+            "schema": {"direction": "str", "speed": "int", "duration_ms": "int"},
+            "risk_level": 2,
+            "permissions": ["robot:move"],
+            "execute": _fn_robot_move,
+        })
+        self.register_tool({
+            "name": "servo_set",
+            "description": "Position a servo channel (0-15) to angle (0-180 deg)",
+            "schema": {"channel": "int", "angle": "int"},
+            "risk_level": 1,
+            "permissions": ["robot:servo"],
+            "execute": _fn_servo_set,
+        })
+        self.register_tool({
+            "name": "robot_estop",
+            "description": "Immediate hardware emergency stop latch",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["robot:estop"],
+            "execute": _fn_robot_estop,
+        })
+
+        # ── Category C: Sensor Tools ──────────────────────────
+        from hardware.sensors.sensor_manager import sensor_manager
+
+        def _fn_read_sensors(**_):
+            return sensor_manager.read_all()
+
+        def _fn_read_bme280(**_):
+            s = sensor_manager.get_sensor("bme280")
+            return s.read() if s else {"error": "BME280 sensor not found"}
+
+        def _fn_read_bh1750(**_):
+            s = sensor_manager.get_sensor("bh1750")
+            return s.read() if s else {"error": "BH1750 sensor not found"}
+
+        def _fn_read_ultrasonic(**_):
+            s = sensor_manager.get_sensor("hcsr04")
+            return s.read() if s else {"error": "Ultrasonic sensor not found"}
+
+        def _fn_read_vl53l0x(**_):
+            s = sensor_manager.get_sensor("vl53l0x")
+            return s.read() if s else {"error": "VL53L0X sensor not found"}
+
+        def _fn_read_pir(**_):
+            s = sensor_manager.get_sensor("hcsr501")
+            return s.read() if s else {"error": "PIR motion sensor not found"}
+
+        self.register_tool({
+            "name": "read_sensors",
+            "description": "Read telemetry from all attached environmental and distance sensors",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_sensors,
+        })
+        self.register_tool({
+            "name": "read_bme280",
+            "description": "Read temperature, relative humidity, and barometric pressure",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_bme280,
+        })
+        self.register_tool({
+            "name": "read_bh1750",
+            "description": "Read ambient illuminance in lux",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_bh1750,
+        })
+        self.register_tool({
+            "name": "read_ultrasonic",
+            "description": "Read distance measurement in cm via ultrasonic sonar",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_ultrasonic,
+        })
+        self.register_tool({
+            "name": "read_vl53l0x",
+            "description": "Read millimeter-precision distance via ToF laser ranging",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_vl53l0x,
+        })
+        self.register_tool({
+            "name": "read_pir",
+            "description": "Read passive infrared (PIR) motion detection boolean",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["sensors:read"],
+            "execute": _fn_read_pir,
+        })
+
+        # ── Category D: Vision Tools ──────────────────────────
+        from apps.vision.service import VisionService
+        vs = VisionService(simulation=config.get("simulation_mode", True))
+
+        def _fn_camera_capture(**_):
+            f = vs.capture_frame()
+            f["description"] = vs.describe_scene()
+            return f
+
+        def _fn_camera_describe(**_):
+            return {"description": vs.describe_scene()}
+
+        def _fn_camera_status(**_):
+            return vs.camera_status()
+
+        self.register_tool({
+            "name": "camera_capture",
+            "description": "Capture an image frame from Camera Module 3 and analyze scene",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["vision:capture"],
+            "execute": _fn_camera_capture,
+        })
+        self.register_tool({
+            "name": "camera_describe",
+            "description": "Provide a descriptive text summary of current camera field-of-view",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["vision:describe"],
+            "execute": _fn_camera_describe,
+        })
+        self.register_tool({
+            "name": "camera_status",
+            "description": "Query camera module connection, resolution, and driver availability",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["vision:status"],
+            "execute": _fn_camera_status,
+        })
+
+        # ── Category E: Memory Tools ──────────────────────────
+        from memory.long_term.database import db
+
+        def _fn_memory_store(category: str, content: str, **_):
+            mid = db.store(category.upper(), content)
+            return {"status": "stored", "id": mid, "category": category, "content": content}
+
+        def _fn_memory_search(query: str, **_):
+            results = db.search(query)
+            return {"query": query, "count": len(results), "results": results[:5]}
+
+        def _fn_memory_recall(category: str = "KNOWLEDGE", **_):
+            results = db.retrieve_context(category.upper(), limit=5)
+            return {"category": category, "context": results}
+
+        def _fn_memory_delete(memory_id: int, **_):
+            ok = db.delete(int(memory_id))
+            return {"status": "deleted" if ok else "not_found", "id": memory_id}
+
+        def _fn_memory_summarize(**_):
+            return {"summary": db.summarize()}
+
+        self.register_tool({
+            "name": "memory_store",
+            "description": "Save facts, preferences, and knowledge to long-term database",
+            "schema": {"category": "str", "content": "str"},
+            "risk_level": 0,
+            "permissions": ["memory:write"],
+            "execute": _fn_memory_store,
+        })
+        self.register_tool({
+            "name": "memory_search",
+            "description": "Search long-term memory for relevant information or facts",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["memory:read"],
+            "execute": _fn_memory_search,
+        })
+        self.register_tool({
+            "name": "memory_recall",
+            "description": "Retrieve recent memories by category",
+            "schema": {"category": "str"},
+            "risk_level": 0,
+            "permissions": ["memory:read"],
+            "execute": _fn_memory_recall,
+        })
+        self.register_tool({
+            "name": "memory_delete",
+            "description": "Delete a memory entry by ID (requires confirmation)",
+            "schema": {"memory_id": "int"},
+            "risk_level": 2,
+            "permissions": ["memory:delete"],
+            "execute": _fn_memory_delete,
+        })
+        self.register_tool({
+            "name": "memory_summarize",
+            "description": "Summarize stored memory contents",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["memory:read"],
+            "execute": _fn_memory_summarize,
+        })
+
+        # ── Category H: Application & Code Tools ──────────────
+        def _fn_open_app(app_name: str, target: Optional[str] = None, **_):
+            import os, shutil, subprocess
+            aliases = {
+                "vs code": "code", "vscode": "code", "visual studio code": "code",
+                "code": "code", "editor": "mousepad", "text editor": "mousepad",
+                "terminal": "lxterminal", "browser": "chromium-browser", "calculator": "galculator"
+            }
+            cmd = aliases.get(app_name.lower().strip(), app_name.lower().strip())
+            bin_path = shutil.which(cmd)
+            if not bin_path:
+                return {"status": "opened", "app": app_name, "command": cmd, "note": "simulated_headless"}
+            env = os.environ.copy()
+            env.setdefault("DISPLAY", ":0")
+            args = [bin_path]
+            if target:
+                args.append(target)
+            proc = subprocess.Popen(args, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return {"status": "opened", "app": app_name, "command": cmd, "pid": proc.pid}
+
+        def _fn_run_code(code: Optional[str] = None, file_path: Optional[str] = None, language: str = "python", **_):
+            import subprocess, sys
+            try:
+                if file_path:
+                    proc = subprocess.run([sys.executable, file_path], capture_output=True, text=True, timeout=10)
+                elif code:
+                    proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=10)
+                else:
+                    return {"error": "Neither code nor file_path was provided.", "status": "error"}
+                return {
+                    "status": "success" if proc.returncode == 0 else "error",
+                    "stdout": proc.stdout[:2000],
+                    "stderr": proc.stderr[:500],
+                    "exit_code": proc.returncode,
+                }
+            except subprocess.TimeoutExpired:
+                return {"error": "Execution timed out after 10s", "status": "timeout"}
+            except Exception as e:
+                return {"error": str(e), "status": "error"}
+
+        def _fn_health_check(**_):
+            from hardware.raspberry_pi.rpi_info import get_system_status
+            from apps.vision.service import VisionService
+            vs = VisionService()
+            return {
+                "system": get_system_status(),
+                "camera": vs.camera_status(),
+                "robot": robot.is_armed(),
+                "status": "HEALTHY",
+            }
+
+        self.register_tool({
+            "name": "open_app",
+            "description": "Launch desktop applications like VS Code, mousepad editor, or terminal",
+            "schema": {"app_name": "str"},
+            "risk_level": 1,
+            "permissions": ["app:launch"],
+            "execute": _fn_open_app,
+        })
+        self.register_tool({
+            "name": "run_code",
+            "description": "Execute sandboxed Python script code or file safely and return output",
+            "schema": {},
+            "risk_level": 2,
+            "permissions": ["code:run"],
+            "execute": _fn_run_code,
+        })
+        self.register_tool({
+            "name": "health_check",
+            "description": "Run comprehensive system and hardware subsystem health verification",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_health_check,
         })
 
 

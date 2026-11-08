@@ -183,3 +183,7 @@ class TaskScheduler:
             except Exception as e:
                 logger.error(f"Scheduler loop error: {e}")
             time.sleep(30)  # Check every 30s
+
+
+task_scheduler = TaskScheduler()
+__all__ = ["TaskScheduler", "task_scheduler"]

@@ -19,10 +19,10 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
   - [x] Provider routing, fallback logic, telemetry (TTFT, tokens/sec)
   - [x] Chat UI repair (streaming responses, markdown/code rendering, model selector, cancel/retry)
 
-- [ ] **PHASE 2: Agent Tool Registry & Autonomous Execution**
-  - [ ] Typed tool registry with JSON Schema and validation
-  - [ ] System, Robot, Sensor, Vision, Memory, Productivity, Research, Application tool suites
-  - [ ] Autonomous tool calling loop with multi-round execution & error recovery
+- [x] **PHASE 2: Agent Tool Registry & Autonomous Execution**
+  - [x] Typed tool registry with JSON Schema and validation
+  - [x] System, Robot, Sensor, Vision, Memory, Productivity, Research, Application tool suites
+  - [x] Autonomous tool calling loop with multi-round execution & error recovery
 
 - [ ] **PHASE 3: ReSpeaker Lite Audio Capture & Wake-Word Engine**
   - [ ] PipeWire/ALSA low-latency audio capture via Seeed ReSpeaker Lite

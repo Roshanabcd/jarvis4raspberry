@@ -67,3 +67,26 @@ Learnings:
 - Non-greedy regex pattern r'TOOL_CALL:\s*(\{.*?\})' broke on nested JSON arguments; json.JSONDecoder().raw_decode is required for arbitrary nested dictionary structures.
 - Small 1B parameter LLMs require explicit system prompt separation between physical tool instructions and conversational queries to prevent hallucinated tool calls during simple greetings.
 ==================================================
+=== ITERATION 2: PHASE 2 AGENT TOOL REGISTRY & CATEGORIES A-H ===
+Date: 2026-11-08
+Status: SUCCESS
+Changes:
+- Implemented enterprise-grade ToolRegistry in tools/registry.py with full JSON Schema validation, risk levels (0-4), permissions scopes, hardware safety checks, and structured audit logging.
+- Registered complete tool suites across all 8 Categories:
+  * Category A (System): get_system_status, get_network_status, get_process_info, get_service_status
+  * Category B (Robot Actuators): robot_status, robot_arm, robot_disarm, robot_move, servo_set, robot_estop
+  * Category C (Sensors): read_sensors, read_bme280, read_bh1750, read_ultrasonic, read_vl53l0x, read_pir
+  * Category D (Vision): camera_capture, camera_describe, camera_status
+  * Category E (Memory & Recall): memory_store, memory_search, memory_recall, memory_delete, memory_summarize
+  * Category F (Productivity): read_file, write_file, schedule_task, list_tasks, pause_task, resume_task, delete_task
+  * Category G (Research & Web): web_search, fetch_page
+  * Category H (Application & Code): open_app, run_code, health_check
+- Updated ai/tools/executor.py to seamlessly delegate execution through ToolRegistry with schema enforcement and audit logging.
+- Created task_scheduler singleton in tools/scheduler/task_scheduler.py.
+- Fixed open_app and run_code argument parsing, headless execution fallback, and missing os module import.
+- Added comprehensive unit test suite tests/unit/test_phase2_agent_tools.py (7 tests).
+- Verified full test regression: 100 of 100 unit tests passing (100% PASS).
+Learnings:
+- Dynamic inspect.signature reflection in _build_default_validator requires optional parameters to have default values or be omitted from schema required checks to prevent rejecting tools that accept alternate argument formats (e.g. run_code accepting either code string or file_path).
+- Headless execution environments without a GUI display server or missing graphical applications (e.g. code/mousepad) need graceful simulation fallback to prevent crashing agent workflows.
+==================================================
