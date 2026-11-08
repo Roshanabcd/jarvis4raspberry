@@ -271,7 +271,7 @@ class OllamaProvider(AIProvider):
         self,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: float = 60.0,
+        timeout: float = 180.0,
         enabled: bool = True,
     ) -> None:
         cfg = config.get("ai", {}).get("ollama", {}) or {}
@@ -373,8 +373,8 @@ class OllamaProvider(AIProvider):
                 chat_messages.append({"role": role, "content": content})
 
         model_to_use = kwargs.get("model", self.model)
-        # Adapt timeout to model size
-        req_timeout = 120.0 if "4b" in model_to_use else self.timeout
+        # Adapt timeout to model size and Pi 5 CPU inference
+        req_timeout = 240.0 if "4b" in model_to_use else max(180.0, self.timeout)
 
         try:
             r = requests.post(
@@ -383,7 +383,7 @@ class OllamaProvider(AIProvider):
                     "model": model_to_use,
                     "messages": chat_messages,
                     "stream": False,
-                    "options": {"temperature": kwargs.get("temperature", 0.4), "num_predict": 512}
+                    "options": {"temperature": kwargs.get("temperature", 0.4), "num_predict": 256}
                 },
                 timeout=req_timeout,
             )
