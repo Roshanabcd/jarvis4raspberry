@@ -122,3 +122,15 @@ Learnings:
 - Synchronous playback calls (wait=True) in automated testing or API request loops block HTTP worker threads and induce latency; default non-blocking playback (wait=False) maintains real-time responsiveness.
 - Writing fallback audio directly into the persistent SHA-256 cache directory turns repeat phrases into instant sub-millisecond responses without hitting remote network endpoints.
 ==================================================
+=== ITERATION 5: PHASE 5 REAL-TIME VOICE CONVERSATION LOOP & BARGE-IN ===
+Date: 2026-11-08
+Status: SUCCESS
+Changes:
+- Added real-time barge-in audio interruption in apps/voice/service.py and apps/voice/gradio_tts.py. Detecting a wake word or calling stop_playback() immediately terminates any playing audio process (pw-play, paplay, aplay, ffplay).
+- Added POST /api/voice/interrupt REST API endpoint for instantaneous remote barge-in control from the dashboard.
+- Connected ConversationManager context memory and turn serialization directly into the voice loop.
+- Verified full round-trip: Wake word / user text command -> STT / speech ingestion -> Agent Brain -> Cloned TTS / Neural Fallback -> Speaker Playback.
+- Added comprehensive unit test suite tests/unit/test_phase5_voice_loop.py (4 tests, 100% pass).
+Learnings:
+- Subprocess audio players must be managed under process group handles or clean SIGTERM calls to guarantee immediate silencing on barge-in without audio buffer artifacts.
+==================================================

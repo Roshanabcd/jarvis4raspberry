@@ -83,6 +83,14 @@ class VoiceService:
             self.state = "STANDBY"
         logger.info("VoiceService unmuted.")
 
+    def stop_playback(self) -> None:
+        """Interrupt any ongoing audio synthesis playback immediately (barge-in)."""
+        try:
+            from apps.voice.gradio_tts import gradio_cloner
+            gradio_cloner.stop_playback()
+        except Exception as e:
+            logger.debug("stop_playback error: %s", e)
+
     def is_muted(self) -> bool:
         """Return mute state."""
         return self._muted
@@ -198,6 +206,8 @@ class VoiceService:
                 # 3. Check wake word
                 if text and self.wake_detector.detect(text):
                     logger.info("Wake word '%s' detected!", self.wake_detector.wake_word)
+                    # Barge-in: interrupt any currently playing audio immediately
+                    self.stop_playback()
 
                     # 4a. Acknowledge wake word
                     self.tts.speak_sync("Yes?")

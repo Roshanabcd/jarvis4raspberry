@@ -56,6 +56,13 @@ def unmute_voice():
     return {"status": "ok", "muted": False, "state": voice_service.get_state()}
 
 
+@voice_router.post("/interrupt")
+def interrupt_speech():
+    """Immediately halt any active voice playback (barge-in)."""
+    voice_service.stop_playback()
+    return {"status": "ok", "interrupted": True}
+
+
 @voice_router.post("/listen_once")
 def listen_once(req: ListenOnceRequest = ListenOnceRequest()):
     """Push-to-talk: capture audio for N seconds from ReSpeaker Lite, transcribe and process."""
