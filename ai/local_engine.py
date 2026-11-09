@@ -288,8 +288,8 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:which|what)\s+(?:browser\s+)?tab\s+is\s+(?:currently\s+)?active\b', text_lower):
             return "screen_active_tab", {"text": text}
 
-        # Screen observation ("look at my screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
-        if re.search(r'\b(?:look\s+at\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see(?:\s+on\s+(?:my\s+)?screen)?|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
+        # Screen observation ("look at my screen", "observe screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
+        if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see(?:\s+on\s+(?:my\s+)?screen)?|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
             return "screen_observe", {"text": text}
 
         # Take screenshot ("take a screenshot", "capture screen", "capture my screen", "capture active window")
@@ -335,6 +335,34 @@ class LocalIntelligenceEngine:
         if re.search(r"\b(?:\d+(?:\.\d+)?\s*(?:multiplied\s+by|times|\*|divided\s+by|\/|plus|\+|minus|\-|to\s+the\s+power\s+of|\^|%|percent\s+of)\s*\d+|\d+\s*[\+\-\*\/]\s*\d+)", text_lower):
             clean_math = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', text.strip(), flags=re.I).rstrip('?.')
             return "calculate", {"expression": clean_math, "text": text}
+
+        # 3i. Phase 5 Multi-AI Agent Orchestrator & Autonomous Self-Healing Intents
+        # 5a. Discovered Agents Check
+        if re.search(r'\b(?:check\s+which\s+(?:ai\s+)?(?:coding\s+)?agents|show\s+(?:me\s+)?(?:all\s+)?installed\s+(?:ai\s+)?(?:coding\s+)?agents|list\s+(?:all\s+)?(?:ai\s+)?(?:coding\s+)?agents|which\s+(?:ai\s+)?(?:coding\s+)?agents\s+are\s+available|discover\s+(?:ai\s+)?(?:coding\s+)?agents|ai\s+agents?\s+status|show\s+(?:all\s+)?coding\s+agents)\b', text_lower):
+            return "agents_discover", {"text": text}
+
+        # 5b. Stuck Task Watchdog Check
+        if re.search(r'\b(?:why\s+is\s+jarvis\s+stuck|check\s+whether\s+(?:the\s+)?(?:agent|task|jarvis)\s+is\s+stuck|is\s+(?:the\s+)?(?:agent|task|jarvis)\s+stuck|check\s+stuck\s+(?:agent|task)|stuck\s+watchdog\s+status)\b', text_lower):
+            return "agents_stuck_check", {"text": text}
+
+        # 5c. Permissions Pending Check
+        if re.search(r'\b(?:show\s+(?:me\s+)?(?:all\s+)?pending\s+permissions?|pending\s+permissions?|agent\s+permissions?|show\s+permission\s+requests?)\b', text_lower):
+            return "agents_permissions_pending", {"text": text}
+
+        # 5d. Permissions Profile Switch
+        m_perm_prof = re.search(r'\b(?:switch|set|change)\s+(?:permission\s+profile\s+to\s+|to\s+)?(supervised(?:\s+auto)?|safe(?:\s+auto)?|manual)(?:\s+mode|\s+profile)?\b', text_lower)
+        if m_perm_prof:
+            prof_raw = m_perm_prof.group(1).lower()
+            prof = "SUPERVISED_AUTO" if "supervised" in prof_raw else ("MANUAL" if "manual" in prof_raw else "SAFE_AUTO")
+            return "agents_permissions_profile", {"profile": prof, "text": text}
+
+        # 5e. Restore / Rollback Checkpoint
+        if re.search(r'\b(?:restore\s+(?:the\s+)?(?:project\s+to\s+(?:the\s+)?)?previous\s+checkpoint|restore\s+checkpoint|rollback\s+(?:agent\s+)?(?:repair|change|patch))\b', text_lower):
+            return "agents_restore_checkpoint", {"text": text}
+
+        # 5f. Self-Healing Project Repair
+        if re.search(r'\b(?:fix\s+(?:the\s+)?error\s+in\s+(?:my\s+)?project|repair\s+project\s+errors?|debug\s+and\s+fix\s+(?:my\s+)?project|self-heal\s+project|run\s+self[- ]healing)\b', text_lower):
+            return "agents_repair_project", {"text": text}
 
         # 4. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
         # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
@@ -495,6 +523,20 @@ class LocalIntelligenceEngine:
                 return self._respond_screen_active_tab(ctx)
             elif intent == "screen_type_text":
                 return self._respond_screen_type_text(ctx)
+
+            # Phase 5 Multi-AI Agent Orchestration Dispatches
+            elif intent == "agents_discover":
+                return self._respond_agents_discover(ctx)
+            elif intent == "agents_stuck_check":
+                return self._respond_agents_stuck_check(ctx)
+            elif intent == "agents_permissions_pending":
+                return self._respond_agents_permissions_pending(ctx)
+            elif intent == "agents_permissions_profile":
+                return self._respond_agents_permissions_profile(ctx)
+            elif intent == "agents_restore_checkpoint":
+                return self._respond_agents_restore_checkpoint(ctx)
+            elif intent == "agents_repair_project":
+                return self._respond_agents_repair_project(ctx)
 
             elif intent == "robot_forward":
                 speed = self._extract_speed(text) or 50
@@ -1719,3 +1761,133 @@ if __name__ == "__main__":
             else:
                 return int(val * 1000)
         return 0
+
+    # ─── Phase 5: Multi-AI Agent Orchestration & Self-Healing Handlers ───
+    def _respond_agents_discover(self, ctx: Dict) -> Dict:
+        from tools.agents.registry import agent_registry
+        agents = agent_registry.discover_all(force_refresh=False)
+        lines = [
+            "### 🤖 Discovered AI Coding Agents",
+            "| Agent | Provider | CLI Command | Status | Authenticated | Default Model |",
+            "|---|---|---|---|---|---|",
+        ]
+        for a in agents:
+            auth_str = "✅ Yes" if a.authenticated else "❌ No"
+            st_val = a.status.value.upper()
+            status_icon = "🟢 READY" if st_val == "READY" else ("🟡 UNAUTH" if st_val == "UNAUTHENTICATED" else "⚪ " + st_val)
+            cmd = f"`{a.cli_path}`" if a.cli_path else "N/A"
+            model = a.capabilities.models[0] if a.capabilities.models else "N/A"
+            lines.append(f"| **{a.display_name}** | {a.id.upper()} | {cmd} | {status_icon} | {auth_str} | `{model}` |")
+        
+        ready_count = sum(1 for a in agents if a.status.value.upper() == "READY")
+        lines.append(f"\n*{ready_count} of {len(agents)} agents are verified ready for autonomous assistance.*")
+        return {
+            "response": "\n".join(lines),
+            "tools_used": ["agents_discover", "agent_registry.discover_all"],
+            "raw": [a.to_dict() for a in agents]
+        }
+
+    def _respond_agents_stuck_check(self, ctx: Dict) -> Dict:
+        from tools.agents.stuck_watchdog import stuck_watchdog
+        from tools.agents.orchestrator import multi_agent_orchestrator
+        active_tasks = multi_agent_orchestrator.get_active_tasks()
+        
+        lines = ["### ⏱️ Agent Watchdog Status"]
+        if not active_tasks:
+            lines.append("✅ No active agent tasks running. System is operating normally with zero task stagnation.")
+        else:
+            lines.append(f"Found {len(active_tasks)} active task(s):")
+            for t in active_tasks:
+                stuck, reason = stuck_watchdog.is_stuck(t.task_id)
+                status_icon = "⚠️ STUCK" if stuck else "⏳ RUNNING"
+                lines.append(f"- **Task `{t.task_id}`** ({t.agent_id}): {status_icon}")
+                if stuck:
+                    lines.append(f"  - Reason: {reason}")
+                    lines.append(f"  - Initiating safe termination...")
+                    multi_agent_orchestrator.cancel_task(t.task_id, reason=reason)
+                    lines.append(f"  - Task `{t.task_id}` aborted safely.")
+        return {
+            "response": "\n".join(lines),
+            "tools_used": ["agents_stuck_check", "stuck_watchdog"],
+            "raw": {"active_tasks_count": len(active_tasks)}
+        }
+
+    def _respond_agents_permissions_pending(self, ctx: Dict) -> Dict:
+        from tools.agents.permission_manager import permission_manager
+        pending = permission_manager.get_pending_requests()
+        profile = permission_manager.get_profile()
+        lines = [
+            f"### 🛡️ Agent Permission Center (Active Profile: `{profile.value}`)"
+        ]
+        if not pending:
+            lines.append("✅ No pending permission requests. All system operations are clear.")
+        else:
+            lines.append(f"Found {len(pending)} pending permission request(s):")
+            for req in pending:
+                req_id = req.get("request_id")
+                agent_id = req.get("agent_id")
+                action = req.get("action")
+                target = req.get("target")
+                reason = req.get("reason")
+                risk = req.get("risk_level")
+                lines.append(f"- **ID `{req_id}`** by `{agent_id}`: action=`{action}` on `{target}`")
+                lines.append(f"  - Reason: {reason}")
+                lines.append(f"  - Risk: `{risk}`")
+        return {
+            "response": "\n".join(lines),
+            "tools_used": ["agents_permissions_pending", "permission_manager.get_pending_requests"],
+            "raw": pending
+        }
+
+    def _respond_agents_permissions_profile(self, ctx: Dict) -> Dict:
+        from tools.agents.permission_manager import permission_manager
+        from tools.agents.models import PermissionProfile
+        raw_p = ctx.get("profile", "SAFE_AUTO")
+        try:
+            prof = PermissionProfile(raw_p.upper())
+        except ValueError:
+            prof = PermissionProfile.SAFE_AUTO
+        permission_manager.set_profile(prof)
+        return {
+            "response": f"🛡️ Switched agent permission profile to **`{prof.value.upper()}`**.\n\n"
+                        f"- SAFE_AUTO: Automatically permits reads and workspace edits; prompts for external writes/package installs; strictly denies hard-deny boundaries.\n"
+                        f"- SUPERVISED_AUTO: Prompts for all file writes and package installations.\n"
+                        f"- MANUAL: Prompts for every single action.",
+            "tools_used": ["agents_permissions_profile", "permission_manager.set_profile"],
+            "raw": {"profile": prof.value}
+        }
+
+    def _respond_agents_restore_checkpoint(self, ctx: Dict) -> Dict:
+        from tools.agents.git_safety import git_safety
+        success, msg = git_safety.rollback_latest()
+        if success:
+            resp = f"⏪ Successfully restored project to previous checkpoint.\n\n{msg}"
+        else:
+            resp = f"ℹ️ Could not restore checkpoint: {msg}"
+        return {
+            "response": resp,
+            "tools_used": ["agents_restore_checkpoint", "git_safety.rollback_latest"],
+            "raw": {"success": success, "message": msg}
+        }
+
+    def _respond_agents_repair_project(self, ctx: Dict) -> Dict:
+        from tools.agents.self_healing import self_healing_engine
+        result = self_healing_engine.diagnose_and_repair(
+            problem_description="Self-healing triggered from assistant command",
+            error_message="Detected test/code errors in workspace",
+            working_dir="/home/roshan/.gemini/antigravity/scratch/jarvis-os",
+            test_command="pytest -q tests/unit/test_phase1_real_ai.py"
+        )
+        status_sym = "✅" if result.get("success") else "❌"
+        resp = f"### {status_sym} Self-Healing Diagnosis & Repair Result\n\n" \
+               f"- **Agent Chosen:** `{result.get('agent_id', 'none')}`\n" \
+               f"- **Status:** `{result.get('status', 'unknown')}`\n" \
+               f"- **Diagnosis:** {result.get('diagnosis', 'N/A')}\n" \
+               f"- **Syntax Validated:** {result.get('syntax_validated', False)}\n" \
+               f"- **Tests Passed:** {result.get('tests_passed', False)}\n\n" \
+               f"**Summary:** {result.get('message', '')}"
+        return {
+            "response": resp,
+            "tools_used": ["agents_repair_project", "self_healing_engine.diagnose_and_repair"],
+            "raw": result
+        }

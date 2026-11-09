@@ -322,7 +322,8 @@ class JARVISBrain:
             "youtube_search", "youtube_play_index", "youtube_cancel_selection", "youtube_more_results", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
-            "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab"
+            "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
+            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project"
         }
 
         if intent in FAST_PATH_INTENTS:
@@ -551,7 +552,8 @@ class JARVISBrain:
             "youtube_search", "youtube_play_index", "youtube_cancel_selection", "youtube_more_results", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
-            "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab"
+            "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
+            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project"
         }
 
         if intent in FAST_PATH_INTENTS:

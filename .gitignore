@@ -31,3 +31,9 @@ backups/
 tmp/
 data/audio_stage/*.mp3
 data/audio_stage/*.wav
+data/checkpoints/
+data/agents/snapshots/
+data/agents/*.json
+data/agents/*.jsonl
+data/screenshots/*.png
+data/screenshots/*.jpg

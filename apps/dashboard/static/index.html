@@ -479,6 +479,7 @@
   <button onclick="showTab('logs')">📜 Logs</button>
   <button onclick="showTab('desktop')">💻 Desktop & Terminal</button>
   <button onclick="showTab('computer')">🖥️ Computer Use</button>
+  <button onclick="showTab('agents')">🤖 AI Agents</button>
   <button onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
 
@@ -1172,6 +1173,130 @@
       </div>
     </div>
   </div>
+
+  <!-- 18. AI AGENTS (Phase 5: Multi-AI Agent Orchestrator & Self-Healing Workbench) -->
+  <div id="tab-agents" class="tab">
+    <!-- Top Status / Metrics Cards -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 16px;">
+      <div class="card">
+        <h3>Discovered Agents</h3>
+        <div class="val" id="ag-ready-count" style="font-size:1.3rem;color:var(--green)">—</div>
+        <div class="sub" id="ag-total-count">Verified CLI & Local AI</div>
+      </div>
+      <div class="card">
+        <h3>Permission Profile</h3>
+        <div class="val" id="ag-perm-profile" style="font-size:1.2rem;color:var(--accent)">SAFE_AUTO</div>
+        <div class="sub" id="ag-pending-count">0 pending requests</div>
+      </div>
+      <div class="card">
+        <h3>Active Tasks</h3>
+        <div class="val" id="ag-active-tasks" style="font-size:1.3rem;color:var(--text)">0</div>
+        <div class="sub" id="ag-watchdog-status">Watchdog Active (120s limit)</div>
+      </div>
+      <div class="card">
+        <h3>Repairs / Healed</h3>
+        <div class="val" id="ag-healed-count" style="font-size:1.3rem;color:var(--green)">—</div>
+        <div class="sub" id="ag-success-rate">100% Syntax Verified</div>
+      </div>
+    </div>
+
+    <!-- Row 1: Discovered Coding Agents & Permission Center -->
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px">
+      <!-- Discovered Coding Agents Grid -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h2>🤖 Discovered AI Coding Agents</h2>
+          <button class="btn" style="padding:4px 10px;font-size:0.75rem" onclick="refreshAgentDiscovery()">↺ Refresh Discovery</button>
+        </div>
+        <div id="ag-agents-list" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:10px">
+          <div style="color:var(--muted);font-size:0.85rem">Loading installed AI agents...</div>
+        </div>
+      </div>
+
+      <!-- Permission Governance Center -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2>🛡️ Permission Governance Center</h2>
+          <span id="ag-perm-badge" class="status-pill live">SAFE_AUTO</span>
+        </div>
+        <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px">
+          <label style="font-size:0.8rem;color:var(--muted);display:block;margin-bottom:6px">Active Permission Mode:</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn dark" id="btn-perm-safe" onclick="setPermissionProfile('SAFE_AUTO')">🛡️ SAFE_AUTO</button>
+            <button class="btn dark" id="btn-perm-supervised" onclick="setPermissionProfile('SUPERVISED_AUTO')">👁️ SUPERVISED</button>
+            <button class="btn dark" id="btn-perm-manual" onclick="setPermissionProfile('MANUAL')">✋ MANUAL</button>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:6px" id="perm-desc">
+            SAFE_AUTO: Auto-permits safe reads/workspace edits. External writes & installs prompt for review. Hard deny on destructive commands.
+          </div>
+        </div>
+
+        <h3 style="font-size:0.85rem;color:var(--text);margin-bottom:8px">Pending Approval Requests</h3>
+        <div id="ag-pending-list" style="max-height:180px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+          <div style="color:var(--muted);font-size:0.8rem">No pending permission requests.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Autonomous Self-Healing & Debugging Workbench -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <!-- Self-Healing Input Form -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2>🩺 Self-Healing & Debugging Workbench</h2>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="rollbackAgentCheckpoint()">⏪ Restore Checkpoint</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted)">Problem Description:</label>
+            <input type="text" id="heal-problem" placeholder="e.g. Unit test failure in calculator module" style="width:100%;padding:6px 10px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted)">Error Message / Failure:</label>
+            <input type="text" id="heal-error" placeholder="e.g. AssertionError: expected 4 got 5" style="width:100%;padding:6px 10px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+          </div>
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted)">Traceback / Logs (optional):</label>
+            <textarea id="heal-traceback" rows="3" placeholder="Traceback (most recent call last)..." style="width:100%;padding:6px 10px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-family:monospace;font-size:0.75rem;resize:vertical"></textarea>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label style="font-size:0.75rem;color:var(--muted)">Target File (optional):</label>
+              <input type="text" id="heal-file" placeholder="tests/test_sample.py" style="width:100%;padding:6px 10px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.8rem">
+            </div>
+            <div>
+              <label style="font-size:0.75rem;color:var(--muted)">Verification Command:</label>
+              <input type="text" id="heal-cmd" value="pytest -q" style="width:100%;padding:6px 10px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.8rem">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn dark" style="flex:1" onclick="diagnoseProblem()">🔍 Diagnose Only</button>
+            <button class="btn" style="flex:1" onclick="runSelfHealingRepair()">✨ Autonomous Repair & Verify</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Diagnosis / Diff / Verification Log -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h2>📊 Repair Log & Diff Viewer</h2>
+          <span id="heal-status-badge" style="font-size:0.75rem;color:var(--muted)">READY</span>
+        </div>
+        <div id="heal-output-log" style="background:#03050c;border:1px solid var(--card-border);border-radius:8px;padding:10px;height:320px;overflow-y:auto;font-family:monospace;font-size:0.78rem;color:#cbd5e1;white-space:pre-wrap">Workbench ready. Enter problem details and click "Autonomous Repair & Verify".</div>
+      </div>
+    </div>
+
+    <!-- Row 3: Active Tasks & Watchdog Monitor -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2>⏱️ Active Tasks & Stuck-Task Watchdog</h2>
+        <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadAgentTasks()">↺ Refresh Tasks</button>
+      </div>
+      <div id="ag-tasks-list" style="max-height:220px;overflow-y:auto;font-size:0.8rem">
+        <div style="color:var(--muted)">No active or recent agent tasks.</div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -1197,6 +1322,7 @@ function showTab(name) {
   if (name === 'chat') loadChatHistory();
   if (name === 'desktop') { loadDesktopStatus(); loadDesktopApps(); loadDesktopProjects(); }
   if (name === 'computer') { loadComputerStatus(); loadComputerHistory(); }
+  if (name === 'agents') { loadAgentManager(); }
 }
 
 let chatHistoryLoaded = false;
@@ -3173,6 +3299,272 @@ async function loadComputerHistory() {
     document.getElementById('comp-history-list').innerHTML = html || 'No actions recorded yet.';
   } catch(e) {
     console.error("loadComputerHistory error:", e);
+  }
+}
+
+// ─── Phase 5: Multi-AI Agent Orchestrator & Self-Healing ──────
+async function loadAgentManager() {
+  await Promise.all([
+    refreshAgentDiscovery(),
+    loadAgentPermissions(),
+    loadAgentMetrics(),
+    loadAgentTasks()
+  ]);
+}
+
+async function refreshAgentDiscovery() {
+  try {
+    const r = await fetch('/api/agents/discover');
+    const agents = await r.json();
+    let readyCount = 0;
+    const html = agents.map(a => {
+      const isReady = a.status === 'READY';
+      if (isReady) readyCount++;
+      const isUnauth = a.status === 'UNAUTHENTICATED';
+      const badgeCls = isReady ? 'online' : (isUnauth ? 'warn' : 'offline');
+      const badgeText = isReady ? '🟢 READY' : (isUnauth ? '🟡 UNAUTH' : '⚪ ' + a.status);
+      const authIcon = a.authenticated ? '✅ Auth' : '❌ No Auth';
+      const model = (a.capabilities && a.capabilities.models && a.capabilities.models[0]) ? a.capabilities.models[0] : (a.default_model || 'N/A');
+      return `<div style="background:#090d1f;border:1px solid var(--card-border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong style="color:var(--text);font-size:0.9rem">${a.display_name}</strong>
+          <span class="badge ${badgeCls}" style="font-size:0.65rem">${badgeText}</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--muted);font-family:monospace">${a.cli_path || 'Service/HTTP'}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;margin-top:4px">
+          <span>Model: <code style="color:var(--accent)">${model}</code></span>
+          <span style="font-size:0.7rem">${authIcon}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('ag-agents-list').innerHTML = html || 'No agents discovered.';
+    document.getElementById('ag-ready-count').textContent = readyCount + ' / ' + agents.length;
+    document.getElementById('ag-total-count').textContent = agents.length + ' Total Configured Agents';
+  } catch(e) {
+    console.error("refreshAgentDiscovery error:", e);
+  }
+}
+
+async function loadAgentPermissions() {
+  try {
+    const r = await fetch('/api/agents/permissions');
+    const d = await r.json();
+    const prof = d.profile || 'SAFE_AUTO';
+    document.getElementById('ag-perm-profile').textContent = prof;
+    document.getElementById('ag-perm-badge').textContent = prof;
+
+    // Update active button state
+    ['btn-perm-safe', 'btn-perm-supervised', 'btn-perm-manual'].forEach(id => {
+      const b = document.getElementById(id);
+      if (b) b.classList.add('dark');
+    });
+    if (prof === 'SAFE_AUTO') document.getElementById('btn-perm-safe')?.classList.remove('dark');
+    if (prof === 'SUPERVISED_AUTO') document.getElementById('btn-perm-supervised')?.classList.remove('dark');
+    if (prof === 'MANUAL') document.getElementById('btn-perm-manual')?.classList.remove('dark');
+
+    const pending = d.pending || [];
+    document.getElementById('ag-pending-count').textContent = pending.length + ' pending request(s)';
+    if (pending.length === 0) {
+      document.getElementById('ag-pending-list').innerHTML = '<div style="color:var(--muted);font-size:0.8rem">No pending permission requests.</div>';
+    } else {
+      const html = pending.map(p => `
+        <div style="background:#03050c;border:1px solid var(--card-border);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:4px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong style="font-size:0.8rem;color:var(--accent)">${p.action}</strong>
+            <span class="badge warn" style="font-size:0.65rem">${p.risk_level}</span>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text);word-break:break-all"><code>${p.target}</code></div>
+          <div style="font-size:0.7rem;color:var(--muted)">Agent: ${p.agent_id} | Reason: ${p.reason}</div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button class="btn" style="padding:2px 8px;font-size:0.7rem" onclick="approvePermission('${p.request_id}', false)">Approve Once</button>
+            <button class="btn dark" style="padding:2px 8px;font-size:0.7rem" onclick="approvePermission('${p.request_id}', true)">Always For Project</button>
+            <button class="btn dark" style="padding:2px 8px;font-size:0.7rem;color:var(--err)" onclick="denyPermission('${p.request_id}')">Deny</button>
+          </div>
+        </div>
+      `).join('');
+      document.getElementById('ag-pending-list').innerHTML = html;
+    }
+  } catch(e) {
+    console.error("loadAgentPermissions error:", e);
+  }
+}
+
+async function setPermissionProfile(profile) {
+  try {
+    const r = await fetch('/api/agents/permissions/profile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({profile: profile})
+    });
+    if (r.ok) {
+      await loadAgentPermissions();
+    }
+  } catch(e) {
+    alert("Set profile error: " + e);
+  }
+}
+
+async function approvePermission(reqId, createSimilar) {
+  try {
+    const r = await fetch('/api/agents/permissions/approve', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({request_id: reqId, create_similar_rule: createSimilar})
+    });
+    await loadAgentPermissions();
+  } catch(e) {
+    alert("Approve error: " + e);
+  }
+}
+
+async function denyPermission(reqId) {
+  try {
+    const r = await fetch('/api/agents/permissions/deny', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({request_id: reqId, reason: "User denied via dashboard"})
+    });
+    await loadAgentPermissions();
+  } catch(e) {
+    alert("Deny error: " + e);
+  }
+}
+
+async function loadAgentMetrics() {
+  try {
+    const r = await fetch('/api/agents/metrics');
+    const m = await r.json();
+    document.getElementById('ag-healed-count').textContent = m.verified_repairs + ' / ' + m.total_tasks;
+    document.getElementById('ag-success-rate').textContent = (m.success_rate_pct || 100).toFixed(1) + '% Success Rate';
+  } catch(e) {
+    console.error("loadAgentMetrics error:", e);
+  }
+}
+
+async function loadAgentTasks() {
+  try {
+    const r = await fetch('/api/agents/tasks');
+    const tasks = await r.json();
+    document.getElementById('ag-active-tasks').textContent = tasks.length;
+    if (tasks.length === 0) {
+      document.getElementById('ag-tasks-list').innerHTML = '<div style="color:var(--muted)">No active or recent agent tasks.</div>';
+      return;
+    }
+    const html = tasks.map(t => `
+      <div style="padding:6px 10px;margin-bottom:6px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <strong style="color:var(--text)">${t.task_id}</strong>
+          <span style="color:var(--muted);margin-left:8px">Agent: <code>${t.assigned_agent || 'unassigned'}</code></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${t.phase === 'COMPLETED' || t.phase === 'RUNTIME_VERIFIED' ? 'online' : (t.phase === 'FAILED' ? 'offline' : 'warn')}" style="font-size:0.68rem">${t.phase}</span>
+          <span style="color:var(--muted);font-size:0.75rem">${t.attempts || 1} attempts</span>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('ag-tasks-list').innerHTML = html;
+  } catch(e) {
+    console.error("loadAgentTasks error:", e);
+  }
+}
+
+async function diagnoseProblem() {
+  const prob = document.getElementById('heal-problem').value.trim();
+  const err = document.getElementById('heal-error').value.trim();
+  const tb = document.getElementById('heal-traceback').value.trim();
+  const file = document.getElementById('heal-file').value.trim();
+
+  if (!prob && !err) {
+    alert("Please enter a problem description or error message.");
+    return;
+  }
+
+  const out = document.getElementById('heal-output-log');
+  const badge = document.getElementById('heal-status-badge');
+  badge.textContent = "DIAGNOSING...";
+  badge.style.color = "var(--warn)";
+  out.textContent = "🔍 Initiating multi-agent problem diagnosis...\n";
+
+  try {
+    const r = await fetch('/api/agents/debug', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        problem: prob,
+        error_message: err,
+        traceback: tb,
+        target_file: file || null
+      })
+    });
+    const d = await r.json();
+    badge.textContent = "DIAGNOSED";
+    badge.style.color = "var(--accent)";
+    out.textContent = JSON.stringify(d, null, 2);
+  } catch(e) {
+    badge.textContent = "ERROR";
+    badge.style.color = "var(--err)";
+    out.textContent = "Diagnosis failed: " + e;
+  }
+}
+
+async function runSelfHealingRepair() {
+  const prob = document.getElementById('heal-problem').value.trim();
+  const err = document.getElementById('heal-error').value.trim();
+  const tb = document.getElementById('heal-traceback').value.trim();
+  const file = document.getElementById('heal-file').value.trim();
+  const cmd = document.getElementById('heal-cmd').value.trim();
+
+  if (!prob && !err) {
+    alert("Please enter a problem description or error message.");
+    return;
+  }
+
+  const out = document.getElementById('heal-output-log');
+  const badge = document.getElementById('heal-status-badge');
+  badge.textContent = "REPAIRING...";
+  badge.style.color = "var(--warn)";
+  out.textContent = "🛠️ Initiating autonomous self-healing pipeline:\n1. Creating git pre-repair safety snapshot\n2. Selecting optimal AI coding agent\n3. Applying isolated code patch\n4. Verifying python syntax AST\n5. Executing test validation suite...\n\nPlease wait...\n";
+
+  try {
+    const r = await fetch('/api/agents/repair', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        problem: prob,
+        error_message: err,
+        traceback: tb,
+        target_file: file || null,
+        test_command: cmd || null
+      })
+    });
+    const d = await r.json();
+    if (d.success) {
+      badge.textContent = "VERIFIED HEALED";
+      badge.style.color = "var(--green)";
+    } else {
+      badge.textContent = d.status || "REPAIR FAILED";
+      badge.style.color = "var(--err)";
+    }
+    out.textContent = `=== REPAIR RESULT ===\nSuccess: ${d.success}\nAgent: ${d.agent_id}\nStatus: ${d.status}\nSyntax Validated: ${d.syntax_validated}\nTests Passed: ${d.tests_passed}\n\nDiagnosis:\n${d.diagnosis}\n\nPatch Diff:\n${d.patch_diff || '(none)'}\n\nTest Output:\n${d.test_output || '(none)'}\n\nMessage: ${d.message}`;
+    await loadAgentMetrics();
+    await loadAgentTasks();
+  } catch(e) {
+    badge.textContent = "ERROR";
+    badge.style.color = "var(--err)";
+    out.textContent = "Repair request failed: " + e;
+  }
+}
+
+async function rollbackAgentCheckpoint() {
+  if (!confirm("Are you sure you want to restore the latest git/file safety checkpoint?")) return;
+  const out = document.getElementById('heal-output-log');
+  try {
+    const r = await fetch('/api/agents/rollback', {method: 'POST'});
+    const d = await r.json();
+    out.textContent = `⏪ Rollback Result: ${d.message || d.status}`;
+  } catch(e) {
+    out.textContent = "Rollback error: " + e;
   }
 }
 

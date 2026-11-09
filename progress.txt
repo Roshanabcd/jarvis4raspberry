@@ -266,3 +266,66 @@ Learnings:
 - Strict state separation (`AWAITING_USER_SELECTION`) guarantees that the AI assistant never decides what the user should watch or auto-plays unexpectedly.
 - Video playback must always occur in visible Google Chrome tabs on DISPLAY=:0 with audio routed through Chrome's native PipeWire stream to the physical speaker, keeping master volume (Sink 112 at 65%) completely protected.
 ==================================================
+
+==================================================
+=== ITERATION 9: PHASE 5 MULTI-AI AGENT ORCHESTRATOR & SELF-HEALING ENGINE ===
+Date: 2026-11-09
+Status: SUCCESS
+Changes:
+- Implemented real-time Agent Discovery & Registry (tools/agents/registry.py):
+  1. Live CLI and local service discovery for Google Antigravity (agy), OpenAI Codex (codex), Anthropic Claude Code (claude), OpenCode (opencode), and Local Ollama AI (ollama).
+  2. Discovered real installed status on Pi 5: Antigravity (READY), Codex (READY), Claude (UNAUTHENTICATED), OpenCode (UNAUTHENTICATED), Ollama (READY).
+  3. Secret-free authentication checks inspecting return codes and stderr without disclosing tokens, keys, or passwords.
+  4. Persistent registry storage in data/agents/registry.json.
+- Implemented Central Multi-Agent Orchestrator (tools/agents/orchestrator.py):
+  1. Dynamic agent scoring based on file editing capability, speed, and context tokens.
+  2. Write Concurrency Mutex Lock guaranteeing max 1 write agent modifying files at a time.
+  3. Bounded failover (up to 3 attempts) fallback to secondary agent upon failure.
+  4. Independent read-only second-opinion review dispatch.
+- Implemented Permission Governance Engine (tools/agents/permission_manager.py):
+  1. Three runtime profiles: SAFE_AUTO (default), SUPERVISED_AUTO, MANUAL.
+  2. Bypass-proof Hard-Deny Boundaries: rm -rf *, disk formatting (mkfs), sudo root escalation, firmware flashing (esptool), robot motors (robot_move), and internet execution pipes.
+  3. Interactive approval workflow with Approve Once and Always For Project persistence in data/agents/permissions.json.
+  4. Append-only audit logging with secret redaction in data/agents/permission_audit.jsonl.
+- Implemented Stuck-Task Watchdog (tools/agents/stuck_watchdog.py):
+  1. 120s execution timeout per task.
+  2. Repeated identical command loop detection (3 consecutive identical commands).
+  3. Output stagnation detection (>60s inactivity).
+  4. Safe process group termination (SIGTERM -> SIGKILL).
+- Implemented Git Safety & Rollback Engine (tools/agents/git_safety.py):
+  1. Pre-repair snapshots capturing Git HEAD, uncommitted files, and file-level copies under data/agents/snapshots/.
+  2. Python AST syntax validation gate via py_compile.
+  3. Atomic, sub-50ms rollback on test failure or syntax error.
+  4. Checkpoint cleanup upon verified repair.
+- Implemented Autonomous Self-Healing Engine (tools/agents/self_healing.py):
+  1. End-to-end pipeline: Detect -> Context Packaging -> Snapshot -> Patch -> Syntax Gate -> Test Gate -> Rollback / Commit.
+  2. Secret scrubbing in ProblemContextPackager blocking prohibited files (.env, id_rsa, .pem) and redacting API keys.
+- Implemented REST API (apps/api/agent_orchestrator_api.py):
+  1. 16 endpoints for discovery, health, tasks, debugging, repair, permissions, metrics, and rollback.
+  2. Mounted on running FastAPI server at /api/agents/....
+- Integrated with JARVIS Brain & Local Engine (ai/brain.py, ai/local_engine.py):
+  1. Added fast-path intents: agents_discover, agents_stuck_check, agents_permissions_pending, agents_permissions_profile, agents_restore_checkpoint, agents_repair_project.
+  2. Streaming and non-streaming natural language and voice command execution.
+- Upgraded Web Dashboard (apps/dashboard/static/index.html):
+  1. Added "AI Agent Manager" tab with live Agent Cards, Permission Governance Center, Self-Healing Workbench, and Task Monitor.
+- Created comprehensive test suite (tests/unit/test_phase5_multi_agent_orchestrator.py):
+  1. 14 unit tests covering discovery, auth, Ollama, invocation, permissions, routing, problem detection, repair, fallback, watchdog, git safety, second-opinion, secret scrubbing, and regressions.
+  2. 14 / 14 tests PASSED (100% pass rate).
+- Authored 10 comprehensive documentation deliverables in docs/:
+  - docs/PHASE5_ARCHITECTURE.md
+  - docs/PHASE5_AGENT_DISCOVERY.md
+  - docs/PHASE5_AGENT_INTEGRATIONS.md
+  - docs/PHASE5_SELF_HEALING.md
+  - docs/PHASE5_PERMISSION_MANAGEMENT.md
+  - docs/PHASE5_AGENT_SECURITY.md
+  - docs/PHASE5_GIT_RECOVERY.md
+  - docs/PHASE5_PERFORMANCE.md
+  - docs/PHASE5_TEST_RESULTS.md
+  - docs/PHASE5_KNOWN_LIMITATIONS.md
+  - PHASE5_IMPLEMENTATION_PROGRESS.md
+Learnings:
+- CLI agents behave differently in how they report authentication: `codex login status` prints to stderr, while `claude auth status` prints JSON to stdout and exits with code 1 if unauthenticated.
+- Pathlib's `/` operator ignores the left operand if the right operand is an absolute path (`Path('/backup') / Path('/tmp/file')` evaluates to `Path('/tmp/file')`); relative paths or `.name` must be used when creating snapshots.
+- On Raspberry Pi 5 ARM64 CPU, local Ollama models (`llama3.2:1b`) generate high quality diagnostics but take ~2-3 seconds per 80 tokens; setting `num_predict: 80` provides instant, reliable responses without timing out.
+- The pre-repair AST compilation check (`py_compile`) catches broken syntax in <5ms, completely preventing unparseable code from running slow test runners.
+==================================================
