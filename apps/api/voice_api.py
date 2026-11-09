@@ -283,6 +283,28 @@ def verify_colab_url_alias(gradio_url: Optional[str] = None):
     return {"status": "ok" if ok else "error", "gradio_url": url, "verified": ok, "message": msg, "endpoints": endpoints}
 
 
+@voice_router.get("/colab/runner")
+def get_colab_runner_status():
+    """Retrieve status, live logs, and active URL of the automated Colab OmniVoice runner."""
+    from apps.voice.colab_runner import colab_runner
+    return colab_runner.status()
+
+
+@voice_router.post("/colab/runner/start")
+def start_colab_runner():
+    """Trigger background execution of Super_Eleven_Lab_Lite_2_1.ipynb on Google Colab."""
+    from apps.voice.colab_runner import colab_runner
+    ok = colab_runner.start(restart_if_running=True)
+    return {"status": "ok" if ok else "error", "running": colab_runner.is_running(), "state": colab_runner.state}
+
+
+@voice_router.post("/colab/runner/stop")
+def stop_colab_runner():
+    """Stop the Colab runner background process."""
+    from apps.voice.colab_runner import colab_runner
+    return colab_runner.stop()
+
+
 @voice_router.post("/colab/test")
 def test_colab_voice_alias():
     """Alias for POST /api/integrations/omnivoice/test."""

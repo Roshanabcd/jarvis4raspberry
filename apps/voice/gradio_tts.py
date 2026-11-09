@@ -195,6 +195,12 @@ class GradioVoiceCloner:
             )
             logger.info("GradioVoiceCloner URL dynamically updated to: %s", self.gradio_url)
 
+    def set_reference_audio(self, path: str) -> None:
+        """Dynamically update reference audio sample path for voice cloning."""
+        if path and os.path.exists(path):
+            self.reference_voice_path = os.path.abspath(path)
+            logger.info("GradioVoiceCloner reference audio updated to: %s", self.reference_voice_path)
+
     def _count_cache_entries(self) -> int:
         """Count audio files in cache directory."""
         if os.path.exists(self.cache_dir):

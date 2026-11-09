@@ -59,6 +59,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     except Exception as e:
         logger.warning(f"Voice service skipped: {e}")
 
+    # 2b. Colab OmniVoice AutoRunner (background execution of Super_Eleven_Lab_Lite_2_1.ipynb)
+    try:
+        from apps.voice.colab_runner import colab_runner
+        colab_runner.start()
+        logger.info("✓ Colab OmniVoice AutoRunner started for Super_Eleven_Lab_Lite_2_1.ipynb")
+    except Exception as e:
+        logger.warning(f"Colab OmniVoice AutoRunner skipped: {e}")
+
     # 3. Scheduler
     try:
         from tools.scheduler.task_scheduler import TaskScheduler

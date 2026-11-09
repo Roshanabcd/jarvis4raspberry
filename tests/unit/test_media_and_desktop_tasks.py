@@ -95,9 +95,14 @@ def test_no_rogue_calculator_or_vscode_hijacking():
     intent2, _ = engine.classify_intent("tell me how to write python code for bubble sort")
     assert intent2 != "create_calculator"
 
-    # Only explicit commands like "write a calculator" should match calculator
-    intent3, _ = engine.classify_intent("write a python calculator app")
+    # Only explicit commands like "write python program for calculator and open in vs code" should match create_calculator
+    intent3, _ = engine.classify_intent("write python program for calculator and open in vs code")
     assert intent3 == "create_calculator"
+
+    # General programming requests route to general / LLM, NEVER create_calculator
+    intent4, _ = engine.classify_intent("build a python program to check system temperature")
+    assert intent4 != "create_calculator"
+    assert intent4 != "open_app"
 
 
 def test_engine_respond_play_media():

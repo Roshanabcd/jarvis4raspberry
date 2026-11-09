@@ -555,6 +555,26 @@
           </div>
         </div>
 
+        <!-- Automated Colab Server Runner Panel -->
+        <div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.28);border-radius:6px;padding:12px;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:1.2rem">⚡</span>
+              <div>
+                <strong style="color:#c4b5fd;font-size:0.85rem">Autonomous Colab Server Execution (`Super_Eleven_Lab_Lite_2_1.ipynb`)</strong>
+                <div id="colab-runner-desc" style="font-size:0.72rem;color:var(--muted)">Session: testColab (Tesla T4) • Auto-launches with JARVIS OS</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span id="colab-runner-badge" class="badge" style="background:#ffaa00;color:#000;font-size:0.75rem;padding:3px 8px">INITIALIZING</span>
+              <button class="btn" style="background:#7c3aed;border-color:#7c3aed;padding:3px 10px;font-size:0.75rem" onclick="launchColabRunner()">🚀 Run Notebook</button>
+              <button class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="stopColabRunner()">⏹️ Stop Runner</button>
+              <button class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="toggleColabLogs()">📜 Logs</button>
+            </div>
+          </div>
+          <pre id="colab-runner-logs" style="display:none;background:#050711;color:#a5b4fc;padding:10px;border-radius:4px;font-size:0.72rem;max-height:160px;overflow-y:auto;margin-top:10px;white-space:pre-wrap;border:1px solid var(--card-border)"></pre>
+        </div>
+
         <!-- Voice Quality & Pacing Calibration Panel -->
         <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:12px;margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
@@ -1598,9 +1618,80 @@ async function loadColabOmniVoiceStatus() {
       msg.textContent = 'Status notice: ' + d.last_error;
       msg.style.color = '#ffaa00';
     }
+    loadColabRunnerStatus();
   } catch(e) {
     console.warn("Failed to load Colab OmniVoice status:", e);
   }
+}
+
+async function loadColabRunnerStatus() {
+  try {
+    const res = await fetch('/api/voice/colab/runner');
+    if (!res.ok) return;
+    const d = await res.json();
+    const badge = document.getElementById('colab-runner-badge');
+    const logsEl = document.getElementById('colab-runner-logs');
+    if (badge) {
+      if (d.state === 'ready') {
+        badge.textContent = '🟢 READY (RUNNING)';
+        badge.style.background = '#00e5ff';
+        badge.style.color = '#000';
+      } else if (d.state === 'executing_cells') {
+        badge.textContent = '🟡 EXECUTING CELLS...';
+        badge.style.background = '#ffaa00';
+        badge.style.color = '#000';
+      } else if (d.state === 'starting') {
+        badge.textContent = '🟡 STARTING...';
+        badge.style.background = '#ffaa00';
+        badge.style.color = '#000';
+      } else if (d.state === 'stopped') {
+        badge.textContent = '⚪ STOPPED';
+        badge.style.background = '#334155';
+        badge.style.color = '#fff';
+      } else if (d.state === 'error') {
+        badge.textContent = '🔴 ERROR';
+        badge.style.background = '#e53935';
+        badge.style.color = '#fff';
+      } else {
+        badge.textContent = '⚪ ' + d.state.toUpperCase();
+        badge.style.background = '#334155';
+        badge.style.color = '#fff';
+      }
+    }
+    if (logsEl && d.recent_logs && d.recent_logs.length > 0) {
+      logsEl.textContent = d.recent_logs.slice(-25).join('\n');
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+  } catch (e) {}
+}
+
+async function launchColabRunner() {
+  const msg = document.getElementById('colab-conn-msg');
+  if (msg) msg.textContent = '🚀 Launching Super_Eleven_Lab_Lite_2_1.ipynb on Google Colab...';
+  try {
+    const res = await fetch('/api/voice/colab/runner/start', { method: 'POST' });
+    const d = await res.json();
+    if (msg) msg.textContent = d.status === 'ok' ? '⚡ Colab runner started. Waiting for public Gradio link...' : '❌ Could not start: ' + JSON.stringify(d);
+    loadColabRunnerStatus();
+  } catch(e) {
+    if (msg) msg.textContent = '❌ Request failed: ' + e;
+  }
+}
+
+async function stopColabRunner() {
+  const msg = document.getElementById('colab-conn-msg');
+  try {
+    await fetch('/api/voice/colab/runner/stop', { method: 'POST' });
+    if (msg) msg.textContent = '⏹️ Colab runner stopped.';
+    loadColabRunnerStatus();
+  } catch(e) {}
+}
+
+function toggleColabLogs() {
+  const logsEl = document.getElementById('colab-runner-logs');
+  if (!logsEl) return;
+  logsEl.style.display = logsEl.style.display === 'none' ? 'block' : 'none';
+  loadColabRunnerStatus();
 }
 
 async function registerColabUrl() {

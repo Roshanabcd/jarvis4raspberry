@@ -66,14 +66,13 @@ INTENTS = [
     (r"\b(remember|store|save|note|record)\s+(.+)", "memory_store", None),
     (r"\b(what do you remember|recall|search memory|look up|what do you know about|tell me about|do you know)\s+(.+)?", "memory_search", None),
 
+    # Coding & Program Execution (Specific test helper only; general programming routes to LLM)
+    (r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", "create_calculator", None),
+
     # Desktop Apps & Editors
     (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
-    (r"\b(open\s+.*in\s+(?:vs\s*code|vscode|code|editor|mousepad))\b", "open_app", None),
-
-    # Coding & Program Execution
-    (r"\b(write|create|code|make)\b.*python\b.*(calculator|calc)", "create_calculator", None),
-    (r"\b(write|create|code)\s+python\s+(?:program|script|code)\s+(?:to|for)\s+(.+)", "write_code", None),
-    (r"\b(run|execute)\s+(?:the\s+)?(?:python\s+)?(?:program|script|code|file|calculator)\b", "run_code", None),
+    (r"\b(open\s+.*in\s+(?:vs\s*code|vscode|editor|mousepad))\b", "open_app", None),
+    (r"\b(run|execute)\s+(?:the\s+)?(?:python\s+)?(?:program|script|code|file)\b", "run_code", None),
 
     # File
     (r"\b(read|open|cat|display)\s+file\s+(\S+)", "read_file", None),
@@ -495,9 +494,9 @@ if __name__ == "__main__":
                     except Exception:
                         exec_output = run_res_raw
 
-                # 3. Open in VS Code if requested
+                # 3. Open in VS Code only if explicitly requested
                 app_opened = False
-                if "vs code" in text_lower or "vscode" in text_lower or "code" in text_lower or "open" in text_lower:
+                if re.search(r"\b(vs\s*code|vscode|visual\s+studio\s+code)\b", text_lower):
                     open_res_raw = self.executor.execute("open_app", {"app_name": "code", "target": filename})
                     tools_used.append("open_app")
                     try:
