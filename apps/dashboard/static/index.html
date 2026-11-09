@@ -478,6 +478,7 @@
   <button onclick="showTab('system')">📊 System</button>
   <button onclick="showTab('logs')">📜 Logs</button>
   <button onclick="showTab('desktop')">💻 Desktop & Terminal</button>
+  <button onclick="showTab('computer')">🖥️ Computer Use</button>
   <button onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
 
@@ -1048,6 +1049,103 @@
       </div>
     </div>
   </div>
+
+  <!-- 16. COMPUTER USE & VISUAL AUTOMATION -->
+  <div id="tab-computer" class="tab">
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 16px;">
+      <div class="card">
+        <h3>Display & Session</h3>
+        <div class="val" id="comp-res-val" style="font-size:1.3rem">1360 × 768</div>
+        <div class="sub" id="comp-disp-sub">Native X11 on :0</div>
+      </div>
+      <div class="card">
+        <h3>Active Window</h3>
+        <div class="val" id="comp-act-app" style="font-size:1.1rem;word-break:break-all">—</div>
+        <div class="sub" id="comp-act-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
+      </div>
+      <div class="card">
+        <h3>Open Windows</h3>
+        <div class="val" id="comp-win-count" style="font-size:1.3rem">0</div>
+        <div class="sub">Visible Applications</div>
+      </div>
+      <div class="card">
+        <h3>Computer Task State</h3>
+        <div class="val" id="comp-task-state" style="font-size:1.1rem;color:var(--accent)">IDLE</div>
+        <div class="sub" id="comp-task-sub">Verified Plan-Act-Observe</div>
+      </div>
+    </div>
+
+    <!-- Observation & Visual Perception -->
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h2>👁️ Visual Desktop Observation</h2>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="captureScreen('fullscreen')">📸 Fullscreen</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="captureScreen('active_window')">🪟 Active Window</button>
+            <button class="btn" style="padding:4px 10px;font-size:0.75rem" onclick="observeScreen()">👁️ Observe Screen</button>
+          </div>
+        </div>
+        <div style="background:#03050c;border:1px solid var(--card-border);border-radius:8px;padding:8px;text-align:center;min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <img id="comp-preview-img" style="max-width:100%;max-height:300px;border-radius:4px;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.5)" alt="Desktop Preview">
+          <div id="comp-preview-empty" style="color:var(--muted);font-size:0.85rem">Click "Observe Screen" or "Fullscreen" to view active desktop snapshot</div>
+        </div>
+        <div id="comp-snap-meta" style="font-size:0.75rem;color:var(--muted);margin-top:8px;font-family:monospace"></div>
+      </div>
+
+      <!-- Semantic Element Finder & Action Console -->
+      <div class="panel">
+        <h2>🖱️ Desktop Action & Element Finder</h2>
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.75rem;color:var(--muted)">Find & Highlight Element</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <input id="comp-find-in" placeholder="e.g. 'settings', 'search field', 'close', 'tab 2'..." style="flex:1" onkeydown="if(event.key==='Enter')findComputerElement()">
+            <button class="btn dark" onclick="findComputerElement()">Find</button>
+            <button class="btn" onclick="clickComputerNamed()">Click</button>
+          </div>
+          <div id="comp-find-result" style="margin-top:8px;font-size:0.75rem;font-family:monospace;background:#050711;padding:8px;border-radius:6px;border:1px solid var(--card-border);min-height:40px">Enter element query above to inspect coordinates.</div>
+        </div>
+
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.75rem;color:var(--muted)">Quick Action Shortcuts</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="scrollComputer('down')">📜 Scroll Down</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="scrollComputer('up')">📜 Scroll Up</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('chrome')">🌐 Chrome</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('vscode')">📝 VS Code</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('terminal')">💻 Terminal</button>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:0.75rem;color:var(--muted)">Type Text into Field</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <input id="comp-type-in" placeholder="Text to type into active window..." style="flex:1" onkeydown="if(event.key==='Enter')typeComputerText()">
+            <button class="btn" onclick="typeComputerText()">Type</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Open Windows List & Action History -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h2>🪟 Open Desktop Windows</h2>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadComputerStatus()">↺ Refresh</button>
+        </div>
+        <div id="comp-windows-list" style="max-height:220px;overflow-y:auto;font-size:0.8rem">Loading windows...</div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h2>📋 Action Verification History</h2>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadComputerHistory()">↺ Refresh</button>
+        </div>
+        <div id="comp-history-list" style="max-height:220px;overflow-y:auto;font-size:0.8rem">Loading history...</div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -1072,6 +1170,7 @@ function showTab(name) {
   if (name === 'settings') initSettingsCategories();
   if (name === 'chat') loadChatHistory();
   if (name === 'desktop') { loadDesktopStatus(); loadDesktopApps(); loadDesktopProjects(); }
+  if (name === 'computer') { loadComputerStatus(); loadComputerHistory(); }
 }
 
 let chatHistoryLoaded = false;
@@ -2737,6 +2836,184 @@ async function updateStatusCenter() {
       }
     }
   } catch(e) {}
+}
+
+// ─── Phase 4 Computer Use Functions ─────────────────────────
+async function loadComputerStatus() {
+  try {
+    const r = await fetch('/api/computer/status');
+    const d = await r.json();
+    const res = d.resolution || {};
+    const act = d.active_window || {};
+    document.getElementById('comp-res-val').textContent = `${res.width || 1360} × ${res.height || 768}`;
+    document.getElementById('comp-disp-sub').textContent = `Native X11 on ${d.display || ':0'}`;
+    document.getElementById('comp-act-app').textContent = (act.app || 'desktop').toUpperCase();
+    document.getElementById('comp-act-title').textContent = act.title || 'Desktop Root';
+    document.getElementById('comp-win-count').textContent = d.open_window_count || 0;
+
+    // Load windows list
+    const wr = await fetch('/api/computer/windows');
+    const wd = await wr.json();
+    const wins = wd.windows || [];
+    const html = wins.map(w => {
+      const isAct = w.id === d.active_window?.id;
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;margin-bottom:4px;background:${isAct ? 'rgba(0,243,255,0.1)' : 'rgba(255,255,255,0.02)'};border-radius:4px;border-left:3px solid ${isAct ? 'var(--accent)' : 'transparent'}">
+        <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px">
+          <strong>${w.app || 'app'}</strong> <span style="color:var(--muted)">[${w.id}]</span> <span style="color:#fff">${w.title}</span>
+        </div>
+        <button class="btn dark" style="padding:2px 8px;font-size:0.7rem" onclick="switchComputerWindow('${w.id}')">Focus</button>
+      </div>`;
+    }).join('');
+    document.getElementById('comp-windows-list').innerHTML = html || 'No windows found.';
+  } catch(e) {
+    console.error("loadComputerStatus error:", e);
+  }
+}
+
+async function captureScreen(target = 'fullscreen') {
+  try {
+    const r = await fetch('/api/computer/screenshot', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({target: target})
+    });
+    const d = await r.json();
+    if (d.thumbnail_url) {
+      const img = document.getElementById('comp-preview-img');
+      img.src = d.thumbnail_url;
+      img.style.display = 'block';
+      document.getElementById('comp-preview-empty').style.display = 'none';
+      document.getElementById('comp-snap-meta').textContent = `${d.filename} (${d.width}×${d.height}, ${d.duration_ms}ms) | Hash: ${d.hash.substring(0, 10)}`;
+    }
+  } catch(e) {
+    alert("Capture failed: " + e);
+  }
+}
+
+async function observeScreen() {
+  try {
+    const r = await fetch('/api/computer/observe', {method: 'POST'});
+    const d = await r.json();
+    const snap = d.snapshot || {};
+    if (snap.thumbnail_url) {
+      const img = document.getElementById('comp-preview-img');
+      img.src = snap.thumbnail_url;
+      img.style.display = 'block';
+      document.getElementById('comp-preview-empty').style.display = 'none';
+      document.getElementById('comp-snap-meta').textContent = `Observed in ${d.total_ms}ms | Active: ${d.active_window?.title || 'None'}`;
+    }
+    loadComputerStatus();
+  } catch(e) {
+    alert("Observe error: " + e);
+  }
+}
+
+async function findComputerElement() {
+  const q = document.getElementById('comp-find-in').value.trim();
+  if (!q) return;
+  try {
+    const r = await fetch('/api/computer/find-element', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: q})
+    });
+    const d = await r.json();
+    const resBox = document.getElementById('comp-find-result');
+    if (d.status === 'ok' && d.element) {
+      const el = d.element;
+      resBox.innerHTML = `<span style="color:var(--accent)">✓ Located:</span> <strong>${el.name}</strong> (${el.role}) at Center (${el.center.x}, ${el.center.y}) [Box: ${el.bounding_box.width}×${el.bounding_box.height}] Confidence: ${Math.round(el.confidence * 100)}%`;
+    } else {
+      resBox.innerHTML = `<span style="color:#ffaa00">⚠ Not found:</span> Could not find element matching '${q}'.`;
+    }
+  } catch(e) {
+    alert("Find element error: " + e);
+  }
+}
+
+async function clickComputerNamed() {
+  const q = document.getElementById('comp-find-in').value.trim();
+  if (!q) { alert("Enter element name to click"); return; }
+  try {
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'click_named', query: q, verify: true})
+    });
+    const d = await r.json();
+    alert(`Click '${q}':\nStatus: ${d.status}\nVerified: ${d.verification?.verified}\nDuration: ${d.duration_ms}ms`);
+    loadComputerStatus();
+    loadComputerHistory();
+  } catch(e) {
+    alert("Click error: " + e);
+  }
+}
+
+async function typeComputerText() {
+  const txt = document.getElementById('comp-type-in').value;
+  if (!txt) return;
+  try {
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'type', text: txt, verify: true})
+    });
+    const d = await r.json();
+    document.getElementById('comp-type-in').value = '';
+    alert(`Type Text:\nStatus: ${d.status}\nVerified: ${d.verification?.verified}`);
+    loadComputerHistory();
+  } catch(e) {
+    alert("Type error: " + e);
+  }
+}
+
+async function scrollComputer(dir) {
+  try {
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'scroll', direction: dir, clicks: 5})
+    });
+    const d = await r.json();
+    loadComputerHistory();
+  } catch(e) {
+    alert("Scroll error: " + e);
+  }
+}
+
+async function switchComputerWindow(target) {
+  try {
+    const isId = target.startsWith('0x');
+    const payload = isId ? {action: 'focus_window', target_window: target} : {action: 'switch_window', app: target};
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const d = await r.json();
+    loadComputerStatus();
+    loadComputerHistory();
+  } catch(e) {
+    alert("Switch window error: " + e);
+  }
+}
+
+async function loadComputerHistory() {
+  try {
+    const r = await fetch('/api/computer/history');
+    const d = await r.json();
+    const hist = d.history || [];
+    const html = hist.slice().reverse().map(h => {
+      const v = h.verification || {};
+      const badge = v.verified ? '<span class="badge online" style="font-size:0.65rem">VERIFIED</span>' : '<span class="badge" style="background:#555;font-size:0.65rem">DISPATCHED</span>';
+      return `<div style="padding:4px 8px;margin-bottom:4px;background:rgba(255,255,255,0.02);border-radius:4px;display:flex;justify-content:space-between;align-items:center">
+        <div><strong>${h.action}</strong> <span style="color:var(--muted)">(${h.duration_ms || 0}ms)</span></div>
+        <div>${badge}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('comp-history-list').innerHTML = html || 'No actions recorded yet.';
+  } catch(e) {
+    console.error("loadComputerHistory error:", e);
+  }
 }
 
 setInterval(updateStatusCenter, 3000);

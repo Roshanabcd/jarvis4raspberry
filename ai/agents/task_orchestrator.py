@@ -3,6 +3,8 @@ JARVIS Compound Task Orchestrator (Phase 1E)
 Detects compound multi-task user requests, segments them into discrete sub-tasks,
 executes deterministic tools and AI reasoning per task, and produces a single unified response.
 """
+import os
+import sys
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -336,6 +338,48 @@ class CompoundTaskOrchestrator:
                         f"### {idx}. Calculation\n"
                         f"- Error: {res.get('error', 'Unable to evaluate expression')}"
                     )
+                sections.append(section)
+
+            # Phase 4: Inspect README in project
+            elif re.search(r'\b(?:inspect|read|show|cat)\b.*\breadme\b', task_lower):
+                proj_dir = last_context_project or "/home/roshan/UnityGameWorkspace"
+                readme_path = None
+                for cand in ["README.md", "readme.md", "README.txt", "README"]:
+                    p = os.path.join(proj_dir, cand)
+                    if os.path.exists(p):
+                        readme_path = p
+                        break
+                if readme_path:
+                    try:
+                        with open(readme_path, "r", encoding="utf-8", errors="ignore") as f:
+                            lines = [f.readline() for _ in range(12)]
+                            content = "".join(lines).strip()
+                        section = f"### {idx}. Project README\n- **File:** `{readme_path}`\n```markdown\n{content}\n```"
+                    except Exception as e:
+                        section = f"### {idx}. Project README\n- Error reading README: {e}"
+                else:
+                    section = f"### {idx}. Project README\n- No README file found in `{proj_dir}`."
+                all_tools_used.append({"tool": "inspect_readme"})
+                sections.append(section)
+
+            # Phase 4: Switch application window
+            elif re.search(r'\bswitch\s+(?:back\s+)?to\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|terminal|lxterminal|antigravity)\b', task_lower):
+                m_sw = re.search(r'\bswitch\s+(?:back\s+)?to\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|terminal|lxterminal|antigravity)\b', task_lower)
+                target_app = m_sw.group(1).strip()
+                from tools.desktop.computer_action_engine import computer_action_engine
+                sw_res = computer_action_engine.switch_window(target_app)
+                all_tools_used.append({"tool": "switch_window"})
+                act_title = sw_res.get("active_window", {}).get("title", target_app)
+                section = f"### {idx}. Switch Window\n- Focused application: **{target_app.title()}** (`{act_title}`)"
+                sections.append(section)
+
+            # Phase 4: Screen observation
+            elif re.search(r'\b(?:look\s+at\s+(?:my\s+|the\s+)?screen|what\s+is\s+open)\b', task_lower):
+                from tools.desktop.desktop_perception import desktop_perception
+                obs = desktop_perception.observe_desktop()
+                act_w = obs.get("active_window", {})
+                all_tools_used.append({"tool": "observe_desktop"})
+                section = f"### {idx}. Desktop Observation\n- **Active Window:** `{act_w.get('title')}` (App: {act_w.get('app')})\n- **Open Windows:** {obs.get('open_windows_count')}"
                 sections.append(section)
 
             # 7. Programming / AI code generation / Open-ended reasoning

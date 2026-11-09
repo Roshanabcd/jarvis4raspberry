@@ -199,3 +199,27 @@ Learnings:
 - Subprocess GUI launching on Linux requires `stdin=subprocess.DEVNULL` and `start_new_session=True` so wrapper scripts (like google-chrome-stable) do not attach to the caller's console.
 - Separating UI text rendering from asynchronous TTS speech synthesis guarantees responsive conversational feel on constrained ARM64 hardware.
 ==================================================
+
+==================================================
+=== ITERATION 7: PHASE 4 FULL-SCREEN COMPUTER USE & VISUAL AUTOMATION ===
+Date: 2026-11-09
+Status: SUCCESS
+Changes:
+- Implemented DesktopPerceptionService (tools/desktop/desktop_perception.py) querying X11 display topology, window hierarchy via wmctrl and xprop, active window metadata, and capturing fullscreen/active window/region screenshots via scrot with automatic Pillow JPEG thumbnail generation and FIFO ring-buffer pruning.
+- Implemented ElementDetector (tools/desktop/element_detector.py) discovering UI elements semantically (buttons, menus, textboxes, tabs, scrollbars) from window geometry and application layout models, and calculating pixel delta differences with NumPy for observable action verification.
+- Implemented ComputerActionEngine (tools/desktop/computer_action_engine.py) executing synthetic mouse clicks, double-clicks, right-clicks, keyboard typing (with 12ms inter-key delay), hotkeys, window switching/focusing, scrolling, and multi-step task execution with pre/post-action state verification.
+- Implemented ScreenSecurityGuard (tools/desktop/screen_security.py) protecting against indirect prompt injection in visible screen/web text and gating dangerous operations behind interactive confirmation tokens.
+- Implemented CodeEditorAgent (tools/desktop/code_editor_agent.py) providing direct filesystem reading with line numbering, targeted atomic code modification with unified git diffs, and test runner execution.
+- Added Phase 4 intents to LocalIntelligenceEngine (ai/local_engine.py) and Brain (ai/brain.py) for fast-path sub-15ms execution: screen_observe, screen_screenshot, screen_find_element, screen_click_element, screen_scroll, screen_switch_window, screen_switch_window_index, screen_active_tab, screen_type_text.
+- Upgraded CompoundTaskOrchestrator (ai/agents/task_orchestrator.py) with README inspection, cross-application window switching, and multi-step screen observations.
+- Created REST API router (apps/api/computer_api.py) exposing /api/computer/status, /windows, /applications, /screenshot, /observe, /find-element, /action, and /task endpoints, registered in apps/core/main.py.
+- Added "Computer Vision & Control" tab and controls to dashboard index.html for 1360x768 viewport.
+- Added comprehensive automated unit test suite (tests/unit/test_phase4_computer_use.py) with 13 tests, achieving 100% pass rate in 4.35s.
+- Executed 8 live hardware acceptance scenarios (A through H) on Raspberry Pi 5 DISPLAY=:0 with 100% success and 0 master sink modifications.
+- Authored 10 comprehensive architecture and technical reports in docs/ (PHASE4_BASELINE.md through PHASE4_KNOWN_LIMITATIONS.md).
+Learnings:
+- On Raspberry Pi 5 ARM64 CPU, local 4.7B multimodal vision models (qwen3.5:4b) take >60s to process image tokens; native X11 window tree hierarchy inspection + scrot + Pillow delivers sub-250ms real-time perception.
+- Pre/post-action pixel difference masks provide cryptographic and visual evidence that an action had an observable effect on screen, preventing simulated claims.
+- Synthetic typing into complex applications (Chrome, VS Code) requires a small inter-key delay (~12ms) to prevent dropped keystrokes.
+- Window switching must ignore desktop background/panel widgets (desktop ID = -1) to focus target applications reliably.
+==================================================

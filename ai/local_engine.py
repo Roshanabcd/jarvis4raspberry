@@ -244,6 +244,54 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(which application is open|what is the active window|show the current active window|active window|running applications)\b', text_lower) or re.search(r'\bis\s+(vs\s*code|vscode|chrome|firefox|antigravity)\s+running\b', text_lower):
             return "desktop_awareness", {"text": text}
 
+        # 3i. Phase 4: Screen Perception & Visual Computer Use
+        # Active browser tab inquiry ("which browser tab is active", "what tab is open")
+        if re.search(r'\b(?:which|what)\s+(?:browser\s+)?tab\s+is\s+(?:currently\s+)?active\b', text_lower):
+            return "screen_active_tab", {"text": text}
+
+        # Screen observation ("look at my screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
+        if re.search(r'\b(?:look\s+at\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see(?:\s+on\s+(?:my\s+)?screen)?|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
+            return "screen_observe", {"text": text}
+
+        # Take screenshot ("take a screenshot", "capture screen", "capture my screen", "capture active window")
+        if re.search(r'\b(?:take\s+(?:a\s+)?screenshot|capture\s+(?:the\s+|my\s+)?(?:screen|desktop|active\s+window))\b', text_lower):
+            target = "active_window" if ("active" in text_lower or "window" in text_lower) else "fullscreen"
+            return "screen_screenshot", {"target": target, "text": text}
+
+        # Find UI element ("find the settings button", "where is the settings option", "locate the search field", "find the download button", "show me where to click")
+        m_find_elem = re.search(r'\b(?:find|locate|where\s+is|show\s+me\s+where\s+is|highlight)\s+(?:the\s+)?(.+?)(?:\s+(?:button|icon|field|textbox|tab|menu|control|option))?(?:\s+on\s+(?:my\s+|the\s+)?screen)?[\.\?!]*$', text_lower) or re.search(r'\bshow\s+me\s+where\s+to\s+click\b', text_lower)
+        if m_find_elem and not re.search(r'\b(?:file|files|python)\b', text_lower):
+            elem_query = m_find_elem.group(1).strip() if (hasattr(m_find_elem, 'lastindex') and m_find_elem.lastindex and m_find_elem.group(1)) else "settings"
+            elem_query = re.sub(r'\s+on\s+(?:my\s+|the\s+)?screen$', '', elem_query, flags=re.I).strip()
+            return "screen_find_element", {"query": elem_query, "text": text}
+
+        # Click named UI element ("click the settings button", "click the third tab", "click the search field", "click the close button")
+        m_click_elem = re.search(r'\bclick\s+(?:on\s+)?(?:the\s+)?(.+?)(?:\s+(?:button|icon|field|textbox|tab|menu|item))?[\.\?!]*$', text_lower)
+        if m_click_elem and not re.search(r'\b(forward|backward|left|right|stop|play|pause|resume)\b', text_lower):
+            elem_target = m_click_elem.group(1).strip()
+            return "screen_click_element", {"query": elem_target, "text": text}
+
+        # Scroll page ("scroll down", "scroll up", "scroll the page down", "scroll down and find...")
+        m_scroll = re.search(r'\bscroll\s+(?:the\s+)?(?:page\s+|screen\s+)?(down|up)\b', text_lower)
+        if m_scroll:
+            return "screen_scroll", {"direction": m_scroll.group(1).lower(), "text": text}
+
+        # Switch application window ("switch back to chrome", "switch to vs code", "switch to terminal", "open the second application window")
+        m_switch_win = re.search(r'\bswitch\s+(?:back\s+)?to\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|terminal|lxterminal|downloads|pcmanfm|files|antigravity)\b', text_lower)
+        if m_switch_win:
+            return "screen_switch_window", {"app": m_switch_win.group(1).strip(), "text": text}
+
+        m_open_win_num = re.search(r'\bopen\s+(?:the\s+)?(first|second|third|fourth|1st|2nd|3rd|4th)\s+application\s+window\b', text_lower)
+        if m_open_win_num:
+            idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4}
+            w_idx = idx_map.get(m_open_win_num.group(1).lower(), 1)
+            return "screen_switch_window_index", {"index": w_idx, "text": text}
+
+        # Type text ("type '...'", "enter '...' into search")
+        m_type_txt = re.search(r'\btype\s+["\'](.+?)["\']\b', text_lower) or re.search(r'\benter\s+["\']?([^"\']+)["\']?\s+in(?:to)?\s+(?:the\s+)?(?:textbox|search|field)\b', text_lower)
+        if m_type_txt:
+            return "screen_type_text", {"text_to_type": m_type_txt.group(1).strip(), "text": text}
+
         # 3h. Deterministic natural-language math check (Test 6: "What is 25 multiplied by 4?", "15 percent of 800", "What is 1024 * 2 + 50?")
         if re.search(r"\b(?:\d+(?:\.\d+)?\s*(?:multiplied\s+by|times|\*|divided\s+by|\/|plus|\+|minus|\-|to\s+the\s+power\s+of|\^|%|percent\s+of)\s*\d+|\d+\s*[\+\-\*\/]\s*\d+)", text_lower):
             clean_math = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', text.strip(), flags=re.I).rstrip('?.')
@@ -378,6 +426,26 @@ class LocalIntelligenceEngine:
 
             elif intent == "theme_control":
                 return self._respond_theme_control(ctx)
+
+            # Phase 4 Visual Computer-Use Dispatches
+            elif intent == "screen_observe":
+                return self._respond_screen_observe(ctx)
+            elif intent == "screen_screenshot":
+                return self._respond_screen_screenshot(ctx)
+            elif intent == "screen_find_element":
+                return self._respond_screen_find_element(ctx)
+            elif intent == "screen_click_element":
+                return self._respond_screen_click_element(ctx)
+            elif intent == "screen_scroll":
+                return self._respond_screen_scroll(ctx)
+            elif intent == "screen_switch_window":
+                return self._respond_screen_switch_window(ctx)
+            elif intent == "screen_switch_window_index":
+                return self._respond_screen_switch_window_index(ctx)
+            elif intent == "screen_active_tab":
+                return self._respond_screen_active_tab(ctx)
+            elif intent == "screen_type_text":
+                return self._respond_screen_type_text(ctx)
 
             elif intent == "robot_forward":
                 speed = self._extract_speed(text) or 50
@@ -1298,6 +1366,197 @@ if __name__ == "__main__":
         return {
             "response": f"🎨 {res.get('message', 'Theme updated.')}",
             "tools_used": ["theme_manager"],
+            "raw": res,
+        }
+
+    # Phase 4 Response Handlers
+    def _respond_screen_observe(self, ctx: Dict) -> Dict:
+        from tools.desktop.desktop_perception import desktop_perception
+        obs = desktop_perception.observe_desktop()
+        act = obs.get("active_window", {})
+        res = obs.get("resolution", {})
+        wins = obs.get("open_windows", [])
+        top_wins = [w for w in wins if w.get("desktop", 0) != -1]
+        win_bullets = "\n".join(f"- `{w.get('title')}` (App: **{w.get('app')}**)" for w in top_wins[:5])
+
+        resp = (
+            f"👁️ **Screen Observation Summary**\n\n"
+            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `:0`)\n"
+            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`\n"
+            f"- **Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)\n"
+            f"- **Window Dimensions:** {act.get('geometry', {}).get('width')} × {act.get('geometry', {}).get('height')} at pos ({act.get('geometry', {}).get('x')}, {act.get('geometry', {}).get('y')})\n\n"
+            f"**Currently Open Applications ({len(top_wins)}):**\n"
+            f"{win_bullets}\n\n"
+            f"Visual snapshot captured in {obs.get('total_ms', 0)}ms."
+        )
+        return {
+            "response": resp,
+            "tools_used": ["desktop_perception_observe"],
+            "raw": obs,
+        }
+
+    def _respond_screen_screenshot(self, ctx: Dict) -> Dict:
+        from tools.desktop.desktop_perception import desktop_perception
+        target = ctx.get("target", "fullscreen")
+        if target == "active_window":
+            snap = desktop_perception.capture_active_window()
+        else:
+            snap = desktop_perception.capture_fullscreen()
+
+        resp = (
+            f"📸 **Screenshot Captured**\n\n"
+            f"- **Target:** {target.title()}\n"
+            f"- **Dimensions:** {snap.get('width', 1360)} × {snap.get('height', 768)} pixels\n"
+            f"- **File Saved:** `{snap.get('filename')}` ({snap.get('size_bytes', 0) // 1024} KB)\n"
+            f"- **Capture Duration:** {snap.get('duration_ms', 0)}ms\n"
+            f"- **Integrity Hash:** `{snap.get('hash', 'N/A')[:12]}`"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["desktop_perception_screenshot"],
+            "raw": snap,
+        }
+
+    def _respond_screen_find_element(self, ctx: Dict) -> Dict:
+        from tools.desktop.desktop_perception import desktop_perception
+        from tools.desktop.element_detector import element_detector
+        query = ctx.get("query", "settings")
+        act_win = desktop_perception.get_active_window()
+        elem = element_detector.find_element(query, act_win)
+
+        if not elem:
+            return {
+                "response": f"🔍 Searched active window (`{act_win.get('title')}`), but could not locate a UI element matching **'{query}'**.",
+                "tools_used": ["element_detector_find"],
+                "raw": {"query": query, "found": False},
+            }
+
+        ed = elem.to_dict()
+        resp = (
+            f"🎯 **Located UI Element: '{elem.name}'**\n\n"
+            f"- **Control Role:** `{elem.role}`\n"
+            f"- **Center Coordinates:** `X: {elem.center_x}, Y: {elem.center_y}`\n"
+            f"- **Bounding Box:** {elem.width} × {elem.height} at ({elem.x}, {elem.y})\n"
+            f"- **Detection Source:** `{elem.source}` (Confidence: {int(elem.confidence * 100)}%)\n"
+            f"- **Parent Window:** `{act_win.get('title')}`"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["element_detector_find"],
+            "raw": ed,
+        }
+
+    def _respond_screen_click_element(self, ctx: Dict) -> Dict:
+        from tools.desktop.computer_action_engine import computer_action_engine
+        query = ctx.get("query", "")
+        res = computer_action_engine.click_named_element(query, verify=True)
+
+        if res.get("status") == "not_found":
+            return {
+                "response": f"⚠️ Could not click: no visible element matching **'{query}'** was detected.",
+                "tools_used": ["computer_action_click"],
+                "raw": res,
+            }
+
+        v = res.get("verification", {})
+        verified_str = "Verified (observable screen change detected)" if v.get("verified") else "Executed (action dispatched)"
+        target = res.get("target_element", {})
+
+        resp = (
+            f"🖱️ **Clicked Element: '{target.get('name', query)}'**\n\n"
+            f"- **Coordinates:** ({res.get('coordinates', {}).get('x')}, {res.get('coordinates', {}).get('y')})\n"
+            f"- **Status:** {verified_str}\n"
+            f"- **Duration:** {res.get('duration_ms')}ms\n"
+            f"- **Active Window After:** `{res.get('active_window_after', {}).get('title', 'Unchanged')}`"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["computer_action_click"],
+            "raw": res,
+        }
+
+    def _respond_screen_scroll(self, ctx: Dict) -> Dict:
+        from tools.desktop.computer_action_engine import computer_action_engine
+        direction = ctx.get("direction", "down")
+        res = computer_action_engine.scroll_page(direction=direction, clicks=5)
+        v = res.get("verification", {})
+        verified_str = "Verified (page content scrolled)" if v.get("verified") else "Dispatched scroll event"
+
+        return {
+            "response": f"📜 Scrolled page **{direction}**. Status: {verified_str}.",
+            "tools_used": ["computer_action_scroll"],
+            "raw": res,
+        }
+
+    def _respond_screen_switch_window(self, ctx: Dict) -> Dict:
+        from tools.desktop.computer_action_engine import computer_action_engine
+        app = ctx.get("app", "")
+        res = computer_action_engine.switch_window(app)
+
+        if res.get("status") == "not_found":
+            return {
+                "response": f"⚠️ Could not switch window: application **'{app}'** is not currently open.",
+                "tools_used": ["computer_action_switch"],
+                "raw": res,
+            }
+
+        act_win = res.get("active_window", {})
+        return {
+            "response": f"🪟 Switched active window to **{app.title()}** (`{act_win.get('title')}`).",
+            "tools_used": ["computer_action_switch"],
+            "raw": res,
+        }
+
+    def _respond_screen_switch_window_index(self, ctx: Dict) -> Dict:
+        from tools.desktop.desktop_perception import desktop_perception
+        from tools.desktop.computer_action_engine import computer_action_engine
+        idx = ctx.get("index", 1)
+        wins = [w for w in desktop_perception.list_open_windows() if w.get("desktop", 0) != -1]
+
+        if not wins or idx > len(wins):
+            return {
+                "response": f"⚠️ Only {len(wins)} windows are currently open; cannot switch to window #{idx}.",
+                "tools_used": ["computer_action_switch_index"],
+                "raw": {"requested_index": idx, "available_windows": len(wins)},
+            }
+
+        target_win = wins[idx - 1]
+        res = computer_action_engine.focus_window(target_win["id"])
+        return {
+            "response": f"🪟 Switched to application window #{idx}: `{target_win.get('title')}` (**{target_win.get('app')}**).",
+            "tools_used": ["computer_action_switch_index"],
+            "raw": res,
+        }
+
+    def _respond_screen_active_tab(self, ctx: Dict) -> Dict:
+        from tools.desktop.desktop_perception import desktop_perception
+        wins = desktop_perception.list_open_windows()
+        chrome_win = next((w for w in wins if "chrome" in w.get("app", "") or "chrome" in w.get("title", "").lower()), None)
+        if not chrome_win:
+            return {
+                "response": "🌐 No active Google Chrome window is currently open.",
+                "tools_used": ["desktop_perception_active_tab"],
+                "raw": {"active_tab": None},
+            }
+        full_title = chrome_win.get("title", "")
+        clean_title = re.sub(r'\s*-\s*Google Chrome.*$', '', full_title, flags=re.I).strip()
+        resp = f"🌐 The currently active browser tab in Google Chrome is **\"{clean_title}\"**."
+        return {
+            "response": resp,
+            "tools_used": ["desktop_perception_active_tab"],
+            "raw": {"full_title": full_title, "clean_title": clean_title, "window_id": chrome_win.get("id")},
+        }
+
+    def _respond_screen_type_text(self, ctx: Dict) -> Dict:
+        from tools.desktop.computer_action_engine import computer_action_engine
+        text_to_type = ctx.get("text_to_type", "")
+        res = computer_action_engine.type_text(text_to_type, verify=True)
+        v = res.get("verification", {})
+        verified_str = "Verified (field content modified)" if v.get("verified") else "Dispatched keystrokes"
+
+        return {
+            "response": f"⌨️ Typed text into active field: `\"{text_to_type}\"`. Status: {verified_str}.",
+            "tools_used": ["computer_action_type"],
             "raw": res,
         }
 

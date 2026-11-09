@@ -155,5 +155,54 @@ class DesktopActionEngine:
         res = window_manager.switch_window(query)
         return self._record_action("switch_application", {"query": query}, res, t_start)
 
+    # Phase 4 Visual Computer-Use Additions
+    def capture_screenshot(self, target: str = "fullscreen") -> Dict[str, Any]:
+        """Capture screenshot of fullscreen or active window."""
+        t_start = time.time()
+        from tools.desktop.desktop_perception import desktop_perception
+        if target == "active_window":
+            res = desktop_perception.capture_active_window()
+        else:
+            res = desktop_perception.capture_fullscreen()
+        return self._record_action("capture_screenshot", {"target": target}, res, t_start)
+
+    def observe_screen(self) -> Dict[str, Any]:
+        """Comprehensive observation of screen state, windows, and visual snapshot."""
+        t_start = time.time()
+        from tools.desktop.desktop_perception import desktop_perception
+        res = desktop_perception.observe_desktop()
+        return self._record_action("observe_screen", {}, res, t_start)
+
+    def find_ui_element(self, query: str) -> Dict[str, Any]:
+        """Locate interface element matching query."""
+        t_start = time.time()
+        from tools.desktop.element_detector import element_detector
+        from tools.desktop.desktop_perception import desktop_perception
+        act_win = desktop_perception.get_active_window()
+        elem = element_detector.find_element(query, act_win)
+        res = {"success": elem is not None, "element": elem.to_dict() if elem else None}
+        return self._record_action("find_ui_element", {"query": query}, res, t_start)
+
+    def click_ui_element(self, query: str) -> Dict[str, Any]:
+        """Locate element semantically and click with verification."""
+        t_start = time.time()
+        from tools.desktop.computer_action_engine import computer_action_engine
+        res = computer_action_engine.click_named_element(query)
+        return self._record_action("click_ui_element", {"query": query}, res, t_start)
+
+    def type_text(self, text: str, target_window: Optional[str] = None) -> Dict[str, Any]:
+        """Type text string with verification."""
+        t_start = time.time()
+        from tools.desktop.computer_action_engine import computer_action_engine
+        res = computer_action_engine.type_text(text, target_window=target_window)
+        return self._record_action("type_text", {"text": text, "target_window": target_window}, res, t_start)
+
+    def scroll_screen(self, direction: str = "down", clicks: int = 5) -> Dict[str, Any]:
+        """Scroll screen down or up with verification."""
+        t_start = time.time()
+        from tools.desktop.computer_action_engine import computer_action_engine
+        res = computer_action_engine.scroll_page(direction=direction, clicks=clicks)
+        return self._record_action("scroll_screen", {"direction": direction, "clicks": clicks}, res, t_start)
+
 
 desktop_action_engine = DesktopActionEngine()
