@@ -919,6 +919,27 @@ function showTab(name) {
   if (name === 'tools') loadTools();
   if (name === 'integrations') loadIntegrations();
   if (name === 'settings') initSettingsCategories();
+  if (name === 'chat') loadChatHistory();
+}
+
+let chatHistoryLoaded = false;
+async function loadChatHistory() {
+  if (chatHistoryLoaded) return;
+  try {
+    const r = await fetch('/api/chat/history');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.history && d.history.length > 0) {
+      const box = document.getElementById('chat-box');
+      if (box && box.querySelectorAll('.msg-container').length <= 1) {
+        d.history.forEach(item => {
+          const role = item.role === 'assistant' ? 'jarvis' : (item.role || 'user');
+          addMsg(role, item.text || item.content || '');
+        });
+        chatHistoryLoaded = true;
+      }
+    }
+  } catch(e) {}
 }
 
 // ─── WebSocket Live Telemetry ────────────────────────────────
@@ -943,6 +964,21 @@ function connectWS() {
   ws.onmessage = (e) => {
     try {
       const d = JSON.parse(e.data);
+      if (d.type === 'chat_message') {
+        const role = d.role === 'assistant' ? 'jarvis' : (d.role || 'user');
+        addMsg(role, d.text, {
+          audio_url: d.audio_url,
+          provider_label: d.provider_label,
+          is_cloned: d.is_cloned
+        });
+        if (role === 'jarvis' && d.audio_url) {
+          const autoSpeak = document.getElementById('chat-auto-speak');
+          if (!autoSpeak || autoSpeak.checked) {
+            playJarvisAudio(d.audio_url);
+          }
+        }
+        return;
+      }
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
       setVal('h-cpu', (d.cpu_pct ?? 0).toFixed(1) + '%');
       setVal('h-ram', (d.ram_pct ?? 0).toFixed(1) + '%');

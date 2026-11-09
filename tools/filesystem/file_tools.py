@@ -10,6 +10,7 @@ import fnmatch
 import logging
 import os
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -40,9 +41,9 @@ class FileTools:
         if not isinstance(cfg_workspaces, dict):
             cfg_workspaces = {}
 
-        # 2. Defaults with fallback
-        home_path = cfg_workspaces.get("home") or os.environ.get("JARVIS_HOME") or home_dir
-        projects_path = cfg_workspaces.get("projects") or os.environ.get("JARVIS_PROJECTS") or project_root
+        # 2. Defaults with fallback (HOME is real user home; PROJECTS is jarvis installation)
+        home_path = cfg_workspaces.get("home") or home_dir
+        projects_path = cfg_workspaces.get("projects") or os.environ.get("JARVIS_PROJECTS") or os.environ.get("JARVIS_HOME") or project_root
         data_path = cfg_workspaces.get("jarvis_data") or os.environ.get("JARVIS_DATA") or os.path.join(project_root, "data")
 
         raw_workspaces = {
@@ -319,6 +320,195 @@ class FileTools:
                     matches.append(os.path.join(root, filename))
 
         return matches
+
+    def search_folders(self, query: str, directory: Optional[str] = None, max_results: int = 15) -> List[Dict[str, Any]]:
+        """Search recursively for folders/directories matching query string.
+
+        Args:
+            query: Folder name or substring to search for.
+            directory: Root directory to search within (defaults to HOME).
+            max_results: Maximum number of folder matches to return.
+
+        Returns:
+            List of matching folder dictionaries with name, path, item_count, and size.
+        """
+        root_dir = directory or self.workspaces.get("HOME", os.path.expanduser("~"))
+        safe_dir = self.validate_path(root_dir)
+        clean_query = query.lower().strip()
+
+        matches: List[Dict[str, Any]] = []
+        skip_dirs = {".git", "node_modules", "venv", ".venv", "__pycache__", ".cache", ".pytest_cache", ".config"}
+
+        for root, dirs, _ in os.walk(safe_dir):
+            # Prune noisy directories in-place
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in skip_dirs]
+
+            for dname in dirs:
+                if clean_query in dname.lower():
+                    full_p = os.path.join(root, dname)
+                    item_count = 0
+                    try:
+                        item_count = len(os.listdir(full_p))
+                    except Exception:
+                        pass
+                    matches.append({
+                        "name": dname,
+                        "path": full_p,
+                        "relative_path": os.path.relpath(full_p, safe_dir),
+                        "items_count": item_count,
+                        "is_dir": True,
+                    })
+                    if len(matches) >= max_results:
+                        return matches
+
+        return matches
+
+    def open_folder(self, folder_name: str, parent_location: Optional[str] = None) -> Dict[str, Any]:
+        """Resolve a folder path, list its contents, and open in desktop file manager (pcmanfm/xdg-open).
+
+        Args:
+            folder_name: Name of target folder (e.g. 'Downloads', 'abc', 'global-press').
+            parent_location: Optional parent path where folder is located (e.g. 'pqr location', 'Downloads').
+
+        Returns:
+            Dictionary with open status, folder path, and item summary.
+        """
+        home = self.workspaces.get("HOME", os.path.expanduser("~"))
+        clean_name = folder_name.strip().strip("'\"")
+
+        standard_folders = {
+            "downloads": os.path.join(home, "Downloads"),
+            "download": os.path.join(home, "Downloads"),
+            "music": os.path.join(home, "Music"),
+            "desktop": os.path.join(home, "Desktop"),
+            "documents": os.path.join(home, "Documents"),
+            "document": os.path.join(home, "Documents"),
+            "home": home,
+            "pictures": os.path.join(home, "Pictures"),
+            "picture": os.path.join(home, "Pictures"),
+            "videos": os.path.join(home, "Videos"),
+            "video": os.path.join(home, "Videos"),
+        }
+
+        target_path = None
+
+        # 1. Check parent_location if specified
+        if parent_location:
+            p_clean = parent_location.strip().strip("'\"")
+            p_mapped = standard_folders.get(p_clean.lower(), p_clean)
+            if not os.path.isabs(p_mapped):
+                # Search if p_mapped is a directory under home
+                p_candidate = os.path.join(home, p_mapped)
+                if os.path.exists(p_candidate):
+                    p_mapped = p_candidate
+                else:
+                    parent_matches = self.search_folders(p_clean, max_results=1)
+                    if parent_matches:
+                        p_mapped = parent_matches[0]["path"]
+
+            direct_in_parent = os.path.join(p_mapped, clean_name)
+            if os.path.exists(direct_in_parent) and os.path.isdir(direct_in_parent):
+                target_path = direct_in_parent
+            else:
+                # Search inside parent directory
+                sub_matches = self.search_folders(clean_name, directory=p_mapped, max_results=1)
+                if sub_matches:
+                    target_path = sub_matches[0]["path"]
+
+        # 2. Check standard folders
+        if not target_path and clean_name.lower() in standard_folders:
+            target_path = standard_folders[clean_name.lower()]
+
+        # 3. Check direct path under home or absolute
+        if not target_path:
+            direct = os.path.expanduser(clean_name) if clean_name.startswith("~") else os.path.join(home, clean_name)
+            if os.path.exists(direct) and os.path.isdir(direct):
+                target_path = direct
+
+        # 4. Fuzzy search across HOME
+        if not target_path:
+            matches = self.search_folders(clean_name, max_results=1)
+            if matches:
+                target_path = matches[0]["path"]
+
+        if not target_path or not os.path.exists(target_path):
+            return {
+                "status": "not_found",
+                "folder_name": folder_name,
+                "parent_location": parent_location,
+                "message": f"Could not find folder '{folder_name}'" + (f" in '{parent_location}'" if parent_location else "") + ".",
+            }
+
+        safe_path = self.validate_path(target_path)
+        items = self.list_dir(safe_path)
+
+        # Launch GUI file manager (pcmanfm or xdg-open)
+        gui_launched = False
+        fm_bin = shutil.which("pcmanfm") or shutil.which("xdg-open")
+        if fm_bin:
+            env = os.environ.copy()
+            if "DISPLAY" not in env:
+                env["DISPLAY"] = ":0"
+            try:
+                subprocess.Popen([fm_bin, safe_path], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                gui_launched = True
+            except Exception as e:
+                logger.warning(f"Could not launch file manager: {e}")
+
+        top_names = [it["name"] + ("/" if it["is_dir"] else "") for it in items[:10]]
+        items_summary = ", ".join(top_names) if top_names else "empty"
+
+        return {
+            "status": "opened",
+            "path": safe_path,
+            "name": os.path.basename(safe_path),
+            "total_items": len(items),
+            "items": top_names,
+            "gui_launched": gui_launched,
+            "message": f"Opened folder '{os.path.basename(safe_path)}' at {safe_path}. It contains {len(items)} items: {items_summary}.",
+        }
+
+    def open_file(self, file_path: str, editor: Optional[str] = None) -> Dict[str, Any]:
+        """Open a file with standard editor (mousepad, code, or xdg-open).
+
+        Args:
+            file_path: Relative or absolute file path.
+            editor: Preferred editor ('mousepad', 'code', etc.).
+
+        Returns:
+            Dictionary with open status.
+        """
+        home = self.workspaces.get("HOME", os.path.expanduser("~"))
+        target = file_path if os.path.isabs(file_path) else os.path.join(home, file_path)
+        if not os.path.exists(target):
+            # Try searching for file
+            matches = self.search_files(home, f"*{file_path}*")
+            if matches:
+                target = matches[0]
+
+        if not os.path.exists(target):
+            return {"status": "not_found", "path": file_path, "message": f"File '{file_path}' not found."}
+
+        safe_path = self.validate_path(target)
+        ed_bin = shutil.which(editor) if editor else (shutil.which("mousepad") or shutil.which("xdg-open"))
+        if not ed_bin:
+            return {"status": "error", "message": "No editor found to open file."}
+
+        env = os.environ.copy()
+        if "DISPLAY" not in env:
+            env["DISPLAY"] = ":0"
+
+        try:
+            p = subprocess.Popen([ed_bin, safe_path], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return {
+                "status": "opened",
+                "path": safe_path,
+                "editor": ed_bin,
+                "pid": p.pid,
+                "message": f"Opened file '{os.path.basename(safe_path)}' in {os.path.basename(ed_bin)}.",
+            }
+        except Exception as e:
+            return {"status": "error", "message": f"Failed to open file: {e}"}
 
 
 # Global instance

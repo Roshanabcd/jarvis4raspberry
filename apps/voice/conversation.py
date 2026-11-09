@@ -68,6 +68,10 @@ class ConversationManager:
             self.storage_dir,
         )
 
+    def get_turns(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return the most recent dialogue turns."""
+        return self.turns[-limit:] if self.turns else []
+
     def is_session_active(self) -> bool:
         """Check if a session is currently active and within timeout bounds.
 

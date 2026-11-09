@@ -218,6 +218,67 @@ class ToolExecutor:
         except Exception as e:
             return {"error": str(e), "text": text[:80]}
 
+    # ── Media Player ──────────────────────────────────────────
+
+    def _tool_play_media(self, query: Optional[str] = None) -> Dict:
+        try:
+            from tools.media.media_player import media_player
+            return media_player.play(query)
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_stop_media(self) -> Dict:
+        try:
+            from tools.media.media_player import media_player
+            return media_player.stop()
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_pause_media(self) -> Dict:
+        try:
+            from tools.media.media_player import media_player
+            return media_player.pause()
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_resume_media(self) -> Dict:
+        try:
+            from tools.media.media_player import media_player
+            return media_player.resume()
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_set_volume(self, level_pct: int) -> Dict:
+        try:
+            from tools.media.media_player import media_player
+            return media_player.set_volume(level_pct)
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    # ── Folder & File Navigation ──────────────────────────────
+
+    def _tool_search_folders(self, query: str, directory: Optional[str] = None) -> Dict:
+        try:
+            from tools.filesystem.file_tools import file_tools
+            matches = file_tools.search_folders(query=query, directory=directory)
+            return {"query": query, "total_matches": len(matches), "folders": matches}
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_open_folder(self, folder_name: str, parent_location: Optional[str] = None) -> Dict:
+        try:
+            from tools.filesystem.file_tools import file_tools
+            return file_tools.open_folder(folder_name=folder_name, parent_location=parent_location)
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
+    def _tool_open_file(self, file_path: str, editor: Optional[str] = None) -> Dict:
+        try:
+            from tools.filesystem.file_tools import file_tools
+            return file_tools.open_file(file_path=file_path, editor=editor)
+        except Exception as e:
+            return {"error": str(e), "status": "failed"}
+
     # ── Desktop & Applications ────────────────────────────────
 
     def _tool_open_app(self, app_name: str, target: Optional[str] = None) -> Dict:

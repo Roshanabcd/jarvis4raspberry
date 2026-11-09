@@ -160,8 +160,10 @@ class VoiceService:
 
             response = self.process_command(text)
             self.state = prev_state
-            from apps.voice.speech_manager import speech_manager
-            staged = speech_manager.synthesize_and_stage(response, play_system=True)
+            staged = getattr(self, "_last_staged", {}) or {}
+            if not staged:
+                from apps.voice.speech_manager import speech_manager
+                staged = speech_manager.synthesize_and_stage(response, play_system=True)
             return {
                 "status": "ok",
                 "transcribed": text,
@@ -250,6 +252,11 @@ class VoiceService:
         """Process a spoken or text command through the JARVIS Brain and speak the reply."""
         logger.info("Processing voice command: '%s'", text)
         self.conversation.add_turn(role="user", text=text)
+        try:
+            from apps.api.websocket_api import broadcast_chat_message
+            broadcast_chat_message(role="user", text=text)
+        except Exception as e:
+            logger.debug("Failed to broadcast user chat message: %s", e)
 
         response: str = ""
         try:
@@ -269,10 +276,15 @@ class VoiceService:
 
         self.conversation.add_turn(role="assistant", text=response)
         try:
-            from apps.voice.gradio_tts import gradio_cloner
-            res = gradio_cloner.synthesize(response)
-            if res.audio_path:
-                gradio_cloner.play(res)
+            from apps.voice.speech_manager import speech_manager
+            staged = speech_manager.synthesize_and_stage(response, play_system=True)
+            self._last_staged = staged
+            audio_url = staged.get("audio_url")
+            try:
+                from apps.api.websocket_api import broadcast_chat_message
+                broadcast_chat_message(role="assistant", text=response, audio_url=audio_url)
+            except Exception as e:
+                logger.debug("Failed to broadcast assistant chat message: %s", e)
         except Exception as exc:
             logger.error("Voice output error: %s; falling back to direct TTS", exc)
             try:

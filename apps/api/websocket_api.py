@@ -1,14 +1,48 @@
-"""JARVIS WebSocket API — live telemetry at /ws"""
+"""JARVIS WebSocket API — live telemetry and chat synchronization at /ws"""
 import asyncio, time, logging
+from typing import Set, Dict, Any, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger("JARVIS.API.WebSocket")
 ws_router = APIRouter(tags=["ws"])
 
+_active_connections: Set[WebSocket] = set()
+_main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+async def broadcast_event(event_dict: Dict[str, Any]) -> None:
+    """Send event to all active connected clients."""
+    disconnected = set()
+    for ws in list(_active_connections):
+        try:
+            await ws.send_json(event_dict)
+        except Exception:
+            disconnected.add(ws)
+    for ws in disconnected:
+        _active_connections.discard(ws)
+
+
+def broadcast_chat_message(role: str, text: str, audio_url: Optional[str] = None) -> None:
+    """Thread-safe trigger to broadcast dialogue turn to connected dashboard web clients."""
+    global _main_loop
+    payload = {
+        "type": "chat_message",
+        "role": role,
+        "text": text,
+        "audio_url": audio_url,
+        "timestamp": time.time(),
+    }
+    if _main_loop and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_event(payload), _main_loop)
+
+
 @ws_router.websocket("/ws")
 async def websocket_telemetry(websocket: WebSocket):
+    global _main_loop
+    _main_loop = asyncio.get_running_loop()
     await websocket.accept()
-    logger.info("WebSocket client connected.")
+    _active_connections.add(websocket)
+    logger.info("WebSocket client connected. Total clients: %d", len(_active_connections))
     try:
         while True:
             try:
@@ -35,6 +69,7 @@ async def websocket_telemetry(websocket: WebSocket):
                 active_prov = "ollama"
 
             payload = {
+                "type":        "telemetry",
                 "cpu_pct":    sys_data.get("cpu_usage_pct", 0),
                 "ram_pct":    sys_data.get("ram_pct", 0),
                 "temp_c":     sys_data.get("temp_c"),
@@ -47,6 +82,8 @@ async def websocket_telemetry(websocket: WebSocket):
             await websocket.send_json(payload)
             await asyncio.sleep(2)
     except WebSocketDisconnect:
-        logger.info("WebSocket client disconnected.")
+        _active_connections.discard(websocket)
+        logger.info("WebSocket client disconnected. Total clients: %d", len(_active_connections))
     except Exception as e:
+        _active_connections.discard(websocket)
         logger.error(f"WebSocket error: {e}")

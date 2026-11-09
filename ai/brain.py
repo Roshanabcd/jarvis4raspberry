@@ -213,7 +213,10 @@ class JARVISBrain:
             "read_sensors", "calculate", "camera_capture", "memory_store",
             "list_files", "read_file", "write_file", "schedule_task",
             "identity", "help", "open_app", "create_calculator",
-            "write_code", "run_code"
+            "write_code", "run_code", "play_media", "stop_media",
+            "pause_media", "resume_media", "media_status", "set_volume",
+            "volume_up", "volume_down", "search_folder", "search_file",
+            "open_folder", "open_folder_at", "open_file"
         }
 
         if intent in FAST_PATH_INTENTS:
@@ -317,7 +320,10 @@ class JARVISBrain:
             "read_sensors", "calculate", "camera_capture", "memory_store",
             "list_files", "read_file", "write_file", "schedule_task",
             "identity", "help", "open_app", "create_calculator",
-            "write_code", "run_code"
+            "write_code", "run_code", "play_media", "stop_media",
+            "pause_media", "resume_media", "media_status", "set_volume",
+            "volume_up", "volume_down", "search_folder", "search_file",
+            "open_folder", "open_folder_at", "open_file"
         }
 
         if intent in FAST_PATH_INTENTS:

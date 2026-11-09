@@ -476,6 +476,73 @@ class ToolRegistry:
             "permissions": ["filesystem:search"],
             "execute": file_tools.search_files,
         })
+        self.register_tool({
+            "name": "search_folders",
+            "description": "Search recursively for folders matching query string",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["filesystem:search"],
+            "execute": file_tools.search_folders,
+        })
+        self.register_tool({
+            "name": "open_folder",
+            "description": "Open a folder visually on desktop and inspect its contents",
+            "schema": {"folder_name": "str", "parent_location": "str"},
+            "risk_level": 0,
+            "permissions": ["filesystem:read"],
+            "execute": file_tools.open_folder,
+        })
+        self.register_tool({
+            "name": "open_file",
+            "description": "Open a file with desktop editor or viewer",
+            "schema": {"file_path": "str"},
+            "risk_level": 0,
+            "permissions": ["filesystem:read"],
+            "execute": file_tools.open_file,
+        })
+
+        # Media tools
+        from tools.media.media_player import media_player
+        self.register_tool({
+            "name": "play_media",
+            "description": "Play local audio or stream song/music through speaker",
+            "schema": {"query": "any"},
+            "risk_level": 0,
+            "permissions": ["system:media"],
+            "execute": media_player.play,
+        })
+        self.register_tool({
+            "name": "stop_media",
+            "description": "Stop current audio or music playback",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:media"],
+            "execute": media_player.stop,
+        })
+        self.register_tool({
+            "name": "pause_media",
+            "description": "Pause current audio playback",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:media"],
+            "execute": media_player.pause,
+        })
+        self.register_tool({
+            "name": "resume_media",
+            "description": "Resume paused audio playback",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:media"],
+            "execute": media_player.resume,
+        })
+        self.register_tool({
+            "name": "set_volume",
+            "description": "Set system audio output volume level (0-100)",
+            "schema": {"level_pct": "int"},
+            "risk_level": 0,
+            "permissions": ["system:media"],
+            "execute": media_player.set_volume,
+        })
 
         # Shell tools
         self.register_tool({

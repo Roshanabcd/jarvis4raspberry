@@ -33,6 +33,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     logger.info("  JARVIS OS — Starting up")
     logger.info("=" * 60)
 
+    # 0. Capture running loop for WebSocket broadcasting
+    try:
+        import apps.api.websocket_api as ws_mod
+        ws_mod._main_loop = asyncio.get_running_loop()
+    except Exception as e:
+        logger.warning(f"Could not bind websocket loop: {e}")
+
     # 1. Sensor manager
     try:
         from hardware.sensors.sensor_manager import sensor_manager  # noqa: F401

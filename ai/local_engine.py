@@ -15,6 +15,28 @@ logger = logging.getLogger("JARVIS.LocalEngine")
 
 # Intent patterns → (intent_name, tool_to_call, template_response)
 INTENTS = [
+    # Media controls (high priority so 'stop music' is not caught by robot stop)
+    (r"\b(pause)\s+(?:the\s+)?(?:music|song|track|audio|playback)\b", "pause_media", None),
+    (r"\b(stop|halt|kill|end)\s+(?:the\s+)?(?:music|song|track|audio|playback|playing)\b", "stop_media", None),
+    (r"\b(resume|continue|unpause)\s+(?:the\s+)?(?:music|song|track|playback)\b", "resume_media", None),
+    (r"\b(what('s|\s+is)\s+playing|what\s+song\b|current\s+song|now\s+playing)\b", "media_status", None),
+    (r"\b(?:play|stream|listen to)\s+(?:a\s+|the\s+)?(?:song|music|track|audio|tune)\s*(.*)", "play_media", None),
+    (r"\bplay\s+([a-zA-Z0-9_\-\s\'\"]+)", "play_media", None),
+
+    # Volume control
+    (r"\b(?:set|change)\s+volume\s+(?:to\s+)?(\d+)\%?\b", "set_volume", None),
+    (r"\b(volume\s+up|increase\s+volume|turn\s+it\s+up|louder)\b", "volume_up", None),
+    (r"\b(volume\s+down|decrease\s+volume|turn\s+it\s+down|quieter|lower\s+volume)\b", "volume_down", None),
+
+    # Folder & File Search and Opening
+    (r"\b(?:open|show|explore|view)\s+(?:the\s+)?(.+?)\s+(?:folder|directory|dir)\s+(?:located\s+in|in|at)\s+(.+)", "open_folder_at", None),
+    (r"\b(?:open|show|explore|view|browse)\s+(?:the\s+)?(?:folder|directory|dir)\s+(.+)", "open_folder", None),
+    (r"\b(?:open|show|explore)\s+(downloads|music|desktop|documents|home|pictures|videos)\s*(?:folder|directory|dir)?\b", "open_folder", None),
+    (r"\b(?:search|find|locate|look for)\s+(?:for\s+)?(?:the\s+)?(.+?)\s+(?:folder|directory|dir)\b", "search_folder", None),
+    (r"\b(?:search|find|locate)\s+(?:folder|directory|dir)\s+(.+)", "search_folder", None),
+    (r"\b(?:search|find|locate|look for)\s+(?:for\s+)?(?:the\s+)?(.+?)\s+file\b", "search_file", None),
+    (r"\b(?:search|find|locate)\s+file\s+(.+)", "search_file", None),
+
     # Math (highest priority to not get caught by web_search "what is")
     (r"\d+\s*[\+\-\*\/]\s*\d+", "calculate", None),
     (r"\b(calculate|compute|math|solve)\s+([\d\+\-\*\/\^\(\)\.\s]+)", "calculate", None),
@@ -45,18 +67,19 @@ INTENTS = [
     (r"\b(what do you remember|recall|search memory|look up|what do you know about|tell me about|do you know)\s+(.+)?", "memory_search", None),
 
     # Desktop Apps & Editors
-    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code|visual studio code|editor|terminal|browser|mousepad|lxterminal)\b", "open_app", None),
+    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
     (r"\b(open\s+.*in\s+(?:vs\s*code|vscode|code|editor|mousepad))\b", "open_app", None),
 
     # Coding & Program Execution
     (r"\b(write|create|code|make)\b.*python\b.*(calculator|calc)", "create_calculator", None),
-    (r"\b(write|create|code|make)\b.*python\s+(?:program|script|code|file)", "write_code", None),
+    (r"\b(write|create|code)\s+python\s+(?:program|script|code)\s+(?:to|for)\s+(.+)", "write_code", None),
     (r"\b(run|execute)\s+(?:the\s+)?(?:python\s+)?(?:program|script|code|file|calculator)\b", "run_code", None),
 
     # File
     (r"\b(read|open|cat|display)\s+file\s+(\S+)", "read_file", None),
     (r"\b(cat|display)\s+(\S+\.\w+)", "read_file", None),
-    (r"\b(write|create|save|make)\s+(?:file\s+)?(\S+)", "write_file", None),
+    (r"\b(write|save)\s+file\s+(\S+)", "write_file", None),
+    (r"\b(write|save)\s+(?:to\s+)?([a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+)\b", "write_file", None),
     (r"\b(list files?|ls|dir|directory)\b", "list_files", None),
 
     # Web search
@@ -93,13 +116,6 @@ class LocalIntelligenceEngine:
         """Returns (intent_name, extracted_args)"""
         text_lower = text.lower().strip()
 
-        # Check for code creation or app launch first before conceptual filter
-        if re.search(r"\b(vs\s*code|vscode|code|calculator|calc|python)\b", text_lower):
-            for pattern, intent, _ in INTENTS:
-                m = re.search(pattern, text_lower)
-                if m:
-                    return intent, {"match": m, "text": text}
-
         # Conceptual, educational, or creative queries route to LLM
         if re.search(r"\b(explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
             return "general", {"text": text}
@@ -107,7 +123,27 @@ class LocalIntelligenceEngine:
         for pattern, intent, _ in INTENTS:
             m = re.search(pattern, text_lower)
             if m:
-                return intent, {"match": m, "text": text}
+                extracted = {"match": m, "text": text}
+                if intent == "play_media":
+                    groups = [g for g in m.groups() if g]
+                    if groups:
+                        cand = groups[-1].strip()
+                        if cand.lower() not in ("song", "music", "track", "audio", "tune"):
+                            extracted["query"] = cand
+                elif intent == "search_folder":
+                    if m.lastindex:
+                        extracted["query"] = m.group(m.lastindex).strip()
+                elif intent == "open_folder":
+                    if m.lastindex:
+                        extracted["folder"] = m.group(m.lastindex).strip()
+                elif intent == "open_folder_at":
+                    groups = [g for g in m.groups() if g]
+                    if len(groups) >= 2:
+                        extracted["folder"] = groups[0].strip()
+                        raw_parent = groups[1].strip()
+                        clean_parent = re.sub(r"\s+(?:folder|directory|dir|location)$", "", raw_parent, flags=re.I).strip()
+                        extracted["parent"] = clean_parent
+                return intent, extracted
 
         return "general", {"text": text}
 
@@ -235,16 +271,154 @@ class LocalIntelligenceEngine:
                     resp = f"No memories found matching \"{clean_q or query}\"."
                 return {"response": resp, "tools_used": tools_used}
 
+            # ── Media Playback ──────────────────────────────────────────
+            elif intent == "play_media":
+                m_track = None
+                if match:
+                    groups = [g for g in match.groups() if g]
+                    if groups:
+                        cand = groups[-1].strip()
+                        if cand.lower() not in ("song", "music", "track", "audio", "tune"):
+                            m_track = cand
+                raw = self.executor.execute("play_media", {"query": m_track or ""})
+                tools_used.append("play_media")
+                res = json.loads(raw)
+                if res.get("status") == "playing":
+                    title = res.get("title", m_track or "Audio Track")
+                    src = "local storage" if res.get("source") == "local" else "online stream"
+                    return {"response": f"🎵 Now playing '{title}' from {src} through the physical speaker.", "tools_used": tools_used, "raw": res}
+                else:
+                    return {"response": f"⚠️ Media playback issue: {res.get('message', 'Unable to play requested audio.')}", "tools_used": tools_used, "raw": res}
+
+            elif intent == "stop_media":
+                raw = self.executor.execute("stop_media", {})
+                tools_used.append("stop_media")
+                res = json.loads(raw)
+                return {"response": f"⏹️ Audio playback stopped.", "tools_used": tools_used, "raw": res}
+
+            elif intent == "pause_media":
+                raw = self.executor.execute("pause_media", {})
+                tools_used.append("pause_media")
+                res = json.loads(raw)
+                return {"response": f"⏸️ {res.get('message', 'Audio playback paused.')}", "tools_used": tools_used, "raw": res}
+
+            elif intent == "resume_media":
+                raw = self.executor.execute("resume_media", {})
+                tools_used.append("resume_media")
+                res = json.loads(raw)
+                return {"response": f"▶️ {res.get('message', 'Audio playback resumed.')}", "tools_used": tools_used, "raw": res}
+
+            elif intent == "media_status":
+                from tools.media.media_player import media_player
+                st = media_player.status()
+                if st.get("is_playing"):
+                    return {"response": f"🎵 Currently playing '{st.get('track')}' through the speaker.", "tools_used": ["media_status"]}
+                elif st.get("is_paused"):
+                    return {"response": f"⏸️ Playback of '{st.get('track')}' is currently paused.", "tools_used": ["media_status"]}
+                else:
+                    return {"response": "🔇 No audio is currently playing.", "tools_used": ["media_status"]}
+
+            # ── Volume Control ──────────────────────────────────────────
+            elif intent == "set_volume":
+                vol = 70
+                if match and match.group(1):
+                    vol = int(match.group(1))
+                raw = self.executor.execute("set_volume", {"level_pct": vol})
+                tools_used.append("set_volume")
+                return {"response": f"🔊 Speaker volume set to {vol}%.", "tools_used": tools_used}
+
+            elif intent == "volume_up":
+                from tools.media.media_player import media_player
+                res = media_player.adjust_volume(+15)
+                tools_used.append("set_volume")
+                return {"response": f"🔊 Volume increased to {res.get('volume_pct', 'higher')}%.", "tools_used": tools_used, "raw": res}
+
+            elif intent == "volume_down":
+                from tools.media.media_player import media_player
+                res = media_player.adjust_volume(-15)
+                tools_used.append("set_volume")
+                return {"response": f"🔉 Volume decreased to {res.get('volume_pct', 'lower')}%.", "tools_used": tools_used, "raw": res}
+
+            # ── Folder & File Navigation ───────────────────────────────
+            elif intent == "search_folder":
+                query = text
+                if match:
+                    groups = [g for g in match.groups() if g]
+                    if groups:
+                        query = groups[-1].strip()
+                raw = self.executor.execute("search_folders", {"query": query})
+                tools_used.append("search_folders")
+                res = json.loads(raw)
+                folders = res if isinstance(res, list) else res.get("folders", [])
+                if folders:
+                    bullet = "\n".join(f"  📁 **{f['name']}** — `{f['path']}` ({f['items_count']} items)" for f in folders[:5])
+                    return {"response": f"Found {len(folders)} folder(s) matching '{query}':\n{bullet}", "tools_used": tools_used, "raw": res}
+                else:
+                    return {"response": f"No folders found matching '{query}' in your workspace directories.", "tools_used": tools_used, "raw": res}
+
+            elif intent == "search_file":
+                query = text
+                if match:
+                    groups = [g for g in match.groups() if g]
+                    if groups:
+                        query = groups[-1].strip()
+                from tools.filesystem.file_tools import file_tools
+                home = file_tools.workspaces.get("HOME", os.path.expanduser("~"))
+                matches = file_tools.search_files(home, f"*{query}*")
+                tools_used.append("search_files")
+                if matches:
+                    bullet = "\n".join(f"  📄 `{p}`" for p in matches[:5])
+                    return {"response": f"Found {len(matches)} file(s) matching '{query}':\n{bullet}", "tools_used": tools_used}
+                else:
+                    return {"response": f"No files found matching '{query}'.", "tools_used": tools_used}
+
+            elif intent == "open_folder_at":
+                folder_name = ctx.get("folder", "")
+                parent_loc = ctx.get("parent", "")
+                if not folder_name and match:
+                    groups = [g for g in match.groups() if g]
+                    if len(groups) >= 2:
+                        folder_name = groups[0].strip()
+                        parent_loc = re.sub(r"\s+(?:folder|directory|dir|location)$", "", groups[1].strip(), flags=re.I).strip()
+                raw = self.executor.execute("open_folder", {"folder_name": folder_name, "parent_location": parent_loc})
+                tools_used.append("open_folder")
+                res = json.loads(raw)
+                if res.get("status") == "opened":
+                    items_str = ", ".join(res.get("items", [])[:8]) or "empty"
+                    return {"response": f"📂 Successfully opened folder '{res.get('name')}' at `{res.get('path')}`.\nContents ({res.get('total_items')} items): {items_str}.", "tools_used": tools_used, "raw": res}
+                else:
+                    return {"response": f"⚠️ {res.get('message', f'Could not open folder {folder_name}.')}", "tools_used": tools_used, "raw": res}
+
+            elif intent == "open_folder":
+                folder_name = ctx.get("folder", "")
+                if not folder_name and match:
+                    groups = [g for g in match.groups() if g]
+                    if groups:
+                        folder_name = groups[-1].strip()
+                raw = self.executor.execute("open_folder", {"folder_name": folder_name})
+                tools_used.append("open_folder")
+                res = json.loads(raw)
+                if res.get("status") == "opened":
+                    items_str = ", ".join(res.get("items", [])[:8]) or "empty"
+                    return {"response": f"📂 Opened folder '{res.get('name')}' at `{res.get('path')}`.\nContents ({res.get('total_items')} items): {items_str}.", "tools_used": tools_used, "raw": res}
+                else:
+                    return {"response": f"⚠️ {res.get('message', f'Could not open folder {folder_name}.')}", "tools_used": tools_used, "raw": res}
+
+            # ── Desktop Apps & Editors ────────────────────────────────
             elif intent == "open_app":
                 target_app = "code"
                 text_lower = text.lower()
                 if "terminal" in text_lower or "lxterminal" in text_lower:
                     target_app = "lxterminal"
-                elif "browser" in text_lower or "chromium" in text_lower:
+                elif "browser" in text_lower or "chromium" in text_lower or "chrome" in text_lower:
                     target_app = "chromium-browser"
-                elif "mousepad" in text_lower:
+                elif "calculator" in text_lower or "galculator" in text_lower:
+                    target_app = "galculator"
+                elif "mousepad" in text_lower or "text editor" in text_lower:
                     target_app = "mousepad"
-                elif "code" in text_lower or "vs" in text_lower:
+                elif "file manager" in text_lower or "files" in text_lower or "pcmanfm" in text_lower:
+                    target_app = "pcmanfm"
+                elif "vs code" in text_lower or "vscode" in text_lower or "visual studio code" in text_lower or "code" in text_lower:
                     target_app = "code"
 
                 target_file = None

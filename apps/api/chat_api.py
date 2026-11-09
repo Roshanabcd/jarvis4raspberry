@@ -39,11 +39,11 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
         use_tools=req.use_tools,
         session_id=req.session_id,
     )
-    # Generate speech for every final response
+    # Generate speech for every final response and speak through physical speaker
     resp_text = result.get("response", "")
     if resp_text:
         try:
-            audio_info = speech_manager.synthesize_and_stage(resp_text)
+            audio_info = speech_manager.synthesize_and_stage(resp_text, play_system=True)
             result["audio_id"] = audio_info.get("audio_id")
             result["audio_url"] = audio_info.get("audio_url")
             result["audio_provider"] = audio_info.get("provider")
@@ -79,10 +79,10 @@ def chat_stream_endpoint(req: ChatRequest):
                 payload = json.dumps(event)
                 yield f"data: {payload}\n\n"
 
-            # Stream complete: synthesize speech for the full final response
+            # Stream complete: synthesize speech for the full final response and speak through speaker
             if full_text.strip():
                 try:
-                    audio_info = speech_manager.synthesize_and_stage(full_text.strip())
+                    audio_info = speech_manager.synthesize_and_stage(full_text.strip(), play_system=True)
                     audio_event = {
                         "type": "audio",
                         "audio_id": audio_info.get("audio_id"),
@@ -138,6 +138,32 @@ def ai_status():
     from ai.brain import get_brain
     brain = get_brain()
     return brain.status()
+
+
+@chat_router.get("/history")
+def get_history_endpoint():
+    """Retrieve dialogue history turns."""
+    from ai.brain import get_brain
+    from apps.voice.service import voice_service
+    brain = get_brain()
+    history = []
+    if hasattr(brain, "_history") and brain._history:
+        for item in brain._history:
+            history.append({
+                "role": item.get("role", "user"),
+                "text": item.get("content", item.get("text", "")),
+                "timestamp": item.get("timestamp"),
+            })
+    elif hasattr(voice_service, "conversation") and voice_service.conversation:
+        conv = voice_service.conversation
+        turns = conv.get_turns(50) if hasattr(conv, "get_turns") else getattr(conv, "turns", [])
+        for t in turns:
+            history.append({
+                "role": t.get("role", "user"),
+                "text": t.get("text", ""),
+                "timestamp": t.get("timestamp"),
+            })
+    return {"status": "ok", "history": history, "count": len(history)}
 
 
 @chat_router.delete("/history")
