@@ -80,6 +80,92 @@ class MemoryDB:
                     created_at  REAL    NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS conversation_messages (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id  TEXT    NOT NULL,
+                    request_id  TEXT,
+                    message_id  TEXT    UNIQUE NOT NULL,
+                    role        TEXT    NOT NULL,
+                    content     TEXT    NOT NULL,
+                    timestamp   REAL    NOT NULL,
+                    provider    TEXT,
+                    model       TEXT,
+                    tools_used  TEXT    DEFAULT '[]',
+                    status      TEXT    DEFAULT 'completed',
+                    error       TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_conv_session ON conversation_messages(session_id, timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_conv_msg_id ON conversation_messages(message_id)")
+
+    # ------------------------------------------------------------------
+    # Persistent Conversation Storage (Phase 1J)
+    # ------------------------------------------------------------------
+
+    def save_message(
+        self,
+        session_id: str,
+        message_id: str,
+        role: str,
+        content: str,
+        request_id: Optional[str] = None,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        tools_used: Optional[List[Any]] = None,
+        status: str = "completed",
+        error: Optional[str] = None,
+    ) -> int:
+        """Persist a conversation turn to SQLite."""
+        now = time.time()
+        tools_json = json.dumps(tools_used or [])
+        with self._get_conn() as conn:
+            cur = conn.execute(
+                """INSERT OR REPLACE INTO conversation_messages 
+                   (session_id, request_id, message_id, role, content, timestamp, provider, model, tools_used, status, error)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (session_id, request_id, message_id, role, content, now, provider, model, tools_json, status, error)
+            )
+            return cur.lastrowid
+
+    def get_session_messages(self, session_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Retrieve historical turns for a specific session."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                """SELECT session_id, request_id, message_id, role, content, timestamp, provider, model, tools_used, status, error
+                   FROM conversation_messages
+                   WHERE session_id = ?
+                   ORDER BY timestamp ASC
+                   LIMIT ?""",
+                (session_id, limit)
+            ).fetchall()
+            messages = []
+            for r in rows:
+                tools = []
+                try:
+                    tools = json.loads(r["tools_used"]) if r["tools_used"] else []
+                except Exception:
+                    pass
+                messages.append({
+                    "session_id": r["session_id"],
+                    "request_id": r["request_id"],
+                    "message_id": r["message_id"],
+                    "role": r["role"],
+                    "content": r["content"],
+                    "timestamp": r["timestamp"],
+                    "provider": r["provider"],
+                    "model": r["model"],
+                    "tools_used": tools,
+                    "status": r["status"],
+                    "error": r["error"],
+                })
+            return messages
+
+    def clear_session_messages(self, session_id: str) -> int:
+        """Clear all stored messages for a specific session."""
+        with self._get_conn() as conn:
+            cur = conn.execute("DELETE FROM conversation_messages WHERE session_id = ?", (session_id,))
+            return cur.rowcount
 
     # ------------------------------------------------------------------
     # Core CRUD

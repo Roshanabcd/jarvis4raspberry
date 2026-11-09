@@ -115,9 +115,25 @@ class LocalIntelligenceEngine:
         """Returns (intent_name, extracted_args)"""
         text_lower = text.lower().strip()
 
-        # Conceptual, educational, or creative queries route to LLM
-        if re.search(r"\b(explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
-            return "general", {"text": text}
+        # 0. Standalone number check (Test 5: "2020")
+        if re.match(r"^\s*\d+(?:\.\d+)?\s*$", text.strip()):
+            return "standalone_number", {"number": text.strip(), "text": text}
+
+        # 1. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
+        # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
+        if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
+            # Unless explicitly commanding to open desktop editor or run an existing script
+            if not re.search(r"\b(?:open|launch|start)\b.*(?:vs\s*code|vscode|mousepad|lxterminal)\b", text_lower) and not re.search(r"\b(?:run|execute)\s+(?:the\s+)?(?:python\s+)?(?:script|file|code|program)\b", text_lower):
+                return "general", {"text": text}
+
+        # 2. Conversational history recall (Test 8: "What was my first question?")
+        if re.search(r"\b(what was my (?:first|last|previous) question|what did i (?:ask|say)|previous question|first question)\b", text_lower):
+            return "history_recall", {"text": text}
+
+        # 3. Deterministic natural-language math check (Test 6: "What is 25 multiplied by 4?", "15 percent of 800", "What is 1024 * 2 + 50?")
+        if re.search(r"\b(?:\d+(?:\.\d+)?\s*(?:multiplied\s+by|times|\*|divided\s+by|\/|plus|\+|minus|\-|to\s+the\s+power\s+of|\^|%|percent\s+of)\s*\d+|\d+\s*[\+\-\*\/]\s*\d+)", text_lower):
+            clean_math = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', text.strip(), flags=re.I).rstrip('?.')
+            return "calculate", {"expression": clean_math, "text": text}
 
         for pattern, intent, _ in INTENTS:
             m = re.search(pattern, text_lower)
@@ -155,14 +171,22 @@ class LocalIntelligenceEngine:
         tools_used = []
 
         try:
-            if intent == "identity":
+            if intent == "standalone_number":
+                num = ctx.get("number", text)
+                return {
+                    "response": f"You mentioned the number {num}. How would you like me to use it? (e.g., perform a calculation, look up records, or store it in memory?)",
+                    "tools_used": [],
+                }
+
+            elif intent == "identity":
                 return self._respond_identity()
 
             elif intent == "help":
                 return self._respond_help()
 
             elif intent == "calculate":
-                return self._respond_calculate(text)
+                calc_expr = ctx.get("expression") or text
+                return self._respond_calculate(calc_expr)
 
             elif intent == "robot_forward":
                 speed = self._extract_speed(text) or 50
@@ -645,30 +669,32 @@ if __name__ == "__main__":
         }
 
     def _respond_calculate(self, text: str) -> Dict:
-        nums_expr = re.findall(r'[\d\+\-\*\/\^\(\)\.\s]+', text)
-        for expr in sorted(nums_expr, key=len, reverse=True):
-            expr = expr.strip()
-            if len(expr) < 3:
-                continue
-            try:
-                result = eval(expr.replace("^", "**"), {"__builtins__": {}})
-                return {"response": f"{expr.strip()} = **{result}**", "tools_used": []}
-            except Exception:
-                pass
-        return {"response": "I couldn't parse that math expression. Try: 'what is 15 * 7 + 3'?", "tools_used": []}
+        from tools.calculator.calculator_tools import calculator_tools
+        res = calculator_tools.calculate(text)
+        if res.get("success"):
+            val = res["result"]
+            expr = res.get("expression", text.strip())
+            return {
+                "response": f"Calculation: {expr} = **{val}**",
+                "tools_used": ["calculate"],
+                "raw": res,
+            }
+        return {
+            "response": f"Calculation error: {res.get('error', 'I could not compute that expression.')}",
+            "tools_used": ["calculate"],
+            "raw": res,
+        }
 
     def _respond_general(self, text: str) -> Dict:
         return {
             "response": (
-                f"I understand you said: \"{text}\"\n\n"
-                "I'm running in local intelligence mode (no LLM connected). "
-                "I can directly execute: robot control, sensor reads, system status, camera capture, "
-                "file operations, web search, and memory storage.\n\n"
-                "For open-ended conversation and complex reasoning, add GOOGLE_API_KEY to your .env file "
-                "— Google Gemini is free at aistudio.google.com.\n\n"
-                "Say 'help' for a full list of commands."
+                f"⚠️ AI Provider Error: No active language model is available to process: '{text}'.\n\n"
+                "The local Ollama server at http://127.0.0.1:11434 is not responding or unreachable. "
+                "Please verify that Ollama is active (`ollama serve` or `systemctl status ollama`) with models "
+                "`llama3.2:1b` or `qwen3.5:4b` installed."
             ),
-            "tools_used": []
+            "tools_used": [],
+            "error": "No active LLM provider connected",
         }
 
     def _format_sensors(self, data: dict) -> str:
@@ -697,10 +723,17 @@ if __name__ == "__main__":
             return f"System status unavailable: {data['error']}"
         lines = ["💻 System Status:"]
         lines.append(f"  🔲 CPU: {data.get('cpu_usage_pct', 0):.1f}%")
-        lines.append(f"  💾 RAM: {data.get('ram_pct', 0):.1f}% used ({data.get('ram_used_gb', 0):.1f}GB / {data.get('ram_total_gb', 0):.1f}GB)")
-        if data.get('temp_c'):
+        ram_pct = data.get('ram_pct', 0)
+        ram_used = data.get('ram_used_gb', 0)
+        ram_total = data.get('ram_total_gb', 0)
+        ram_avail = data.get('ram_avail_gb', 0)
+        lines.append(f"  💾 RAM: {ram_pct:.1f}% used ({ram_used:.2f} GB / {ram_total:.2f} GB, Available: {ram_avail:.2f} GB)")
+        if data.get('temp_c') is not None:
             lines.append(f"  🌡️  CPU Temp: {data.get('temp_c')}°C")
-        lines.append(f"  💿 Disk: {data.get('disk_pct', 0):.1f}% used")
+        disk_pct = data.get('disk_pct', 0)
+        disk_used = data.get('disk_used_gb', 0)
+        disk_total = data.get('disk_total_gb', 0)
+        lines.append(f"  💿 Disk: {disk_pct:.1f}% used ({disk_used:.1f} GB / {disk_total:.1f} GB)")
         lines.append(f"  ⏱️  Uptime: {data.get('uptime_str', 'N/A')}")
         lines.append(f"  🤖 Robot: {data.get('robot_state', 'UNKNOWN')}")
         return "\n".join(lines)

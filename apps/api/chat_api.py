@@ -18,6 +18,7 @@ class ChatRequest(BaseModel):
     use_tools: bool = True
     provider: Optional[str] = None
     model: Optional[str] = None
+    speak: bool = False
 
 
 class ModelSwitchRequest(BaseModel):
@@ -29,7 +30,6 @@ class ModelSwitchRequest(BaseModel):
 def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
     """Process a chat message through the JARVIS AI brain synchronously."""
     from ai.brain import get_brain
-    from apps.voice.speech_manager import speech_manager
     brain = get_brain()
     if req.provider:
         brain.set_active_provider(req.provider, req.model)
@@ -39,10 +39,12 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
         use_tools=req.use_tools,
         session_id=req.session_id,
     )
-    # Generate speech for every final response and speak through physical speaker
+
+    # Text-first: only synthesize speech if explicitly requested (speak=True)
     resp_text = result.get("response", "")
-    if resp_text:
+    if req.speak and resp_text:
         try:
+            from apps.voice.speech_manager import speech_manager
             audio_info = speech_manager.synthesize_and_stage(resp_text, play_system=True)
             result["audio_id"] = audio_info.get("audio_id")
             result["audio_url"] = audio_info.get("audio_url")
@@ -59,10 +61,10 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
 def chat_stream_endpoint(req: ChatRequest):
     """
     Stream chat tokens in real-time using Server-Sent Events (SSE).
-    Generates audio on completion and streams audio_url event.
+    Text-first delivery: text is progressively streamed with immediate rendering.
+    Audio is only staged post-stream if req.speak is True.
     """
     from ai.brain import get_brain
-    from apps.voice.speech_manager import speech_manager
     brain = get_brain()
 
     def event_stream():
@@ -79,9 +81,10 @@ def chat_stream_endpoint(req: ChatRequest):
                 payload = json.dumps(event)
                 yield f"data: {payload}\n\n"
 
-            # Stream complete: synthesize speech for the full final response and speak through speaker
-            if full_text.strip():
+            # Optional post-stream speech synthesis if explicitly enabled
+            if req.speak and full_text.strip():
                 try:
+                    from apps.voice.speech_manager import speech_manager
                     audio_info = speech_manager.synthesize_and_stage(full_text.strip(), play_system=True)
                     audio_event = {
                         "type": "audio",
@@ -141,38 +144,40 @@ def ai_status():
 
 
 @chat_router.get("/history")
-def get_history_endpoint():
-    """Retrieve dialogue history turns."""
+def get_history_endpoint(session_id: Optional[str] = None):
+    """Retrieve dialogue history turns from persistent SQLite store."""
+    from memory.long_term.database import db
     from ai.brain import get_brain
-    from apps.voice.service import voice_service
     brain = get_brain()
-    history = []
-    if hasattr(brain, "_history") and brain._history:
-        for item in brain._history:
-            history.append({
-                "role": item.get("role", "user"),
-                "text": item.get("content", item.get("text", "")),
-                "timestamp": item.get("timestamp"),
-            })
-    elif hasattr(voice_service, "conversation") and voice_service.conversation:
-        conv = voice_service.conversation
-        turns = conv.get_turns(50) if hasattr(conv, "get_turns") else getattr(conv, "turns", [])
-        for t in turns:
-            history.append({
-                "role": t.get("role", "user"),
-                "text": t.get("text", ""),
-                "timestamp": t.get("timestamp"),
-            })
-    return {"status": "ok", "history": history, "count": len(history)}
+    sid = session_id or "default"
+    db_turns = db.get_session_messages(sid, limit=50)
+    history = [
+        {
+            "role": t["role"],
+            "text": t["content"],
+            "content": t["content"],
+            "timestamp": t["timestamp"],
+            "message_id": t["message_id"],
+            "provider": t["provider"],
+            "model": t["model"],
+            "tools_used": t["tools_used"],
+        }
+        for t in db_turns
+    ]
+    return {"status": "ok", "session_id": sid, "history": history, "count": len(history)}
 
 
 @chat_router.delete("/history")
-def clear_history():
-    """Clear conversation history."""
+def clear_history(session_id: Optional[str] = None):
+    """Clear conversation history for a specific session."""
+    from memory.long_term.database import db
     from ai.brain import get_brain
     brain = get_brain()
-    brain._history.clear()
-    return {"status": "cleared"}
+    sid = session_id or "default"
+    if sid in brain._sessions:
+        brain._sessions[sid].clear()
+    count = db.clear_session_messages(sid)
+    return {"status": "cleared", "session_id": sid, "deleted_count": count}
 
 
 class PromptTestRequest(BaseModel):

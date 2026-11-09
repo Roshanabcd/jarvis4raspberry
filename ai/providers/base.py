@@ -384,7 +384,10 @@ class OllamaProvider(AIProvider):
                     "model": model_to_use,
                     "messages": chat_messages,
                     "stream": False,
-                    "options": {"temperature": kwargs.get("temperature", 0.4), "num_predict": 256}
+                    "options": {
+                        "temperature": kwargs.get("temperature", 0.2),
+                        "num_predict": kwargs.get("num_predict", 1024),
+                    }
                 },
                 timeout=req_timeout,
             )
@@ -437,7 +440,10 @@ class OllamaProvider(AIProvider):
                     "model": model_to_use,
                     "messages": chat_messages,
                     "stream": True,
-                    "options": {"temperature": 0.4}
+                    "options": {
+                        "temperature": kwargs.get("temperature", 0.2),
+                        "num_predict": kwargs.get("num_predict", 2048),
+                    }
                 },
                 stream=True,
                 timeout=req_timeout,

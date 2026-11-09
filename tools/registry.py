@@ -674,51 +674,97 @@ class ToolRegistry:
 
         # ── Category A: System Tools ──────────────────────────
         from hardware.raspberry_pi.rpi_info import get_system_status, get_cpu_temp, is_online
+        from tools.system.system_tools import system_tools, robot_info_tools
+        from tools.calculator.calculator_tools import calculator_tools
+        from tools.datetime.datetime_tools import datetime_tools
 
         def _fn_get_system_status(**_):
-            st = get_system_status()
-            st["cpu_temp_c"] = get_cpu_temp()
-            return st
+            return system_tools.get_system_status()
+
+        def _fn_get_cpu_usage(**_):
+            return system_tools.get_cpu_usage()
+
+        def _fn_get_memory_usage(**_):
+            return system_tools.get_memory_usage()
+
+        def _fn_get_uptime(**_):
+            return system_tools.get_uptime()
+
+        def _fn_get_disk_usage(mount_point: str = "/", **_):
+            return system_tools.get_disk_usage(mount_point)
+
+        def _fn_get_cpu_temperature(**_):
+            return system_tools.get_cpu_temperature()
+
+        def _fn_get_application_status(**_):
+            return system_tools.get_application_status()
 
         def _fn_get_network_status(**_):
-            import socket, psutil
-            try:
-                hostname = socket.gethostname()
-                ip = socket.gethostbyname(hostname)
-            except Exception:
-                ip = "127.0.0.1"
-            net = psutil.net_io_counters()
-            return {
-                "hostname": socket.gethostname(),
-                "local_ip": ip,
-                "online": is_online(),
-                "bytes_sent": net.bytes_sent,
-                "bytes_recv": net.bytes_recv,
-            }
-
-        def _fn_get_process_info(limit: int = 5, **_):
-            import psutil
-            procs = []
-            for p in sorted(psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']),
-                            key=lambda x: x.info['cpu_percent'] or 0, reverse=True)[:int(limit)]:
-                procs.append(p.info)
-            return {"top_processes": procs}
-
-        def _fn_get_service_status(service: str = "jarvis-core", **_):
-            import subprocess
-            try:
-                out = subprocess.check_output(["systemctl", "is-active", service], text=True).strip()
-                return {"service": service, "status": out, "active": out == "active"}
-            except Exception as e:
-                return {"service": service, "status": "inactive", "error": str(e)}
+            return system_tools.get_network_status()
 
         self.register_tool({
             "name": "get_system_status",
-            "description": "Get real-time CPU, RAM, temperature, disk usage, and host system status",
+            "description": "Get real-time CPU, RAM (total, used, avail in GB), temperature, disk usage, uptime, and robot state",
             "schema": {},
             "risk_level": 0,
             "permissions": ["system:read"],
             "execute": _fn_get_system_status,
+        })
+        self.register_tool({
+            "name": "system_status",
+            "description": "Alias for get_system_status",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_system_status,
+        })
+        self.register_tool({
+            "name": "get_cpu_usage",
+            "description": "Get real-time CPU percentage and frequency",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_cpu_usage,
+        })
+        self.register_tool({
+            "name": "get_memory_usage",
+            "description": "Get real-time RAM and swap memory usage in GB and percentages",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_memory_usage,
+        })
+        self.register_tool({
+            "name": "get_uptime",
+            "description": "Get real Linux uptime from /proc/uptime formatted in days, hours, minutes, seconds",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_uptime,
+        })
+        self.register_tool({
+            "name": "get_disk_usage",
+            "description": "Get disk usage (total, used, free GB and %) for a mount point",
+            "schema": {"mount_point": "str"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_disk_usage,
+        })
+        self.register_tool({
+            "name": "get_cpu_temperature",
+            "description": "Get CPU thermal-zone temperature in degrees Celsius",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_cpu_temperature,
+        })
+        self.register_tool({
+            "name": "get_application_status",
+            "description": "Get status of core services (Ollama, PipeWire, Jarvis core)",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_application_status,
         })
         self.register_tool({
             "name": "get_network_status",
@@ -728,21 +774,123 @@ class ToolRegistry:
             "permissions": ["system:read"],
             "execute": _fn_get_network_status,
         })
+
+        # ── Category A2: Calculator Tools ─────────────────────
         self.register_tool({
-            "name": "get_process_info",
-            "description": "List top running processes sorted by resource consumption",
-            "schema": {"limit": "int"},
+            "name": "calculate",
+            "description": "Evaluate mathematical expression accurately (e.g., '25 * 4', '25 multiplied by 4', '15 percent of 800')",
+            "schema": {"expression": "str"},
             "risk_level": 0,
-            "permissions": ["system:read"],
-            "execute": _fn_get_process_info,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.calculate,
         })
         self.register_tool({
-            "name": "get_service_status",
-            "description": "Query status of a local systemd service daemon",
-            "schema": {"service": "str"},
+            "name": "add",
+            "description": "Add two numbers together",
+            "schema": {"a": "float", "b": "float"},
             "risk_level": 0,
-            "permissions": ["system:read"],
-            "execute": _fn_get_service_status,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.add,
+        })
+        self.register_tool({
+            "name": "subtract",
+            "description": "Subtract b from a",
+            "schema": {"a": "float", "b": "float"},
+            "risk_level": 0,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.subtract,
+        })
+        self.register_tool({
+            "name": "multiply",
+            "description": "Multiply two numbers together",
+            "schema": {"a": "float", "b": "float"},
+            "risk_level": 0,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.multiply,
+        })
+        self.register_tool({
+            "name": "divide",
+            "description": "Divide a by b with division-by-zero protection",
+            "schema": {"a": "float", "b": "float"},
+            "risk_level": 0,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.divide,
+        })
+        self.register_tool({
+            "name": "percentage",
+            "description": "Calculate percent of a total (e.g. percent=15, total=800 -> 120)",
+            "schema": {"percent": "float", "total": "float"},
+            "risk_level": 0,
+            "permissions": ["math:calculate"],
+            "execute": calculator_tools.percentage,
+        })
+
+        # ── Category A3: Date & Time Tools ────────────────────
+        self.register_tool({
+            "name": "get_current_time",
+            "description": "Get current local time with timezone on Raspberry Pi 5",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["time:read"],
+            "execute": datetime_tools.get_current_time,
+        })
+        self.register_tool({
+            "name": "get_current_date",
+            "description": "Get current local date and day of week",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["time:read"],
+            "execute": datetime_tools.get_current_date,
+        })
+        self.register_tool({
+            "name": "get_timezone",
+            "description": "Get local timezone name, UTC offset, and DST flag",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["time:read"],
+            "execute": datetime_tools.get_timezone,
+        })
+        self.register_tool({
+            "name": "calculate_date_difference",
+            "description": "Calculate day difference between two YYYY-MM-DD dates",
+            "schema": {"start_date": "str", "end_date": "str"},
+            "risk_level": 0,
+            "permissions": ["time:read"],
+            "execute": datetime_tools.calculate_date_difference,
+        })
+        self.register_tool({
+            "name": "format_timestamp",
+            "description": "Format an epoch timestamp using strftime format string",
+            "schema": {"ts": "float", "fmt": "str"},
+            "risk_level": 0,
+            "permissions": ["time:read"],
+            "execute": datetime_tools.format_timestamp,
+        })
+
+        # ── Category A4: Read-Only Robot Info Tools ───────────
+        self.register_tool({
+            "name": "get_robot_status",
+            "description": "Read-only robot controller status and simulation state",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["robot:read"],
+            "execute": robot_info_tools.get_robot_status,
+        })
+        self.register_tool({
+            "name": "get_motor_state",
+            "description": "Read-only motor speed and direction telemetry",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["robot:read"],
+            "execute": robot_info_tools.get_motor_state,
+        })
+        self.register_tool({
+            "name": "get_safety_state",
+            "description": "Read-only e-stop and safety status",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["robot:read"],
+            "execute": robot_info_tools.get_safety_state,
         })
 
         # ── Category B: Robot & Actuator Tools ────────────────

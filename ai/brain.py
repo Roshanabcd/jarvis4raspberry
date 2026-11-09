@@ -8,9 +8,13 @@ Provider priority: Ollama → Gemini → OpenAI → Anthropic
 import json
 import logging
 import os
+import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 from config.config_manager import config
+from memory.long_term.database import db
+from ai.agents.task_orchestrator import CompoundTaskOrchestrator
 from ai.providers.base import (
     AIProvider, OllamaProvider, GeminiProvider,
     OpenAIProvider, AnthropicProvider, NvidiaNimProvider,
@@ -51,15 +55,36 @@ MAX_TOOL_ROUNDS = 5  # Prevent infinite loops
 class JARVISBrain:
     """
     The production AI brain for JARVIS OS.
-    Runs real inference using the best available provider with tool calling.
+    Runs real inference using the best available provider with tool calling,
+    deterministic hardware execution, and persistent session memory.
     """
 
     def __init__(self) -> None:
         self._providers: List[AIProvider] = []
         self._active: Optional[AIProvider] = None
         self._executor = ToolExecutor()
-        self._history: List[Dict] = []   # Conversation history
+        self._sessions: Dict[str, List[Dict[str, Any]]] = {}
         self._init_providers()
+
+    @property
+    def _history(self) -> List[Dict[str, Any]]:
+        """Backward compatibility: returns history of default session."""
+        return self._get_session_history("default")
+
+    def _get_session_history(self, session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieve in-memory session history, hydrating from SQLite DB if needed."""
+        sid = session_id or "default"
+        if sid not in self._sessions:
+            try:
+                persisted = db.get_session_messages(sid, limit=30)
+                self._sessions[sid] = [
+                    {"role": m["role"], "content": m["content"], "timestamp": m.get("timestamp", time.time())}
+                    for m in persisted
+                ]
+            except Exception as e:
+                logger.warning(f"Error loading session history for {sid}: {e}")
+                self._sessions[sid] = []
+        return self._sessions[sid]
 
     def _init_providers(self) -> None:
         """Build provider list from config + environment variables.
@@ -114,7 +139,6 @@ class JARVISBrain:
                 api_key=custom_cfg.get("api_key", ""),
                 model=custom_cfg.get("model", "custom-model"),
             ))
-
 
     def _get_provider(self, name: Optional[str] = None) -> Optional[AIProvider]:
         """Select provider by name or choose the first available provider."""
@@ -194,70 +218,184 @@ class JARVISBrain:
         model_name: Optional[str] = None,
     ):
         """
-        Stream chat response token-by-token.
-        Yields events:
-        - {"type": "start", "provider": ..., "model": ...}
-        - {"type": "token", "content": "..."}
-        - {"type": "done", "provider": ..., "model": ..., "ttft_ms": ..., "total_ms": ...}
+        Stream chat response token-by-token with progressive SSE rendering,
+        unique message correlation, and persistent conversation storage.
         """
-        import time
-        from ai.local_engine import LocalIntelligenceEngine
-
+        sid = session_id or "default"
+        request_id = f"req_{uuid.uuid4().hex[:12]}"
+        user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+        asst_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+        history = self._get_session_history(sid)
         t_start = time.time()
+
+        # 1. Compound multi-task check (Test 7)
+        if CompoundTaskOrchestrator.is_compound_request(user_message):
+            yield {
+                "type": "start",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "compound_orchestrator",
+                "model": "hybrid_multi_task_agent",
+            }
+            comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid)
+            resp_text = comp_res.get("response", "")
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="compound_orchestrator", model="hybrid_multi_task_agent",
+                            tools_used=comp_res.get("tools_used", []))
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
+            yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+            dur_ms = int((time.time() - t_start) * 1000)
+            yield {
+                "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "compound_orchestrator",
+                "model": "hybrid_multi_task_agent",
+                "ttft_ms": dur_ms,
+                "total_ms": dur_ms,
+                "tokens": len(resp_text.split()),
+                "tools_used": comp_res.get("tools_used", []),
+            }
+            return
+
+        from ai.local_engine import LocalIntelligenceEngine
         engine = LocalIntelligenceEngine()
-        intent, _ = engine.classify_intent(user_message)
+        intent, ctx = engine.classify_intent(user_message)
+
+        # 2. History Recall (Test 8: "What was my first question?")
+        if intent == "history_recall":
+            yield {
+                "type": "start",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "session_memory",
+                "model": "conversation_history",
+            }
+            user_questions = [m["content"] for m in history if m.get("role") == "user"]
+            if not user_questions:
+                db_msgs = db.get_session_messages(sid, limit=50)
+                user_questions = [m["content"] for m in db_msgs if m.get("role") == "user"]
+            if user_questions:
+                first_q = user_questions[0]
+                resp_text = f"Your first question in this session was: \"{first_q}\""
+            else:
+                resp_text = "This is the first question in our current session."
+
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="session_memory", model="conversation_history")
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
+            yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+            dur_ms = int((time.time() - t_start) * 1000)
+            yield {
+                "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "session_memory",
+                "model": "conversation_history",
+                "ttft_ms": dur_ms,
+                "total_ms": dur_ms,
+                "tokens": len(resp_text.split()),
+            }
+            return
 
         FAST_PATH_INTENTS = {
-            "robot_forward", "robot_backward", "robot_left", "robot_right",
+            "standalone_number", "robot_forward", "robot_backward", "robot_left", "robot_right",
             "robot_stop", "robot_estop", "servo_set", "system_status",
             "read_sensors", "calculate", "camera_capture", "memory_store",
             "list_files", "read_file", "write_file", "schedule_task",
-            "identity", "help", "open_app", "create_calculator",
-            "run_code", "play_media", "stop_media",
+            "identity", "help", "open_app", "run_code", "create_calculator", "play_media", "stop_media",
             "pause_media", "resume_media", "media_status", "set_volume",
             "volume_up", "volume_down", "search_folder", "search_file",
             "open_folder", "open_folder_at", "open_file"
         }
 
         if intent in FAST_PATH_INTENTS:
-            yield {"type": "start", "provider": "edge_fastpath", "model": "deterministic_hardware_engine"}
+            yield {
+                "type": "start",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "edge_fastpath",
+                "model": "deterministic_hardware_engine"
+            }
             local_res = engine.respond(user_message)
             resp_text = local_res.get("response", "Action completed.")
-            self._history.append({"role": "user", "content": user_message})
-            self._history.append({"role": "assistant", "content": resp_text})
-            yield {"type": "token", "content": resp_text}
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="edge_fastpath", model="deterministic_hardware_engine",
+                            tools_used=local_res.get("tools_used", []))
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
+            yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+            dur_ms = int((time.time() - t_start) * 1000)
             yield {
                 "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
                 "provider": "edge_fastpath",
                 "model": "deterministic_hardware_engine",
-                "ttft_ms": int((time.time() - t_start) * 1000),
-                "total_ms": int((time.time() - t_start) * 1000),
+                "ttft_ms": dur_ms,
+                "total_ms": dur_ms,
                 "tokens": len(resp_text.split()),
+                "tools_used": local_res.get("tools_used", []),
             }
             return
 
         provider = self._get_provider(provider_name)
-        if not provider:
-            # Fallback
-            fb = self._no_brain_response(user_message)
-            resp_text = fb.get("response", "I processed your request.")
-            yield {"type": "start", "provider": "local_engine", "model": "rule-based"}
-            yield {"type": "token", "content": resp_text}
+        if not provider or not provider.is_available():
+            err_msg = (
+                f"⚠️ AI Provider Error: Ollama server is unreachable at http://127.0.0.1:11434.\n\n"
+                "Please verify that the Ollama daemon is active (`ollama serve` or `systemctl status ollama`) "
+                "with models `llama3.2:1b` or `qwen3.5:4b` installed."
+            )
+            yield {
+                "type": "start",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "error",
+                "model": "none"
+            }
+            yield {"type": "token", "content": err_msg, "request_id": request_id, "message_id": asst_msg_id}
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", err_msg, request_id=request_id,
+                            provider="error", status="failed", error="No active AI provider")
+            dur_ms = int((time.time() - t_start) * 1000)
             yield {
                 "type": "done",
-                "provider": "local_engine",
-                "model": "rule-based",
-                "ttft_ms": 10,
-                "total_ms": 20,
-                "tokens": len(resp_text.split()),
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "error",
+                "model": "none",
+                "error": "No active AI provider reachable",
+                "ttft_ms": dur_ms,
+                "total_ms": dur_ms,
+                "tokens": len(err_msg.split()),
             }
             return
 
         active_model = model_name or getattr(provider, "model", "")
-        yield {"type": "start", "provider": provider.name, "model": active_model}
+        yield {
+            "type": "start",
+            "request_id": request_id,
+            "message_id": asst_msg_id,
+            "session_id": sid,
+            "provider": provider.name,
+            "model": active_model
+        }
 
-        self._history.append({"role": "user", "content": user_message})
-        messages = self._history[-10:]
+        history.append({"role": "user", "content": user_message})
+        messages = history[-10:]
 
         full_response = ""
         ttft_recorded = False
@@ -271,17 +409,34 @@ class JARVISBrain:
                         ttft_ms = int((time.time() - t_start) * 1000)
                         ttft_recorded = True
                     full_response += token
-                    yield {"type": "token", "content": token}
+                    yield {
+                        "type": "token",
+                        "content": token,
+                        "request_id": request_id,
+                        "message_id": asst_msg_id
+                    }
                 if chunk.get("done"):
                     break
 
             if not full_response:
                 full_response = "I have processed your request."
-                yield {"type": "token", "content": full_response}
+                yield {
+                    "type": "token",
+                    "content": full_response,
+                    "request_id": request_id,
+                    "message_id": asst_msg_id
+                }
 
-            self._history.append({"role": "assistant", "content": full_response})
+            history.append({"role": "assistant", "content": full_response})
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", full_response, request_id=request_id,
+                            provider=provider.name, model=active_model, status="completed")
+
             yield {
                 "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
                 "provider": provider.name,
                 "model": active_model,
                 "ttft_ms": ttft_ms or int((time.time() - t_start) * 1000),
@@ -291,9 +446,15 @@ class JARVISBrain:
         except Exception as e:
             logger.error(f"stream_chat failed: {e}")
             err_msg = f"\n[AI Stream Error: {e}]"
-            yield {"type": "token", "content": err_msg}
+            yield {"type": "token", "content": err_msg, "request_id": request_id, "message_id": asst_msg_id}
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", full_response + err_msg, request_id=request_id,
+                            provider=provider.name, model=active_model, status="failed", error=str(e))
             yield {
                 "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
                 "provider": provider.name,
                 "model": active_model,
                 "error": str(e),
@@ -303,24 +464,75 @@ class JARVISBrain:
     def chat(self, user_message: str, use_tools: bool = True,
              session_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Hybrid Intelligence Engine:
-        1. Fast-Path: Deterministic execution (<5ms) for robotics hardware, sensors,
-           safety e-stops, system diagnostics, and math calculations.
-        2. Neural LLM: For general knowledge, conversational reasoning, explanations,
-           creative prompts, and open dialogue (Ollama / Gemini / OpenAI / Anthropic).
-        3. Fallback: Local rule engine if no LLM is reachable.
+        Synchronous chat processing with session isolation, exact response preservation,
+        multi-task orchestration, and deterministic hardware tools.
         """
+        sid = session_id or "default"
+        request_id = f"req_{uuid.uuid4().hex[:12]}"
+        user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+        asst_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
+        history = self._get_session_history(sid)
+
+        # 1. Compound multi-task check (Test 7)
+        if CompoundTaskOrchestrator.is_compound_request(user_message):
+            comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid)
+            resp_text = comp_res.get("response", "")
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="compound_orchestrator", model="hybrid_multi_task_agent",
+                            tools_used=comp_res.get("tools_used", []))
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
+            comp_res.update({
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
+            })
+            return comp_res
+
+        # 2. Intent classification via LocalIntelligenceEngine
         from ai.local_engine import LocalIntelligenceEngine
         engine = LocalIntelligenceEngine()
-        intent, _ = engine.classify_intent(user_message)
+        intent, ctx = engine.classify_intent(user_message)
 
+        # 3. Conversational history recall (Test 8: "What was my first question?")
+        if intent == "history_recall":
+            user_questions = [m["content"] for m in history if m.get("role") == "user"]
+            if not user_questions:
+                db_msgs = db.get_session_messages(sid, limit=50)
+                user_questions = [m["content"] for m in db_msgs if m.get("role") == "user"]
+
+            if user_questions:
+                first_q = user_questions[0]
+                resp_text = f"Your first question in this session was: \"{first_q}\""
+            else:
+                resp_text = "This is the first question in our current session."
+
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="session_memory", model="conversation_history")
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
+            return {
+                "response": resp_text,
+                "provider": "session_memory",
+                "model": "conversation_history",
+                "tools_used": [{"tool": "session_history_lookup"}],
+                "rounds": 1,
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
+            }
+
+        # 4. Fast-Path intents (hardware, sensors, status, math, standalone number, media)
         FAST_PATH_INTENTS = {
-            "robot_forward", "robot_backward", "robot_left", "robot_right",
+            "standalone_number", "robot_forward", "robot_backward", "robot_left", "robot_right",
             "robot_stop", "robot_estop", "servo_set", "system_status",
             "read_sensors", "calculate", "camera_capture", "memory_store",
             "list_files", "read_file", "write_file", "schedule_task",
-            "identity", "help", "open_app", "create_calculator",
-            "run_code", "play_media", "stop_media",
+            "identity", "help", "open_app", "run_code", "create_calculator", "play_media", "stop_media",
             "pause_media", "resume_media", "media_status", "set_volume",
             "volume_up", "volume_down", "search_folder", "search_file",
             "open_folder", "open_folder_at", "open_file"
@@ -330,8 +542,12 @@ class JARVISBrain:
             logger.info(f"Fast-path execution for intent: {intent}")
             local_res = engine.respond(user_message)
             resp_text = local_res.get("response", "Action completed.")
-            self._history.append({"role": "user", "content": user_message})
-            self._history.append({"role": "assistant", "content": resp_text})
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                            provider="edge_fastpath", model="deterministic_hardware_engine",
+                            tools_used=local_res.get("tools_used", []))
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": resp_text})
             return {
                 "response": resp_text,
                 "provider": "edge_fastpath",
@@ -339,18 +555,39 @@ class JARVISBrain:
                 "tools_used": [{"tool": t} for t in local_res.get("tools_used", [])],
                 "rounds": 1,
                 "tokens": 0,
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
             }
 
+        # 5. Neural LLM inference (Ollama / Gemini / etc.)
         provider = self._get_provider()
+        if not provider or not provider.is_available():
+            err_msg = (
+                "⚠️ AI Provider Error: No active language model provider is connected.\n\n"
+                "The Ollama server at http://127.0.0.1:11434 is unreachable or timed out. "
+                "Please verify Ollama is active (`systemctl status ollama` or `ollama serve`) with installed models "
+                "(`llama3.2:1b` or `qwen3.5:4b`)."
+            )
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", err_msg, request_id=request_id,
+                            provider="error", status="failed", error="No active AI provider")
+            return {
+                "response": err_msg,
+                "provider": "error",
+                "model": "none",
+                "error": "No active AI provider reachable",
+                "tools_used": [],
+                "rounds": 0,
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
+            }
 
-        if not provider:
-            return self._no_brain_response(user_message)
-
-        # Add to history
-        self._history.append({"role": "user", "content": user_message})
-
-        # Keep history to last 10 turns
-        messages = self._history[-10:]
+        history.append({"role": "user", "content": user_message})
+        messages = history[-10:]
         tools = JARVIS_TOOLS if use_tools else None
         tools_used = []
         rounds = 0
@@ -366,23 +603,40 @@ class JARVISBrain:
 
                 if result.get("error") and not result.get("text") and not result.get("tool_calls"):
                     logger.warning(f"Provider {provider.name} error: {result['error']}")
-                    # Try next provider
                     for p in self._providers:
                         if p.name != provider.name and p.is_available():
                             provider = p
                             logger.info(f"Switched to provider: {provider.name}")
                             break
                     else:
-                        return self._no_brain_response(user_message)
+                        err_res = f"⚠️ AI Provider Error: {result.get('error', 'Inference failed')}"
+                        db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                        db.save_message(sid, asst_msg_id, "assistant", err_res, request_id=request_id,
+                                        provider=provider.name, status="failed", error=str(result.get("error")))
+                        return {
+                            "response": err_res,
+                            "provider": provider.name,
+                            "error": str(result.get("error")),
+                            "tools_used": [],
+                            "rounds": rounds,
+                            "request_id": request_id,
+                            "message_id": asst_msg_id,
+                            "session_id": sid,
+                            "timestamp": time.time(),
+                        }
 
                 tool_calls = result.get("tool_calls", [])
 
                 if not tool_calls:
-                    # Final text response
                     text = result.get("text", "").strip()
                     if not text:
-                        text = "I processed your request."
-                    self._history.append({"role": "assistant", "content": text})
+                        text = "I completed your request."
+                    history.append({"role": "assistant", "content": text})
+                    db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                    db.save_message(sid, asst_msg_id, "assistant", text, request_id=request_id,
+                                    provider=result.get("provider", provider.name),
+                                    model=result.get("model", ""),
+                                    tools_used=tools_used, status="completed")
                     return {
                         "response": text,
                         "provider": result.get("provider", provider.name),
@@ -390,9 +644,12 @@ class JARVISBrain:
                         "tools_used": tools_used,
                         "rounds": rounds,
                         "tokens": result.get("tokens", 0),
+                        "request_id": request_id,
+                        "message_id": asst_msg_id,
+                        "session_id": sid,
+                        "timestamp": time.time(),
                     }
 
-                # Execute tool calls
                 tool_results = []
                 for tc in tool_calls:
                     tool_name = tc.get("name", "")
@@ -409,7 +666,6 @@ class JARVISBrain:
                         "tool_call_id": tc.get("id", tool_name),
                     })
 
-                # Add assistant message and tool results to conversation
                 assistant_msg = result.get("text", "")
                 if assistant_msg:
                     messages.append({"role": "assistant", "content": assistant_msg})
@@ -417,17 +673,38 @@ class JARVISBrain:
 
         except Exception as e:
             logger.error(f"Brain error: {e}")
-            return {"response": f"I encountered an error: {e}", "provider": "error",
-                    "tools_used": [], "rounds": rounds}
+            err_str = f"I encountered an error: {e}"
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", err_str, request_id=request_id,
+                            provider=provider.name if provider else "error", status="failed", error=str(e))
+            return {
+                "response": err_str,
+                "provider": "error",
+                "tools_used": [],
+                "rounds": rounds,
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
+            }
 
-        return {"response": "I completed your request.", "provider": provider.name,
-                "tools_used": tools_used, "rounds": rounds}
+        final_msg = "I completed your request."
+        db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+        db.save_message(sid, asst_msg_id, "assistant", final_msg, request_id=request_id,
+                        provider=provider.name, tools_used=tools_used)
+        return {
+            "response": final_msg,
+            "provider": provider.name,
+            "tools_used": tools_used,
+            "rounds": rounds,
+            "request_id": request_id,
+            "message_id": asst_msg_id,
+            "session_id": sid,
+            "timestamp": time.time(),
+        }
 
     def _no_brain_response(self, user_message: str) -> Dict[str, Any]:
-        """
-        Full local intelligence fallback using the LocalIntelligenceEngine.
-        Actually executes tasks — no "offline mode" cop-out.
-        """
+        """Fallback when no provider is connected."""
         from ai.local_engine import LocalIntelligenceEngine
         engine = LocalIntelligenceEngine()
         result = engine.respond(user_message)
@@ -438,7 +715,6 @@ class JARVISBrain:
             "tools_used": [{"tool": t} for t in result.get("tools_used", [])],
             "rounds": 1,
         }
-
 
 
 # Module-level singleton
