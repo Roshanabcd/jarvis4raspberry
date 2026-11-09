@@ -329,21 +329,44 @@ class MediaPlayer:
             "source": self._current_source if (playing or self._is_paused) else None,
         }
 
-    def set_volume(self, level_pct: int) -> Dict[str, Any]:
-        """Set output volume level between 0 and 100."""
+    def set_volume(self, level_pct: int, target_domain: str = "auto") -> Dict[str, Any]:
+        """Set output volume level between 0 and 100.
+        
+        Args:
+            level_pct: 0 to 100
+            target_domain: 'auto', 'stream', or 'master'
+        """
         target = max(0, min(100, int(level_pct)))
         fraction = target / 100.0
 
+        try:
+            from tools.media.audio_stream_manager import audio_stream_manager
+            # If target_domain is 'stream' or 'auto' and active media streams exist, adjust media streams first
+            if target_domain in ("stream", "auto"):
+                active_streams = audio_stream_manager.list_active_streams()
+                playback_streams = [s for s in active_streams if s["direction"] == "playback"]
+                if playback_streams and target_domain == "stream":
+                    for s in playback_streams:
+                        audio_stream_manager.set_stream_volume(s["stream_id"], fraction)
+                    return {
+                        "status": "ok",
+                        "volume_pct": target,
+                        "domain": "stream",
+                        "streams_updated": [s["stream_id"] for s in playback_streams],
+                        "message": f"Media stream volume set to {target}%",
+                    }
+        except Exception as ex:
+            logger.debug("audio_stream_manager integration note: %s", ex)
+
+        # Fallback / explicit master sink volume setting via audio_stream_manager
         if shutil.which("wpctl"):
             try:
-                subprocess.run(
-                    ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{fraction:.2f}"],
-                    capture_output=True,
-                    timeout=3
-                )
-                return {"status": "ok", "volume_pct": target, "message": f"Volume set to {target}%"}
+                from tools.media.audio_stream_manager import audio_stream_manager
+                res = audio_stream_manager.set_master_sink_volume(target)
+                if res.get("success"):
+                    return {"status": "ok", "volume_pct": target, "domain": "master", "message": f"System master volume set to {target}%"}
             except Exception as e:
-                logger.warning("wpctl set-volume failed: %s", e)
+                logger.warning("audio_stream_manager master volume failed: %s", e)
 
         if shutil.which("pactl"):
             try:

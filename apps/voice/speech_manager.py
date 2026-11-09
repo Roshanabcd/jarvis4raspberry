@@ -237,12 +237,33 @@ class SpeechOutputManager:
                 return False
 
             try:
+                # Duck active background media streams (e.g. FreeTube, VLC) during JARVIS speech
+                try:
+                    from tools.media.audio_stream_manager import audio_stream_manager
+                    audio_stream_manager.duck_active_streams(duck_fraction=0.20)
+                except Exception as duck_err:
+                    logger.debug("Stream ducking notice: %s", duck_err)
+
                 self._current_player = subprocess.Popen(
                     [player_bin, file_path],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
                 self._last_playback["status"] = "playing"
+
+                def _monitor_restore(proc: subprocess.Popen) -> None:
+                    try:
+                        proc.wait()
+                    except Exception:
+                        pass
+                    finally:
+                        try:
+                            from tools.media.audio_stream_manager import audio_stream_manager
+                            audio_stream_manager.restore_active_streams()
+                        except Exception:
+                            pass
+
+                threading.Thread(target=_monitor_restore, args=(self._current_player,), daemon=True).start()
 
                 if wait:
                     self._current_player.wait(timeout=15)
@@ -267,6 +288,11 @@ class SpeechOutputManager:
                         pass
                 self._current_player = None
             self._last_playback["status"] = "stopped"
+        try:
+            from tools.media.audio_stream_manager import audio_stream_manager
+            audio_stream_manager.restore_active_streams()
+        except Exception:
+            pass
         gradio_cloner.stop_playback()
         logger.info("Audio playback stopped.")
 

@@ -171,3 +171,31 @@ Learnings:
 - RobotController get_state() method provides unified dictionary representation for UI and REST consumers.
 - Separating task scheduler and tools into dedicated REST routers decouples background automation and tool execution from core app lifecycle.
 ==================================================
+
+==================================================
+=== ITERATION 6: PHASE 3 BROWSER AGENT, SEARCH, YOUTUBE & AUDIO STABILITY ===
+Date: 2026-11-09
+Status: SUCCESS
+Changes:
+- Implemented Central Audio Stream Manager (tools/media/audio_stream_manager.py) querying active PipeWire streams via `wpctl status`/`get-volume`. Supports per-stream volume adjustment (`set_stream_volume`, `set_app_volume`), intelligent background music ducking (to 20%) and immediate restoration, and strict master sink isolation (Sink 119).
+- Integrated auto-ducking into SpeechManager (apps/voice/speech_manager.py): music streams duck during speech playback and restore smoothly upon speech thread completion without stopping external playback processes.
+- Rewrote MediaPlayer (tools/media/media_player.py) to route stream volume requests through AudioStreamManager rather than blindly modifying @DEFAULT_AUDIO_SINK@.
+- Implemented DuckDuckGo Lite SearchManager (tools/browser/search_manager.py) with zero external third-party scraping dependencies, structured result parsing (rank, title, domain, URL, snippet, ad filter), and SearchSession conversational numbered navigation memory ("Open the first website", "Open the second website", "Open third in new tab").
+- Implemented BrowserAgent (tools/browser/browser_agent.py) supporting Google Chrome on DISPLAY=:0 with persistent user profile preservation (/home/roshan/.config/google-chrome), window focus activation (wmctrl), and keyboard shortcuts (xdotool: alt+Left, ctrl+r, ctrl+w, ctrl+1..9, Page_Down).
+- Implemented YouTubeController (tools/browser/youtube_controller.py) utilizing yt-dlp flat-playlist extraction to eliminate mock playback and the "Me at the zoo" anomaly. Supports YouTubeSession numbered lookup ("Play the first video", "Play the second video"), direct Chrome watch URL opening, and media controls (pause, resume, toggle_fullscreen, mute, volume).
+- Implemented ThemeManager (tools/desktop/theme_manager.py) supporting natural language styling commands ("Change background to black", "Make accent cyan", "Reset theme") with JSON persistence (data/theme_config.json).
+- Implemented WakeWordEngine (apps/voice/wake_word_engine.py) featuring a formal 12-state state machine, acoustic wake phrase detection ("Wake up JARVIS"), RMS-based Voice Activity Detection (VAD), 3.0-second continuous silence auto-submission, and a 15-second follow-up conversational window.
+- Integrated all Phase 3 intents (<20ms deterministic execution) into LocalIntelligenceEngine (ai/local_engine.py) and Brain (ai/brain.py) for fast-path streaming and non-streaming response generation.
+- Upgraded CompoundTaskOrchestrator (ai/agents/task_orchestrator.py) to handle multi-task compound prompts across search, YouTube playback, volume adjustments, and web navigation.
+- Fixed AppLauncher (tools/desktop/app_launcher.py) child process spawning with stdin=subprocess.DEVNULL, close_fds=True, and start_new_session=True to prevent TTY leaks and file descriptor blocking.
+- Created REST API router (apps/api/browser_media_api.py) and registered endpoints in apps/core/main.py.
+- Fixed 1360x768 viewport layout in apps/dashboard/static/index.html (no horizontal scrollbar, status center pills for AI, Browser, Media, Audio, and Wake-word).
+- Added comprehensive unit test suite tests/unit/test_phase3_browser_and_media.py (14 tests, 100% pass).
+- Executed 10-step live hardware acceptance test on Raspberry Pi 5 (`DISPLAY=:0`), passing 10/10 with 0 unintended master sink modifications.
+- Authored 10 comprehensive architectural and technical reports in docs/ (PHASE3_BASELINE.md through PHASE3_KNOWN_LIMITATIONS.md).
+Learnings:
+- "Me at the zoo" was caused by a literal ytsearch1 regex query on "the first video"; maintaining session memory with numbered lookup completely resolves conversational referencing.
+- PipeWire per-stream management prevents audio conflicts: application volumes (Chrome, FreeTube, VLC) can be scaled without touching the physical hardware amplifier volume (Sink 119).
+- Subprocess GUI launching on Linux requires `stdin=subprocess.DEVNULL` and `start_new_session=True` so wrapper scripts (like google-chrome-stable) do not attach to the caller's console.
+- Separating UI text rendering from asynchronous TTS speech synthesis guarantees responsive conversational feel on constrained ARM64 hardware.
+==================================================

@@ -125,6 +125,76 @@ class LocalIntelligenceEngine:
         if re.search(r"\b(what was my (?:first|last|previous) question|what did i (?:ask|say)|previous question|first question)\b", text_lower):
             return "history_recall", {"text": text}
 
+        # 2b. Phase 3: Theme Customization
+        if re.search(r'\b(?:change|set|make|switch)\s+(?:the\s+)?(?:background|accent|theme)\b', text_lower) or re.search(r'\b(?:reset\s+theme|default\s+theme)\b', text_lower):
+            return "theme_control", {"text": text}
+
+        # 2c. Phase 3: YouTube Player Controls & Playback
+        # Video volume (must precede generic volume)
+        m_vvol = re.search(r'\b(?:set|change|increase|decrease)\s+(?:the\s+)?(?:video|youtube)\s+volume\s+(?:to\s+)?(\d+)\%?\b', text_lower)
+        if m_vvol:
+            return "youtube_volume", {"volume": int(m_vvol.group(1)), "text": text}
+
+        # Video player pause/resume/fullscreen/mute
+        if re.search(r'\b(pause)\s+(?:the\s+)?(?:video|youtube)\b', text_lower):
+            return "youtube_pause", {"text": text}
+        if re.search(r'\b(resume|continue|unpause)\s+(?:the\s+)?(?:video|youtube)\b', text_lower):
+            return "youtube_resume", {"text": text}
+        if re.search(r'\b(?:switch\s+(?:the\s+)?video\s+to\s+|toggle\s+)?full\s*screen\b', text_lower):
+            return "youtube_fullscreen", {"text": text}
+        if re.search(r'\b(mute|unmute)\s+(?:the\s+)?(?:video|youtube)\b', text_lower):
+            return "youtube_mute", {"text": text}
+
+        # Numbered YouTube video selection ("Play the first video", "Play the second result instead")
+        m_yt_idx = re.search(r'\b(?:play)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|result|song)(?:\s+instead)?\b', text_lower) or re.search(r'\b(?:open|play)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+video\b', text_lower)
+        if m_yt_idx:
+            idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
+            matched_word = m_yt_idx.group(1) or (m_yt_idx.group(2) if m_yt_idx.lastindex >= 2 else "first")
+            chosen = idx_map.get(matched_word.lower(), 1)
+            return "youtube_play_index", {"index": chosen, "text": text}
+
+        # YouTube direct search ("Search YouTube for a Hindi song", "Search YouTube for ...")
+        m_yt_search = re.search(r'\bsearch\s+youtube\s+for\s+(.+)', text_lower) or re.search(r'\b(?:play|find)\s+(.+?)\s+on\s+youtube\b', text_lower)
+        if m_yt_search:
+            return "youtube_search", {"query": m_yt_search.group(1).strip(), "text": text}
+
+        # 2d. Phase 3: Google Search ("Search Google for Raspberry Pi robotics", "Google Raspberry Pi robotics")
+        m_gsearch = re.search(r'\bsearch\s+google\s+for\s+(.+)', text_lower) or re.search(r'^\s*google\s+(.+)', text_lower) or re.search(r'\bsearch\s+for\s+(.+?)\s+in\s+(?:google\s+)?chrome\b', text_lower)
+        if m_gsearch:
+            return "google_search", {"query": m_gsearch.group(1).strip(), "text": text}
+
+        # 2e. Phase 3: Numbered Website Navigation ("Open the first website", "Open the second website", "Open the third result in a new tab")
+        m_web_idx = re.search(r'\b(?:open|visit|show)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:website|site|result|link)(?:\s+(?:in\s+)?(?:a\s+)?new\s+tab)?\b', text_lower)
+        if m_web_idx:
+            idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
+            chosen = idx_map.get(m_web_idx.group(1).lower(), 1)
+            new_tab = "new tab" in text_lower
+            return "browser_numbered_nav", {"index": chosen, "new_tab": new_tab, "text": text}
+
+        # Browser back / forward / reload ("Go back and open the second website", "Go back to search results", "Go back")
+        if re.search(r'\bgo\s+back\s+and\s+open\s+(?:the\s+)?(first|second|third|1st|2nd|3rd)\s+website\b', text_lower):
+            m_back_open = re.search(r'(first|second|third|1st|2nd|3rd)', text_lower)
+            idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3}
+            chosen = idx_map.get(m_back_open.group(1).lower(), 2) if m_back_open else 2
+            return "browser_back_and_open", {"index": chosen, "text": text}
+
+        if re.search(r'\b(?:go\s+back|return\s+to\s+results|previous\s+page)\b', text_lower):
+            return "browser_history_nav", {"action": "back", "text": text}
+        if re.search(r'\b(?:go\s+forward|next\s+page)\b', text_lower):
+            return "browser_history_nav", {"action": "forward", "text": text}
+        if re.search(r'\b(?:reload|refresh)\s+(?:page|tab|browser)?\b', text_lower):
+            return "browser_history_nav", {"action": "reload", "text": text}
+
+        # 2f. Phase 3: Per-App / Stream Volume Control ("Set FreeTube volume to 80%", "Set Chrome volume to 60%")
+        m_stream_vol = re.search(r'\b(?:set|change)\s+(?:the\s+)?(freetube|chrome|chromium|vlc|spotify)\s+volume\s+(?:to\s+)?(\d+)\%?\b', text_lower)
+        if m_stream_vol:
+            return "stream_volume_control", {"app": m_stream_vol.group(1), "volume": int(m_stream_vol.group(2)), "text": text}
+
+        # 2g. Phase 3: Master / System Volume Control ("Set system volume to 60%", "Set master volume to 50%")
+        m_sys_vol = re.search(r'\b(?:set|change)\s+(?:the\s+)?(?:system|master|speaker|hardware)\s+volume\s+(?:to\s+)?(\d+)\%?\b', text_lower)
+        if m_sys_vol:
+            return "master_volume_control", {"volume": int(m_sys_vol.group(1)), "text": text}
+
         # 3. Phase 2 Desktop Intents
         # 3a. Specific App Opening ("Open Google Chrome", "Open Chrome", "Open Firefox", "Open VS Code", "Open Antigravity")
         m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', text_lower)
@@ -265,6 +335,49 @@ class LocalIntelligenceEngine:
 
             elif intent == "desktop_awareness":
                 return self._respond_desktop_awareness(ctx)
+
+            # Phase 3 Dispatches
+            elif intent == "google_search":
+                return self._respond_google_search(ctx)
+
+            elif intent == "browser_numbered_nav":
+                return self._respond_browser_numbered_nav(ctx)
+
+            elif intent == "browser_back_and_open":
+                return self._respond_browser_back_and_open(ctx)
+
+            elif intent == "browser_history_nav":
+                return self._respond_browser_history_nav(ctx)
+
+            elif intent == "youtube_search":
+                return self._respond_youtube_search(ctx)
+
+            elif intent == "youtube_play_index":
+                return self._respond_youtube_play_index(ctx)
+
+            elif intent == "youtube_pause":
+                return self._respond_youtube_pause(ctx)
+
+            elif intent == "youtube_resume":
+                return self._respond_youtube_resume(ctx)
+
+            elif intent == "youtube_fullscreen":
+                return self._respond_youtube_fullscreen(ctx)
+
+            elif intent == "youtube_mute":
+                return self._respond_youtube_mute(ctx)
+
+            elif intent == "youtube_volume":
+                return self._respond_youtube_volume(ctx)
+
+            elif intent == "stream_volume_control":
+                return self._respond_stream_volume_control(ctx)
+
+            elif intent == "master_volume_control":
+                return self._respond_master_volume_control(ctx)
+
+            elif intent == "theme_control":
+                return self._respond_theme_control(ctx)
 
             elif intent == "robot_forward":
                 speed = self._extract_speed(text) or 50
@@ -1004,6 +1117,187 @@ if __name__ == "__main__":
         return {
             "response": resp,
             "tools_used": ["desktop_get_status"],
+            "raw": res,
+        }
+
+    def _respond_google_search(self, ctx: Dict) -> Dict:
+        from tools.browser.search_manager import search_manager
+        query = ctx.get("query", "Raspberry Pi robotics")
+        res = search_manager.search_web(query, max_results=5)
+        results = res.get("results", [])
+        if not results:
+            return {
+                "response": f"🔍 Searched Google for '{query}', but no organic results were found.",
+                "tools_used": ["google_search"],
+            }
+        bullets = []
+        for r in results:
+            bullets.append(f"{r['rank']}. **[{r['domain']}]** {r['title']}\n   🔗 `{r['url']}`")
+        resp = f"🔍 **Google Search Results for '{query}'**:\n\n" + "\n\n".join(bullets) + "\n\n💡 *Say 'Open the first website' or 'Open the second website' to view.*"
+        return {
+            "response": resp,
+            "tools_used": ["google_search"],
+            "raw": res,
+        }
+
+    def _respond_browser_numbered_nav(self, ctx: Dict) -> Dict:
+        from tools.browser.search_manager import search_manager
+        idx = ctx.get("index", 1)
+        new_tab = ctx.get("new_tab", False)
+        res = search_manager.open_result_by_index(idx, new_tab=new_tab, browser="chrome")
+        if res.get("status") == "ok":
+            resp = f"🌐 Opened result #{res['rank']} in Google Chrome:\n- **Title:** {res['title']}\n- **Domain:** `{res['domain']}`\n- **URL:** {res['url']}"
+        else:
+            resp = f"⚠️ {res.get('message', 'Failed to open numbered search result.')}"
+        return {
+            "response": resp,
+            "tools_used": ["browser_open_result"],
+            "raw": res,
+        }
+
+    def _respond_browser_back_and_open(self, ctx: Dict) -> Dict:
+        from tools.browser.browser_agent import browser_agent
+        from tools.browser.search_manager import search_manager
+        browser_agent.go_back(browser="chrome")
+        time.sleep(0.5)
+        idx = ctx.get("index", 2)
+        res = search_manager.open_result_by_index(idx, new_tab=False, browser="chrome")
+        if res.get("status") == "ok":
+            resp = f"🔙 Navigated back and opened result #{res['rank']}:\n- **Title:** {res['title']}\n- **URL:** {res['url']}"
+        else:
+            resp = f"⚠️ Navigated back, but could not open result #{idx}: {res.get('message')}"
+        return {
+            "response": resp,
+            "tools_used": ["browser_back", "browser_open_result"],
+            "raw": res,
+        }
+
+    def _respond_browser_history_nav(self, ctx: Dict) -> Dict:
+        from tools.browser.browser_agent import browser_agent
+        action = ctx.get("action", "back")
+        if action == "back":
+            res = browser_agent.go_back(browser="chrome")
+            resp = "🔙 Navigated back to previous page in Google Chrome."
+        elif action == "forward":
+            res = browser_agent.go_forward(browser="chrome")
+            resp = "🔜 Navigated forward to next page in Google Chrome."
+        else:
+            res = browser_agent.reload(browser="chrome")
+            resp = "🔄 Reloaded the active browser page."
+        return {
+            "response": resp,
+            "tools_used": [f"browser_{action}"],
+            "raw": res,
+        }
+
+    def _respond_youtube_search(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        query = ctx.get("query", "Hindi song")
+        res = youtube_controller.search(query, max_results=5)
+        videos = res.get("videos", [])
+        if not videos:
+            return {
+                "response": f"📺 Searched YouTube for '{query}', but could not find videos.",
+                "tools_used": ["youtube_search"],
+            }
+        bullets = []
+        for v in videos:
+            bullets.append(f"{v['rank']}. **{v['title']}**\n   Channel: *{v['channel']}* | 🔗 `{v['url']}`")
+        resp = f"📺 **YouTube Video Search for '{query}'**:\n\n" + "\n\n".join(bullets) + "\n\n💡 *Say 'Play the first video' or 'Play the second result instead' to start playing.*"
+        return {
+            "response": resp,
+            "tools_used": ["youtube_search"],
+            "raw": res,
+        }
+
+    def _respond_youtube_play_index(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        idx = ctx.get("index", 1)
+        res = youtube_controller.play_video_by_index(idx, browser="chrome")
+        if res.get("status") == "ok":
+            resp = f"▶️ Now playing video #{res['rank']} on YouTube in Google Chrome:\n- **Title:** {res['title']}\n- **Channel:** {res['channel']}\n- **URL:** {res['url']}"
+        else:
+            resp = f"⚠️ {res.get('message', 'Could not play requested YouTube video.')}"
+        return {
+            "response": resp,
+            "tools_used": ["youtube_play"],
+            "raw": res,
+        }
+
+    def _respond_youtube_pause(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        res = youtube_controller.pause()
+        return {
+            "response": "⏸️ Paused YouTube video playback.",
+            "tools_used": ["youtube_pause"],
+            "raw": res,
+        }
+
+    def _respond_youtube_resume(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        res = youtube_controller.resume()
+        return {
+            "response": "▶️ Resumed YouTube video playback.",
+            "tools_used": ["youtube_resume"],
+            "raw": res,
+        }
+
+    def _respond_youtube_fullscreen(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        res = youtube_controller.toggle_fullscreen()
+        return {
+            "response": f"🖥️ Switched YouTube video to {res.get('mode', 'fullscreen')} mode.",
+            "tools_used": ["youtube_fullscreen"],
+            "raw": res,
+        }
+
+    def _respond_youtube_mute(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        res = youtube_controller.mute()
+        return {
+            "response": "🔇 Toggled mute on YouTube video.",
+            "tools_used": ["youtube_mute"],
+            "raw": res,
+        }
+
+    def _respond_youtube_volume(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        vol = ctx.get("volume", 50)
+        res = youtube_controller.set_video_volume(vol)
+        return {
+            "response": f"🔊 YouTube video volume set to **{vol}%** (PipeWire stream adjusted).",
+            "tools_used": ["youtube_volume"],
+            "raw": res,
+        }
+
+    def _respond_stream_volume_control(self, ctx: Dict) -> Dict:
+        from tools.media.audio_stream_manager import audio_stream_manager
+        app = ctx.get("app", "freetube")
+        vol = ctx.get("volume", 50)
+        res = audio_stream_manager.set_app_volume(app, vol)
+        return {
+            "response": f"🎚️ Adjusted {app.title()} stream volume to **{vol}%** (modified {res.get('count', 0)} active stream(s)).",
+            "tools_used": ["set_stream_volume"],
+            "raw": res,
+        }
+
+    def _respond_master_volume_control(self, ctx: Dict) -> Dict:
+        from tools.media.audio_stream_manager import audio_stream_manager
+        vol = ctx.get("volume", 50)
+        res = audio_stream_manager.set_master_sink_volume(vol)
+        return {
+            "response": f"🔈 Hardware master system volume set to **{vol}%**.",
+            "tools_used": ["set_master_volume"],
+            "raw": res,
+        }
+
+    def _respond_theme_control(self, ctx: Dict) -> Dict:
+        from tools.desktop.theme_manager import theme_manager
+        text = ctx.get("text", "")
+        res = theme_manager.process_natural_language(text)
+        return {
+            "response": f"🎨 {res.get('message', 'Theme updated.')}",
+            "tools_used": ["theme_manager"],
             "raw": res,
         }
 

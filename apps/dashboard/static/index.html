@@ -26,6 +26,31 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
+  }
+  .status-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .status-pill {
+    font-size: 0.70rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: #0f1629;
+    border: 1px solid var(--card-border);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: all 0.2s;
+  }
+  .status-pill.live {
+    color: var(--green);
+    border-color: rgba(0, 255, 136, 0.4);
+    box-shadow: 0 0 6px rgba(0, 255, 136, 0.2);
   }
   header {
     background: #090d1f;
@@ -424,6 +449,13 @@
   <div class="brand">
     <span class="logo">⚡ JARVIS OS</span>
     <span class="tagline">Raspberry Pi 5 AI & Robotics</span>
+  </div>
+  <div class="status-center">
+    <span id="hdr-ai-pill" class="status-pill" title="AI Provider and Model">🧠 AI: Ollama (1B)</span>
+    <span id="hdr-browser-pill" class="status-pill" title="Active Browser Session">🌐 Chrome :0</span>
+    <span id="hdr-media-pill" class="status-pill" title="YouTube / Media Playback">🎵 Media Ready</span>
+    <span id="hdr-audio-pill" class="status-pill" title="Physical Speaker Volume">🔈 Speaker 45%</span>
+    <span id="hdr-wake-pill" class="status-pill live" title="12-State Voice Engine">🎙️ STANDBY</span>
   </div>
   <div class="header-actions">
     <span id="ws-badge" class="ws-badge">● Connecting...</span>
@@ -2643,6 +2675,73 @@ async function confirmTerminalCmd(cmd, token) {
 function clearTerminalOutput() {
   document.getElementById('dt-terminal-output').innerHTML = 'Terminal output cleared.';
 }
+
+// Phase 3 Status Center & Theme Integration
+async function loadTheme() {
+  try {
+    const res = await fetch('/api/theme');
+    if (res.ok) {
+      const theme = await res.json();
+      const root = document.documentElement;
+      if (theme.bg_primary) root.style.setProperty('--bg', theme.bg_primary);
+      if (theme.bg_card) root.style.setProperty('--card', theme.bg_card);
+      if (theme.border_color) root.style.setProperty('--card-border', theme.border_color);
+      if (theme.color_accent) root.style.setProperty('--accent', theme.color_accent);
+      if (theme.glow_accent) root.style.setProperty('--accent-glow', theme.glow_accent);
+      if (theme.text_primary) root.style.setProperty('--text', theme.text_primary);
+    }
+  } catch(e) {
+    console.debug('loadTheme notice:', e);
+  }
+}
+
+async function updateStatusCenter() {
+  // 1. Wake state
+  try {
+    const r = await fetch('/api/voice/wake-state');
+    if (r.ok) {
+      const d = await r.json();
+      const el = document.getElementById('hdr-wake-pill');
+      if (el) {
+        el.textContent = '🎙️ ' + d.state;
+        if (d.state === 'STANDBY_LISTENING' || d.state === 'FOLLOW_UP_STANDBY') {
+          el.className = 'status-pill live';
+        } else if (d.state === 'MUTED') {
+          el.className = 'status-pill';
+        } else {
+          el.className = 'status-pill live';
+        }
+      }
+    }
+  } catch(e) {}
+
+  // 2. Audio & Media status
+  try {
+    const r = await fetch('/api/media/streams');
+    if (r.ok) {
+      const d = await r.json();
+      const master = d.master_sink || {};
+      const elSpk = document.getElementById('hdr-audio-pill');
+      if (elSpk) {
+        elSpk.textContent = `🔈 Speaker ${master.volume_pct || 45}%`;
+      }
+      const streams = d.streams || [];
+      const playStreams = streams.filter(s => s.direction === 'playback' && s.active);
+      const elMed = document.getElementById('hdr-media-pill');
+      if (elMed) {
+        if (playStreams.length > 0) {
+          elMed.textContent = `🎵 ${playStreams[0].name} (${Math.round((playStreams[0].volume || 1.0) * 100)}%)`;
+        } else {
+          elMed.textContent = '🎵 Media Ready';
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+setInterval(updateStatusCenter, 3000);
+loadTheme();
+setTimeout(updateStatusCenter, 500);
 </script>
 </body>
 </html>

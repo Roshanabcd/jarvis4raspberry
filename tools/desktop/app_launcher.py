@@ -248,9 +248,11 @@ class DesktopAppLauncher:
             proc = subprocess.Popen(
                 cmd,
                 env=env,
+                stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                preexec_fn=os.setsid,  # Detach process group so it lives independently
+                close_fds=True,
+                start_new_session=True,  # Detach completely into new session
             )
             # Give application a moment to initialize
             time.sleep(0.4)

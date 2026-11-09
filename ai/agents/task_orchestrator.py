@@ -113,8 +113,80 @@ class CompoundTaskOrchestrator:
         for idx, task in enumerate(subtasks, start=1):
             task_lower = task.lower().strip()
 
+            # Phase 3: Play YouTube video by index (e.g. "play the first video", "play the second result")
+            if re.search(r'\bplay\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|result|song)\b', task_lower):
+                from tools.browser.youtube_controller import youtube_controller
+                m_idx = re.search(r'(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)', task_lower)
+                idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
+                target_idx = idx_map.get(m_idx.group(1).lower(), 1) if m_idx else 1
+                yt_play = youtube_controller.play_video_by_index(target_idx, browser=last_context_browser)
+                all_tools_used.append({"tool": "youtube_play_video"})
+                if yt_play.get("status") == "ok":
+                    section = (
+                        f"### {idx}. YouTube Playback\n"
+                        f"- **Video #{yt_play.get('rank')}:** {yt_play.get('title')}\n"
+                        f"- **Channel:** {yt_play.get('channel')}\n"
+                        f"- **URL:** `{yt_play.get('url')}`\n"
+                        f"- **Status:** Playing in {last_context_browser.title()}"
+                    )
+                else:
+                    section = f"### {idx}. YouTube Playback\n- Status: {yt_play.get('message')}"
+                sections.append(section)
+
+            # Phase 3: Set video / media volume (e.g. "set its volume to 50 percent", "set volume to 60%")
+            elif re.search(r'\b(?:set|change)\s+(?:its\s+|the\s+)?(?:video\s+)?volume\s+(?:to\s+)?(\d+)\%?\b', task_lower):
+                from tools.browser.youtube_controller import youtube_controller
+                m_v = re.search(r'volume\s+(?:to\s+)?(\d+)', task_lower)
+                v_target = int(m_v.group(1)) if m_v else 50
+                v_res = youtube_controller.set_video_volume(v_target)
+                all_tools_used.append({"tool": "set_video_volume"})
+                section = (
+                    f"### {idx}. Video Volume\n"
+                    f"- **Level:** {v_target}%\n"
+                    f"- **Status:** Stream volume set to {v_target}%"
+                )
+                sections.append(section)
+
+            # Phase 3: Inquire video title (e.g. "tell me the title", "what is the title")
+            elif re.search(r'\b(?:tell\s+me\s+the\s+title|what\s+is\s+the\s+title|show\s+the\s+title)\b', task_lower):
+                from tools.browser.youtube_controller import youtube_controller
+                st = youtube_controller.get_player_state()
+                vid_info = st.get("current_video") or {}
+                t_str = vid_info.get("title", "No video actively selected")
+                c_str = vid_info.get("channel", "YouTube")
+                all_tools_used.append({"tool": "get_player_state"})
+                section = (
+                    f"### {idx}. Video Information\n"
+                    f"- **Title:** {t_str}\n"
+                    f"- **Channel:** {c_str}"
+                )
+                sections.append(section)
+
+            # Phase 3: Google Search (e.g. "search Google for Raspberry Pi robotics")
+            elif re.search(r'\bsearch\s+google\s+for\s+(.+)', task_lower):
+                from tools.browser.search_manager import search_manager
+                m_g = re.search(r'search\s+google\s+for\s+(.+)', task_lower)
+                g_q = m_g.group(1).strip() if m_g else "Raspberry Pi"
+                s_res = search_manager.search_web(g_q, max_results=3)
+                all_tools_used.append({"tool": "google_search"})
+                results = s_res.get("results", [])
+                bullets = "\n".join(f"- #{r['rank']} [{r['domain']}]: {r['title']}" for r in results)
+                section = f"### {idx}. Google Search for '{g_q}'\n{bullets}"
+                sections.append(section)
+
+            # Phase 3: Open numbered website (e.g. "open the first website")
+            elif re.search(r'\bopen\s+(?:the\s+)?(first|second|third|1st|2nd|3rd)\s+website\b', task_lower):
+                from tools.browser.search_manager import search_manager
+                m_w = re.search(r'(first|second|third|1st|2nd|3rd)', task_lower)
+                idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3}
+                w_idx = idx_map.get(m_w.group(1).lower(), 1) if m_w else 1
+                w_res = search_manager.open_result_by_index(w_idx, browser=last_context_browser)
+                all_tools_used.append({"tool": "browser_open_result"})
+                section = f"### {idx}. Opened Website #{w_idx}\n- Title: {w_res.get('title')}\n- URL: {w_res.get('url')}"
+                sections.append(section)
+
             # 1. Project Opening (e.g. "open my Unity project", "open that project in VS Code")
-            if re.search(r'\bopen\b.*\b(project|unity|gameproject|workspace|jarvis|that\s+project|the\s+project)\b', task_lower) and not re.search(r'\b(file|readme|script)\b', task_lower):
+            elif re.search(r'\bopen\b.*\b(project|unity|gameproject|workspace|jarvis|that\s+project|the\s+project)\b', task_lower) and not re.search(r'\b(file|readme|script)\b', task_lower):
                 editor = "antigravity" if "antigravity" in task_lower else "vscode"
                 proj_name = None
                 if "unity" in task_lower:
@@ -160,15 +232,17 @@ class CompoundTaskOrchestrator:
                   (last_context_site == "youtube" and re.search(r'\b(?:search|find)\b', task_lower))):
                 yt_query = re.sub(r'^(?:search\s+youtube\s+for|youtube\s+search\s+for|search\s+for|search\s+youtube|search)\s+', '', task, flags=re.I)
                 yt_query = re.sub(r'\s+on\s+youtube$', '', yt_query, flags=re.I).strip()
-                res_yt = browser_controller.search_youtube(yt_query or "robotics", browser=last_context_browser)
-                all_tools_used.append({"tool": "desktop_search_youtube"})
+                from tools.browser.youtube_controller import youtube_controller
+                res_yt = youtube_controller.search(yt_query or "robotics", max_results=3)
+                all_tools_used.append({"tool": "youtube_search"})
                 last_context_site = "youtube"
+                videos = res_yt.get("videos", [])
+                v_lines = "\n".join(f"  • #{v['rank']} {v['title']} [{v['channel']}]" for v in videos)
                 section = (
                     f"### {idx}. YouTube Search\n"
                     f"- **Query:** {yt_query}\n"
-                    f"- **URL:** `{res_yt.get('youtube_url')}`\n"
-                    f"- **Browser:** {last_context_browser.title()}\n"
-                    f"- **Status:** Opened search results in {last_context_browser.title()} (audio playback requires user interaction)"
+                    f"- **Top Results ({len(videos)}):\n{v_lines}\n"
+                    f"- **Status:** Extracted real video metadata for playback selection"
                 )
                 sections.append(section)
 

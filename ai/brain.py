@@ -317,7 +317,10 @@ class JARVISBrain:
             "open_folder", "open_folder_at", "open_file",
             "desktop_open_url", "desktop_search_youtube", "desktop_open_project",
             "desktop_open_app", "desktop_search_files", "desktop_search_content",
-            "desktop_run_program", "terminal_execute", "desktop_awareness"
+            "desktop_run_program", "terminal_execute", "desktop_awareness",
+            "google_search", "browser_numbered_nav", "browser_back_and_open", "browser_history_nav",
+            "youtube_search", "youtube_play_index", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
+            "stream_volume_control", "master_volume_control", "theme_control"
         }
 
         if intent in FAST_PATH_INTENTS:
@@ -541,7 +544,10 @@ class JARVISBrain:
             "open_folder", "open_folder_at", "open_file",
             "desktop_open_url", "desktop_search_youtube", "desktop_open_project",
             "desktop_open_app", "desktop_search_files", "desktop_search_content",
-            "desktop_run_program", "terminal_execute", "desktop_awareness"
+            "desktop_run_program", "terminal_execute", "desktop_awareness",
+            "google_search", "browser_numbered_nav", "browser_back_and_open", "browser_history_nav",
+            "youtube_search", "youtube_play_index", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
+            "stream_volume_control", "master_volume_control", "theme_control"
         }
 
         if intent in FAST_PATH_INTENTS:

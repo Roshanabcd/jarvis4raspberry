@@ -1,0 +1,376 @@
+"""
+Wake Word & VAD Silence Engine for JARVIS OS.
+Implements a 12-state explicit state machine, acoustic keyword detection
+for 'Wake up JARVIS' / 'JARVIS', continuous audio capture, 3.0-second silence
+detection via audio RMS energy, automatic command submission, and a 15-second
+follow-up conversation window.
+"""
+from __future__ import annotations
+
+import logging
+import math
+import os
+import re
+import struct
+import subprocess
+import threading
+import time
+import wave
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional
+
+logger = logging.getLogger("JARVIS-WAKE-ENGINE")
+
+
+class WakeState(str, Enum):
+    """The 12 formal states of the JARVIS Voice Assistant lifecycle."""
+    DISABLED = "DISABLED"
+    STANDBY_LISTENING = "STANDBY_LISTENING"
+    WAKE_DETECTED = "WAKE_DETECTED"
+    LISTENING_SPEECH = "LISTENING_SPEECH"
+    STREAMING_TRANSCRIPTION = "STREAMING_TRANSCRIPTION"
+    SILENCE_COUNTDOWN = "SILENCE_COUNTDOWN"
+    COMMAND_SUBMITTED = "COMMAND_SUBMITTED"
+    PROCESSING_AGENT = "PROCESSING_AGENT"
+    SPEAKING_RESPONSE = "SPEAKING_RESPONSE"
+    FOLLOW_UP_STANDBY = "FOLLOW_UP_STANDBY"
+    MUTED = "MUTED"
+    ERROR = "ERROR"
+
+
+WAKE_PHRASES = [
+    r"\bwake\s+up\s+jarvis\b",
+    r"\bwake\s+up[,\s]+jarvis\b",
+    r"\bhey\s+jarvis\b",
+    r"\bok\s+jarvis\b",
+    r"\bhello\s+jarvis\b",
+    r"\bjarvis\b",
+    r"\bjarves\b",
+    r"\bjavis\b",
+]
+
+
+class WakeWordEngine:
+    """Coordinates the 12-state audio loop with silence-driven dispatch."""
+
+    def __init__(
+        self,
+        wake_phrases: Optional[List[str]] = None,
+        silence_timeout_s: float = 3.0,
+        follow_up_window_s: float = 15.0,
+        energy_threshold: float = 500.0,
+        temp_dir: str = "/tmp/jarvis_voice",
+    ) -> None:
+        self.wake_phrases = wake_phrases or WAKE_PHRASES
+        self.silence_timeout_s = silence_timeout_s
+        self.follow_up_window_s = follow_up_window_s
+        self.energy_threshold = energy_threshold
+        self.temp_dir = temp_dir
+        os.makedirs(self.temp_dir, exist_ok=True)
+
+        self._state: WakeState = WakeState.DISABLED
+        self._is_running: bool = False
+        self._stop_event = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+        self._state_lock = threading.RLock()
+
+        # State timestamps & metrics
+        self._state_entered_time: float = time.time()
+        self._last_speech_time: float = 0.0
+        self._follow_up_deadline: float = 0.0
+        self._current_transcript: str = ""
+        self._last_command: str = ""
+        self._last_response: str = ""
+        self._last_error: Optional[str] = None
+
+        # Command callback
+        self._on_command_handler: Optional[Callable[[str], Any]] = None
+
+    @property
+    def state(self) -> WakeState:
+        with self._state_lock:
+            return self._state
+
+    def set_state(self, new_state: WakeState) -> None:
+        with self._state_lock:
+            if self._state != new_state:
+                logger.info("WakeWordEngine State Transition: %s -> %s", self._state.value, new_state.value)
+                self._state = new_state
+                self._state_entered_time = time.time()
+
+    def set_command_handler(self, handler: Callable[[str], Any]) -> None:
+        self._on_command_handler = handler
+
+    def get_status(self) -> Dict[str, Any]:
+        """Return full telemetry dictionary for the dashboard status indicator."""
+        with self._state_lock:
+            now = time.time()
+            elapsed_in_state = round(now - self._state_entered_time, 2)
+            follow_up_remaining = max(0.0, round(self._follow_up_deadline - now, 1)) if self._state == WakeState.FOLLOW_UP_STANDBY else 0.0
+
+            return {
+                "state": self._state.value,
+                "is_running": self._is_running,
+                "elapsed_in_state_s": elapsed_in_state,
+                "follow_up_remaining_s": follow_up_remaining,
+                "silence_timeout_s": self.silence_timeout_s,
+                "follow_up_window_s": self.follow_up_window_s,
+                "current_transcript": self._current_transcript,
+                "last_command": self._last_command,
+                "last_response": self._last_response,
+                "error": self._last_error,
+            }
+
+    def start(self) -> None:
+        """Start the background voice assistant daemon thread."""
+        with self._state_lock:
+            if self._is_running:
+                logger.warning("WakeWordEngine already running.")
+                return
+
+            self._is_running = True
+            self._stop_event.clear()
+            self.set_state(WakeState.STANDBY_LISTENING)
+
+            self._thread = threading.Thread(
+                target=self._run_loop,
+                daemon=True,
+                name="JARVIS-WakeWordEngine",
+            )
+            self._thread.start()
+            logger.info("WakeWordEngine started in background.")
+
+    def stop(self) -> None:
+        """Stop the background voice assistant."""
+        with self._state_lock:
+            self._is_running = False
+            self._stop_event.set()
+            self.set_state(WakeState.DISABLED)
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+        logger.info("WakeWordEngine stopped.")
+
+    def mute(self) -> None:
+        """Temporarily mute listening."""
+        self.set_state(WakeState.MUTED)
+
+    def unmute(self) -> None:
+        """Unmute listening back to standby."""
+        self.set_state(WakeState.STANDBY_LISTENING)
+
+    def _calculate_audio_rms(self, wav_path: str) -> float:
+        """Calculate Root Mean Square audio amplitude for voice energy detection."""
+        if not os.path.exists(wav_path) or os.path.getsize(wav_path) < 100:
+            return 0.0
+        try:
+            with wave.open(wav_path, "rb") as wf:
+                n_frames = wf.getnframes()
+                if n_frames == 0:
+                    return 0.0
+                raw_bytes = wf.readframes(n_frames)
+                fmt = f"{n_frames}h"
+                samples = struct.unpack(fmt, raw_bytes)
+                sum_sq = sum(s * s for s in samples)
+                return math.sqrt(sum_sq / max(1, len(samples)))
+        except Exception as e:
+            logger.debug("RMS calculation error on %s: %s", wav_path, e)
+            return 0.0
+
+    def _record_audio_chunk(self, output_path: str, duration_s: float = 1.5) -> bool:
+        """Record audio chunk using pw-record or arecord."""
+        try:
+            cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
+            proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(duration_s)
+            proc.terminate()
+            try:
+                proc.communicate(timeout=1.0)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.communicate()
+
+            return os.path.exists(output_path) and os.path.getsize(output_path) > 300
+        except Exception as e:
+            logger.error("Audio recording error: %s", e)
+            return False
+
+    def _transcribe(self, wav_path: str) -> str:
+        """Transcribe an audio chunk using real speech recognition without mock data."""
+        try:
+            from apps.voice.stt import SpeechToText
+            stt = SpeechToText(simulation_mode=False)
+            text = stt.transcribe(wav_path)
+            return text.strip() if text else ""
+        except Exception as e:
+            logger.error("STT transcription failure: %s", e)
+            return ""
+
+    def _matches_wake_phrase(self, text: str) -> bool:
+        """Check if transcribed phrase matches any configured wake phrase patterns."""
+        if not text:
+            return False
+        clean = text.lower().strip()
+        for pat in self.wake_phrases:
+            if re.search(pat, clean):
+                return True
+        return False
+
+    def _run_loop(self) -> None:
+        """Main 12-state state machine loop."""
+        logger.info("WakeWordEngine thread loop running...")
+        standby_chunk = os.path.join(self.temp_dir, "standby_chunk.wav")
+
+        while self._is_running and not self._stop_event.is_set():
+            curr = self.state
+
+            if curr == WakeState.MUTED:
+                self._stop_event.wait(0.5)
+                continue
+
+            elif curr == WakeState.STANDBY_LISTENING:
+                # 1. Capture small 1.5-second audio window
+                ok = self._record_audio_chunk(standby_chunk, duration_s=1.5)
+                if not ok:
+                    self._stop_event.wait(0.2)
+                    continue
+
+                # 2. Check energy
+                rms = self._calculate_audio_rms(standby_chunk)
+                if rms > self.energy_threshold:
+                    # Potential speech detected, transcribe
+                    text = self._transcribe(standby_chunk)
+                    if text:
+                        logger.info("Heard in standby: '%s' (RMS: %.1f)", text, rms)
+                        if self._matches_wake_phrase(text):
+                            logger.info(">>> WAKE PHRASE DETECTED! <<<")
+                            self.set_state(WakeState.WAKE_DETECTED)
+                            continue
+
+                self._stop_event.wait(0.05)
+
+            elif curr == WakeState.FOLLOW_UP_STANDBY:
+                # User has 15 seconds to speak a follow-up command without repeating wake word
+                now = time.time()
+                if now > self._follow_up_deadline:
+                    logger.info("Follow-up conversation window expired. Returning to STANDBY_LISTENING.")
+                    self.set_state(WakeState.STANDBY_LISTENING)
+                    continue
+
+                # Capture short window to detect follow-up speech
+                ok = self._record_audio_chunk(standby_chunk, duration_s=1.5)
+                if ok:
+                    rms = self._calculate_audio_rms(standby_chunk)
+                    if rms > self.energy_threshold:
+                        text = self._transcribe(standby_chunk)
+                        if text and len(text.split()) >= 1:
+                            logger.info("Direct follow-up command heard: '%s'", text)
+                            self._current_transcript = text
+                            self.set_state(WakeState.LISTENING_SPEECH)
+                            continue
+                self._stop_event.wait(0.05)
+
+            elif curr == WakeState.WAKE_DETECTED:
+                # Play brief chime or prompt acknowledge
+                try:
+                    from apps.voice.service import voice_service
+                    voice_service.stop_playback()
+                    # Immediate acknowledgment
+                    from apps.voice.tts import TextToSpeech
+                    tts = TextToSpeech(simulation_mode=False)
+                    tts.speak_sync("Yes?")
+                except Exception as ex:
+                    logger.debug("Wake acknowledgment notice: %s", ex)
+
+                self._current_transcript = ""
+                self._last_speech_time = time.time()
+                self.set_state(WakeState.LISTENING_SPEECH)
+
+            elif curr == WakeState.LISTENING_SPEECH:
+                # Capture rolling speech chunks until 3.0s continuous silence
+                cmd_parts: List[str] = []
+                if self._current_transcript:
+                    cmd_parts.append(self._current_transcript)
+
+                speech_chunk = os.path.join(self.temp_dir, "speech_chunk.wav")
+                self._last_speech_time = time.time()
+                has_heard_speech = bool(cmd_parts)
+
+                while self._is_running and not self._stop_event.is_set():
+                    ok = self._record_audio_chunk(speech_chunk, duration_s=1.5)
+                    if not ok:
+                        continue
+
+                    rms = self._calculate_audio_rms(speech_chunk)
+
+                    if rms > self.energy_threshold:
+                        # User spoke in this window
+                        has_heard_speech = True
+                        self._last_speech_time = time.time()
+                        self.set_state(WakeState.STREAMING_TRANSCRIPTION)
+
+                        text_chunk = self._transcribe(speech_chunk)
+                        if text_chunk:
+                            cmd_parts.append(text_chunk)
+                            self._current_transcript = " ".join(cmd_parts)
+                            logger.info("Live speech stream: '%s'", self._current_transcript)
+
+                        self.set_state(WakeState.LISTENING_SPEECH)
+                    else:
+                        # Silence in this window
+                        elapsed_silence = time.time() - self._last_speech_time
+                        if has_heard_speech:
+                            self.set_state(WakeState.SILENCE_COUNTDOWN)
+                            logger.info("Silence countdown: %.1fs / %.1fs", elapsed_silence, self.silence_timeout_s)
+                            if elapsed_silence >= self.silence_timeout_s:
+                                logger.info("3.0s continuous silence reached! Finalizing command.")
+                                self.set_state(WakeState.COMMAND_SUBMITTED)
+                                break
+                        elif elapsed_silence >= (self.silence_timeout_s * 2):
+                            # User didn't say anything after wake word
+                            logger.info("No speech detected after wake word. Returning to standby.")
+                            self.set_state(WakeState.STANDBY_LISTENING)
+                            break
+
+                if self.state == WakeState.COMMAND_SUBMITTED:
+                    final_cmd = self._current_transcript.strip()
+                    self._last_command = final_cmd
+                    if final_cmd:
+                        logger.info("Executing automatic submitted command: '%s'", final_cmd)
+                        self.set_state(WakeState.PROCESSING_AGENT)
+                        self._execute_command_and_respond(final_cmd)
+                    else:
+                        self.set_state(WakeState.STANDBY_LISTENING)
+
+    def _execute_command_and_respond(self, command_text: str) -> None:
+        """Route recognized command to JARVIS Brain, deliver dual text/speech, and enter follow-up window."""
+        try:
+            # 1. Process via handler or Brain
+            if self._on_command_handler:
+                response = self._on_command_handler(command_text)
+            else:
+                from ai.brain import jarvis_brain
+                chat_res = jarvis_brain.chat(command_text, session_id="voice-session")
+                response = chat_res.get("response", "Command executed.")
+
+            self._last_response = str(response)
+
+            # 2. Text-first: response is already logged in Brain / dashboard
+            # 3. Speak response asynchronously with speech_manager
+            self.set_state(WakeState.SPEAKING_RESPONSE)
+            from apps.voice.speech_manager import speech_manager
+            speech_manager.synthesize_and_stage(str(response), play_system=True)
+
+            # 4. Enter 15-second follow-up window
+            self._follow_up_deadline = time.time() + self.follow_up_window_s
+            self.set_state(WakeState.FOLLOW_UP_STANDBY)
+            logger.info("Entered 15-second follow-up window until %.1f", self._follow_up_deadline)
+
+        except Exception as exc:
+            logger.error("Command processing error: %s", exc)
+            self._last_error = str(exc)
+            self.set_state(WakeState.ERROR)
+            time.sleep(2.0)
+            self.set_state(WakeState.STANDBY_LISTENING)
+
+
+wake_word_engine = WakeWordEngine()

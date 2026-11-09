@@ -1,0 +1,12 @@
+{
+  "name": "jarvis-cyan",
+  "bg_primary": "#000000",
+  "bg_secondary": "#0a0a0a",
+  "bg_card": "rgba(18, 18, 18, 0.85)",
+  "color_accent": "#00f3ff",
+  "color_accent_hover": "#00c4cc",
+  "glow_accent": "rgba(0, 243, 255, 0.4)",
+  "text_primary": "#e2f1ff",
+  "text_secondary": "#8ba3c7",
+  "border_color": "rgba(0, 243, 255, 0.25)"
+}
