@@ -68,9 +68,19 @@ class DesktopActionEngine:
         return self._record_action("open_url", {"url": url, "browser": browser}, res, t_start)
 
     def search_youtube(self, query: str, browser: str = "chrome") -> Dict[str, Any]:
-        """Search YouTube in browser."""
+        """Search YouTube for organic videos and create an active selection session."""
         t_start = time.time()
-        res = browser_controller.search_youtube(query, browser=browser)
+        from tools.browser.youtube_controller import youtube_controller
+        yt_res = youtube_controller.search(query, max_results=5)
+        res = {
+            "success": yt_res.get("status") == "ok",
+            "status_message": yt_res.get("formatted_summary", f"Searched YouTube for '{query}'."),
+            "query": query,
+            "session_id": yt_res.get("session_id"),
+            "state": yt_res.get("state"),
+            "videos": yt_res.get("videos", []),
+            "youtube_url": f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}",
+        }
         return self._record_action("search_youtube", {"query": query, "browser": browser}, res, t_start)
 
     def open_project(self, project_name_or_path: str, editor: str = "vscode") -> Dict[str, Any]:

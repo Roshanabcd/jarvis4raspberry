@@ -1013,6 +1013,32 @@
           <button class="btn" onclick="searchYouTubeFromInput()">📺 YouTube Search</button>
         </div>
         <div id="dt-browser-status" style="margin-top:8px;font-size:0.75rem;color:#8899cc"></div>
+
+        <!-- Dedicated YouTube Selection & Controls Panel -->
+        <div id="yt-selection-container" style="margin-top:12px;display:none;background:rgba(10,14,28,0.7);border:1px solid rgba(0,210,255,0.25);border-radius:8px;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <span style="font-weight:600;color:var(--accent)" id="yt-session-title">📺 YouTube Search Results</span>
+              <span id="yt-session-badge" style="margin-left:8px;font-size:0.7rem;padding:2px 6px;border-radius:4px;background:#ffaa00;color:#000;font-weight:bold">AWAITING_USER_SELECTION</span>
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="cancelYouTubeSelection()">❌ Cancel</button>
+              <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="moreYouTubeResults()">➕ 3 More</button>
+            </div>
+          </div>
+          <div id="yt-video-cards" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding-right:4px">
+            <!-- Dynamic video cards rendered here -->
+          </div>
+          <!-- Player controls bar -->
+          <div style="display:flex;gap:6px;margin-top:10px;align-items:center;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px">
+            <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="controlYouTube('pause')">⏸️ Pause</button>
+            <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="controlYouTube('resume')">▶️ Resume</button>
+            <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="controlYouTube('fullscreen')">🖥️ Fullscreen</button>
+            <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="controlYouTube('mute')">🔇 Mute</button>
+            <span style="font-size:0.75rem;color:#8899cc;margin-left:8px">Vol:</span>
+            <input type="range" min="0" max="100" value="100" style="width:80px" onchange="setYouTubeVol(this.value)">
+          </div>
+        </div>
       </div>
     </div>
 
@@ -2662,17 +2688,151 @@ async function searchYouTubeFromInput() {
   const q = document.getElementById('dt-yt-input').value.trim();
   const browser = document.getElementById('dt-browser-sel').value;
   if (!q) return alert("Please enter a YouTube search topic.");
+  document.getElementById('dt-browser-status').textContent = `Searching YouTube for "${q}"...`;
   try {
-    const r = await fetch('/api/desktop/browser/youtube', {
+    const r = await fetch('/api/browser/youtube/search', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({query: q, browser: browser})
+      body: JSON.stringify({query: q, max_results: 5})
     });
     const d = await r.json();
-    document.getElementById('dt-browser-status').textContent = `YouTube search for "${q}" opened in ${browser.toUpperCase()}.`;
+    if (d.status === 'ok') {
+      document.getElementById('dt-browser-status').textContent = `Found ${d.count} YouTube videos for "${q}". Please select an option below.`;
+      renderYouTubeSession(d);
+    } else {
+      document.getElementById('dt-browser-status').textContent = `YouTube search error: ${d.message || 'No videos found'}`;
+    }
     loadDesktopStatus();
   } catch(e) {
     alert("YouTube search error: " + e);
+  }
+}
+
+function renderYouTubeSession(data) {
+  const container = document.getElementById('yt-selection-container');
+  const cardsBox = document.getElementById('yt-video-cards');
+  const titleElem = document.getElementById('yt-session-title');
+  const badgeElem = document.getElementById('yt-session-badge');
+
+  if (!container || !cardsBox) return;
+
+  const query = data.query || 'Search';
+  const state = data.state || 'AWAITING_USER_SELECTION';
+  const videos = data.videos || [];
+
+  titleElem.textContent = `📺 YouTube: "${query}" (${videos.length} results)`;
+  badgeElem.textContent = state;
+  badgeElem.style.background = state.includes('PLAYING') ? '#00e676' : (state.includes('CANCELLED') ? '#ff4444' : '#ffaa00');
+  badgeElem.style.color = state.includes('CANCELLED') ? '#fff' : '#000';
+
+  if (!videos.length) {
+    cardsBox.innerHTML = '<div style="color:#8899cc;font-size:0.8rem">No videos available in this session.</div>';
+    container.style.display = 'block';
+    return;
+  }
+
+  cardsBox.innerHTML = videos.map(v => `
+    <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px">
+      <div style="font-weight:bold;font-size:0.9rem;color:var(--accent);width:24px;text-align:center">#${v.rank}</div>
+      <img src="${v.thumbnail || 'https://i.ytimg.com/vi/' + v.video_id + '/hqdefault.jpg'}" style="width:72px;height:42px;object-fit:cover;border-radius:4px" onerror="this.style.display='none'">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff" title="${v.title}">${v.title}</div>
+        <div style="font-size:0.7rem;color:#8899cc">${v.channel} • ⏱️ ${v.duration}</div>
+      </div>
+      <div style="display:flex;gap:4px">
+        <button class="btn" style="padding:4px 8px;font-size:0.7rem" onclick="selectYouTubeVideo(${v.rank}, true)">▶️ Play</button>
+        <button class="btn dark" style="padding:4px 8px;font-size:0.7rem" onclick="selectYouTubeVideo(${v.rank}, false)">↗️ Open</button>
+      </div>
+    </div>
+  `).join('');
+
+  container.style.display = 'block';
+}
+
+async function selectYouTubeVideo(rank, autoplay) {
+  const browser = document.getElementById('dt-browser-sel')?.value || 'chrome';
+  const badgeElem = document.getElementById('yt-session-badge');
+  if (badgeElem) {
+    badgeElem.textContent = 'OPENING_VIDEO';
+    badgeElem.style.background = '#00d2ff';
+  }
+  document.getElementById('dt-browser-status').textContent = `Opening option #${rank} in ${browser.toUpperCase()}...`;
+  try {
+    const r = await fetch('/api/browser/youtube/select', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({index: rank, autoplay: autoplay, browser: browser})
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      document.getElementById('dt-browser-status').textContent = d.message;
+      if (badgeElem) {
+        badgeElem.textContent = d.state || 'PLAYING_VERIFIED';
+        badgeElem.style.background = '#00e676';
+        badgeElem.style.color = '#000';
+      }
+    } else {
+      document.getElementById('dt-browser-status').textContent = `Selection error: ${d.detail || d.message}`;
+    }
+  } catch(e) {
+    alert("Select error: " + e);
+  }
+}
+
+async function cancelYouTubeSelection() {
+  try {
+    const r = await fetch('/api/browser/youtube/cancel', {method: 'POST'});
+    const d = await r.json();
+    document.getElementById('dt-browser-status').textContent = d.message || "YouTube selection cancelled.";
+    const container = document.getElementById('yt-selection-container');
+    if (container) container.style.display = 'none';
+  } catch(e) {
+    alert("Cancel error: " + e);
+  }
+}
+
+async function moreYouTubeResults() {
+  try {
+    const r = await fetch('/api/browser/youtube/more', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({count: 3})
+    });
+    const d = await r.json();
+    if (d.status === 'ok') {
+      renderYouTubeSession(d);
+      document.getElementById('dt-browser-status').textContent = `Loaded ${d.added_count} more results (Total: ${d.total_videos}).`;
+    }
+  } catch(e) {
+    alert("More results error: " + e);
+  }
+}
+
+async function controlYouTube(act) {
+  try {
+    const r = await fetch('/api/browser/youtube/control', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: act})
+    });
+    const d = await r.json();
+    document.getElementById('dt-browser-status').textContent = d.message || `Action ${act} executed.`;
+  } catch(e) {
+    alert("Control error: " + e);
+  }
+}
+
+async function setYouTubeVol(val) {
+  try {
+    const r = await fetch('/api/browser/youtube/control', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'volume', value: parseInt(val)})
+    });
+    const d = await r.json();
+    document.getElementById('dt-browser-status').textContent = d.message || `Volume set to ${val}%.`;
+  } catch(e) {
+    alert("Volume error: " + e);
   }
 }
 

@@ -319,7 +319,7 @@ class JARVISBrain:
             "desktop_open_app", "desktop_search_files", "desktop_search_content",
             "desktop_run_program", "terminal_execute", "desktop_awareness",
             "google_search", "browser_numbered_nav", "browser_back_and_open", "browser_history_nav",
-            "youtube_search", "youtube_play_index", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
+            "youtube_search", "youtube_play_index", "youtube_cancel_selection", "youtube_more_results", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab"
@@ -548,7 +548,7 @@ class JARVISBrain:
             "desktop_open_app", "desktop_search_files", "desktop_search_content",
             "desktop_run_program", "terminal_execute", "desktop_awareness",
             "google_search", "browser_numbered_nav", "browser_back_and_open", "browser_history_nav",
-            "youtube_search", "youtube_play_index", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
+            "youtube_search", "youtube_play_index", "youtube_cancel_selection", "youtube_more_results", "youtube_pause", "youtube_resume", "youtube_fullscreen", "youtube_mute", "youtube_volume",
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab"

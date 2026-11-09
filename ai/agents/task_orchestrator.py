@@ -115,13 +115,21 @@ class CompoundTaskOrchestrator:
         for idx, task in enumerate(subtasks, start=1):
             task_lower = task.lower().strip()
 
-            # Phase 3: Play YouTube video by index (e.g. "play the first video", "play the second result")
-            if re.search(r'\bplay\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|result|song)\b', task_lower):
+            # Phase 3: Play YouTube video by index (e.g. "play the first video", "play the second result", "play the first horror movie in youtube", "play option 2")
+            m_yt_play = (
+                re.search(r'\b(?:play|open)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:horror\s+movie|movie|film|video|result|song|choice|item|one)(?:\s+(?:in|on)\s+youtube)?\b', task_lower)
+                or re.search(r'\b(?:play|open)?\s*option\s*(?:#|\s*)?(\d+|one|two|three|four|five)\b', task_lower)
+            )
+            if m_yt_play:
                 from tools.browser.youtube_controller import youtube_controller
-                m_idx = re.search(r'(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)', task_lower)
-                idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
-                target_idx = idx_map.get(m_idx.group(1).lower(), 1) if m_idx else 1
-                yt_play = youtube_controller.play_video_by_index(target_idx, browser=last_context_browser)
+                idx_map = {
+                    "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
+                    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+                    "first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5
+                }
+                raw_token = m_yt_play.group(1).lower()
+                target_idx = idx_map.get(raw_token, 1)
+                yt_play = youtube_controller.select_and_play(index=target_idx, browser=last_context_browser)
                 all_tools_used.append({"tool": "youtube_play_video"})
                 if yt_play.get("status") == "ok":
                     section = (

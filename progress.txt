@@ -223,3 +223,46 @@ Learnings:
 - Synthetic typing into complex applications (Chrome, VS Code) requires a small inter-key delay (~12ms) to prevent dropped keystrokes.
 - Window switching must ignore desktop background/panel widgets (desktop ID = -1) to focus target applications reliably.
 ==================================================
+
+==================================================
+=== ITERATION 8: YOUTUBE SELECTION REPAIR & CHROME PLAYBACK ===
+Date: 2026-11-09
+Status: SUCCESS
+Changes:
+- Fixed root cause of arbitrary playback ("Ramayana Movie Review | Yogi Bolta Hai"):
+  1. Unified YouTube search queries in LocalIntelligenceEngine (ai/local_engine.py) to route exclusively to youtube_search and initialize an active YouTubeSession.
+  2. Expanded selection regex to match "play option 1..5", "play the first horror movie in youtube", "open option 2 without playing", and ordinal references with movie/film/video/choice/item/one.
+  3. Added strict defensive guards in MediaPlayer (tools/media/media_player.py) rejecting YouTube selection queries and preventing background audio stream hijacking.
+- Re-architected YouTubeController (tools/browser/youtube_controller.py):
+  1. Enforced strict 5-stage contract: SEARCH -> DISPLAY ACTUAL RESULTS -> WAIT FOR USER DECISION -> OPEN SELECTED VIDEO IN CHROME -> VERIFY REAL PLAYBACK.
+  2. Built YouTubeVideo model with organic titles, channels, duration strings, and high-res thumbnails.
+  3. Built YouTubeSession state machine (SEARCH_RESULTS_READY, AWAITING_USER_SELECTION, SELECTION_CONFIRMED, OPENING_VIDEO, PLAYING_VERIFIED, OPENED_PAUSED, CANCELLED, FAILED).
+  4. Disabled auto-play upon search; always waits for user decision.
+  5. Implemented select_and_play(index, title_query, autoplay, browser), open_without_playing(), cancel_selection(), and get_more_results().
+  6. Implemented verify_playback() verifying Google Chrome window, PID, and PipeWire streams on DISPLAY=:0.
+- Updated LocalIntelligenceEngine (ai/local_engine.py) & Brain (ai/brain.py):
+  1. Added fast-path intents: youtube_cancel_selection, youtube_more_results.
+  2. Implemented responses for search results with options prompt, numbered selection playback, cancellation, and more results.
+- Updated REST API (apps/api/browser_media_api.py):
+  1. Added /api/browser/youtube/session, /select, /cancel, /more, /verify endpoints.
+- Updated Dashboard UI (apps/dashboard/static/index.html):
+  1. Added YouTube Selection & Controls panel displaying video thumbnail cards, rank badges, Play/Open buttons, Cancel/More buttons, and player controls bar.
+- Created comprehensive test suite (tests/unit/test_youtube_selection_repair.py) with 14 unit tests (100% pass rate in 2.29s).
+- Re-verified full test suites:
+  - test_phase3_browser_and_media.py: 14/14 passed
+  - test_phase2_desktop_agent.py: 12/12 passed
+  - test_phase4_computer_use.py: 13/13 passed
+  Total: 53 tests passed with 0 regressions.
+- Executed live hardware acceptance tests on Raspberry Pi 5 DISPLAY=:0 with real YouTube search for horror videos, selection of option 1 ("SCARIEST VIDEOS ON THE INTERNET"), pause, resume, volume, cancellation, and out-of-bounds checks with 100% success.
+- Authored 5 documentation deliverables in docs/:
+  - docs/YOUTUBE_SELECTION_REPAIR.md
+  - docs/YOUTUBE_SEARCH_SESSION.md
+  - docs/YOUTUBE_PLAYBACK_VERIFICATION.md
+  - docs/YOUTUBE_AUDIO_ROUTING.md
+  - docs/YOUTUBE_SELECTION_TEST_RESULTS.md
+Learnings:
+- Numbered selection commands like "Play the first horror movie in YouTube" must never fall through to generic online media searches (`ytsearch1`), as YouTube search on literal ordinal sentences returns unrelated viral videos (like "Ramayana Movie Review").
+- Video selection must always map to the active in-memory session index.
+- Strict state separation (`AWAITING_USER_SELECTION`) guarantees that the AI assistant never decides what the user should watch or auto-plays unexpectedly.
+- Video playback must always occur in visible Google Chrome tabs on DISPLAY=:0 with audio routed through Chrome's native PipeWire stream to the physical speaker, keeping master volume (Sink 112 at 65%) completely protected.
+==================================================

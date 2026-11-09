@@ -129,7 +129,7 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:change|set|make|switch)\s+(?:the\s+)?(?:background|accent|theme)\b', text_lower) or re.search(r'\b(?:reset\s+theme|default\s+theme)\b', text_lower):
             return "theme_control", {"text": text}
 
-        # 2c. Phase 3: YouTube Player Controls & Playback
+        # 2c. YouTube Player Controls & Playback
         # Video volume (must precede generic volume)
         m_vvol = re.search(r'\b(?:set|change|increase|decrease)\s+(?:the\s+)?(?:video|youtube)\s+volume\s+(?:to\s+)?(\d+)\%?\b', text_lower)
         if m_vvol:
@@ -145,18 +145,57 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(mute|unmute)\s+(?:the\s+)?(?:video|youtube)\b', text_lower):
             return "youtube_mute", {"text": text}
 
-        # Numbered YouTube video selection ("Play the first video", "Play the second result instead")
-        m_yt_idx = re.search(r'\b(?:play)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|result|song)(?:\s+instead)?\b', text_lower) or re.search(r'\b(?:open|play)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+video\b', text_lower)
-        if m_yt_idx:
-            idx_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
-            matched_word = m_yt_idx.group(1) or (m_yt_idx.group(2) if m_yt_idx.lastindex >= 2 else "first")
-            chosen = idx_map.get(matched_word.lower(), 1)
-            return "youtube_play_index", {"index": chosen, "text": text}
+        # YouTube Selection Cancellation ("Cancel selection", "Cancel", "Never mind")
+        if re.search(r'\b(?:cancel\s+(?:the\s+)?(?:selection|youtube|video|search)|never\s*mind)\b', text_lower) or (text_lower.strip() in ("cancel", "nevermind")):
+            return "youtube_cancel_selection", {"text": text}
 
-        # YouTube direct search ("Search YouTube for a Hindi song", "Search YouTube for ...")
-        m_yt_search = re.search(r'\bsearch\s+youtube\s+for\s+(.+)', text_lower) or re.search(r'\b(?:play|find)\s+(.+?)\s+on\s+youtube\b', text_lower)
+        # YouTube More Results ("Show more results", "Show 3 more results", "More results")
+        m_more = re.search(r'\b(?:show|get|display|fetch)\s+(?:(\d+)\s+)?more\s+(?:results|videos|options)\b', text_lower) or re.search(r'^\s*more\s+results\s*$', text_lower)
+        if m_more:
+            cnt = int(m_more.group(1)) if (m_more and m_more.lastindex and m_more.group(1)) else 3
+            return "youtube_more_results", {"count": cnt, "text": text}
+
+        # YouTube Video Selection & Autoplay Detection ("Play option 1", "Play the first horror movie in YouTube", "Open option 2 without playing")
+        autoplay = not bool(re.search(r'\b(?:without\s+playing|no\s+autoplay|paused?)\b', text_lower))
+
+        m_opt = re.search(r'\b(?:play|open|select|choose)?\s*option\s*(?:#|\s*)?(\d+|one|two|three|four|five)\b', text_lower)
+        m_ord = re.search(r'\b(?:play|open|select|choose)\s+(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:horror\s+movie|movie|film|video|result|song|choice|item|track|one)(?:\s+(?:in|on)\s+youtube)?(?:\s+instead)?\b', text_lower)
+        m_ord_short = re.search(r'\b(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|movie|film|result|choice|one)\b', text_lower)
+
+        idx_map = {
+            "1": 1, "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7, "8": 8, "9": 9, "10": 10,
+            "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+            "first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3,
+            "fourth": 4, "4th": 4, "fifth": 5, "5th": 5,
+        }
+
+        if m_opt:
+            num_raw = m_opt.group(1).lower()
+            chosen_idx = idx_map.get(num_raw, 1)
+            return "youtube_play_index", {"index": chosen_idx, "autoplay": autoplay, "text": text}
+
+        if m_ord and not re.search(r'\b(?:website|site|link|tab|page)\b', text_lower):
+            ord_raw = m_ord.group(1).lower()
+            chosen_idx = idx_map.get(ord_raw, 1)
+            return "youtube_play_index", {"index": chosen_idx, "autoplay": autoplay, "text": text}
+
+        if m_ord_short and not re.search(r'\b(?:website|site|link|tab|page|window|question)\b', text_lower):
+            ord_raw = m_ord_short.group(1).lower()
+            chosen_idx = idx_map.get(ord_raw, 1)
+            return "youtube_play_index", {"index": chosen_idx, "autoplay": autoplay, "text": text}
+
+        # YouTube Unified Search ("Open a horror video in YouTube", "Search YouTube for a horror movie", "Find ... on YouTube")
+        m_yt_search = (
+            re.search(r'\b(?:search|find|open|look\s+up)\s+(?:a\s+|for\s+)?(.+?)\s+(?:in|on)\s+youtube\b', text_lower)
+            or re.search(r'\bsearch\s+youtube\s+for\s+(.+)', text_lower)
+            or re.search(r'\byoutube\s+search\s+for\s+(.+)', text_lower)
+            or re.search(r'\b(?:play|find)\s+(.+?)\s+(?:on|in)\s+youtube\b', text_lower)
+        )
         if m_yt_search:
-            return "youtube_search", {"query": m_yt_search.group(1).strip(), "text": text}
+            raw_q = m_yt_search.group(1).strip()
+            # If query is not an ordinal selection command, treat as search
+            if not re.search(r'\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th|option\s+\d+)\b', raw_q):
+                return "youtube_search", {"query": raw_q, "text": text}
 
         # 2d. Phase 3: Google Search ("Search Google for Raspberry Pi robotics", "Google Raspberry Pi robotics")
         m_gsearch = re.search(r'\bsearch\s+google\s+for\s+(.+)', text_lower) or re.search(r'^\s*google\s+(.+)', text_lower) or re.search(r'\bsearch\s+for\s+(.+?)\s+in\s+(?:google\s+)?chrome\b', text_lower)
@@ -213,7 +252,7 @@ class LocalIntelligenceEngine:
         # 3c. YouTube in Browser / YouTube Search
         m_yt = re.search(r'\b(?:play|search|find|open)\s+(?:for\s+)?(.+?)\s+(?:on|in)\s+youtube\b', text_lower) or re.search(r'\bsearch\s+youtube\s+for\s+(.+)', text_lower)
         if m_yt:
-            return "desktop_search_youtube", {"query": m_yt.group(1).strip(), "text": text}
+            return "youtube_search", {"query": m_yt.group(1).strip(), "text": text}
 
         m_url = re.search(r'\bopen\s+(?:the\s+)?(?:website\s+|url\s+|link\s+)?(https?://\S+|youtube|google|github|reddit|wikipedia)(?:\s+in\s+(google\s+chrome|chrome|firefox|browser))?\b', text_lower)
         if m_url:
@@ -312,6 +351,10 @@ class LocalIntelligenceEngine:
                     groups = [g for g in m.groups() if g]
                     if groups:
                         cand = groups[-1].strip()
+                        cand_l = cand.lower()
+                        # Reject candidates that refer to YouTube or ordinal selections
+                        if "youtube" in cand_l or bool(re.search(r'\b(option|first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b', cand_l)):
+                            continue
                         if cand.lower() not in ("song", "music", "track", "audio", "tune"):
                             extracted["query"] = cand
                 elif intent == "search_folder":
@@ -402,6 +445,12 @@ class LocalIntelligenceEngine:
 
             elif intent == "youtube_play_index":
                 return self._respond_youtube_play_index(ctx)
+
+            elif intent == "youtube_cancel_selection":
+                return self._respond_youtube_cancel(ctx)
+
+            elif intent == "youtube_more_results":
+                return self._respond_youtube_more_results(ctx)
 
             elif intent == "youtube_pause":
                 return self._respond_youtube_pause(ctx)
@@ -966,15 +1015,8 @@ if __name__ == "__main__":
         }
 
     def _respond_desktop_search_youtube(self, ctx: Dict) -> Dict:
-        from tools.desktop.action_engine import desktop_action_engine
-        query = ctx.get("query", "relaxing music")
-        res = desktop_action_engine.search_youtube(query)
-        ar = res["actual_result"]
-        return {
-            "response": f"📺 {ar['status_message']}\n🔗 Direct Link: {ar['youtube_url']}\nℹ️ *Web page displayed on desktop. Select video in browser to start playback.*",
-            "tools_used": ["desktop_search_youtube"],
-            "raw": res,
-        }
+        # Route to structured youtube_search for consistent session state and selection
+        return self._respond_youtube_search(ctx)
 
     def _respond_desktop_open_project(self, ctx: Dict) -> Dict:
         from tools.desktop.action_engine import desktop_action_engine
@@ -1260,35 +1302,69 @@ if __name__ == "__main__":
 
     def _respond_youtube_search(self, ctx: Dict) -> Dict:
         from tools.browser.youtube_controller import youtube_controller
-        query = ctx.get("query", "Hindi song")
+        query = ctx.get("query", "horror movie")
         res = youtube_controller.search(query, max_results=5)
         videos = res.get("videos", [])
+        clean_encoded = query.replace(" ", "+")
+        direct_url = f"https://www.youtube.com/results?search_query={clean_encoded}"
         if not videos:
             return {
-                "response": f"📺 Searched YouTube for '{query}', but could not find videos.",
-                "tools_used": ["youtube_search"],
+                "response": f"📺 Searched YouTube for '{query}', but could not find any videos.\n🔗 Direct Link: {direct_url}",
+                "tools_used": ["youtube_search", "desktop_search_youtube"],
+                "raw": res,
             }
-        bullets = []
-        for v in videos:
-            bullets.append(f"{v['rank']}. **{v['title']}**\n   Channel: *{v['channel']}* | 🔗 `{v['url']}`")
-        resp = f"📺 **YouTube Video Search for '{query}'**:\n\n" + "\n\n".join(bullets) + "\n\n💡 *Say 'Play the first video' or 'Play the second result instead' to start playing.*"
+        summary = res.get("formatted_summary", "")
+        resp = f"{summary}\n\n🔗 YouTube Results Page: `{direct_url}`"
         return {
             "response": resp,
-            "tools_used": ["youtube_search"],
+            "tools_used": ["youtube_search", "desktop_search_youtube"],
             "raw": res,
         }
 
     def _respond_youtube_play_index(self, ctx: Dict) -> Dict:
         from tools.browser.youtube_controller import youtube_controller
-        idx = ctx.get("index", 1)
-        res = youtube_controller.play_video_by_index(idx, browser="chrome")
+        idx = ctx.get("index")
+        title_q = ctx.get("title_query")
+        autoplay = ctx.get("autoplay", True)
+        res = youtube_controller.select_and_play(index=idx, title_query=title_q, autoplay=autoplay, browser="chrome")
         if res.get("status") == "ok":
-            resp = f"▶️ Now playing video #{res['rank']} on YouTube in Google Chrome:\n- **Title:** {res['title']}\n- **Channel:** {res['channel']}\n- **URL:** {res['url']}"
+            action_desc = "Now playing" if autoplay else "Opened in Google Chrome (paused)"
+            resp = (
+                f"▶️ **{action_desc} option #{res['rank']} on YouTube in Google Chrome:**\n"
+                f"- **Title:** {res['title']}\n"
+                f"- **Channel:** {res['channel']}\n"
+                f"- **Duration:** {res.get('duration', 'Unknown')}\n"
+                f"- **URL:** `{res['url']}`\n"
+                f"- **Verified State:** `{res.get('state')}` (Audio active on DISPLAY=:0)"
+            )
         else:
             resp = f"⚠️ {res.get('message', 'Could not play requested YouTube video.')}"
         return {
             "response": resp,
-            "tools_used": ["youtube_play"],
+            "tools_used": ["youtube_select_and_play"],
+            "raw": res,
+        }
+
+    def _respond_youtube_cancel(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        res = youtube_controller.cancel_selection()
+        return {
+            "response": f"🛑 {res.get('message')}",
+            "tools_used": ["youtube_cancel_selection"],
+            "raw": res,
+        }
+
+    def _respond_youtube_more_results(self, ctx: Dict) -> Dict:
+        from tools.browser.youtube_controller import youtube_controller
+        count = ctx.get("count", 3)
+        res = youtube_controller.get_more_results(count=count)
+        if res.get("status") == "ok":
+            resp = res.get("formatted_summary")
+        else:
+            resp = f"⚠️ {res.get('message', 'Could not fetch more results.')}"
+        return {
+            "response": resp,
+            "tools_used": ["youtube_more_results"],
             "raw": res,
         }
 

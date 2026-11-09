@@ -13,6 +13,7 @@ from __future__ import annotations
 import glob
 import logging
 import os
+import re
 import shutil
 import subprocess
 import threading
@@ -100,6 +101,41 @@ class MediaPlayer:
     def play(self, query: Optional[str] = None) -> Dict[str, Any]:
         """Play a local audio file or stream an online song."""
         with self._lock:
+            # Guard against hijacking YouTube video selection commands
+            if query:
+                q_lower = query.lower()
+                is_yt_command = (
+                    "youtube" in q_lower
+                    or bool(re.search(r'\boption\s+(?:\d+|one|two|three|four|five)\b', q_lower))
+                    or bool(re.search(r'\b(?:the\s+)?(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\s+(?:video|movie|film|song|result|choice|item|one)\b', q_lower))
+                )
+                if is_yt_command:
+                    from tools.browser.youtube_controller import youtube_controller
+                    logger.info("Redirecting YouTube selection query from media_player to youtube_controller: '%s'", query)
+                    idx_match = re.search(r'\b(first|second|third|fourth|fifth|1st|2nd|3rd|4th|5th)\b', q_lower)
+                    idx_num_match = re.search(r'\boption\s+(\d+)\b', q_lower)
+                    idx = None
+                    if idx_match:
+                        word_map = {"first": 1, "1st": 1, "second": 2, "2nd": 2, "third": 3, "3rd": 3, "fourth": 4, "4th": 4, "fifth": 5, "5th": 5}
+                        idx = word_map.get(idx_match.group(1).lower())
+                    elif idx_num_match:
+                        idx = int(idx_num_match.group(1))
+
+                    if idx is not None:
+                        res = youtube_controller.select_and_play(index=idx, browser="chrome")
+                        if res.get("status") == "ok":
+                            return {
+                                "status": "playing",
+                                "title": res.get("title"),
+                                "source": "youtube_chrome",
+                                "message": res.get("message"),
+                            }
+                        return res
+                    return {
+                        "status": "error",
+                        "message": "YouTube video commands must be selected and played through Google Chrome.",
+                    }
+
             self.stop()
 
             # 1. Check local audio files first

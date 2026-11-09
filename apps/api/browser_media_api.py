@@ -47,6 +47,17 @@ class YouTubePlayRequest(BaseModel):
     browser: Optional[str] = "chrome"
 
 
+class YouTubeSelectRequest(BaseModel):
+    index: Optional[int] = None
+    title_query: Optional[str] = None
+    autoplay: Optional[bool] = True
+    browser: Optional[str] = "chrome"
+
+
+class YouTubeMoreRequest(BaseModel):
+    count: Optional[int] = 3
+
+
 class YouTubeControlRequest(BaseModel):
     action: str  # pause, resume, fullscreen, mute, volume
     value: Optional[int] = None
@@ -121,6 +132,48 @@ def youtube_search_post(req: SearchRequest):
     return youtube_controller.search(req.query, max_results=req.max_results or 5)
 
 
+@browser_media_router.get("/browser/youtube/session")
+def youtube_get_session():
+    """Return the active YouTube search and selection session."""
+    session = youtube_controller.get_session()
+    return {"session": session, "has_active_session": session is not None}
+
+
+@browser_media_router.post("/browser/youtube/select")
+def youtube_select(req: YouTubeSelectRequest):
+    """Select a video from the active search session and open it in Google Chrome."""
+    res = youtube_controller.select_and_play(
+        index=req.index,
+        title_query=req.title_query,
+        autoplay=req.autoplay if req.autoplay is not None else True,
+        browser=req.browser or "chrome",
+    )
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
+
+@browser_media_router.post("/browser/youtube/cancel")
+def youtube_cancel():
+    """Cancel the active YouTube selection session."""
+    return youtube_controller.cancel_selection()
+
+
+@browser_media_router.post("/browser/youtube/more")
+def youtube_more(req: YouTubeMoreRequest):
+    """Fetch additional YouTube search results for active query."""
+    res = youtube_controller.get_more_results(count=req.count or 3)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=400, detail=res.get("message"))
+    return res
+
+
+@browser_media_router.get("/browser/youtube/verify")
+def youtube_verify(video_id: str = Query(..., description="YouTube video ID to verify")):
+    """Verify playback in Google Chrome on DISPLAY=:0."""
+    return youtube_controller.verify_playback(video_id=video_id)
+
+
 @browser_media_router.get("/browser/youtube/status")
 def youtube_status():
     return youtube_controller.get_player_state()
@@ -129,7 +182,7 @@ def youtube_status():
 @browser_media_router.post("/browser/youtube/play")
 def youtube_play(req: YouTubePlayRequest):
     if req.index is not None:
-        res = youtube_controller.play_video_by_index(req.index, browser=req.browser or "chrome")
+        res = youtube_controller.select_and_play(index=req.index, browser=req.browser or "chrome")
     elif req.query:
         res = youtube_controller.play_direct_query(req.query, browser=req.browser or "chrome")
     else:
