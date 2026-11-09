@@ -314,7 +314,10 @@ class JARVISBrain:
             "identity", "help", "open_app", "run_code", "create_calculator", "play_media", "stop_media",
             "pause_media", "resume_media", "media_status", "set_volume",
             "volume_up", "volume_down", "search_folder", "search_file",
-            "open_folder", "open_folder_at", "open_file"
+            "open_folder", "open_folder_at", "open_file",
+            "desktop_open_url", "desktop_search_youtube", "desktop_open_project",
+            "desktop_open_app", "desktop_search_files", "desktop_search_content",
+            "desktop_run_program", "terminal_execute", "desktop_awareness"
         }
 
         if intent in FAST_PATH_INTENTS:
@@ -535,7 +538,10 @@ class JARVISBrain:
             "identity", "help", "open_app", "run_code", "create_calculator", "play_media", "stop_media",
             "pause_media", "resume_media", "media_status", "set_volume",
             "volume_up", "volume_down", "search_folder", "search_file",
-            "open_folder", "open_folder_at", "open_file"
+            "open_folder", "open_folder_at", "open_file",
+            "desktop_open_url", "desktop_search_youtube", "desktop_open_project",
+            "desktop_open_app", "desktop_search_files", "desktop_search_content",
+            "desktop_run_program", "terminal_execute", "desktop_awareness"
         }
 
         if intent in FAST_PATH_INTENTS:

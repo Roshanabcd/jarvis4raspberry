@@ -8,7 +8,9 @@ This is NOT a "I'm offline" fallback — it actually DOES the tasks.
 """
 import json
 import logging
+import os
 import re
+import sys
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("JARVIS.LocalEngine")
@@ -119,21 +121,70 @@ class LocalIntelligenceEngine:
         if re.match(r"^\s*\d+(?:\.\d+)?\s*$", text.strip()):
             return "standalone_number", {"number": text.strip(), "text": text}
 
-        # 1. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
-        # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
-        if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
-            # Unless explicitly commanding to open desktop editor or run an existing script
-            if not re.search(r"\b(?:open|launch|start)\b.*(?:vs\s*code|vscode|mousepad|lxterminal)\b", text_lower) and not re.search(r"\b(?:run|execute)\s+(?:the\s+)?(?:python\s+)?(?:script|file|code|program)\b", text_lower):
-                return "general", {"text": text}
-
         # 2. Conversational history recall (Test 8: "What was my first question?")
         if re.search(r"\b(what was my (?:first|last|previous) question|what did i (?:ask|say)|previous question|first question)\b", text_lower):
             return "history_recall", {"text": text}
 
-        # 3. Deterministic natural-language math check (Test 6: "What is 25 multiplied by 4?", "15 percent of 800", "What is 1024 * 2 + 50?")
+        # 3. Phase 2 Desktop Intents
+        # 3a. Specific App Opening ("Open Google Chrome", "Open Chrome", "Open Firefox", "Open VS Code", "Open Antigravity")
+        m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', text_lower)
+        if m_app:
+            return "desktop_open_app", {"app": m_app.group(1).strip(), "text": text}
+
+        # 3b. Project Opening in IDE (VS Code or Antigravity)
+        m_proj = re.search(r'\bopen\s+(?:my\s+)?(.+?)\s+(?:project\s+|folder\s+|workspace\s+)?in\s+(vs\s*code|vscode|code|antigravity|antigravity\s+ide)\b', text_lower)
+        if m_proj:
+            return "desktop_open_project", {"project": m_proj.group(1).strip(), "editor": m_proj.group(2).strip(), "text": text}
+
+        m_proj_named = re.search(r'\bopen\s+(?:the\s+)?(?:project\s+|folder\s+)?(gameproject|unitygameworkspace|jarvis-os)\b', text_lower)
+        if m_proj_named:
+            return "desktop_open_project", {"project": m_proj_named.group(1).strip(), "editor": "vscode", "text": text}
+
+        # 3c. YouTube in Browser / YouTube Search
+        m_yt = re.search(r'\b(?:play|search|find|open)\s+(?:for\s+)?(.+?)\s+(?:on|in)\s+youtube\b', text_lower) or re.search(r'\bsearch\s+youtube\s+for\s+(.+)', text_lower)
+        if m_yt:
+            return "desktop_search_youtube", {"query": m_yt.group(1).strip(), "text": text}
+
+        m_url = re.search(r'\bopen\s+(?:the\s+)?(?:website\s+|url\s+|link\s+)?(https?://\S+|youtube|google|github|reddit|wikipedia)(?:\s+in\s+(google\s+chrome|chrome|firefox|browser))?\b', text_lower)
+        if m_url:
+            return "desktop_open_url", {"url": m_url.group(1).strip(), "browser": m_url.group(2) or "chrome", "text": text}
+
+        # 3d. File & Content Search
+        m_sfiles = re.search(r'\b(?:find|search)\s+(?:for\s+)?(?:all\s+)?(\w+|\*\.\w+)?\s*files?\s+(?:in|under)\s+(.+)', text_lower)
+        if m_sfiles and not re.search(r'\b(remember|save|note)\b', text_lower):
+            return "desktop_search_files", {"pattern": m_sfiles.group(1), "directory": m_sfiles.group(2).strip(), "text": text}
+
+        m_scont = re.search(r'\b(?:find|search)\s+(?:for\s+)?(?:all\s+|every\s+)?files?\s+containing\s+(?:the\s+word\s+|the\s+phrase\s+)?["\']?([^"\']+)["\']?(?:\s+in\s+(.+))?', text_lower)
+        if m_scont and not re.search(r'\b(remember|save|note)\b', text_lower):
+            return "desktop_search_content", {"query": m_scont.group(1).strip(), "directory": m_scont.group(2), "text": text}
+
+        # 3e. Terminal Command Execution
+        m_term = re.search(r'\brun\s+(.+?)\s+in\s+(?:the\s+)?terminal\b', text_lower) or re.search(r'^\s*run\s+(python3\s+--version|ls\s+-[a-zA-Z]+|pwd|whoami)\s*$', text_lower) or re.search(r'\bopen\s+(?:a\s+)?terminal\s+and\s+execute\s+(.+)', text_lower)
+        if m_term:
+            return "terminal_execute", {"command": m_term.group(1).strip(), "text": text}
+
+        # 3f. Program Execution in Folder
+        m_prog = re.search(r'\brun\s+(?:my\s+)?(?:python\s+)?(?:program|script)\s+in\s+(?:the\s+)?(.+)', text_lower) or re.search(r'\brun\s+([a-zA-Z0-9_\-\.\/]+\.py)\s+in\s+(?:my\s+)?(.+)', text_lower)
+        if m_prog:
+            prog_arg = m_prog.group(1).strip()
+            loc_arg = m_prog.group(2).strip() if m_prog.lastindex >= 2 and m_prog.group(2) else None
+            return "desktop_run_program", {"program": prog_arg, "location": loc_arg, "text": text}
+
+        # 3g. Desktop Awareness
+        if re.search(r'\b(which application is open|what is the active window|show the current active window|active window|running applications)\b', text_lower) or re.search(r'\bis\s+(vs\s*code|vscode|chrome|firefox|antigravity)\s+running\b', text_lower):
+            return "desktop_awareness", {"text": text}
+
+        # 3h. Deterministic natural-language math check (Test 6: "What is 25 multiplied by 4?", "15 percent of 800", "What is 1024 * 2 + 50?")
         if re.search(r"\b(?:\d+(?:\.\d+)?\s*(?:multiplied\s+by|times|\*|divided\s+by|\/|plus|\+|minus|\-|to\s+the\s+power\s+of|\^|%|percent\s+of)\s*\d+|\d+\s*[\+\-\*\/]\s*\d+)", text_lower):
             clean_math = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', text.strip(), flags=re.I).rstrip('?.')
             return "calculate", {"expression": clean_math, "text": text}
+
+        # 4. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
+        # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
+        if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
+            # Unless explicitly commanding to open desktop editor or run an existing script
+            if not re.search(r"\b(?:open|launch|start)\b.*(?:vs\s*code|vscode|mousepad|lxterminal)\b", text_lower) and not re.search(r"\b(?:run|execute)\s+(?:the\s+|my\s+|this\s+)?(?:python\s+)?(?:script|file|code|program)\b", text_lower):
+                return "general", {"text": text}
 
         for pattern, intent, _ in INTENTS:
             m = re.search(pattern, text_lower)
@@ -187,6 +238,33 @@ class LocalIntelligenceEngine:
             elif intent == "calculate":
                 calc_expr = ctx.get("expression") or text
                 return self._respond_calculate(calc_expr)
+
+            elif intent == "desktop_open_url":
+                return self._respond_desktop_open_url(ctx)
+
+            elif intent == "desktop_search_youtube":
+                return self._respond_desktop_search_youtube(ctx)
+
+            elif intent == "desktop_open_project":
+                return self._respond_desktop_open_project(ctx)
+
+            elif intent == "desktop_open_app":
+                return self._respond_desktop_open_app(ctx)
+
+            elif intent == "desktop_search_files":
+                return self._respond_desktop_search_files(ctx)
+
+            elif intent == "desktop_search_content":
+                return self._respond_desktop_search_content(ctx)
+
+            elif intent == "desktop_run_program":
+                return self._respond_desktop_run_program(ctx)
+
+            elif intent == "terminal_execute":
+                return self._respond_terminal_execute(ctx)
+
+            elif intent == "desktop_awareness":
+                return self._respond_desktop_awareness(ctx)
 
             elif intent == "robot_forward":
                 speed = self._extract_speed(text) or 50
@@ -682,6 +760,250 @@ if __name__ == "__main__":
         return {
             "response": f"Calculation error: {res.get('error', 'I could not compute that expression.')}",
             "tools_used": ["calculate"],
+            "raw": res,
+        }
+
+    def _respond_desktop_open_url(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        raw_url = ctx.get("url", "https://www.youtube.com")
+        browser = ctx.get("browser", "chrome")
+        # Canonicalize common shortcuts
+        if raw_url.lower() in ("youtube", "yt"):
+            url = "https://www.youtube.com"
+        elif raw_url.lower() in ("google", "search"):
+            url = "https://www.google.com"
+        elif raw_url.lower() == "github":
+            url = "https://github.com"
+        else:
+            url = raw_url
+        res = desktop_action_engine.open_url(url, browser=browser)
+        ar = res["actual_result"]
+        return {
+            "response": f"🌐 Opened **{ar['url']}** in {ar['resolved_browser'].title()} (PID: {ar.get('pid')}) on display :0.",
+            "tools_used": ["desktop_open_url"],
+            "raw": res,
+        }
+
+    def _respond_desktop_search_youtube(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        query = ctx.get("query", "relaxing music")
+        res = desktop_action_engine.search_youtube(query)
+        ar = res["actual_result"]
+        return {
+            "response": f"📺 {ar['status_message']}\n🔗 Direct Link: {ar['youtube_url']}\nℹ️ *Web page displayed on desktop. Select video in browser to start playback.*",
+            "tools_used": ["desktop_search_youtube"],
+            "raw": res,
+        }
+
+    def _respond_desktop_open_project(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        proj = ctx.get("project", "UnityGameWorkspace")
+        editor = ctx.get("editor", "vscode")
+        res = desktop_action_engine.open_project(proj, editor=editor)
+        ar = res["actual_result"]
+        if ar.get("success"):
+            return {
+                "response": f"💻 Opened project **{ar.get('project_name')}** at `{ar.get('project_path')}` in **{ar.get('editor').upper()}** (PID: {ar.get('pid')}).",
+                "tools_used": ["desktop_open_project"],
+                "raw": res,
+            }
+        return {
+            "response": f"⚠️ {ar.get('message', 'Failed to open project.')}",
+            "tools_used": ["desktop_open_project"],
+            "raw": res,
+        }
+
+    def _respond_desktop_open_app(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        app = ctx.get("app", "code")
+        res = desktop_action_engine.open_application(app, new_window=True)
+        ar = res["actual_result"]
+        if ar.get("success"):
+            return {
+                "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`) on desktop session (PID: {ar.get('pid')}).",
+                "tools_used": ["desktop_open_app", "open_app"],
+                "raw": res,
+            }
+        return {
+            "response": f"⚠️ Could not launch **{app}**: {ar.get('error', 'Application not found.')}",
+            "tools_used": ["desktop_open_app", "open_app"],
+            "raw": res,
+        }
+
+    def _respond_desktop_search_files(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        raw_dir = ctx.get("directory", "")
+        pattern = ctx.get("pattern", "*")
+
+        # Resolve directory aliases
+        home = os.path.expanduser("~")
+        clean_dir = home
+        d_lower = raw_dir.lower()
+        if "unity" in d_lower or "gameworkspace" in d_lower:
+            clean_dir = os.path.join(home, "UnityGameWorkspace")
+        elif "download" in d_lower:
+            clean_dir = os.path.join(home, "Downloads")
+        elif "desktop" in d_lower:
+            clean_dir = os.path.join(home, "Desktop")
+        elif "jarvis" in d_lower:
+            clean_dir = "/home/roshan/.gemini/antigravity/scratch/jarvis-os"
+        elif raw_dir.strip():
+            clean_dir = os.path.expanduser(raw_dir.strip())
+
+        # Normalize pattern and extension
+        ext = None
+        p_clean = pattern.strip() if pattern else "*"
+        if p_clean.lower() in ("python", "py", "*.py"):
+            ext = ".py"
+            p_clean = "*"
+        elif p_clean.lower() in ("readme", "readme.md"):
+            p_clean = "*README*"
+
+        res = desktop_action_engine.search_files(directory=clean_dir, pattern=p_clean, extension=ext)
+        files = res["actual_result"]["files"]
+        if files:
+            bullets = "\n".join(f"  📄 `{f['relative_path']}` ({f['size_str']})" for f in files[:10])
+            resp = f"📁 Found {len(files)} file(s) in `{clean_dir}`:\n{bullets}"
+        else:
+            resp = f"📁 No files matching '{p_clean}' found in `{clean_dir}`."
+        return {
+            "response": resp,
+            "tools_used": ["desktop_search_files"],
+            "raw": res,
+        }
+
+    def _respond_desktop_search_content(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        query = ctx.get("query", "")
+        raw_dir = ctx.get("directory")
+        home = os.path.expanduser("~")
+        clean_dir = home
+        if raw_dir:
+            d_lower = raw_dir.lower()
+            if "unity" in d_lower:
+                clean_dir = os.path.join(home, "UnityGameWorkspace")
+            elif "download" in d_lower:
+                clean_dir = os.path.join(home, "Downloads")
+            else:
+                clean_dir = os.path.expanduser(raw_dir.strip())
+        else:
+            clean_dir = os.path.join(home, "UnityGameWorkspace") if os.path.exists(os.path.join(home, "UnityGameWorkspace")) else home
+
+        res = desktop_action_engine.search_file_contents(query=query, directory=clean_dir)
+        matches = res["actual_result"]["matches"]
+        if matches:
+            bullets = "\n".join(f"  🔍 `{m['file']}:{m['line']}` — {m['content']}" for m in matches[:8])
+            resp = f"🔎 Found {len(matches)} match(es) for '{query}':\n{bullets}"
+        else:
+            resp = f"🔎 No files containing '{query}' found in `{clean_dir}`."
+        return {
+            "response": resp,
+            "tools_used": ["desktop_search_content"],
+            "raw": res,
+        }
+
+    def _respond_terminal_execute(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        cmd = ctx.get("command", "")
+        res = desktop_action_engine.execute_terminal(cmd)
+        ar = res["actual_result"]
+        if ar.get("requires_confirmation"):
+            return {
+                "response": (
+                    f"⚠️ **Security Confirmation Required**\n\n"
+                    f"Command `{cmd}` contains sensitive or destructive operations ({ar.get('reason')}).\n"
+                    f"Please confirm execution using confirmation token: `{ar.get('confirmation_token')}`."
+                ),
+                "tools_used": ["terminal_execute"],
+                "raw": res,
+            }
+        out = (ar.get("stdout") or ar.get("stderr") or "[Command exited without output]").strip()
+        resp = (
+            f"💻 **JARVIS Terminal Execution**\n\n"
+            f"- **Working Directory:** `{ar.get('cwd')}`\n"
+            f"- **Command:** `{cmd}`\n"
+            f"- **Exit Code:** `{ar.get('exit_code')}`\n"
+            f"- **Status:** {ar.get('status')} ({ar.get('duration_ms')}ms)\n\n"
+            f"```text\n{out}\n```"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["terminal_execute"],
+            "raw": res,
+        }
+
+    def _respond_desktop_run_program(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        prog = ctx.get("program", "")
+        loc = ctx.get("location", "")
+        home = os.path.expanduser("~")
+
+        # Resolve directory
+        target_dir = home
+        if loc:
+            if "unity" in loc.lower() or "gameworkspace" in loc.lower():
+                target_dir = os.path.join(home, "UnityGameWorkspace", "GameProject")
+            elif "download" in loc.lower():
+                target_dir = os.path.join(home, "Downloads")
+            else:
+                target_dir = os.path.expanduser(loc.strip())
+        else:
+            if "unity" in prog.lower():
+                target_dir = os.path.join(home, "UnityGameWorkspace", "GameProject")
+
+        # Resolve script file
+        target_file = None
+        if os.path.isabs(prog) and os.path.exists(prog):
+            target_file = prog
+        elif os.path.exists(os.path.join(target_dir, prog)):
+            target_file = os.path.join(target_dir, prog)
+        else:
+            # Check for build.py or main.py in target_dir
+            for cand in ["build.py", "main.py", "controller.py"]:
+                if os.path.exists(os.path.join(target_dir, cand)):
+                    target_file = os.path.join(target_dir, cand)
+                    break
+
+        if not target_file:
+            return {
+                "response": f"⚠️ Could not find program '{prog}' in `{target_dir}`.",
+                "tools_used": ["desktop_run_program"],
+            }
+
+        res = desktop_action_engine.run_program(target_file, working_dir=target_dir)
+        ar = res["actual_result"]
+        out = (ar.get("stdout") or ar.get("stderr") or "[No output]").strip()
+        resp = (
+            f"⚡ **Program Execution Result**\n\n"
+            f"- **File:** `{target_file}`\n"
+            f"- **Working Directory:** `{target_dir}`\n"
+            f"- **Exit Code:** `{ar.get('exit_code')}`\n"
+            f"- **Status:** {ar.get('status').upper()} ({ar.get('duration_ms')}ms)\n\n"
+            f"```text\n{out}\n```"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["desktop_run_program"],
+            "raw": res,
+        }
+
+    def _respond_desktop_awareness(self, ctx: Dict) -> Dict:
+        from tools.desktop.action_engine import desktop_action_engine
+        res = desktop_action_engine.get_desktop_status()
+        ar = res["actual_result"]
+        act = ar.get("active_window", {})
+        wins = ar.get("open_windows", [])
+        win_bullets = "\n".join(f"  • [{w.get('window_id')}] `{w.get('title')}` (PID: {w.get('pid')})" for w in wins[:5])
+        resp = (
+            f"🖥️ **Desktop Session Status**\n\n"
+            f"- **Session Type:** {ar.get('session_type').upper()} (Display `{ar.get('display')}`)\n"
+            f"- **Screen Resolution:** {ar.get('resolution')}\n"
+            f"- **Active Window:** `{act.get('title', 'None')}` (Class: {act.get('class_name', 'Unknown')}, PID: {act.get('pid', 'N/A')})\n"
+            f"- **Open Windows ({ar.get('open_window_count')}):**\n{win_bullets}"
+        )
+        return {
+            "response": resp,
+            "tools_used": ["desktop_get_status"],
             "raw": res,
         }
 

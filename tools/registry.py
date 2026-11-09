@@ -1260,6 +1260,109 @@ class ToolRegistry:
             "execute": _fn_health_check,
         })
 
+        # ── Phase 2: Desktop & Terminal Action Engine Tools ──────────────
+        from tools.desktop.action_engine import desktop_action_engine
+        from tools.terminal.terminal_manager import terminal_engine
+
+        self.register_tool({
+            "name": "desktop_open_app",
+            "description": "Launch installed desktop application (Chrome, Firefox, VS Code, Antigravity, LXTerminal, PCManFM)",
+            "schema": {"app_name": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:launch"],
+            "execute": lambda app_name, target=None, new_window=False, **_: desktop_action_engine.open_application(app_name, target=target, new_window=new_window),
+        })
+
+        self.register_tool({
+            "name": "desktop_open_url",
+            "description": "Open a web URL in Google Chrome, Firefox, or default browser",
+            "schema": {"url": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:open"],
+            "execute": lambda url, browser="chrome", **_: desktop_action_engine.open_url(url, browser=browser),
+        })
+
+        self.register_tool({
+            "name": "desktop_search_youtube",
+            "description": "Search YouTube for music, tutorials, or videos in Google Chrome or Firefox",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:youtube"],
+            "execute": lambda query, browser="chrome", **_: desktop_action_engine.search_youtube(query, browser=browser),
+        })
+
+        self.register_tool({
+            "name": "desktop_open_project",
+            "description": "Open a project directory in VS Code or Antigravity IDE",
+            "schema": {"project": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:ide"],
+            "execute": lambda project, editor="vscode", **_: desktop_action_engine.open_project(project, editor=editor),
+        })
+
+        self.register_tool({
+            "name": "desktop_search_files",
+            "description": "Search for files by name pattern or extension across workspace directories",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["filesystem:search"],
+            "execute": lambda directory=None, pattern="*", extension=None, max_results=50, **_: desktop_action_engine.search_files(directory=directory, pattern=pattern, extension=extension, max_results=max_results),
+        })
+
+        self.register_tool({
+            "name": "desktop_search_content",
+            "description": "Search text contents inside source code files (grep search)",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["filesystem:search"],
+            "execute": lambda query, directory=None, file_pattern=None, max_results=25, **_: desktop_action_engine.search_file_contents(query=query, directory=directory, file_pattern=file_pattern, max_results=max_results),
+        })
+
+        self.register_tool({
+            "name": "desktop_run_program",
+            "description": "Execute a Python, shell, or script file in a project folder",
+            "schema": {"file_path": "str"},
+            "risk_level": 2,
+            "permissions": ["code:run"],
+            "execute": lambda file_path, working_dir=None, args=None, background=False, **_: desktop_action_engine.run_program(file_path, working_dir=working_dir, args=args, background=background),
+        })
+
+        self.register_tool({
+            "name": "desktop_get_status",
+            "description": "Get desktop session status, active window, resolution, and open applications",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": lambda **_: desktop_action_engine.get_desktop_status(),
+        })
+
+        self.register_tool({
+            "name": "desktop_get_active_window",
+            "description": "Get currently active window title, ID, and class name on X11 desktop",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": lambda **_: desktop_action_engine.get_active_window(),
+        })
+
+        self.register_tool({
+            "name": "desktop_switch_app",
+            "description": "Switch window focus to a running application or window by title",
+            "schema": {"query": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:focus"],
+            "execute": lambda query, **_: desktop_action_engine.switch_application(query),
+        })
+
+        self.register_tool({
+            "name": "terminal_execute",
+            "description": "Execute a command in real terminal with session directory tracking and security gate",
+            "schema": {"command": "str"},
+            "risk_level": 2,
+            "permissions": ["terminal:execute"],
+            "execute": lambda command, session_id="default", confirm=False, confirmation_token=None, **_: terminal_engine.execute_command(command, session_id=session_id, confirm=confirm, confirmation_token=confirmation_token),
+        })
+
 
 # Global tool registry instances for compatibility
 tool_registry = ToolRegistry()

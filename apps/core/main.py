@@ -161,6 +161,8 @@ _include("", "apps.api.tools_api",    "tools_router",   prefix="/api", tags=["to
 _include("", "apps.api.scheduler_api","scheduler_router", prefix="/api", tags=["automations"])
 _include("", "apps.api.health_api",   "health_router",prefix="/api",     tags=["health"])
 _include("", "apps.api.diagnostics_api","diag_router",prefix="/api",     tags=["diagnostics"])
+_include("", "apps.api.desktop_api",  "desktop_router",prefix="/api",    tags=["desktop"])
+_include("", "apps.api.terminal_api", "terminal_router",prefix="/api",   tags=["terminal"])
 _include("", "apps.api.websocket_api","ws_router",    prefix="",         tags=["ws"])
 
 

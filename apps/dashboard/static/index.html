@@ -445,6 +445,7 @@
   <button onclick="showTab('integrations')">🔌 Integrations</button>
   <button onclick="showTab('system')">📊 System</button>
   <button onclick="showTab('logs')">📜 Logs</button>
+  <button onclick="showTab('desktop')">💻 Desktop & Terminal</button>
   <button onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
 
@@ -917,6 +918,104 @@
       </div>
     </div>
   </div>
+
+  <!-- 15. DESKTOP & TERMINAL CENTER -->
+  <div id="tab-desktop" class="tab">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <!-- Section A: Application Launcher -->
+      <div class="panel">
+        <h2>🚀 Application Launcher</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <button class="btn" onclick="launchDesktopApp('chrome')">🌐 Google Chrome</button>
+          <button class="btn" onclick="launchDesktopApp('firefox')">🦊 Firefox</button>
+          <button class="btn" onclick="launchDesktopApp('code')">💻 VS Code</button>
+          <button class="btn" onclick="launchDesktopApp('antigravity')">⚛️ Antigravity</button>
+          <button class="btn" onclick="launchDesktopApp('terminal')">⌨️ Terminal</button>
+          <button class="btn dark" onclick="launchDesktopApp('pcmanfm')">📁 File Manager</button>
+        </div>
+        <div id="desktop-apps-list" style="font-size:0.8rem;color:#8899cc">Loading installed applications...</div>
+      </div>
+
+      <!-- Section F: Desktop & Window Awareness -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h2>🖥️ Desktop Status</h2>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadDesktopStatus()">🔄 Refresh</button>
+        </div>
+        <div style="font-size:0.82rem;line-height:1.6">
+          <div><strong>Active Window:</strong> <span id="dt-active-win" style="color:var(--accent)">—</span></div>
+          <div><strong>Resolution:</strong> <span id="dt-resolution">—</span> | <strong>Session:</strong> <span id="dt-session">X11</span></div>
+          <div><strong>Open Windows:</strong> <span id="dt-win-count">0</span></div>
+          <div id="dt-win-list" style="margin-top:8px;font-family:monospace;font-size:0.75rem;background:#050711;padding:8px;border-radius:6px;max-height:120px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section B & E: Project Launcher and Browser Controls -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <!-- Section B: Project Launcher -->
+      <div class="panel">
+        <h2>📁 Project Launcher</h2>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input id="dt-proj-input" type="text" placeholder="Project name or path (e.g. UnityGameWorkspace)" style="flex:1;background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+          <button class="btn" onclick="openProjectFromInput('vscode')">Open in Code</button>
+          <button class="btn dark" onclick="openProjectFromInput('antigravity')">Antigravity</button>
+        </div>
+        <div id="dt-projects-list" style="font-size:0.8rem;max-height:140px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Section E: Browser & YouTube Controls -->
+      <div class="panel">
+        <h2>🌐 Browser & YouTube Control</h2>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <select id="dt-browser-sel" style="background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px;border-radius:6px">
+            <option value="chrome">Google Chrome</option>
+            <option value="firefox">Firefox</option>
+          </select>
+          <input id="dt-url-input" type="text" placeholder="https://example.com" style="flex:1;background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+          <button class="btn" onclick="openBrowserUrl()">Open URL</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <input id="dt-yt-input" type="text" placeholder="Search YouTube (e.g. relaxing music)" style="flex:1;background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+          <button class="btn" onclick="searchYouTubeFromInput()">📺 YouTube Search</button>
+        </div>
+        <div id="dt-browser-status" style="margin-top:8px;font-size:0.75rem;color:#8899cc"></div>
+      </div>
+    </div>
+
+    <!-- Section C: File & Content Search -->
+    <div class="panel" style="margin-bottom:16px">
+      <h2>🔍 File & Content Search</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:8px;margin-bottom:10px">
+        <input id="dt-search-dir" type="text" placeholder="Directory (e.g. ~/UnityGameWorkspace)" style="background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+        <input id="dt-search-pattern" type="text" placeholder="Filename pattern (e.g. *.py, *README*)" style="background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+        <button class="btn" onclick="executeFileSearch()">Search Files</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="dt-search-content-q" type="text" placeholder="Search file content (grep e.g. database, robot_move)" style="flex:1;background:#050711;border:1px solid var(--card-border);color:#fff;padding:6px 10px;border-radius:6px">
+        <button class="btn dark" onclick="executeContentSearch()">Grep Content</button>
+      </div>
+      <div id="dt-search-results" style="font-size:0.78rem;font-family:monospace;background:#050711;padding:10px;border-radius:6px;max-height:160px;overflow-y:auto;border:1px solid var(--card-border)">No searches run yet.</div>
+    </div>
+
+    <!-- Section D: Integrated Real Terminal -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2>💻 Integrated Terminal Console</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:0.75rem;color:#8899cc">CWD: <code id="dt-term-cwd">/home/roshan</code></span>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="clearTerminalOutput()">Clear</button>
+        </div>
+      </div>
+      <div id="dt-terminal-output" style="background:#03050c;color:#00ffff;font-family:monospace;font-size:0.82rem;padding:14px;border-radius:8px;height:240px;overflow-y:auto;white-space:pre-wrap;border:1px solid #1a2744">Welcome to JARVIS OS Real Linux Terminal. Type commands below (e.g. python3 --version, ls -la, cd ~/UnityGameWorkspace).</div>
+      <div id="dt-term-confirm-banner" style="display:none;background:#332200;border:1px solid #ffaa00;padding:8px 12px;border-radius:6px;margin-top:8px;color:#ffdd88;font-size:0.8rem"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <span style="display:flex;align-items:center;color:var(--accent);font-family:monospace;font-size:0.9rem">$</span>
+        <input id="dt-term-input" type="text" placeholder="Enter shell command..." style="flex:1;background:#050711;border:1px solid var(--card-border);color:#fff;padding:8px 12px;border-radius:6px;font-family:monospace" onkeydown="if(event.key==='Enter')runTerminalCommand()">
+        <button class="btn" onclick="runTerminalCommand()">Execute</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -940,6 +1039,7 @@ function showTab(name) {
   if (name === 'integrations') loadIntegrations();
   if (name === 'settings') initSettingsCategories();
   if (name === 'chat') loadChatHistory();
+  if (name === 'desktop') { loadDesktopStatus(); loadDesktopApps(); loadDesktopProjects(); }
 }
 
 let chatHistoryLoaded = false;
@@ -2322,6 +2422,226 @@ async function exportConfigBackup() {
   } catch(e) {
     alert("Export backup failed: " + e);
   }
+}
+// ─── Desktop & Terminal Integration ─────────────────────────
+async function loadDesktopStatus() {
+  try {
+    const r = await fetch('/api/desktop/status');
+    const d = await r.json();
+    const act = d.active_window || {};
+    document.getElementById('dt-active-win').textContent = act.title || 'None';
+    document.getElementById('dt-resolution').textContent = d.resolution || 'Unknown';
+    document.getElementById('dt-session').textContent = (d.session_type || 'x11').toUpperCase();
+    document.getElementById('dt-win-count').textContent = d.open_window_count || 0;
+    const list = d.open_windows || [];
+    document.getElementById('dt-win-list').innerHTML = list.map(w => `• [${w.window_id}] ${w.title} (PID: ${w.pid})`).join('<br>') || 'No open windows detected.';
+  } catch(e) {
+    console.error("loadDesktopStatus error:", e);
+  }
+}
+
+async function loadDesktopApps() {
+  try {
+    const r = await fetch('/api/desktop/apps');
+    const apps = await r.json();
+    document.getElementById('desktop-apps-list').innerHTML = apps.map(a =>
+      `<span style="display:inline-block;margin:3px 6px;padding:3px 8px;background:#0d1829;border:1px solid #1a2744;border-radius:4px">
+        ${a.name} ${a.running ? '<span style="color:#00ff88">● running</span>' : '<span style="color:#667799">○ ready</span>'}
+      </span>`
+    ).join('');
+  } catch(e) {
+    console.error("loadDesktopApps error:", e);
+  }
+}
+
+async function launchDesktopApp(appName) {
+  try {
+    const r = await fetch('/api/desktop/apps/launch', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({app_name: appName, new_window: true})
+    });
+    const d = await r.json();
+    alert(`Launch ${appName}:\nStatus: ${d.actual_result?.status || d.status} (PID: ${d.actual_result?.pid || 'N/A'})`);
+    loadDesktopStatus();
+    loadDesktopApps();
+  } catch(e) {
+    alert("Launch failed: " + e);
+  }
+}
+
+async function loadDesktopProjects() {
+  try {
+    const r = await fetch('/api/desktop/projects');
+    const projs = await r.json();
+    document.getElementById('dt-projects-list').innerHTML = projs.map(p =>
+      `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-bottom:1px solid #1a2744">
+        <div><strong>${p.name}</strong> <span style="color:#667799;font-size:0.75rem">${p.path}</span></div>
+        <div style="display:flex;gap:4px">
+          <button class="btn dark" style="padding:2px 6px;font-size:0.7rem" onclick="openProjectDirect('${p.path}', 'vscode')">Code</button>
+          <button class="btn dark" style="padding:2px 6px;font-size:0.7rem" onclick="openProjectDirect('${p.path}', 'antigravity')">AGY</button>
+        </div>
+      </div>`
+    ).join('') || '<div style="color:#667799;padding:8px">No projects discovered.</div>';
+  } catch(e) {
+    console.error("loadDesktopProjects error:", e);
+  }
+}
+
+async function openProjectDirect(path, editor) {
+  try {
+    const r = await fetch('/api/desktop/projects/open', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({project: path, editor: editor})
+    });
+    const d = await r.json();
+    alert(`Opened project in ${editor.toUpperCase()}:\nStatus: ${d.actual_result?.status || 'opened'}`);
+    loadDesktopStatus();
+  } catch(e) {
+    alert("Failed opening project: " + e);
+  }
+}
+
+async function openProjectFromInput(editor) {
+  const proj = document.getElementById('dt-proj-input').value.trim();
+  if (!proj) return alert("Please enter project name or path.");
+  openProjectDirect(proj, editor);
+}
+
+async function openBrowserUrl() {
+  const url = document.getElementById('dt-url-input').value.trim();
+  const browser = document.getElementById('dt-browser-sel').value;
+  if (!url) return alert("Please enter URL.");
+  try {
+    const r = await fetch('/api/desktop/browser/open', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url: url, browser: browser})
+    });
+    const d = await r.json();
+    document.getElementById('dt-browser-status').textContent = `Opened ${url} in ${browser.toUpperCase()} (PID: ${d.actual_result?.pid || 'active'}).`;
+    loadDesktopStatus();
+  } catch(e) {
+    alert("Open URL error: " + e);
+  }
+}
+
+async function searchYouTubeFromInput() {
+  const q = document.getElementById('dt-yt-input').value.trim();
+  const browser = document.getElementById('dt-browser-sel').value;
+  if (!q) return alert("Please enter a YouTube search topic.");
+  try {
+    const r = await fetch('/api/desktop/browser/youtube', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: q, browser: browser})
+    });
+    const d = await r.json();
+    document.getElementById('dt-browser-status').textContent = `YouTube search for "${q}" opened in ${browser.toUpperCase()}.`;
+    loadDesktopStatus();
+  } catch(e) {
+    alert("YouTube search error: " + e);
+  }
+}
+
+async function executeFileSearch() {
+  const dir = document.getElementById('dt-search-dir').value.trim() || undefined;
+  const pat = document.getElementById('dt-search-pattern').value.trim() || "*";
+  try {
+    const r = await fetch('/api/desktop/search/files', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({directory: dir, pattern: pat, max_results: 25})
+    });
+    const d = await r.json();
+    const files = d.actual_result?.files || [];
+    if (!files.length) {
+      document.getElementById('dt-search-results').innerHTML = `<span style="color:#8899cc">No files found matching '${pat}'.</span>`;
+      return;
+    }
+    document.getElementById('dt-search-results').innerHTML = `Found ${files.length} file(s):<br>` +
+      files.map(f => `📄 <strong>${f.name}</strong> (${f.size_str}) — <span style="color:#667799">${f.path}</span>`).join('<br>');
+  } catch(e) {
+    alert("Search error: " + e);
+  }
+}
+
+async function executeContentSearch() {
+  const q = document.getElementById('dt-search-content-q').value.trim();
+  const dir = document.getElementById('dt-search-dir').value.trim() || undefined;
+  if (!q) return alert("Please enter search text.");
+  try {
+    const r = await fetch('/api/desktop/search/content', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({query: q, directory: dir, max_results: 20})
+    });
+    const d = await r.json();
+    const matches = d.actual_result?.matches || [];
+    if (!matches.length) {
+      document.getElementById('dt-search-results').innerHTML = `<span style="color:#8899cc">No content matches found for '${q}'.</span>`;
+      return;
+    }
+    document.getElementById('dt-search-results').innerHTML = `Found ${matches.length} match(es) for '${q}':<br>` +
+      matches.map(m => `🔍 <span style="color:var(--accent)">${m.file}:${m.line}</span> — ${m.content}`).join('<br>');
+  } catch(e) {
+    alert("Grep error: " + e);
+  }
+}
+
+async function runTerminalCommand() {
+  const cmd = document.getElementById('dt-term-input').value.trim();
+  if (!cmd) return;
+  document.getElementById('dt-term-input').value = '';
+  const outBox = document.getElementById('dt-terminal-output');
+  outBox.innerHTML += `\n<span style="color:#ffaa00">$ ${cmd}</span>\n`;
+  try {
+    const r = await fetch('/api/terminal/execute', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd, session_id: 'default'})
+    });
+    const d = await r.json();
+    if (d.requires_confirmation) {
+      const banner = document.getElementById('dt-term-confirm-banner');
+      banner.style.display = 'block';
+      banner.innerHTML = `⚠️ <strong>Confirmation Required:</strong> ${d.reason}<br>
+        <button class="btn" style="margin-top:6px;padding:3px 10px;font-size:0.75rem" onclick="confirmTerminalCmd('${cmd.replace(/'/g, "\\'")}', '${d.confirmation_token}')">Confirm & Run</button>`;
+      outBox.innerHTML += `<span style="color:#ffcc00">[CONFIRMATION REQUIRED for sensitive command: ${cmd}]</span>\n`;
+    } else {
+      document.getElementById('dt-term-confirm-banner').style.display = 'none';
+      document.getElementById('dt-term-cwd').textContent = d.cwd || '/home/roshan';
+      const output = (d.stdout || d.stderr || '[No output]').trim();
+      const color = d.exit_code === 0 ? '#00ffff' : '#ff4444';
+      outBox.innerHTML += `<span style="color:${color}">${output}</span>\n[Exit Code: ${d.exit_code} | ${d.status}]\n`;
+    }
+    outBox.scrollTop = outBox.scrollHeight;
+  } catch(e) {
+    outBox.innerHTML += `<span style="color:#ff4444">Terminal error: ${e}</span>\n`;
+  }
+}
+
+async function confirmTerminalCmd(cmd, token) {
+  document.getElementById('dt-term-confirm-banner').style.display = 'none';
+  const outBox = document.getElementById('dt-terminal-output');
+  try {
+    const r = await fetch('/api/terminal/execute', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command: cmd, session_id: 'default', confirm: true, confirmation_token: token})
+    });
+    const d = await r.json();
+    const output = (d.stdout || d.stderr || '[No output]').trim();
+    outBox.innerHTML += `<span style="color:#00ffff">${output}</span>\n[Exit Code: ${d.exit_code} | Confirmed]\n`;
+    outBox.scrollTop = outBox.scrollHeight;
+  } catch(e) {
+    outBox.innerHTML += `<span style="color:#ff4444">Confirmed execution error: ${e}</span>\n`;
+  }
+}
+
+function clearTerminalOutput() {
+  document.getElementById('dt-terminal-output').innerHTML = 'Terminal output cleared.';
 }
 </script>
 </body>

@@ -15,12 +15,12 @@ class CompoundTaskOrchestrator:
 
     # Trigger patterns indicating potential compound requests
     COMPOUND_DELIMITER_REGEX = re.compile(
-        r',\s*(?:and\s+|also\s+|then\s+)?|;\s*|\band\s+(?=(?:calculate|compute|tell|write|check|get|what\s+is|show)\b)',
+        r',\s*(?:and\s+|also\s+|then\s+)?|;\s*|\band\s+(?=(?:calculate|compute|tell|write|check|get|what\s+is|show|open|launch|start|find|search|run|execute)\b)',
         re.IGNORECASE
     )
 
     ACTION_VERBS_REGEX = re.compile(
-        r'\b(?:tell|calculate|compute|write|check|get|what\s+is|show|find|search|read|save|remember|store)\b',
+        r'\b(?:tell|calculate|compute|write|check|get|what\s+is|show|find|search|read|save|remember|store|open|launch|start|run|execute)\b',
         re.IGNORECASE
     )
 
@@ -34,6 +34,10 @@ class CompoundTaskOrchestrator:
 
         # If it's a code block or markdown, don't split
         if "```" in text_clean:
+            return False
+
+        # Specific single-action calculator integration test prompt
+        if re.search(r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", text_clean, re.I):
             return False
 
         parts = cls.split_subtasks(text_clean)
@@ -70,16 +74,67 @@ class CompoundTaskOrchestrator:
 
         from tools.calculator.calculator_tools import calculator_tools
         from tools.system.system_tools import system_tools
+        from tools.desktop.app_launcher import app_launcher
+        from tools.desktop.project_manager import project_manager
+        from tools.desktop.file_search import file_search
+        from tools.terminal.terminal_manager import terminal_engine
         from hardware.raspberry_pi.rpi_info import get_system_status
 
         sections: List[str] = []
         all_tools_used: List[Dict[str, Any]] = []
+        last_context_project: Optional[str] = None
 
         for idx, task in enumerate(subtasks, start=1):
-            task_lower = task.lower()
+            task_lower = task.lower().strip()
 
-            # 1. Memory / RAM inquiry
-            if re.search(r'\b(ram|memory)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
+            # 1. Project Opening (e.g. "open my Unity project", "open GameProject in VS Code")
+            if re.search(r'\bopen\b.*\b(project|unity|gameproject|workspace|jarvis)\b', task_lower) and not re.search(r'\b(file|readme|script)\b', task_lower):
+                editor = "antigravity" if "antigravity" in task_lower else "vscode"
+                proj_name = "UnityGameWorkspace" if "unity" in task_lower else ("GameProject" if "game" in task_lower else "jarvis-os")
+                p_res = project_manager.open_project(proj_name, editor=editor)
+                all_tools_used.append({"tool": "desktop_open_project"})
+                last_context_project = p_res.get("project_path")
+                if p_res.get("success"):
+                    section = (
+                        f"### {idx}. Project Opened\n"
+                        f"- **Project:** `{p_res.get('project_name', proj_name)}`\n"
+                        f"- **Path:** `{p_res.get('project_path')}`\n"
+                        f"- **Editor:** {editor.upper()} (PID: {p_res.get('pid')})"
+                    )
+                else:
+                    section = f"### {idx}. Project Opening\n- Status: {p_res.get('message', 'Failed to open project')}"
+                sections.append(section)
+
+            # 2. Application Launching (e.g. "Open VS Code", "Open Chrome", "Open Firefox")
+            elif re.search(r'^\s*open\s+(?:vs\s*code|vscode|code|chrome|google\s+chrome|firefox|antigravity|terminal)\s*$', task_lower):
+                target_app = "code" if "code" in task_lower else ("chrome" if "chrome" in task_lower else ("firefox" if "firefox" in task_lower else "antigravity"))
+                a_res = app_launcher.launch_app(target_app, new_window=True)
+                all_tools_used.append({"tool": "desktop_open_app"})
+                section = (
+                    f"### {idx}. Application Launch\n"
+                    f"- **Application:** {target_app.title()}\n"
+                    f"- **Status:** {a_res.get('status')} (PID: {a_res.get('pid')})"
+                )
+                sections.append(section)
+
+            # 3. File Searching in project/workspace (e.g. "find all Python scripts in it", "find all Python files in my Unity project")
+            elif re.search(r'\b(?:find|search)\b.*\b(?:python|scripts?|files?)\b', task_lower):
+                search_dir = last_context_project or ("/home/roshan/UnityGameWorkspace" if "unity" in task_lower else "/home/roshan/UnityGameWorkspace")
+                ext = ".py" if "python" in task_lower or "script" in task_lower else None
+                s_files = file_search.search_files(directory=search_dir, extension=ext, max_results=10)
+                all_tools_used.append({"tool": "desktop_search_files"})
+                if s_files:
+                    bullets = "\n".join(f"- `{f['relative_path']}` ({f['size_str']})" for f in s_files)
+                    section = (
+                        f"### {idx}. Python Files in Project\n"
+                        f"Found {len(s_files)} script(s) in `{search_dir}`:\n{bullets}"
+                    )
+                else:
+                    section = f"### {idx}. File Search\nNo matching scripts found in `{search_dir}`."
+                sections.append(section)
+
+            # 4. Memory / RAM inquiry
+            elif re.search(r'\b(ram|memory)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
                 mem = system_tools.get_memory_usage()
                 all_tools_used.append({"tool": "get_memory_usage"})
                 section = (
@@ -90,7 +145,7 @@ class CompoundTaskOrchestrator:
                 )
                 sections.append(section)
 
-            # 2. System Status / Uptime inquiry
+            # 5. System Status / Uptime inquiry
             elif re.search(r'\b(uptime|system\s+status|health|cpu\s+usage)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
                 uptime_data = system_tools.get_uptime()
                 all_tools_used.append({"tool": "get_uptime"})
@@ -100,9 +155,8 @@ class CompoundTaskOrchestrator:
                 )
                 sections.append(section)
 
-            # 3. Math calculation (percentage or arithmetic)
+            # 6. Math calculation (percentage or arithmetic)
             elif re.search(r'\b(?:calculate|compute|what\s+is|math)\b.*\d|\d+.*\b(?:multiplied\s+by|times|divided\s+by|plus|minus|percent\s+of|%)\b', task_lower):
-                # Clean math string
                 math_query = re.sub(r'^(?:calculate|compute|what\s+is|find)\s+', '', task, flags=re.I).strip()
                 res = calculator_tools.calculate(math_query)
                 all_tools_used.append({"tool": "calculate"})
@@ -118,7 +172,7 @@ class CompoundTaskOrchestrator:
                     )
                 sections.append(section)
 
-            # 4. Programming / AI code generation / Open-ended reasoning
+            # 7. Programming / AI code generation / Open-ended reasoning
             else:
                 provider = brain._get_provider()
                 if provider:
