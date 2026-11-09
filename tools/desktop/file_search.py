@@ -129,6 +129,7 @@ class DesktopFileSearch:
                     text_match = parts[2].strip()
                     matches.append({
                         "file": fpath,
+                        "file_name": os.path.basename(fpath),
                         "line": int(lineno) if lineno.isdigit() else 1,
                         "content": text_match[:180],
                     })
@@ -150,6 +151,7 @@ class DesktopFileSearch:
                                 if q_lower in line.lower():
                                     matches.append({
                                         "file": full_p,
+                                        "file_name": os.path.basename(full_p),
                                         "line": idx,
                                         "content": line.strip()[:180],
                                     })

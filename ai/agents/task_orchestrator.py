@@ -75,6 +75,7 @@ class CompoundTaskOrchestrator:
         from tools.calculator.calculator_tools import calculator_tools
         from tools.system.system_tools import system_tools
         from tools.desktop.app_launcher import app_launcher
+        from tools.desktop.browser_controller import browser_controller
         from tools.desktop.project_manager import project_manager
         from tools.desktop.file_search import file_search
         from tools.terminal.terminal_manager import terminal_engine
@@ -82,18 +83,54 @@ class CompoundTaskOrchestrator:
 
         sections: List[str] = []
         all_tools_used: List[Dict[str, Any]] = []
+
+        # Contextual continuity across multi-turn sessions
+        sid = session_id or "default"
         last_context_project: Optional[str] = None
+        last_context_browser: str = "chrome"
+        last_context_site: Optional[str] = None
+
+        try:
+            from memory.long_term.database import db
+            past_msgs = db.get_session_messages(sid, limit=10)
+            for m in reversed(past_msgs):
+                content = m.get("content", "")
+                c_low = content.lower()
+                if not last_context_project:
+                    if "/home/roshan/UnityGameWorkspace/GameProject" in content or "GameProject" in content:
+                        last_context_project = "/home/roshan/UnityGameWorkspace/GameProject"
+                    elif "UnityGameWorkspace" in content:
+                        last_context_project = "/home/roshan/UnityGameWorkspace"
+                    elif "jarvis-os" in content:
+                        last_context_project = "/home/roshan/.gemini/antigravity/scratch/jarvis-os"
+                if "firefox" in c_low:
+                    last_context_browser = "firefox"
+                elif "chrome" in c_low:
+                    last_context_browser = "chrome"
+        except Exception as e:
+            logger.debug(f"Error fetching session context: {e}")
 
         for idx, task in enumerate(subtasks, start=1):
             task_lower = task.lower().strip()
 
-            # 1. Project Opening (e.g. "open my Unity project", "open GameProject in VS Code")
-            if re.search(r'\bopen\b.*\b(project|unity|gameproject|workspace|jarvis)\b', task_lower) and not re.search(r'\b(file|readme|script)\b', task_lower):
+            # 1. Project Opening (e.g. "open my Unity project", "open that project in VS Code")
+            if re.search(r'\bopen\b.*\b(project|unity|gameproject|workspace|jarvis|that\s+project|the\s+project)\b', task_lower) and not re.search(r'\b(file|readme|script)\b', task_lower):
                 editor = "antigravity" if "antigravity" in task_lower else "vscode"
-                proj_name = "UnityGameWorkspace" if "unity" in task_lower else ("GameProject" if "game" in task_lower else "jarvis-os")
+                proj_name = None
+                if "unity" in task_lower:
+                    proj_name = "UnityGameWorkspace"
+                elif "game" in task_lower:
+                    proj_name = "GameProject"
+                elif "jarvis" in task_lower:
+                    proj_name = "jarvis-os"
+                elif last_context_project:
+                    proj_name = last_context_project
+                else:
+                    proj_name = "GameProject"
+
                 p_res = project_manager.open_project(proj_name, editor=editor)
                 all_tools_used.append({"tool": "desktop_open_project"})
-                last_context_project = p_res.get("project_path")
+                last_context_project = p_res.get("project_path") or last_context_project
                 if p_res.get("success"):
                     section = (
                         f"### {idx}. Project Opened\n"
@@ -117,7 +154,57 @@ class CompoundTaskOrchestrator:
                 )
                 sections.append(section)
 
-            # 3. File Searching in project/workspace (e.g. "find all Python scripts in it", "find all Python files in my Unity project")
+            # 3. YouTube Search (e.g. "search YouTube for ROS2 tutorials", "search for ...")
+            elif (re.search(r'\b(?:search\s+youtube|youtube\b.*\bsearch|search\s+for\b.*\bon\s+youtube)\b', task_lower) or
+                  ("youtube" in task_lower and ("search" in task_lower or "play" in task_lower)) or
+                  (last_context_site == "youtube" and re.search(r'\b(?:search|find)\b', task_lower))):
+                yt_query = re.sub(r'^(?:search\s+youtube\s+for|youtube\s+search\s+for|search\s+for|search\s+youtube|search)\s+', '', task, flags=re.I)
+                yt_query = re.sub(r'\s+on\s+youtube$', '', yt_query, flags=re.I).strip()
+                res_yt = browser_controller.search_youtube(yt_query or "robotics", browser=last_context_browser)
+                all_tools_used.append({"tool": "desktop_search_youtube"})
+                last_context_site = "youtube"
+                section = (
+                    f"### {idx}. YouTube Search\n"
+                    f"- **Query:** {yt_query}\n"
+                    f"- **URL:** `{res_yt.get('youtube_url')}`\n"
+                    f"- **Browser:** {last_context_browser.title()}\n"
+                    f"- **Status:** Opened search results in {last_context_browser.title()} (audio playback requires user interaction)"
+                )
+                sections.append(section)
+
+            # 4. Terminal Command Execution (e.g. "run python3 --version in my terminal")
+            elif re.search(r'\b(?:run|execute)\b.*\b(?:terminal|command|in\s+terminal|in\s+my\s+terminal)\b', task_lower):
+                cmd_match = re.search(r'\b(?:run|execute)\s+[\'"]?([^\'"]+?)[\'"]?\s+(?:in\s+(?:the\s+|my\s+)?terminal)', task, re.I)
+                cmd_to_run = cmd_match.group(1).strip() if cmd_match else task.replace("in the terminal", "").replace("in terminal", "").replace("run ", "").replace("execute ", "").strip()
+                t_res = terminal_engine.execute_command(cmd_to_run)
+                all_tools_used.append({"tool": "terminal_execute"})
+                out = t_res.get("stdout", "").strip() or t_res.get("stderr", "").strip()
+                section = (
+                    f"### {idx}. Terminal Command\n"
+                    f"- **Command:** `{cmd_to_run}`\n"
+                    f"- **Exit Code:** {t_res.get('exit_code')}\n"
+                    f"- **Output:**\n```\n{out}\n```"
+                )
+                sections.append(section)
+
+            # 5. URL / Website Navigation (e.g. "open github.com", "open youtube")
+            elif re.search(r'\bopen\b.*\b(https?://|www\.|youtube|google|github)\b', task_lower):
+                if "youtube" in task_lower:
+                    last_context_site = "youtube"
+                    target_url = "https://www.youtube.com"
+                else:
+                    url_match = re.search(r'(https?://\S+|www\.\S+|github\.com\S*|youtube\.com\S*)', task, re.I)
+                    target_url = url_match.group(1) if url_match else "https://www.google.com"
+                res_url = browser_controller.open_url(target_url, browser=last_context_browser)
+                all_tools_used.append({"tool": "desktop_open_url"})
+                section = (
+                    f"### {idx}. Browser Navigation\n"
+                    f"- **URL:** `{res_url.get('url')}`\n"
+                    f"- **Status:** Opened in {res_url.get('resolved_browser', last_context_browser).title()}"
+                )
+                sections.append(section)
+
+            # 6. File Searching in project/workspace (e.g. "find all Python scripts in it", "find its Python files")
             elif re.search(r'\b(?:find|search)\b.*\b(?:python|scripts?|files?)\b', task_lower):
                 search_dir = last_context_project or ("/home/roshan/UnityGameWorkspace" if "unity" in task_lower else "/home/roshan/UnityGameWorkspace")
                 ext = ".py" if "python" in task_lower or "script" in task_lower else None
@@ -133,7 +220,7 @@ class CompoundTaskOrchestrator:
                     section = f"### {idx}. File Search\nNo matching scripts found in `{search_dir}`."
                 sections.append(section)
 
-            # 4. Memory / RAM inquiry
+            # 7. Memory / RAM inquiry
             elif re.search(r'\b(ram|memory)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
                 mem = system_tools.get_memory_usage()
                 all_tools_used.append({"tool": "get_memory_usage"})
@@ -145,13 +232,18 @@ class CompoundTaskOrchestrator:
                 )
                 sections.append(section)
 
-            # 5. System Status / Uptime inquiry
-            elif re.search(r'\b(uptime|system\s+status|health|cpu\s+usage)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
+            # 5. System Status / Uptime / Telemetry inquiry
+            elif re.search(r'\b(uptime|system\s+status|health|cpu\s+usage|telemetry|system\s+telemetry)\b', task_lower) and not re.search(r'\b(write|script|code|program)\b', task_lower):
                 uptime_data = system_tools.get_uptime()
-                all_tools_used.append({"tool": "get_uptime"})
+                mem = system_tools.get_memory_usage()
+                sys_stat = get_system_status()
+                all_tools_used.append({"tool": "get_system_status"})
                 section = (
-                    f"### {idx}. System Uptime\n"
-                    f"- **Uptime:** {uptime_data['uptime_formatted']}"
+                    f"### {idx}. System Telemetry\n"
+                    f"- **OS Uptime:** {uptime_data['uptime_formatted']}\n"
+                    f"- **CPU Usage:** {sys_stat.get('cpu_percent', 0)}% (Temp: {sys_stat.get('cpu_temp_c', 0):.1f}°C)\n"
+                    f"- **RAM Usage:** {mem['ram_used_gb']} GB / {mem['ram_total_gb']} GB ({mem['ram_pct']}%)\n"
+                    f"- **Robot Status:** {sys_stat.get('robot_status', 'UNKNOWN')}"
                 )
                 sections.append(section)
 

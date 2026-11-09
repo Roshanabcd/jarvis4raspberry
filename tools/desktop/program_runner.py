@@ -139,6 +139,19 @@ class DesktopProgramRunner:
                 "duration_ms": int((time.time() - t_start) * 1000),
             }
 
+    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get tracking status for a specific background job."""
+        if job_id not in self._background_processes:
+            return None
+        info = self._background_processes[job_id]
+        pid = info.get("pid")
+        try:
+            os.kill(pid, 0)
+            info["status"] = "running"
+        except OSError:
+            info["status"] = "finished"
+        return info
+
     def stop_job(self, job_id: str) -> Dict[str, Any]:
         """Stop a tracked background process."""
         if job_id not in self._background_processes:
