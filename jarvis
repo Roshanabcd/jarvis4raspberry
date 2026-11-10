@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# JARVIS OS CLI Launcher
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ]; do
-  DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
-  SOURCE="$(readlink "$SOURCE")"
-  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
-done
-SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+# JARVIS OS Universal Desktop & CLI Launcher
 
-export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
-if [ -f "$SCRIPT_DIR/venv/bin/python3" ]; then
-  exec "$SCRIPT_DIR/venv/bin/python3" "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
-elif [ -f "/home/roshan/miniconda3/bin/python3" ]; then
-  exec /home/roshan/miniconda3/bin/python3 "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+PROJECT_DIR="/home/roshan/.gemini/antigravity/scratch/jarvis-os"
+PYTHON_EXEC="/home/roshan/miniconda3/bin/python3"
+
+export DISPLAY="${DISPLAY:-:0}"
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
+
+if [ "$1" = "cli" ]; then
+    shift
+    exec "${PYTHON_EXEC}" "${PROJECT_DIR}/apps/terminal/cli.py" "$@"
+elif [ "$1" = "--cli" ]; then
+    shift
+    exec "${PYTHON_EXEC}" "${PROJECT_DIR}/apps/terminal/cli.py" "$@"
 else
-  exec python3 "$SCRIPT_DIR/apps/terminal/cli.py" "$@"
+    exec "${PYTHON_EXEC}" "${PROJECT_DIR}/apps/desktop/launcher.py" "$@"
 fi

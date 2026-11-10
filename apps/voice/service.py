@@ -74,17 +74,23 @@ class VoiceService:
     def mute(self) -> None:
         """Mute voice input processing."""
         self._muted = True
-        if self.listening:
-            self.state = "MUTED"
+        self.state = "MUTED"
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine
+            wake_word_engine.mute()
+        except Exception:
+            pass
         logger.info("VoiceService muted.")
 
     def unmute(self) -> None:
         """Unmute voice input processing."""
         self._muted = False
-        if self.listening:
-            self.state = "LISTENING"
-        else:
-            self.state = "STANDBY"
+        self.state = "LISTENING" if self.listening else "STANDBY"
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine
+            wake_word_engine.unmute()
+        except Exception:
+            pass
         logger.info("VoiceService unmuted.")
 
     def stop_playback(self) -> None:
@@ -101,15 +107,24 @@ class VoiceService:
 
     def get_state(self) -> Dict[str, Any]:
         """Return the current active voice service status dictionary."""
-        active = bool(self.listening and self._thread and self._thread.is_alive())
-        curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine
+            ww_status = wake_word_engine.get_status()
+            active = bool(self.listening and wake_word_engine._is_running)
+            curr_state = ww_status.get("state", "STANDBY")
+        except Exception:
+            active = self.listening
+            curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
+            ww_status = {}
+
         return {
             "state": curr_state,
             "listening": active,
-            "muted": self._muted,
+            "muted": self._muted or (curr_state == "MUTED"),
             "device": self._selected_device or self.audio_manager.select_best_device(),
             "wake_word": self.wake_detector.wake_word,
             "microphone_available": self.audio_manager.is_microphone_available(),
+            "wake_engine": ww_status,
         }
 
     def start(self) -> None:
@@ -120,25 +135,29 @@ class VoiceService:
 
         self.listening = True
         self.state = "MUTED" if self._muted else "LISTENING"
-        self._stop_event.clear()
         self._selected_device = self.audio_manager.select_best_device()
 
-        self._thread = threading.Thread(
-            target=self._listen_loop,
-            daemon=True,
-            name="JARVIS-VoiceListener",
-        )
-        self._thread.start()
-        logger.info(
-            "VoiceService started. Waiting for wake word '%s'...",
-            self.wake_detector.wake_word,
-        )
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine
+            wake_word_engine.start()
+            logger.info("VoiceService started via WakeWordEngine (12-state silence machine).")
+        except Exception as exc:
+            logger.error("Failed to start WakeWordEngine: %s", exc)
 
     def listen_once(self, duration_secs: int = 4) -> Dict[str, Any]:
         """One-shot push-to-talk voice capture, transcription, and command execution."""
         import time
         if self._muted:
             return {"status": "error", "message": "Microphone is muted"}
+
+        was_running = False
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine
+            was_running = wake_word_engine._is_running
+            if was_running:
+                wake_word_engine.mute()
+        except Exception:
+            pass
 
         prev_state = self.state
         self.state = "LISTENING"
@@ -177,6 +196,13 @@ class VoiceService:
             self.state = prev_state
             logger.error("Error in listen_once: %s", e)
             return {"status": "error", "message": str(e)}
+        finally:
+            if was_running:
+                try:
+                    from apps.voice.wake_word_engine import wake_word_engine
+                    wake_word_engine.unmute()
+                except Exception:
+                    pass
 
     def _listen_loop(self) -> None:
         """Background listening thread.

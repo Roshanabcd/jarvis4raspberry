@@ -190,16 +190,34 @@ def test_microphone_endpoint(duration_secs: int = 3):
 
 @voice_router.post("/test/speaker")
 def test_speaker_endpoint():
-    """Test physical speaker output."""
+    """Test physical speaker output with 1-second diagnostic sine tone."""
     from apps.voice.speech_manager import speech_manager
     return speech_manager.test_speaker()
 
 
+class SpeakerConfirmRequest(BaseModel):
+    confirmed: bool = True
+
+
+@voice_router.post("/test/speaker/confirm")
+def confirm_speaker_endpoint(req: SpeakerConfirmRequest):
+    """User confirmation that the test sound was heard aloud through the physical speaker."""
+    from apps.voice.speech_manager import speech_manager
+    return speech_manager.confirm_speaker_audibility(confirmed=req.confirmed)
+
+
 @voice_router.get("/diagnostics")
 def get_voice_diagnostics():
-    """Return comprehensive diagnostics for audio hardware, cloner, and playback."""
+    """Return comprehensive 6-component diagnostics for microphone, VAD, STT, AI, TTS, and speaker."""
     from apps.voice.speech_manager import speech_manager
-    return speech_manager.get_status()
+    return speech_manager.run_voice_diagnostics()
+
+
+@voice_router.get("/wake_status")
+def get_wake_word_status():
+    """Return live 12-state state machine telemetry for the background wake-word engine."""
+    from apps.voice.wake_word_engine import wake_word_engine
+    return wake_word_engine.get_status()
 
 
 @voice_router.post("/replay/{audio_id}")

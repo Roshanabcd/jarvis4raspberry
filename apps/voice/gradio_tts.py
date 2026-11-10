@@ -291,6 +291,33 @@ class GradioVoiceCloner:
                 pass
             return False
 
+    def get_reference_audio_info(self) -> Dict[str, Any]:
+        """Return factual audio metadata regarding the user's reference voice sample."""
+        if not self.reference_voice_path or not os.path.exists(self.reference_voice_path):
+            return {"exists": False, "path": self.reference_voice_path}
+
+        info: Dict[str, Any] = {
+            "exists": True,
+            "path": self.reference_voice_path,
+            "filename": os.path.basename(self.reference_voice_path),
+            "size_bytes": os.path.getsize(self.reference_voice_path),
+        }
+        try:
+            with open(self.reference_voice_path, "rb") as f:
+                info["sha256"] = hashlib.sha256(f.read()).hexdigest()[:16]
+            if self.reference_voice_path.endswith(".wav"):
+                import wave
+                with wave.open(self.reference_voice_path, "rb") as wf:
+                    info["sample_rate"] = wf.getframerate()
+                    info["channels"] = wf.getnchannels()
+                    info["duration_s"] = round(wf.getnframes() / max(1, wf.getframerate()), 2)
+                    info["format"] = "WAV PCM 16-bit"
+            elif self.reference_voice_path.endswith(".mp3"):
+                info["format"] = "MPEG ADTS Layer III"
+        except Exception as e:
+            info["error"] = str(e)
+        return info
+
     def get_provider_status(self) -> Dict[str, Any]:
         """Return provider connectivity and configuration status."""
         if not getattr(self, "_explicit_url", False):
@@ -303,14 +330,16 @@ class GradioVoiceCloner:
                 pass
 
         is_online = self._probe_gradio_client(force=False) if self.cloning_enabled else False
+        ref_info = self.get_reference_audio_info()
         return {
             "name": "gradio_voice_clone",
             "url": self.gradio_url,
             "cloning_enabled": self.cloning_enabled,
             "is_hf_space": self.is_hf_space,
             "online": is_online,
-            "has_reference_audio": bool(self.reference_voice_path and os.path.exists(self.reference_voice_path)),
+            "has_reference_audio": ref_info.get("exists", False),
             "reference_audio_path": self.reference_voice_path,
+            "reference_audio_info": ref_info,
             "reference_text": self.reference_text,
             "speed": self.default_speed,
             "num_steps": self.default_num_steps,

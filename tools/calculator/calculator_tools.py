@@ -86,8 +86,10 @@ def _eval_ast_node(node: ast.AST) -> Union[int, float]:
 def safe_eval_math(expr_str: str) -> Union[int, float]:
     """Parse and safely evaluate a mathematical expression without eval()."""
     clean_expr = expr_str.strip()
-    # Strip conversational prefixes and trailing punctuation
-    clean_expr = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', clean_expr, flags=re.I).strip().rstrip('?.')
+    # Strip conversational prefixes and trailing punctuation / instructions
+    clean_expr = re.sub(r'^(?:what\s+is\s+|calculate\s+|compute\s+|solve\s+|how\s+much\s+is\s+|find\s+)', '', clean_expr, flags=re.I).strip()
+    clean_expr = re.sub(r'\?.*$', '', clean_expr).strip()
+    clean_expr = re.sub(r'\b(?:answer\s+in|please\s+answer|format|only)\b.*$', '', clean_expr, flags=re.I).strip().rstrip('?.')
 
     # Normalize natural language math terms
     clean_expr = re.sub(r'\bmultiplied\s+by\b', '*', clean_expr, flags=re.I)

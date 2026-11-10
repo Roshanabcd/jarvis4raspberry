@@ -108,19 +108,41 @@ class SpeechToText:
 
         # Check for empty file
         if os.path.getsize(audio_file_path) < 100:
-            logger.debug("Audio file is empty or near-silent (<100 bytes).")
+            logger.debug("Audio file is empty (<100 bytes).")
             return ""
 
-        # 1. Primary fast speech recognition via SpeechRecognition
+        # Check audio energy before attempting cloud/local STT to avoid unnecessary queries on silence
+        try:
+            with wave.open(audio_file_path, "rb") as wf:
+                n_frames = wf.getnframes()
+                if n_frames > 0:
+                    raw_bytes = wf.readframes(n_frames)
+                    import struct, math
+                    samples = struct.unpack(f"{n_frames * wf.getnchannels()}h", raw_bytes)
+                    rms = math.sqrt(sum(s * s for s in samples) / max(1, len(samples)))
+                    if rms < 8.0:
+                        logger.debug("Audio file is near-silent (RMS: %.2f), skipping STT", rms)
+                        return ""
+        except Exception:
+            pass
+
+        # 1. Primary fast speech recognition via SpeechRecognition (Google Web Speech API)
         try:
             import speech_recognition as sr
             r = sr.Recognizer()
+            r.energy_threshold = 150
+            r.dynamic_energy_threshold = False
             with sr.AudioFile(audio_file_path) as source:
                 audio_data = r.record(source)
-            text = r.recognize_google(audio_data)
+            text = r.recognize_google(audio_data, language="en-US")
             if text and text.strip():
                 logger.info("SpeechRecognition transcribed: '%s'", text)
                 return text.strip()
+        except sr.UnknownValueError:
+            logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence)")
+            return ""
+        except sr.RequestError as req_err:
+            logger.warning("Google Speech Recognition service request failed: %s", req_err)
         except Exception as exc:
             logger.debug("SpeechRecognition recognize_google: %s", exc)
 

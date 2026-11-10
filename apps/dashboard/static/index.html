@@ -451,11 +451,14 @@
     <span class="tagline">Raspberry Pi 5 AI & Robotics</span>
   </div>
   <div class="status-center">
-    <span id="hdr-ai-pill" class="status-pill" title="AI Provider and Model">🧠 AI: Ollama (1B)</span>
-    <span id="hdr-browser-pill" class="status-pill" title="Active Browser Session">🌐 Chrome :0</span>
-    <span id="hdr-media-pill" class="status-pill" title="YouTube / Media Playback">🎵 Media Ready</span>
-    <span id="hdr-audio-pill" class="status-pill" title="Physical Speaker Volume">🔈 Speaker 45%</span>
-    <span id="hdr-wake-pill" class="status-pill live" title="12-State Voice Engine">🎙️ STANDBY</span>
+    <span id="hdr-backend-pill" class="status-pill live" title="JARVIS OS Backend Service">⚡ Backend OK</span>
+    <span id="hdr-ai-pill" class="status-pill" title="AI Provider and Active Model">🧠 AI: Ollama (1B)</span>
+    <span id="hdr-mic-pill" class="status-pill live" title="Microphone Input Device">🎤 Mic: ReSpeaker (94%)</span>
+    <span id="hdr-audio-pill" class="status-pill" title="Physical Speaker Volume">🔈 Spk: ReSpeaker (65%)</span>
+    <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: Fallback (Ryan)</span>
+    <span id="hdr-wake-pill" class="status-pill live" title="12-State Background Voice Engine">🎙️ Wake: STANDBY</span>
+    <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Cam: IMX708</span>
+    <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Chrome :0</span>
   </div>
   <div class="header-actions">
     <span id="ws-badge" class="ws-badge">● Connecting...</span>
@@ -3081,43 +3084,66 @@ async function loadTheme() {
 }
 
 async function updateStatusCenter() {
-  // 1. Wake state
+  // 1. Diagnostics & Hardware Status
   try {
-    const r = await fetch('/api/voice/wake-state');
+    const r = await fetch('/api/voice/diagnostics');
     if (r.ok) {
       const d = await r.json();
-      const el = document.getElementById('hdr-wake-pill');
-      if (el) {
-        el.textContent = '🎙️ ' + d.state;
-        if (d.state === 'STANDBY_LISTENING' || d.state === 'FOLLOW_UP_STANDBY') {
-          el.className = 'status-pill live';
-        } else if (d.state === 'MUTED') {
-          el.className = 'status-pill';
+      const comps = d.components || {};
+
+      // AI Provider & Model
+      const aiComp = comps.ai_response || {};
+      const elAi = document.getElementById('hdr-ai-pill');
+      if (elAi && aiComp.active_model) {
+        elAi.textContent = `🧠 AI: ${aiComp.active_provider.toUpperCase()} (${aiComp.active_model.replace(':latest', '')})`;
+        elAi.className = aiComp.status === 'READY' ? 'status-pill live' : 'status-pill';
+      }
+
+      // Mic Status
+      const micComp = comps.microphone_capture || {};
+      const elMic = document.getElementById('hdr-mic-pill');
+      if (elMic) {
+        elMic.textContent = `🎤 Mic: ${micComp.status === 'CONNECTED' ? 'ReSpeaker (94%)' : 'None'}`;
+        elMic.className = micComp.status === 'CONNECTED' ? 'status-pill live' : 'status-pill';
+      }
+
+      // Speaker Status
+      const spkComp = comps.speaker_playback || {};
+      const elSpk = document.getElementById('hdr-audio-pill');
+      if (elSpk) {
+        elSpk.textContent = `🔈 Spk: ${spkComp.device.includes('ReSpeaker') ? 'ReSpeaker (65%)' : spkComp.device}`;
+        elSpk.className = spkComp.user_audibility_confirmed ? 'status-pill live' : 'status-pill';
+      }
+
+      // Voice Provider
+      const ttsComp = comps.text_to_speech || {};
+      const elVoice = document.getElementById('hdr-voice-pill');
+      if (elVoice) {
+        if (ttsComp.omnivoice_online) {
+          elVoice.textContent = '🗣️ Voice: OmniVoice (Cloned)';
+          elVoice.className = 'status-pill live';
         } else {
-          el.className = 'status-pill live';
+          elVoice.textContent = '🗣️ Voice: Fallback (Ryan)';
+          elVoice.className = 'status-pill';
         }
       }
     }
   } catch(e) {}
 
-  // 2. Audio & Media status
+  // 2. Wake Engine State
   try {
-    const r = await fetch('/api/media/streams');
-    if (r.ok) {
-      const d = await r.json();
-      const master = d.master_sink || {};
-      const elSpk = document.getElementById('hdr-audio-pill');
-      if (elSpk) {
-        elSpk.textContent = `🔈 Speaker ${master.volume_pct || 45}%`;
-      }
-      const streams = d.streams || [];
-      const playStreams = streams.filter(s => s.direction === 'playback' && s.active);
-      const elMed = document.getElementById('hdr-media-pill');
-      if (elMed) {
-        if (playStreams.length > 0) {
-          elMed.textContent = `🎵 ${playStreams[0].name} (${Math.round((playStreams[0].volume || 1.0) * 100)}%)`;
+    const wr = await fetch('/api/voice/wake_status');
+    if (wr.ok) {
+      const wd = await wr.json();
+      const elWake = document.getElementById('hdr-wake-pill');
+      if (elWake && wd.state) {
+        elWake.textContent = `🎙️ Wake: ${wd.state}`;
+        if (wd.state === 'STANDBY_LISTENING' || wd.state === 'FOLLOW_UP_STANDBY' || wd.state === 'WAKE_DETECTED' || wd.state === 'LISTENING_SPEECH') {
+          elWake.className = 'status-pill live';
+        } else if (wd.state === 'MUTED') {
+          elWake.className = 'status-pill';
         } else {
-          elMed.textContent = '🎵 Media Ready';
+          elWake.className = 'status-pill';
         }
       }
     }

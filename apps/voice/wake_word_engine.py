@@ -58,13 +58,18 @@ class WakeWordEngine:
         wake_phrases: Optional[List[str]] = None,
         silence_timeout_s: float = 3.0,
         follow_up_window_s: float = 15.0,
-        energy_threshold: float = 500.0,
+        energy_threshold: float = 120.0,
         temp_dir: str = "/tmp/jarvis_voice",
     ) -> None:
+        try:
+            from config.config_manager import config
+            v_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+        except Exception:
+            v_cfg = {}
         self.wake_phrases = wake_phrases or WAKE_PHRASES
-        self.silence_timeout_s = silence_timeout_s
+        self.silence_timeout_s = float(v_cfg.get("silence_threshold_s", silence_timeout_s))
         self.follow_up_window_s = follow_up_window_s
-        self.energy_threshold = energy_threshold
+        self.energy_threshold = float(v_cfg.get("energy_threshold", energy_threshold))
         self.temp_dir = temp_dir
         os.makedirs(self.temp_dir, exist_ok=True)
 
@@ -344,17 +349,31 @@ class WakeWordEngine:
     def _execute_command_and_respond(self, command_text: str) -> None:
         """Route recognized command to JARVIS Brain, deliver dual text/speech, and enter follow-up window."""
         try:
+            # 0. Broadcast recognized user speech to UI
+            try:
+                from apps.api.websocket_api import broadcast_chat_message
+                broadcast_chat_message(role="user", text=command_text)
+            except Exception as e:
+                logger.debug("Failed to broadcast user chat message: %s", e)
+
             # 1. Process via handler or Brain
             if self._on_command_handler:
                 response = self._on_command_handler(command_text)
             else:
-                from ai.brain import jarvis_brain
-                chat_res = jarvis_brain.chat(command_text, session_id="voice-session")
+                from ai.brain import get_brain
+                brain = get_brain()
+                chat_res = brain.chat(command_text, session_id="voice-session")
                 response = chat_res.get("response", "Command executed.")
 
             self._last_response = str(response)
 
-            # 2. Text-first: response is already logged in Brain / dashboard
+            # 2. Broadcast assistant response to UI
+            try:
+                from apps.api.websocket_api import broadcast_chat_message
+                broadcast_chat_message(role="assistant", text=self._last_response)
+            except Exception as e:
+                logger.debug("Failed to broadcast assistant chat message: %s", e)
+
             # 3. Speak response asynchronously with speech_manager
             self.set_state(WakeState.SPEAKING_RESPONSE)
             from apps.voice.speech_manager import speech_manager

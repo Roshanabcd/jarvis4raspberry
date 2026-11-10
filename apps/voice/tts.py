@@ -45,7 +45,11 @@ class TextToSpeech:
         if simulation_mode is not None:
             self.simulation_mode = simulation_mode
         else:
-            self.simulation_mode = bool(config.get("simulation_mode", True))
+            voice_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+            if "simulation_mode" in voice_cfg:
+                self.simulation_mode = bool(voice_cfg["simulation_mode"])
+            else:
+                self.simulation_mode = bool(config.get("simulation_mode", False))
 
         self.backend: str = "simulated"
         self._pyttsx3_engine = None

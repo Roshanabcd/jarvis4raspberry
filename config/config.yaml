@@ -1,6 +1,6 @@
 api_port: 8000
-simulation_mode: true
-hardware_mode: false
+simulation_mode: false
+hardware_mode: true
 wake_word: jarvis
 voice:
   engine: espeak
@@ -17,6 +17,8 @@ voice:
   routing_policy: both
   fallback_voice: en-GB-RyanNeural
   auto_speak: true
+  silence_threshold_s: 3.0
+  energy_threshold: 120.0
 stt:
   model: tiny
   device: cpu

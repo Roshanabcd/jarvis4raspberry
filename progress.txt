@@ -329,3 +329,55 @@ Learnings:
 - On Raspberry Pi 5 ARM64 CPU, local Ollama models (`llama3.2:1b`) generate high quality diagnostics but take ~2-3 seconds per 80 tokens; setting `num_predict: 80` provides instant, reliable responses without timing out.
 - The pre-repair AST compilation check (`py_compile`) catches broken syntax in <5ms, completely preventing unparseable code from running slow test runners.
 ==================================================
+
+==================================================
+=== ITERATION 10: PHASE 6 STANDALONE DESKTOP APPLICATION & REAL VOICE PIPELINE REPAIR ===
+Date: 2026-11-10
+Status: SUCCESS
+Changes:
+- Transformed JARVIS OS from a localhost browser tab into a Linux standalone desktop application:
+  1. Created standalone Python launcher (`apps/desktop/launcher.py`) enforcing single-instance execution via file lock (`~/.config/jarvis-os/desktop_app.lock`), automated backend health checks (`http://127.0.0.1:8000/api/health`), window activation of existing instances via `xdotool`, and dedicated frameless window mode (`google-chrome --app=... --class=jarvis-os --name=jarvis-os --window-size=1360,768`).
+  2. Created system-wide launcher script `/home/roshan/.local/bin/jarvis` (executes GUI desktop app by default; supports `jarvis cli` for terminal commands, `jarvis --status`, `jarvis --stop`).
+  3. Created high-resolution futuristic cyan arc-reactor emblem icon at `apps/dashboard/static/jarvis_icon.png` (installed in `~/.local/share/icons/hicolor/256x256/apps/jarvis-os.png`).
+  4. Created Linux desktop entries: `/home/roshan/Desktop/jarvis-os.desktop` (executable) and `~/.local/share/applications/jarvis-os.desktop`.
+- Fixed Root Cause of Spurious "Simulated Transcription" & Muted Voice Output:
+  1. Root config (`config/config.yaml`) had `simulation_mode: true` enabled by default; changed to `simulation_mode: false` and `hardware_mode: true`.
+  2. Fixed `apps/voice/stt.py`: removed simulated fallback in real mode, added pre-STT RMS energy gate to reject silent audio (<8.0 RMS), and implemented robust Google Web Speech API + Whisper offline fallback.
+  3. Fixed `apps/voice/tts.py` and `apps/voice/wake_word.py`: updated default fallback to `False` so physical PipeWire speaker output (`pw-play` / `espeak`) is always executed.
+- Repaired Background Wake-Word & Voice Loop Architecture:
+  1. Fixed critical `ImportError` in `apps/voice/wake_word_engine.py`: replaced broken `from ai.brain import jarvis_brain` with `from ai.brain import get_brain`.
+  2. Implemented strict 3.0-second silence countdown (`silence_timeout_s = 3.0`) in `WakeWordEngine`: rolling RMS energy detection resets silence timer whenever speech energy (>120.0 RMS) is detected and submits exactly one command upon 3.0s continuous silence.
+  3. Unified `VoiceService` and `WakeWordEngine` to eliminate competing microphone capture workers: `voice_service.start()` delegates to `wake_word_engine.start()`.
+  4. Added user-level systemd service `/home/roshan/.config/systemd/user/jarvis-voice.service`.
+- Repaired Personal OmniVoice Voice Cloning & Fallback Transparency:
+  1. Audited personal voice prompt audio: confirmed `/home/roshan/Downloads/myvoice_clean.wav` and `data/voice_samples/myvoice_ref_clean.wav` (24 kHz mono PCM WAV, SHA256 `fb1422b0...`).
+  2. Added `get_reference_audio_info()` to `GradioVoiceCloner` to report exact audio parameters.
+  3. Implemented transparent fallback labelling: when Google Colab tunnel is offline, clearly labels active engine as `Neural Fallback (Edge-TTS Ryan)` rather than claiming it is cloned.
+  4. Maintained dynamic Colab registration endpoint `/api/voice/register_colab` and manual registration UI.
+- Upgraded Physical Speaker Diagnostics & Media Stream Ducking:
+  1. Enhanced `SpeechOutputManager.test_speaker()`: generates a clean 1.0s 440 Hz diagnostic sine chime, dispatches via `pw-play` to PipeWire default sink Node 54 (`ReSpeaker Lite Analog Stereo`), verifies process and stream completion, and records user audibility confirmation via `POST /api/voice/test/speaker/confirm`.
+  2. Integrated 6-component voice diagnostics: `GET /api/voice/diagnostics` audits Microphone Capture, VAD, STT, AI Brain, TTS, and Speaker.
+  3. Preserved background audio: `AudioStreamManager` ducks active external players (FreeTube, VLC) to 20% during JARVIS speech and restores volume cleanly without altering master sink volume.
+- Upgraded Dashboard UI (`apps/dashboard/static/index.html`):
+  1. Added 8 real-time telemetry pills in global header: Backend, AI Provider/Model, Mic Status, Speaker Volume, Voice Provider, Wake Engine State, Sony IMX708 Camera, Chrome :0.
+- Created Comprehensive Test Suite (`tests/unit/test_phase6_desktop_and_voice.py`):
+  1. 12 automated unit and integration tests covering desktop launch, Ollama inference, ReSpeaker capture, STT anti-simulation, speech rendering speed, OmniVoice ref sample, fallback labelling, physical speaker playback, 12-state wake engine with 3.0s silence, voice tasks, media preservation, and REST APIs.
+  2. 12 / 12 tests PASSED (100% pass rate in 11.49s).
+- Authored 10 Technical Documentation Deliverables in `docs/`:
+  - `docs/PHASE6_BASELINE.md`
+  - `docs/PHASE6_DESKTOP_APPLICATION.md`
+  - `docs/PHASE6_DESKTOP_INSTALLATION.md`
+  - `docs/PHASE6_VOICE_DIAGNOSTICS.md`
+  - `docs/PHASE6_MICROPHONE_SETUP.md`
+  - `docs/PHASE6_SPEAKER_SETUP.md`
+  - `docs/PHASE6_OMNIVOICE_SETUP.md`
+  - `docs/PHASE6_BACKGROUND_VOICE_SERVICE.md`
+  - `docs/PHASE6_SETTINGS.md`
+  - `docs/PHASE6_TEST_RESULTS.md`
+  - `docs/PHASE6_KNOWN_LIMITATIONS.md`
+  - `PHASE6_IMPLEMENTATION_PROGRESS.md`
+Learnings:
+- The persistent issue with "Simulated transcription" and muted audio output was caused by a single global flag `simulation_mode: true` in `config.yaml`, which silently caused `SpeechToText.transcribe()` and `TextToSpeech.speak()` to exit early with dummy strings. Explicitly setting `simulation_mode: false` and auditing every fallback path resolves the issue completely.
+- A background voice assistant must never have multiple independent threads listening to ALSA/PipeWire; unifying `VoiceService` and `WakeWordEngine` into a single 12-state coordinator prevents device contention.
+- In desktop application launchers, `google-chrome --app=...` provides a native desktop experience with full WebRTC and WebSocket capabilities without requiring hundreds of megabytes of Electron dependencies.
+==================================================
