@@ -331,12 +331,18 @@ class GradioVoiceCloner:
 
         is_online = self._probe_gradio_client(force=False) if self.cloning_enabled else False
         ref_info = self.get_reference_audio_info()
+        status_label = (
+            "OMNIVOICE CLONED VOICE READY"
+            if is_online
+            else "Neural Fallback (Edge-TTS Ryan)"
+        )
         return {
             "name": "gradio_voice_clone",
             "url": self.gradio_url,
             "cloning_enabled": self.cloning_enabled,
             "is_hf_space": self.is_hf_space,
             "online": is_online,
+            "label": status_label,
             "has_reference_audio": ref_info.get("exists", False),
             "reference_audio_path": self.reference_voice_path,
             "reference_audio_info": ref_info,

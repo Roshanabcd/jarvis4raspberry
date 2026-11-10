@@ -1402,11 +1402,27 @@ async function loadHealth() {
   try {
     const r = await fetch('/api/health');
     const d = await r.json();
-    let html = '<table class="sensor-table"><tr><th>Component</th><th>Status</th></tr>';
-    for (const [k, v] of Object.entries(d.components || {})) {
-      const ok = String(v).toUpperCase().includes('OK');
-      const cls = ok ? 'ok' : String(v).toUpperCase().includes('WARN') ? 'warn' : 'err';
-      html += `<tr><td>${k}</td><td><span class="status-dot ${cls}"></span>${v}</td></tr>`;
+    const labelMap = {
+      'backend': '1. Backend Service',
+      'ai_provider': '2. AI Provider / Model',
+      'microphone': '3. ReSpeaker Microphone',
+      'speaker': '4. Physical Speaker Output',
+      'voice_engine': '5. Voice Provider / Engine',
+      'wake_word_daemon': '6. Background Voice Daemon',
+      'camera': '7. Sony IMX708 Camera',
+      'desktop_window': '8. Standalone Desktop Window',
+      'localhost_security': '9. Localhost Security Binding',
+      'storage_db': '10. Storage / SQLite Memory',
+      'robot_hardware': '11. Robot State / Hardware Gate'
+    };
+    let html = '<table class="sensor-table"><tr><th>Subsystem Component</th><th>Hardware Telemetry & Status</th></tr>';
+    for (const [k, label] of Object.entries(labelMap)) {
+      const v = d.components ? d.components[k] : null;
+      if (v !== undefined && v !== null) {
+        const ok = String(v).toUpperCase().includes('OK');
+        const cls = ok ? 'ok' : String(v).toUpperCase().includes('WARN') ? 'warn' : 'err';
+        html += `<tr><td><strong>${label}</strong></td><td><span class="status-dot ${cls}"></span>${v}</td></tr>`;
+      }
     }
     html += '</table>';
     document.getElementById('health-table').innerHTML = html;

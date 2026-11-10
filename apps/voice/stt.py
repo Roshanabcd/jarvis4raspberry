@@ -63,8 +63,8 @@ class SpeechToText:
             self.model = whisper.load_model(self.model_name, device=self.device)
             logger.info("Whisper model '%s' successfully loaded.", self.model_name)
         except ImportError:
-            logger.warning(
-                "openai-whisper package not installed. Falling back to simulation mode."
+            logger.info(
+                "openai-whisper not installed; using SpeechRecognition (Google Web Speech API) for STT."
             )
             self.model = None
         except Exception as exc:

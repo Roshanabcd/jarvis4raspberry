@@ -50,12 +50,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # 2. Voice service (background thread, non-blocking)
     voice_thread = None
     try:
-        from apps.voice.service import voice_service
-        voice_thread = threading.Thread(
-            target=voice_service.start, daemon=True, name="VoiceService"
-        )
-        voice_thread.start()
-        logger.info("✓ Voice service started")
+        from apps.voice.wake_word_engine import is_voice_service_daemon_running
+        if is_voice_service_daemon_running():
+            logger.info("✓ Background jarvis-voice.service is active; backend preserving single microphone owner.")
+        else:
+            from apps.voice.service import voice_service
+            voice_thread = threading.Thread(
+                target=voice_service.start, daemon=True, name="VoiceService"
+            )
+            voice_thread.start()
+            logger.info("✓ Voice service started in backend process (standalone)")
     except Exception as e:
         logger.warning(f"Voice service skipped: {e}")
 
@@ -88,7 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     except Exception as e:
         logger.warning(f"Robot SM skipped: {e}")
 
-    logger.info("✓ JARVIS OS is ready. Dashboard → http://0.0.0.0:8000/")
+    logger.info("✓ JARVIS OS is ready. Dashboard → http://127.0.0.1:8000/")
     yield
 
     # ─── Shutdown ──────────────────────────────────────────
@@ -180,9 +184,10 @@ else:
 
 if __name__ == "__main__":
     port = int(config.get("api_port", 8000))
+    host = str(config.get("api_host", "127.0.0.1"))
     uvicorn.run(
         "apps.core.main:app",
-        host="0.0.0.0",
+        host=host,
         port=port,
         reload=False,
         log_level=log_level.lower(),

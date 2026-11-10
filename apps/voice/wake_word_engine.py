@@ -1,9 +1,9 @@
 """
 Wake Word & VAD Silence Engine for JARVIS OS.
 Implements a 12-state explicit state machine, acoustic keyword detection
-for 'Wake up JARVIS' / 'JARVIS', continuous audio capture, 3.0-second silence
-detection via audio RMS energy, automatic command submission, and a 15-second
-follow-up conversation window.
+for 'Wake up JARVIS' / 'JARVIS', continuous audio capture, adaptive noise floor
+estimation, 3.0-second silence detection via dynamic RMS energy, automatic command
+submission, TTS feedback loop elimination, and a 15-second follow-up conversation window.
 """
 from __future__ import annotations
 
@@ -11,13 +11,17 @@ import logging
 import math
 import os
 import re
+import signal
 import struct
 import subprocess
+import sys
 import threading
 import time
 import wave
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional
+
+import requests
 
 logger = logging.getLogger("JARVIS-WAKE-ENGINE")
 
@@ -50,8 +54,23 @@ WAKE_PHRASES = [
 ]
 
 
+def is_voice_service_daemon_running() -> bool:
+    """Check if the dedicated background systemd user service is currently active."""
+    try:
+        res = subprocess.run(
+            ["systemctl", "--user", "is-active", "jarvis-voice.service"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=1.5,
+        )
+        return res.stdout.strip() == "active"
+    except Exception:
+        return False
+
+
 class WakeWordEngine:
-    """Coordinates the 12-state audio loop with silence-driven dispatch."""
+    """Coordinates the 12-state audio loop with adaptive noise floor and silence-driven dispatch."""
 
     def __init__(
         self,
@@ -69,9 +88,14 @@ class WakeWordEngine:
         self.wake_phrases = wake_phrases or WAKE_PHRASES
         self.silence_timeout_s = float(v_cfg.get("silence_threshold_s", silence_timeout_s))
         self.follow_up_window_s = follow_up_window_s
-        self.energy_threshold = float(v_cfg.get("energy_threshold", energy_threshold))
         self.temp_dir = temp_dir
         os.makedirs(self.temp_dir, exist_ok=True)
+
+        # Dynamic / Adaptive noise floor parameters
+        self.ambient_noise_floor: float = 40.0
+        self.adaptive_threshold: float = float(v_cfg.get("energy_threshold", energy_threshold))
+        self.min_energy_threshold: float = 90.0
+        self.max_energy_threshold: float = 350.0
 
         self._state: WakeState = WakeState.DISABLED
         self._is_running: bool = False
@@ -90,6 +114,22 @@ class WakeWordEngine:
 
         # Command callback
         self._on_command_handler: Optional[Callable[[str], Any]] = None
+        self._stt: Optional[Any] = None
+
+    @property
+    def stt(self):
+        if self._stt is None:
+            try:
+                from apps.voice.stt import SpeechToText
+                self._stt = SpeechToText(simulation_mode=False)
+            except Exception as e:
+                logger.error("Failed to initialize STT: %s", e)
+        return self._stt
+
+    @property
+    def energy_threshold(self) -> float:
+        """Dynamic energy threshold based on current ambient noise floor."""
+        return self.adaptive_threshold
 
     @property
     def state(self) -> WakeState:
@@ -120,6 +160,8 @@ class WakeWordEngine:
                 "follow_up_remaining_s": follow_up_remaining,
                 "silence_timeout_s": self.silence_timeout_s,
                 "follow_up_window_s": self.follow_up_window_s,
+                "ambient_noise_floor_rms": round(self.ambient_noise_floor, 2),
+                "adaptive_threshold_rms": round(self.adaptive_threshold, 2),
                 "current_transcript": self._current_transcript,
                 "last_command": self._last_command,
                 "last_response": self._last_response,
@@ -144,6 +186,24 @@ class WakeWordEngine:
             )
             self._thread.start()
             logger.info("WakeWordEngine started in background.")
+
+    def run_forever(self) -> None:
+        """Run the wake word loop synchronously in the main thread until terminated."""
+        def sig_handler(sig, frame):
+            logger.info("Signal %s received. Stopping WakeWordEngine...", sig)
+            self.stop()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, sig_handler)
+        signal.signal(signal.SIGTERM, sig_handler)
+
+        logger.info("WakeWordEngine run_forever starting on PID %d...", os.getpid())
+        with self._state_lock:
+            self._is_running = True
+            self._stop_event.clear()
+            self.set_state(WakeState.STANDBY_LISTENING)
+
+        self._run_loop()
 
     def stop(self) -> None:
         """Stop the background voice assistant."""
@@ -182,7 +242,7 @@ class WakeWordEngine:
             return 0.0
 
     def _record_audio_chunk(self, output_path: str, duration_s: float = 1.5) -> bool:
-        """Record audio chunk using pw-record or arecord."""
+        """Record audio chunk using pw-record with PipeWire default source."""
         try:
             cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -202,10 +262,10 @@ class WakeWordEngine:
     def _transcribe(self, wav_path: str) -> str:
         """Transcribe an audio chunk using real speech recognition without mock data."""
         try:
-            from apps.voice.stt import SpeechToText
-            stt = SpeechToText(simulation_mode=False)
-            text = stt.transcribe(wav_path)
-            return text.strip() if text else ""
+            if self.stt:
+                text = self.stt.transcribe(wav_path)
+                return text.strip() if text else ""
+            return ""
         except Exception as e:
             logger.error("STT transcription failure: %s", e)
             return ""
@@ -220,12 +280,34 @@ class WakeWordEngine:
                 return True
         return False
 
+    def _is_tts_playing(self) -> bool:
+        """Check if JARVIS physical speaker is currently outputting speech (prevents acoustic feedback)."""
+        try:
+            from apps.voice.speech_manager import speech_manager
+            return speech_manager.is_playing()
+        except Exception:
+            return False
+
+    def _update_adaptive_threshold(self, rms: float) -> None:
+        """Smoothly calibrate noise floor and compute dynamic energy threshold."""
+        if rms < self.adaptive_threshold:
+            # Smoothly update ambient noise floor
+            self.ambient_noise_floor = (self.ambient_noise_floor * 0.85) + (rms * 0.15)
+            # Threshold is at least 2.0x noise floor, clamped between min and max
+            computed = max(self.ambient_noise_floor * 2.0, self.min_energy_threshold)
+            self.adaptive_threshold = min(computed, self.max_energy_threshold)
+
     def _run_loop(self) -> None:
         """Main 12-state state machine loop."""
         logger.info("WakeWordEngine thread loop running...")
         standby_chunk = os.path.join(self.temp_dir, "standby_chunk.wav")
 
         while self._is_running and not self._stop_event.is_set():
+            # Acoustic Feedback Guard: Suppress VAD while TTS is actively playing through physical speaker
+            if self._is_tts_playing():
+                self._stop_event.wait(0.2)
+                continue
+
             curr = self.state
 
             if curr == WakeState.MUTED:
@@ -239,17 +321,19 @@ class WakeWordEngine:
                     self._stop_event.wait(0.2)
                     continue
 
-                # 2. Check energy
+                # 2. Check energy against adaptive threshold
                 rms = self._calculate_audio_rms(standby_chunk)
-                if rms > self.energy_threshold:
+                if rms > self.adaptive_threshold:
                     # Potential speech detected, transcribe
                     text = self._transcribe(standby_chunk)
                     if text:
-                        logger.info("Heard in standby: '%s' (RMS: %.1f)", text, rms)
+                        logger.info("Heard in standby: '%s' (RMS: %.1f, threshold: %.1f)", text, rms, self.adaptive_threshold)
                         if self._matches_wake_phrase(text):
                             logger.info(">>> WAKE PHRASE DETECTED! <<<")
                             self.set_state(WakeState.WAKE_DETECTED)
                             continue
+                else:
+                    self._update_adaptive_threshold(rms)
 
                 self._stop_event.wait(0.05)
 
@@ -265,21 +349,22 @@ class WakeWordEngine:
                 ok = self._record_audio_chunk(standby_chunk, duration_s=1.5)
                 if ok:
                     rms = self._calculate_audio_rms(standby_chunk)
-                    if rms > self.energy_threshold:
+                    if rms > self.adaptive_threshold:
                         text = self._transcribe(standby_chunk)
                         if text and len(text.split()) >= 1:
                             logger.info("Direct follow-up command heard: '%s'", text)
                             self._current_transcript = text
                             self.set_state(WakeState.LISTENING_SPEECH)
                             continue
+                    else:
+                        self._update_adaptive_threshold(rms)
                 self._stop_event.wait(0.05)
 
             elif curr == WakeState.WAKE_DETECTED:
-                # Play brief chime or prompt acknowledge
+                # Immediate acknowledgment chime/speech
                 try:
                     from apps.voice.service import voice_service
                     voice_service.stop_playback()
-                    # Immediate acknowledgment
                     from apps.voice.tts import TextToSpeech
                     tts = TextToSpeech(simulation_mode=False)
                     tts.speak_sync("Yes?")
@@ -301,13 +386,18 @@ class WakeWordEngine:
                 has_heard_speech = bool(cmd_parts)
 
                 while self._is_running and not self._stop_event.is_set():
+                    # Acoustic Feedback Guard inside listening loop
+                    if self._is_tts_playing():
+                        self._stop_event.wait(0.2)
+                        continue
+
                     ok = self._record_audio_chunk(speech_chunk, duration_s=1.5)
                     if not ok:
                         continue
 
                     rms = self._calculate_audio_rms(speech_chunk)
 
-                    if rms > self.energy_threshold:
+                    if rms > self.adaptive_threshold:
                         # User spoke in this window
                         has_heard_speech = True
                         self._last_speech_time = time.time()
@@ -349,37 +439,50 @@ class WakeWordEngine:
     def _execute_command_and_respond(self, command_text: str) -> None:
         """Route recognized command to JARVIS Brain, deliver dual text/speech, and enter follow-up window."""
         try:
-            # 0. Broadcast recognized user speech to UI
+            submitted_to_backend = False
+            # 1. Try sending command via localhost REST API to trigger coordinated UI updates and audio
             try:
-                from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="user", text=command_text)
+                resp = requests.post(
+                    "http://127.0.0.1:8000/api/voice/command",
+                    json={"text": command_text},
+                    timeout=20.0,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    self._last_response = data.get("response", "")
+                    submitted_to_backend = True
             except Exception as e:
-                logger.debug("Failed to broadcast user chat message: %s", e)
+                logger.debug("REST command dispatch failed or backend offline (%s); falling back to direct execution.", e)
 
-            # 1. Process via handler or Brain
-            if self._on_command_handler:
-                response = self._on_command_handler(command_text)
-            else:
-                from ai.brain import get_brain
-                brain = get_brain()
-                chat_res = brain.chat(command_text, session_id="voice-session")
-                response = chat_res.get("response", "Command executed.")
+            if not submitted_to_backend:
+                # Fallback: direct in-process execution
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(role="user", text=command_text)
+                except Exception as e:
+                    logger.debug("Failed to broadcast user chat message: %s", e)
 
-            self._last_response = str(response)
+                if self._on_command_handler:
+                    response = self._on_command_handler(command_text)
+                else:
+                    from ai.brain import get_brain
+                    brain = get_brain()
+                    chat_res = brain.chat(command_text, session_id="voice-session")
+                    response = chat_res.get("response", "Command executed.")
 
-            # 2. Broadcast assistant response to UI
-            try:
-                from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="assistant", text=self._last_response)
-            except Exception as e:
-                logger.debug("Failed to broadcast assistant chat message: %s", e)
+                self._last_response = str(response)
 
-            # 3. Speak response asynchronously with speech_manager
-            self.set_state(WakeState.SPEAKING_RESPONSE)
-            from apps.voice.speech_manager import speech_manager
-            speech_manager.synthesize_and_stage(str(response), play_system=True)
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(role="assistant", text=self._last_response)
+                except Exception as e:
+                    logger.debug("Failed to broadcast assistant chat message: %s", e)
 
-            # 4. Enter 15-second follow-up window
+                self.set_state(WakeState.SPEAKING_RESPONSE)
+                from apps.voice.speech_manager import speech_manager
+                speech_manager.synthesize_and_stage(str(response), play_system=True)
+
+            # 2. Enter 15-second follow-up window
             self._follow_up_deadline = time.time() + self.follow_up_window_s
             self.set_state(WakeState.FOLLOW_UP_STANDBY)
             logger.info("Entered 15-second follow-up window until %.1f", self._follow_up_deadline)
@@ -392,4 +495,14 @@ class WakeWordEngine:
             self.set_state(WakeState.STANDBY_LISTENING)
 
 
+# Module-level singleton
 wake_word_engine = WakeWordEngine()
+
+if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [JARVIS-VOICE-SERVICE] %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    logger.info("Initializing JARVIS Background Voice & Wake-Word Service...")
+    wake_word_engine.run_forever()

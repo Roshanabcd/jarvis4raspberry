@@ -171,7 +171,7 @@ def get_all_settings():
         "category_l": {
             "name": "Network & Connectivity",
             "port": config.get("api_port", 8000),
-            "host": "0.0.0.0",
+            "host": config.get("api_host", "127.0.0.1"),
             "online": is_online(),
             "local_ip": sys_st.get("local_ip", "127.0.0.1"),
         },
