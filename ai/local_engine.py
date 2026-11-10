@@ -380,6 +380,33 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:capture\s+(?:my\s+)?photo|take\s+a\s+(?:photo|picture)|take\s+(?:a\s+)?picture|capture\s+(?:a\s+)?(?:frame|image)|camera\s+capture)\b', text_lower):
             return "camera_capture", {"text": text}
 
+        # Phase 8: Apps Center Intent Routing
+        if re.search(r'\b(?:open\s+(?:my\s+)?apps|show\s+(?:all\s+)?applications|list\s+applications|apps\s+center|what\s+ai\s+apps|what\s+applications\s+are\s+available|show\s+apps)\b', text_lower):
+            return "apps_list", {"text": text}
+
+        if re.search(r'\b(?:which\s+apps|which\s+applications)\s+(?:are\s+)?(?:still\s+)?(?:under\s+development|in\s+development|planned)\b', text_lower):
+            return "apps_status", {"filter": "planned", "text": text}
+
+        match_open_app = re.search(r'\b(?:open|launch|start)\s+(?:the\s+)?([a-z0-9 -_]+?)(?:\s+app|\s+application)?$', text_lower)
+        if match_open_app:
+            target = match_open_app.group(1).strip()
+            target_slug = target.replace(" ", "-").replace("_", "-")
+            # check if it matches an app in the registry
+            try:
+                from apps.apps_center.registry import app_registry
+                for app in app_registry.get_all_apps():
+                    app_slug = app.id.replace("_", "-")
+                    if (
+                        target_slug == app_slug
+                        or target in app.name.lower()
+                        or app.name.lower() in target
+                        or target.replace("-", " ") in app.name.lower()
+                        or target_slug in app_slug
+                    ):
+                        return "apps_open", {"app_id": app.id, "app_name": app.name, "text": text}
+            except Exception:
+                pass
+
         # 4. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
         # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
         if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
@@ -676,6 +703,53 @@ class LocalIntelligenceEngine:
                 else:
                     reason = result.get("reason", "unrecognized face")
                     return {"response": f"Unrecognized person in front of the camera ({reason}). Session assigned as Guest.", "tools_used": tools_used, "raw": result}
+
+            elif intent == "apps_list":
+                from apps.apps_center.registry import app_registry
+                apps = app_registry.get_all_apps()
+                avail = [a.name for a in apps if a.status.value == "available"]
+                planned = [a.name for a in apps if a.status.value == "planned"]
+                resp = (
+                    f"**JARVIS Apps Center Catalog ({len(apps)} Applications):**\n\n"
+                    f"✅ **Available ({len(avail)}):** {', '.join(avail)}\n\n"
+                    f"⏳ **In Roadmap / Planned ({len(planned)}):** {', '.join(planned[:6])} and {len(planned)-6} more.\n\n"
+                    f"You can view and manage all applications in the **Apps Center** tab."
+                )
+                return {"response": resp, "tools_used": ["apps_catalog"], "raw": {"total": len(apps), "available": avail, "planned": planned}}
+
+            elif intent == "apps_status":
+                from apps.apps_center.registry import app_registry
+                planned = [a.name for a in app_registry.get_planned_apps()]
+                resp = (
+                    f"There are **{len(planned)} applications** currently under development or planned in the JARVIS roadmap:\n"
+                    f"{', '.join(planned)}.\n"
+                    f"These modules are registered in the Apps Center with their respective feature specifications."
+                )
+                return {"response": resp, "tools_used": ["apps_catalog"], "raw": {"planned": planned}}
+
+            elif intent == "apps_open":
+                app_id = ctx.get("app_id")
+                from apps.apps_center.registry import app_registry
+                app = app_registry.get_app(app_id) if app_id else None
+                if not app:
+                    return {"response": f"Application '{ctx.get('app_name', 'requested app')}' is not registered in JARVIS.", "tools_used": ["apps_catalog"]}
+                if app.status.value == "planned":
+                    return {
+                        "response": f"{app.name} is registered in JARVIS but is not available yet. It is currently in the development roadmap: {app.roadmap or 'Implementation planned in upcoming phases.'}",
+                        "tools_used": ["apps_catalog"],
+                        "raw": {"status": "planned", "app_id": app.id}
+                    }
+                elif app.status.value == "available":
+                    return {
+                        "response": f"Opening {app.name}. Active route: {app.route}.",
+                        "tools_used": ["apps_catalog", "app_launcher"],
+                        "raw": {"status": "available", "app_id": app.id, "route": app.route, "target_tab": app.target_tab}
+                    }
+                else:
+                    return {
+                        "response": f"{app.name} status is currently {app.status.value}.",
+                        "tools_used": ["apps_catalog"]
+                    }
 
             elif intent == "memory_store":
                 # Extract what to remember
