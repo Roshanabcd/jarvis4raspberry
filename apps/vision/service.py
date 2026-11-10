@@ -20,6 +20,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+import requests
+
 from config.config_manager import config
 from tools.vision.camera_manager import CameraManager, PICTURES_DIR
 from tools.vision.object_detector import ObjectDetector, object_detector
@@ -104,6 +106,7 @@ class VisionService:
 
         img_path = result.get("image_path")
         self._last_image_path = img_path
+        filename = result.get("filename") or (os.path.basename(img_path) if img_path else None)
 
         # Read base64
         data_b64 = None
@@ -114,6 +117,7 @@ class VisionService:
         except Exception as e:
             logger.warning("Failed to encode captured image to b64: %s", e)
 
+        backend_name = result.get("backend", "camera_service_picamera2")
         return {
             "status": "ok",
             "simulated": False,
@@ -123,15 +127,73 @@ class VisionService:
             "format": "jpeg",
             "size_bytes": result.get("file_size_bytes", 0),
             "image_path": img_path,
+            "filename": filename,
             "data_b64": data_b64,
-            "backend": "rpicam_still",
+            "backend": backend_name,
             "camera_model": "Sony IMX708",
         }
 
     def detect_objects(self, image_path: Optional[str] = None) -> Dict[str, Any]:
         """
-        Run real YOLOv8n object detection on a newly captured frame or specified image.
+        Run real YOLO object detection on a newly captured frame or specified image.
+        Leverages active dedicated camera service (YOLO11 NCNN) if running, or falls back to local YOLOv8n ONNX.
         """
+        # If no specific image requested and the camera service is active, fetch live real-time detections
+        if not image_path and self.camera_mgr.is_service_running():
+            svc_url = self.camera_mgr.get_service_url()
+            try:
+                r_det = requests.get(f"{svc_url}/api/detections", timeout=2.0)
+                r_snap = requests.get(f"{svc_url}/api/snapshot/annotated", timeout=4.0)
+                cap_res = self.capture_frame()
+                clean_path = cap_res.get("image_path")
+
+                annotated_path = None
+                if clean_path and r_snap.status_code == 200:
+                    annotated_path = str(Path(clean_path).parent / f"annotated_{Path(clean_path).name}")
+                    with open(annotated_path, "wb") as f:
+                        f.write(r_snap.content)
+
+                if r_det.status_code == 200:
+                    det_data = r_det.json()
+                    targets = det_data.get("targets", [])
+                    objects = [
+                        {
+                            "label": t.get("label", "object"),
+                            "confidence": t.get("confidence", 0.0),
+                            "bbox": {
+                                "x": t.get("bbox", [0, 0, 0, 0])[0],
+                                "y": t.get("bbox", [0, 0, 0, 0])[1],
+                                "width": max(0, t.get("bbox", [0, 0, 0, 0])[2] - t.get("bbox", [0, 0, 0, 0])[0]),
+                                "height": max(0, t.get("bbox", [0, 0, 0, 0])[3] - t.get("bbox", [0, 0, 0, 0])[1]),
+                            },
+                            "raw_bbox": t.get("bbox"),
+                            "distance_m": t.get("distance_m"),
+                            "distance_cm": t.get("distance_cm"),
+                            "distance_type": "optical_monocular_estimate",
+                            "optical_disclaimer": "Optical/PDAF estimate (monocular). Not for safety-critical collision avoidance.",
+                            "zone": t.get("zone", "UNKNOWN"),
+                        }
+                        for t in targets
+                    ]
+                    labels = [t.get("label", "object") for t in targets]
+                    return {
+                        "status": "ok",
+                        "success": True,
+                        "simulated": False,
+                        "count": len(objects),
+                        "objects": objects,
+                        "labels": labels,
+                        "fps": det_data.get("fps"),
+                        "distance_type": "optical_monocular_estimate",
+                        "distance_note": "Monocular optical/PDAF estimate. Monocular calculation is an optical estimate, not direct 3D depth. Not for safety-critical collision avoidance.",
+                        "optical_disclaimer": "Optical/PDAF estimate (monocular). Not for safety-critical collision avoidance.",
+                        "source": "yolo11n_ncnn_service",
+                        "image_path": clean_path,
+                        "annotated_image_path": annotated_path,
+                    }
+            except Exception as e:
+                logger.warning("Camera service detection query failed, falling back to local YOLOv8: %s", e)
+
         target_path = image_path or self._last_image_path
         if not target_path or not os.path.exists(target_path):
             frame = self.capture_frame()

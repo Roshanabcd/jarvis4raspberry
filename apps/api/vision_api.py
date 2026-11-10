@@ -4,14 +4,20 @@ Exposes endpoints for camera capture, YOLOv8n object detection, Moondream VLM sc
 description, and visual question answering.
 """
 
+import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, Optional
+
+import requests
 from fastapi import APIRouter, HTTPException, Query, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from apps.vision.service import vision_service
 from tools.vision.camera_manager import CameraManager
+
+logger = logging.getLogger("JARVIS.API.Vision")
 
 vision_router = APIRouter(prefix="/vision", tags=["vision"])
 
@@ -42,10 +48,14 @@ def capture_photo():
     frame = vision_service.capture_frame()
     if frame.get("status") == "error":
         raise HTTPException(status_code=500, detail=frame.get("error", "Camera capture error"))
+    filename = frame.get("filename") or (os.path.basename(frame["image_path"]) if frame.get("image_path") else None)
     return {
         "status": frame.get("status", "ok"),
+        "success": frame.get("status", "ok") == "ok",
         "simulated": frame.get("simulated", False),
         "image_path": frame.get("image_path"),
+        "filename": filename,
+        "image_url": f"/api/vision/image/{filename}" if filename else None,
         "width": frame.get("width"),
         "height": frame.get("height"),
         "timestamp": frame.get("timestamp"),
@@ -116,3 +126,82 @@ def get_latest_annotated():
     if not os.path.exists(annotated_path):
         raise HTTPException(status_code=404, detail="No annotated image found")
     return FileResponse(annotated_path, media_type="image/jpeg")
+
+
+@vision_router.get("/image/{filename}")
+def get_image_by_filename(filename: str):
+    """
+    Securely serve captured photos from /home/roshan/Pictures.
+    Strictly prevents directory traversal and restricts to allowed image extensions.
+    """
+    # 1. Reject path separators and dot-dot traversal
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename: directory traversal prohibited")
+
+    # 2. Strict extension check
+    allowed_exts = {".jpg", ".jpeg", ".png"}
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in allowed_exts:
+        raise HTTPException(status_code=400, detail="Invalid file type: only JPEG/PNG images are permitted")
+
+    # 3. Path boundary verification
+    safe_dir = Path("/home/roshan/Pictures").resolve()
+    target_path = (safe_dir / filename).resolve()
+
+    if not target_path.is_relative_to(safe_dir):
+        raise HTTPException(status_code=403, detail="Access denied: path outside authorized directory")
+
+    if not target_path.exists() or not target_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Image file '{filename}' not found")
+
+    return FileResponse(str(target_path), media_type="image/jpeg")
+
+
+@vision_router.get("/stream")
+def get_camera_stream():
+    """
+    Proxies live MJPEG stream from dedicated camera service (127.0.0.1:8082/video_feed)
+    to dashboard clients on port 8000, keeping port 8082 loopback-protected.
+    """
+    service_url = vision_service.camera_mgr.get_service_url()
+    stream_url = f"{service_url}/video_feed"
+
+    def iter_stream():
+        try:
+            with requests.get(stream_url, stream=True, timeout=10.0) as r:
+                for chunk in r.iter_content(chunk_size=4096):
+                    if chunk:
+                        yield chunk
+        except Exception as e:
+            logger.debug("Camera stream proxy disconnected: %s", e)
+
+    return StreamingResponse(
+        iter_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
+
+
+@vision_router.get("/detections")
+def get_live_detections():
+    """Return live detections telemetry from dedicated camera service."""
+    if not vision_service.camera_mgr.is_service_running():
+        return {
+            "status": "offline",
+            "service_active": False,
+            "targets": [],
+            "message": "Camera service is offline on 127.0.0.1:8082",
+        }
+    svc_url = vision_service.camera_mgr.get_service_url()
+    try:
+        r = requests.get(f"{svc_url}/api/detections", timeout=1.0)
+        if r.status_code == 200:
+            return r.json()
+    except Exception as e:
+        logger.warning("Failed to fetch live detections: %s", e)
+    return {
+        "status": "error",
+        "service_active": False,
+        "targets": [],
+        "message": "Failed to query camera service detections",
+    }

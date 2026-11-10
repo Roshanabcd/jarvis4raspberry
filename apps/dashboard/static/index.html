@@ -729,6 +729,15 @@
 
       <div style="display:grid;grid-template-columns:1fr 360px;gap:20px">
         <div>
+          <!-- Stream & Snapshot Viewfinder Mode Header -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="display:flex;gap:6px">
+              <button id="viewfinder-mode-snap" class="btn" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('snap')">📸 Snapshot Preview</button>
+              <button id="viewfinder-mode-live" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('live')">🔴 Live Stream</button>
+            </div>
+            <a id="vision-fullres-link" href="#" target="_blank" style="display:none;color:var(--accent);font-size:0.75rem;text-decoration:none">🔍 Open Full-Res Photo</a>
+          </div>
+
           <!-- Viewfinder -->
           <div style="background:#050711;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;min-height:360px;display:flex;align-items:center;justify-content:center;position:relative">
             <img id="vision-viewfinder" src="" alt="Camera Viewfinder" style="max-width:100%;max-height:480px;display:none;border-radius:6px">
@@ -740,13 +749,14 @@
           <!-- Action Buttons -->
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
             <button class="btn" onclick="captureVisionFrame()">📸 Capture Photo</button>
-            <button class="btn" style="background:var(--accent);color:#050811" onclick="detectVisionObjects()">🎯 Detect Objects (YOLOv8)</button>
+            <button class="btn" style="background:var(--accent);color:#050811" onclick="detectVisionObjects()">🎯 Detect Objects (YOLO)</button>
             <button class="btn dark" onclick="describeVisionScene()">🧠 Scene Description (Moondream)</button>
             <button class="btn dark" onclick="identifyFaceVision()">👤 Identify Face</button>
             <button class="btn dark" onclick="checkCameraStatus()">ℹ️ Camera Status</button>
           </div>
-          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px">
-            Latest Capture Path: <span id="vision-capture-path" style="font-family:monospace;color:var(--text)">None</span>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
+            <div>Latest Capture: <span id="vision-capture-path" style="font-family:monospace;color:var(--text)">None</span></div>
+            <div id="vision-capture-meta" style="color:var(--accent);font-family:monospace"></div>
           </div>
         </div>
 
@@ -755,7 +765,7 @@
           <div class="card" style="margin-bottom:12px">
             <h3>Camera Backend</h3>
             <div class="val" id="cam-backend-val" style="font-size:1.1rem">Sony IMX708</div>
-            <div class="sub" id="cam-sub-val">rpicam-still (Debian 13 libcamera)</div>
+            <div class="sub" id="cam-sub-val">Picamera2 (Dedicated Hardware Owner)</div>
           </div>
 
           <div class="panel" style="padding:12px;margin-bottom:12px">
@@ -769,7 +779,7 @@
           </div>
 
           <div class="panel" style="padding:12px">
-            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Detected Objects (YOLOv8 COCO)</h3>
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Detected Objects & Range (YOLO + PDAF)</h3>
             <div id="vision-objects" style="font-size:0.82rem;color:var(--muted)">None</div>
           </div>
         </div>
@@ -2331,31 +2341,83 @@ async function runStudioTest() {
   }
 }
 
-// ─── Vision & Identity Center (Phase 7) ──────────────────────────
-async function captureVisionFrame() {
-  const ph = document.getElementById('vision-placeholder');
-  const img = document.getElementById('vision-viewfinder');
-  ph.style.display = 'block';
-  ph.textContent = 'Acquiring frame from Sony IMX708...';
-  img.style.display = 'none';
+// ─── Vision & Identity Center (Phase 7.1) ──────────────────────────
+let viewfinderMode = 'snap';
+let lastCapturedImageUrl = null;
 
-  try {
-    const r = await fetch('/api/vision/capture');
-    const d = await r.json();
-    const frame = d.data || d || {};
-    if (d.data_b64 || frame.data_b64) {
-      img.src = 'data:image/jpeg;base64,' + (d.data_b64 || frame.data_b64);
+function switchViewfinderMode(mode) {
+  viewfinderMode = mode;
+  const snapBtn = document.getElementById('viewfinder-mode-snap');
+  const liveBtn = document.getElementById('viewfinder-mode-live');
+  const img = document.getElementById('vision-viewfinder');
+  const ph = document.getElementById('vision-placeholder');
+
+  if (mode === 'live') {
+    if (snapBtn) snapBtn.className = 'btn dark';
+    if (liveBtn) liveBtn.className = 'btn ok';
+    img.src = '/api/vision/stream';
+    img.style.display = 'block';
+    ph.style.display = 'none';
+  } else {
+    if (snapBtn) snapBtn.className = 'btn';
+    if (liveBtn) liveBtn.className = 'btn dark';
+    if (lastCapturedImageUrl) {
+      img.src = lastCapturedImageUrl;
       img.style.display = 'block';
       ph.style.display = 'none';
     } else {
-      ph.textContent = `Captured (${frame.width || 1280}x${frame.height || 720})`;
+      img.style.display = 'none';
+      ph.style.display = 'block';
+      ph.innerHTML = '<span style="font-size:3rem;display:block;margin-bottom:8px">📷</span>Click "Capture Photo" to acquire image from Sony IMX708';
     }
-    document.getElementById('cam-backend-val').textContent = frame.camera_model || frame.backend || 'Sony IMX708';
-    document.getElementById('vision-desc').textContent = frame.description || 'Hardware frame captured successfully.';
-    const pathEl = document.getElementById('vision-capture-path');
-    if (pathEl) pathEl.textContent = frame.image_path || 'Pictures/JARVIS_Photo_*.jpg';
+  }
+}
+
+async function captureVisionFrame() {
+  const ph = document.getElementById('vision-placeholder');
+  const img = document.getElementById('vision-viewfinder');
+  const linkEl = document.getElementById('vision-fullres-link');
+  const metaEl = document.getElementById('vision-capture-meta');
+  const pathEl = document.getElementById('vision-capture-path');
+
+  ph.style.display = 'block';
+  ph.innerHTML = '<span style="display:inline-block;animation:spin 1s linear infinite;margin-right:8px">⏳</span>Acquiring real frame from Sony IMX708...';
+  img.style.display = 'none';
+
+  try {
+    const r = await fetch('/api/vision/capture', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok || d.status === 'error') {
+      ph.innerHTML = `<span style="color:var(--warn)">⚠️ Capture Error: ${d.detail || d.error || 'Failed to capture frame'}</span>`;
+      return;
+    }
+
+    const filename = d.filename || (d.image_path ? d.image_path.split('/').pop() : null);
+    const imageUrl = d.image_url || (filename ? `/api/vision/image/${encodeURIComponent(filename)}` : null);
+    lastCapturedImageUrl = imageUrl ? `${imageUrl}?t=${Date.now()}` : (d.data_b64 ? `data:image/jpeg;base64,${d.data_b64}` : null);
+
+    if (viewfinderMode === 'snap' && lastCapturedImageUrl) {
+      img.src = lastCapturedImageUrl;
+      img.style.display = 'block';
+      ph.style.display = 'none';
+    }
+
+    if (linkEl && imageUrl) {
+      linkEl.href = imageUrl;
+      linkEl.style.display = 'inline';
+    }
+
+    if (metaEl) {
+      const sizeKb = d.data && d.data.size_bytes ? Math.round(d.data.size_bytes / 1024) : 0;
+      metaEl.textContent = `${d.width || 1280}×${d.height || 720} px | ${sizeKb} KB | ${new Date((d.timestamp || Date.now()/1000)*1000).toLocaleTimeString()}`;
+    }
+
+    document.getElementById('cam-backend-val').textContent = d.camera_model || 'Sony IMX708';
+    const subVal = document.getElementById('cam-sub-val');
+    if (subVal) subVal.textContent = d.simulated ? 'SIMULATED' : 'Real Hardware (IMX708)';
+    if (pathEl) pathEl.textContent = d.image_path || filename || 'Pictures/JARVIS_Photo_*.jpg';
   } catch(e) {
-    ph.textContent = 'Camera capture error: ' + e;
+    ph.innerHTML = `<span style="color:var(--warn)">⚠️ Connection Error: ${e}</span>`;
   }
 }
 
@@ -2363,25 +2425,35 @@ async function detectVisionObjects() {
   const ph = document.getElementById('vision-placeholder');
   const img = document.getElementById('vision-viewfinder');
   const objContainer = document.getElementById('vision-objects');
-  objContainer.innerHTML = '<em>Detecting objects with YOLOv8...</em>';
+  objContainer.innerHTML = '<em>Detecting objects with neural model...</em>';
 
   try {
     const r = await fetch('/api/vision/detect', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
     const d = await r.json();
     if (d.success) {
-      img.src = '/api/vision/image/annotated?t=' + Date.now();
-      img.style.display = 'block';
-      ph.style.display = 'none';
+      const annUrl = `/api/vision/image/annotated?t=${Date.now()}`;
+      if (viewfinderMode === 'snap') {
+        img.src = annUrl;
+        img.style.display = 'block';
+        ph.style.display = 'none';
+        lastCapturedImageUrl = annUrl;
+      }
 
       if (d.count > 0) {
-        let html = `<div style="margin-bottom:6px"><strong>${d.count} Object(s) Detected</strong> (${d.inference_ms}ms):</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        let html = `<div style="margin-bottom:8px"><strong>${d.count} Object(s) Detected</strong> (${d.source || 'neural'}, ${d.fps ? d.fps.toFixed(1) + ' FPS' : (d.inference_ms || 0) + 'ms'}):</div><div style="display:flex;flex-direction:column;gap:6px">`;
         d.objects.forEach(obj => {
-          html += `<span style="background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;padding:3px 8px;border-radius:4px;font-size:0.75rem">📦 ${obj.label} ${Math.round(obj.confidence*100)}%</span>`;
+          const distStr = obj.distance_m ? ` | ~${obj.distance_m}m (${obj.distance_cm || Math.round(obj.distance_m*100)}cm)` : '';
+          const zoneColor = obj.zone === 'CRITICAL' ? 'var(--warn)' : (obj.zone === 'NEAR' ? '#ffaa00' : 'var(--green)');
+          html += `<div style="background:rgba(0,0,0,0.3);border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center">
+            <span>📦 <strong style="color:var(--accent)">${obj.label.toUpperCase()}</strong> (${Math.round(obj.confidence*100)}%)</span>
+            <span style="color:${zoneColor};font-family:monospace">${distStr} <span style="font-size:0.65rem;color:var(--muted)">[Opt. Est]</span></span>
+          </div>`;
         });
         html += `</div>`;
+        html += `<div style="font-size:0.65rem;color:var(--muted);margin-top:6px;font-style:italic">ℹ️ Optical/PDAF estimate (monocular). Not for safety-critical collision avoidance.</div>`;
         objContainer.innerHTML = html;
       } else {
-        objContainer.innerHTML = `No objects detected (${d.inference_ms}ms).`;
+        objContainer.innerHTML = `No objects detected in current frame.`;
       }
     } else {
       objContainer.textContent = 'Object detection error: ' + (d.error || 'unknown');
