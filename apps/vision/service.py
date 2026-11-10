@@ -1,227 +1,257 @@
 """
-JARVIS Vision Service
-Integrates Raspberry Pi Camera Module 3.
-Supports:
-1. Native libcamera / rpicam CLI (rpicam-still / rpicam-jpeg) - optimal on Raspberry Pi 5 under Debian Trixie.
-2. picamera2 when available.
-3. Simulation mode fallback when hardware is disconnected or simulation is enabled.
+JARVIS OS — Vision Service.
+Integrates Raspberry Pi Camera Module 3 (Sony IMX708), YOLOv8n Object Detection,
+and local Ollama Moondream Vision-Language Model.
+
+Features:
+- Real hardware capture via CameraManager (Sony IMX708 via rpicam-still)
+- Truthful simulation reporting: 'simulated: False' when real hardware frame is captured
+- Real YOLOv8n object detection (80 COCO classes) with bounding box annotations
+- Grounded scene descriptions via local Moondream VLM
+- Face identification via FaceEngine / UserManager
 """
-import io
+
+import base64
+import logging
 import os
 import shutil
-import logging
-import subprocess
 import tempfile
 import time
-import base64
-from typing import Optional, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Union
+
 from config.config_manager import config
+from tools.vision.camera_manager import CameraManager, PICTURES_DIR
+from tools.vision.object_detector import ObjectDetector, object_detector
+from tools.vision.vision_vlm import VisionVLM, vision_vlm
+from tools.identity.user_manager import UserManager, user_manager
 
-logger = logging.getLogger("JARVIS.Vision")
-
-try:
-    from picamera2 import Picamera2
-    _PICAMERA_AVAILABLE = True
-except ImportError:
-    _PICAMERA_AVAILABLE = False
-
-
-def _check_rpicam_available() -> bool:
-    """Check if native rpicam-still or rpicam-jpeg binary exists."""
-    return bool(shutil.which("rpicam-still") or shutil.which("rpicam-jpeg") or shutil.which("libcamera-still"))
+logger = logging.getLogger("JARVIS.Vision.Service")
 
 
 class VisionService:
     """
-    Camera integration for JARVIS on Raspberry Pi 5.
-
-    Capture modes:
-    - picamera2 (direct Python bindings)
-    - rpicam-still (native ARM64 binary subprocess)
-    - simulation (synthetic test frame and object list)
+    Central vision coordination service for JARVIS OS on Raspberry Pi 5.
+    Coordinates physical capture, object detection, and visual understanding.
     """
 
-    def __init__(self, width: int = 1280, height: int = 720,
-                 simulation: Optional[bool] = None) -> None:
+    def __init__(
+        self,
+        width: int = 1280,
+        height: int = 720,
+        simulation: Optional[bool] = None,
+    ) -> None:
         self.width = width
         self.height = height
 
-        cfg_sim = bool(config.get("simulation_mode", True))
+        # Only simulate if explicitly requested AND hardware is not available
+        self.camera_mgr = CameraManager()
+        hw_available = self.camera_mgr.is_camera_available()
+
         if simulation is not None:
-            self.simulation = simulation
+            self.simulation = simulation and not hw_available
         else:
-            self.simulation = cfg_sim
+            # If real hardware is detected, we ALWAYS use real hardware
+            self.simulation = False if hw_available else True
 
-        self._camera: Optional[Any] = None
-        self._last_capture: Optional[float] = None
-        self._backend: str = "simulated"
+        self.object_detector = object_detector
+        self.vlm = vision_vlm
+        self.user_mgr = user_manager
+        self._last_capture_time: Optional[float] = None
+        self._last_image_path: Optional[str] = None
 
-        if not self.simulation:
-            self._init_camera()
-        else:
-            logger.info("VisionService running in SIMULATION mode.")
+        logger.info(
+            "VisionService initialized (hw_available=%s, simulation=%s, resolution=%dx%d)",
+            hw_available,
+            self.simulation,
+            self.width,
+            self.height,
+        )
 
-    def _init_camera(self) -> None:
-        """Probe and initialize camera hardware using available backends."""
-        # 1. Try picamera2 if installed
-        if _PICAMERA_AVAILABLE:
-            try:
-                self._camera = Picamera2()
-                cfg = self._camera.create_still_configuration(
-                    main={"size": (self.width, self.height), "format": "RGB888"}
-                )
-                self._camera.configure(cfg)
-                self._camera.start()
-                time.sleep(1)  # Sensor warmup
-                self._backend = "picamera2"
-                logger.info(f"Camera initialized via picamera2 at {self.width}x{self.height}")
-                return
-            except Exception as e:
-                logger.warning(f"picamera2 initialization failed: {e}. Checking rpicam CLI...")
-                self._camera = None
-
-        # 2. Try native rpicam CLI (works on Pi 5 / Debian 13)
-        rpicam_bin = shutil.which("rpicam-still") or shutil.which("rpicam-jpeg") or shutil.which("libcamera-still")
-        if rpicam_bin:
-            self._backend = "rpicam_cli"
-            logger.info(f"Camera initialized via native binary: {rpicam_bin}")
-            return
-
-        # 3. Fallback to simulation
-        logger.warning("No functional camera interface found. Falling back to simulation.")
-        self.simulation = True
-        self._backend = "simulated"
-
-    def capture_frame(self) -> Dict[str, Any]:
+    def capture_frame(self, save_to_disk: bool = True) -> Dict[str, Any]:
         """
-        Capture a single frame.
-        Returns: {status, timestamp, width, height, format, data_b64, backend}
+        Capture a frame from the Sony IMX708 camera or return simulation if hardware unavailable.
+        Sets 'simulated: False' explicitly when real hardware is used.
         """
-        self._last_capture = time.time()
+        self._last_capture_time = time.time()
 
-        if self.simulation or self._backend == "simulated":
+        if self.simulation or not self.camera_mgr.is_camera_available():
             return {
                 "status": "simulated",
-                "timestamp": self._last_capture,
+                "simulated": True,
+                "timestamp": self._last_capture_time,
                 "width": self.width,
                 "height": self.height,
                 "format": "simulated",
                 "data_b64": None,
+                "image_path": None,
                 "backend": "simulated",
                 "objects_detected": ["desk", "monitor", "keyboard"],
                 "description": "Simulated scene: office environment with robotics workbench.",
             }
 
-        # 1. Capture via picamera2
-        if self._backend == "picamera2" and self._camera:
-            try:
-                buf = io.BytesIO()
-                self._camera.capture_file(buf, format="jpeg")
-                buf.seek(0)
-                b64 = base64.b64encode(buf.read()).decode("utf-8")
-                return {
-                    "status": "ok",
-                    "timestamp": self._last_capture,
-                    "width": self.width,
-                    "height": self.height,
-                    "format": "jpeg",
-                    "data_b64": b64,
-                    "backend": "picamera2",
-                }
-            except Exception as e:
-                logger.error(f"picamera2 capture failed: {e}")
-                return {"status": "error", "error": str(e), "timestamp": time.time(), "backend": "picamera2"}
-
-        # 2. Capture via native rpicam-still binary
-        if self._backend == "rpicam_cli":
-            rpicam_bin = shutil.which("rpicam-still") or shutil.which("rpicam-jpeg") or shutil.which("libcamera-still")
-            with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp_file:
-                tmp_path = tmp_file.name
-
-            try:
-                cmd = [
-                    rpicam_bin,
-                    "-t", "500",
-                    "-o", tmp_path,
-                    "--width", str(self.width),
-                    "--height", str(self.height),
-                    "-n",
-                ]
-                res = subprocess.run(cmd, capture_output=True, text=True, timeout=8)
-                if res.returncode == 0 and os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 0:
-                    with open(tmp_path, "rb") as f:
-                        img_bytes = f.read()
-                    b64 = base64.b64encode(img_bytes).decode("utf-8")
-                    return {
-                        "status": "ok",
-                        "timestamp": self._last_capture,
-                        "width": self.width,
-                        "height": self.height,
-                        "format": "jpeg",
-                        "size_bytes": len(img_bytes),
-                        "data_b64": b64,
-                        "backend": "rpicam_cli",
-                    }
-                else:
-                    err_msg = res.stderr.strip() or f"rpicam return code {res.returncode}"
-                    logger.warning(f"rpicam capture command failed: {err_msg}")
-                    return {"status": "error", "error": err_msg, "timestamp": time.time(), "backend": "rpicam_cli"}
-            except subprocess.TimeoutExpired:
-                logger.error("rpicam-still capture timed out.")
-                return {"status": "timeout", "error": "Camera capture timed out", "backend": "rpicam_cli"}
-            except Exception as exc:
-                logger.error(f"rpicam capture error: {exc}")
-                return {"status": "error", "error": str(exc), "backend": "rpicam_cli"}
-            finally:
-                if os.path.exists(tmp_path):
-                    try:
-                        os.remove(tmp_path)
-                    except OSError:
-                        pass
-
-        return {"status": "error", "error": "Unknown camera backend", "backend": self._backend}
-
-    def detect_objects(self) -> Dict[str, Any]:
-        """Detect objects in captured frame."""
-        frame = self.capture_frame()
-        if frame.get("status") == "simulated":
+        # Real hardware capture
+        result = self.camera_mgr.capture_photo(width=self.width, height=self.height)
+        if not result.get("success"):
+            logger.error("Camera capture failed: %s", result.get("error"))
             return {
-                "objects": frame.get("objects_detected", []),
-                "source": "simulation",
+                "status": "error",
+                "simulated": False,
+                "error": result.get("error", "Unknown camera error"),
+                "timestamp": self._last_capture_time,
+                "backend": "rpicam_still",
             }
+
+        img_path = result.get("image_path")
+        self._last_image_path = img_path
+
+        # Read base64
+        data_b64 = None
+        try:
+            with open(img_path, "rb") as f:
+                img_bytes = f.read()
+            data_b64 = base64.b64encode(img_bytes).decode("utf-8")
+        except Exception as e:
+            logger.warning("Failed to encode captured image to b64: %s", e)
+
         return {
-            "objects": [],
-            "source": self._backend,
-            "note": "Vision detection pipeline ready. Frame captured successfully.",
-            "status": frame.get("status"),
+            "status": "ok",
+            "simulated": False,
+            "timestamp": self._last_capture_time,
+            "width": result.get("width", self.width),
+            "height": result.get("height", self.height),
+            "format": "jpeg",
+            "size_bytes": result.get("file_size_bytes", 0),
+            "image_path": img_path,
+            "data_b64": data_b64,
+            "backend": "rpicam_still",
+            "camera_model": "Sony IMX708",
         }
 
-    def describe_scene(self) -> str:
-        """Describe current camera scene."""
-        frame = self.capture_frame()
-        if frame.get("status") == "simulated":
-            return frame.get("description", "Simulated scene.")
-        if frame.get("status") == "ok":
-            return f"Hardware frame captured via {self._backend} ({self.width}x{self.height}). Ready for vision model inference."
-        return f"Camera capture unavailable: {frame.get('error', 'unknown error')}"
+    def detect_objects(self, image_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Run real YOLOv8n object detection on a newly captured frame or specified image.
+        """
+        target_path = image_path or self._last_image_path
+        if not target_path or not os.path.exists(target_path):
+            frame = self.capture_frame()
+            if frame.get("simulated"):
+                return {
+                    "status": "simulated",
+                    "simulated": True,
+                    "count": 3,
+                    "objects": [
+                        {"label": "desk", "confidence": 0.92, "bbox": {"x": 50, "y": 300, "width": 500, "height": 300}},
+                        {"label": "monitor", "confidence": 0.88, "bbox": {"x": 150, "y": 100, "width": 300, "height": 200}},
+                        {"label": "keyboard", "confidence": 0.85, "bbox": {"x": 200, "y": 350, "width": 250, "height": 100}},
+                    ],
+                    "labels": ["desk", "monitor", "keyboard"],
+                    "source": "simulation",
+                }
+            target_path = frame.get("image_path")
 
-    def camera_status(self) -> dict:
+        if not target_path or not os.path.exists(target_path):
+            return {
+                "status": "error",
+                "simulated": False,
+                "error": "No valid image available for object detection",
+                "count": 0,
+                "objects": [],
+                "labels": [],
+            }
+
+        # Run real YOLOv8 detection
+        res = self.object_detector.detect_objects(target_path)
+        res["status"] = "ok" if res.get("success") else "error"
+        res["simulated"] = False
+        res["source"] = "yolov8n_onnx"
+        res["image_path"] = target_path
+
+        # Generate annotated image
+        annotated_path = str(Path(target_path).parent / f"annotated_{Path(target_path).name}")
+        self.object_detector.draw_bounding_boxes(target_path, res.get("objects", []), annotated_path)
+        res["annotated_image_path"] = annotated_path
+
+        return res
+
+    def describe_scene(self, image_path: Optional[str] = None) -> str:
+        """
+        Describe the scene using the local Moondream Vision-Language Model.
+        """
+        target_path = image_path or self._last_image_path
+        if not target_path or not os.path.exists(target_path):
+            frame = self.capture_frame()
+            if frame.get("simulated"):
+                return frame.get("description", "Simulated scene: office environment.")
+            target_path = frame.get("image_path")
+
+        if not target_path or not os.path.exists(target_path):
+            return "Camera capture unavailable."
+
+        vlm_res = self.vlm.describe_scene(target_path)
+        if vlm_res.get("success"):
+            return vlm_res.get("description", "A scene in front of the camera.")
+        else:
+            # Fallback to detected objects if VLM is slow or unavailable
+            det = self.object_detector.detect_objects(target_path)
+            labels = det.get("labels", [])
+            if labels:
+                return f"Scene with detected objects: {', '.join(labels)}."
+            return "Visual scene analyzed; camera captured successfully."
+
+    def identify_present_user(self, image_path: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Attempt to identify any enrolled user in front of the camera.
+        """
+        target_path = image_path or self._last_image_path
+        if not target_path or not os.path.exists(target_path):
+            frame = self.capture_frame()
+            if frame.get("simulated"):
+                return {
+                    "recognized": False,
+                    "user_id": None,
+                    "role": "GUEST",
+                    "display_name": "Guest",
+                    "similarity": 0.0,
+                    "reason": "Simulation mode active",
+                }
+            target_path = frame.get("image_path")
+
+        if not target_path or not os.path.exists(target_path):
+            return {
+                "recognized": False,
+                "user_id": None,
+                "role": "GUEST",
+                "display_name": "Guest",
+                "similarity": 0.0,
+                "reason": "Failed to capture image",
+            }
+
+        return self.user_mgr.identify_user_from_image(target_path)
+
+    def camera_status(self) -> Dict[str, Any]:
+        """Return truthful hardware and model status."""
+        mgr_status = self.camera_mgr.get_status()
+        vlm_status = self.vlm.get_status()
         return {
-            "available": not self.simulation and self._backend != "simulated",
+            "available": mgr_status.get("available", False),
             "simulation": self.simulation,
-            "backend": self._backend,
-            "picamera2_installed": _PICAMERA_AVAILABLE,
-            "rpicam_cli_available": _check_rpicam_available(),
-            "last_capture": self._last_capture,
+            "backend": mgr_status.get("binary") or "simulated",
+            "camera_model": mgr_status.get("camera_model"),
+            "rpicam_cli_available": bool(mgr_status.get("binary")),
+            "last_capture": self._last_capture_time,
+            "last_image_path": self._last_image_path,
             "resolution": f"{self.width}x{self.height}",
+            "yolo_ready": self.object_detector.is_ready,
+            "vlm_ready": vlm_status.get("available", False),
+            "vlm_model": vlm_status.get("active_model"),
         }
 
     def shutdown(self) -> None:
-        if self._camera:
-            try:
-                self._camera.stop()
-                self._camera.close()
-                logger.info("Camera closed.")
-            except Exception as e:
-                logger.warning(f"Camera shutdown error: {e}")
-        self._backend = "simulated"
+        """Gracefully release camera resources."""
+        self._last_capture_time = None
+        logger.info("VisionService shutdown completed.")
+
+
+# Global singleton instance
+vision_service = VisionService()

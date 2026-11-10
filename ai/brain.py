@@ -228,6 +228,38 @@ class JARVISBrain:
         history = self._get_session_history(sid)
         t_start = time.time()
 
+        # Phase 7: Chat-based privilege escalation prevention
+        from tools.identity.permission_manager import permission_manager
+        elevation_denial = permission_manager.check_chat_elevation_attempt(user_message)
+        if elevation_denial:
+            yield {
+                "type": "start",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "security_guard",
+                "model": "permission_manager",
+            }
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", elevation_denial, request_id=request_id,
+                            provider="security_guard", model="permission_manager")
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": elevation_denial})
+            yield {"type": "token", "content": elevation_denial, "request_id": request_id, "message_id": asst_msg_id}
+            dur_ms = int((time.time() - t_start) * 1000)
+            yield {
+                "type": "done",
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "provider": "security_guard",
+                "model": "permission_manager",
+                "ttft_ms": dur_ms,
+                "total_ms": dur_ms,
+                "tokens": len(elevation_denial.split()),
+            }
+            return
+
         # 1. Compound multi-task check (Test 7)
         if CompoundTaskOrchestrator.is_compound_request(user_message):
             yield {
@@ -323,7 +355,8 @@ class JARVISBrain:
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
-            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project"
+            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
+            "camera_describe", "detect_objects", "identify_user"
         }
 
         if intent in FAST_PATH_INTENTS:
@@ -482,6 +515,27 @@ class JARVISBrain:
         asst_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
         history = self._get_session_history(sid)
 
+        # Phase 7: Chat-based privilege escalation prevention
+        from tools.identity.permission_manager import permission_manager
+        elevation_denial = permission_manager.check_chat_elevation_attempt(user_message)
+        if elevation_denial:
+            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+            db.save_message(sid, asst_msg_id, "assistant", elevation_denial, request_id=request_id,
+                            provider="security_guard", model="permission_manager")
+            history.append({"role": "user", "content": user_message})
+            history.append({"role": "assistant", "content": elevation_denial})
+            return {
+                "response": elevation_denial,
+                "provider": "security_guard",
+                "model": "permission_manager",
+                "tools_used": [],
+                "rounds": 1,
+                "request_id": request_id,
+                "message_id": asst_msg_id,
+                "session_id": sid,
+                "timestamp": time.time(),
+            }
+
         # 1. Compound multi-task check (Test 7)
         if CompoundTaskOrchestrator.is_compound_request(user_message):
             comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid)
@@ -553,7 +607,8 @@ class JARVISBrain:
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
-            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project"
+            "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
+            "camera_describe", "detect_objects", "identify_user"
         }
 
         if intent in FAST_PATH_INTENTS:

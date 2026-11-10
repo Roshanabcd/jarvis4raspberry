@@ -289,7 +289,7 @@ class LocalIntelligenceEngine:
             return "screen_active_tab", {"text": text}
 
         # Screen observation ("look at my screen", "observe screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
-        if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see(?:\s+on\s+(?:my\s+)?screen)?|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
+        if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
             return "screen_observe", {"text": text}
 
         # Take screenshot ("take a screenshot", "capture screen", "capture my screen", "capture active window")
@@ -364,6 +364,22 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:fix\s+(?:the\s+)?error\s+in\s+(?:my\s+)?project|repair\s+project\s+errors?|debug\s+and\s+fix\s+(?:my\s+)?project|self-heal\s+project|run\s+self[- ]healing)\b', text_lower):
             return "agents_repair_project", {"text": text}
 
+        # Phase 7: Identity & Face Recognition
+        if re.search(r'\b(?:who\s+am\s+i|do\s+you\s+recognize\s+me|identify\s+me|who\s+is\s+in\s+front\s+of\s+the\s+camera|who\s+is\s+this|recognize\s+my\s+face|identify\s+user)\b', text_lower):
+            return "identify_user", {"text": text}
+
+        # Phase 7: Object Detection
+        if re.search(r'\b(?:detect\s+(?:all\s+)?objects|find\s+objects|what\s+objects\s+(?:do\s+you\s+see|are\s+on\s+my\s+desk|are\s+visible)|detect\s+items|object\s+detection)\b', text_lower):
+            return "detect_objects", {"text": text}
+
+        # Phase 7: Camera Scene Description (Moondream VLM)
+        if re.search(r'\b(?:what\s+do\s+you\s+see|what\s+can\s+you\s+see|describe\s+(?:the\s+)?scene|describe\s+what\s+(?:you\s+see|is\s+in\s+front\s+of\s+the\s+camera)|look\s+around|what\s+is\s+around)\b', text_lower):
+            return "camera_describe", {"text": text}
+
+        # Phase 7: Camera Capture
+        if re.search(r'\b(?:capture\s+(?:my\s+)?photo|take\s+a\s+(?:photo|picture)|take\s+(?:a\s+)?picture|capture\s+(?:a\s+)?(?:frame|image)|camera\s+capture)\b', text_lower):
+            return "camera_capture", {"text": text}
+
         # 4. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
         # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
         if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
@@ -404,6 +420,15 @@ class LocalIntelligenceEngine:
 
     def respond(self, user_message: str) -> Dict[str, Any]:
         """Process a message and return a structured response."""
+        # Phase 7: Chat-based privilege escalation prevention
+        try:
+            from tools.identity.permission_manager import permission_manager
+            elevation_denial = permission_manager.check_chat_elevation_attempt(user_message)
+            if elevation_denial:
+                return {"response": elevation_denial, "tools_used": []}
+        except Exception:
+            pass
+
         intent, ctx = self.classify_intent(user_message)
         text = ctx["text"]
         match = ctx.get("match")
@@ -613,9 +638,44 @@ class LocalIntelligenceEngine:
                 result = json.loads(result_raw)
                 tools_used.append("camera_capture")
                 desc = result.get("description", "No description available.")
-                sim = result.get("simulated", True)
+                path = result.get("image_path")
+                sim = result.get("simulated", False)
                 mode = " (camera simulated)" if sim else ""
-                return {"response": f"Camera capture{mode}: {desc}", "tools_used": tools_used}
+                save_msg = f" Saved photo to {path}." if path else ""
+                return {"response": f"Camera capture{mode}:{save_msg} {desc}", "tools_used": tools_used, "raw": result}
+
+            elif intent == "camera_describe":
+                result_raw = self.executor.execute("camera_describe", {})
+                result = json.loads(result_raw)
+                tools_used.append("camera_describe")
+                desc = result.get("description", "No description available.")
+                return {"response": f"Visual observation: {desc}", "tools_used": tools_used, "raw": result}
+
+            elif intent == "detect_objects":
+                result_raw = self.executor.execute("detect_objects", {})
+                result = json.loads(result_raw)
+                tools_used.append("detect_objects")
+                count = result.get("count", 0)
+                labels = result.get("labels", [])
+                ms = result.get("inference_ms", 0)
+                if count > 0:
+                    labels_str = ", ".join(labels)
+                    return {"response": f"Detected {count} object{'s' if count != 1 else ''}: {labels_str} ({ms}ms).", "tools_used": tools_used, "raw": result}
+                else:
+                    return {"response": f"No objects detected in the current camera frame ({ms}ms).", "tools_used": tools_used, "raw": result}
+
+            elif intent == "identify_user":
+                result_raw = self.executor.execute("identify_user", {})
+                result = json.loads(result_raw)
+                tools_used.append("identify_user")
+                if result.get("identified"):
+                    name = result.get("display_name", "User")
+                    role = result.get("role", "USER")
+                    score = result.get("similarity_score", 0.0)
+                    return {"response": f"Identity verified: Hello {name}! Active role: {role} (match score: {score}).", "tools_used": tools_used, "raw": result}
+                else:
+                    reason = result.get("reason", "unrecognized face")
+                    return {"response": f"Unrecognized person in front of the camera ({reason}). Session assigned as Guest.", "tools_used": tools_used, "raw": result}
 
             elif intent == "memory_store":
                 # Extract what to remember
@@ -1891,3 +1951,7 @@ if __name__ == "__main__":
             "tools_used": ["agents_repair_project", "self_healing_engine.diagnose_and_repair"],
             "raw": result
         }
+
+
+# Global singleton instance
+local_engine = LocalIntelligenceEngine()

@@ -112,15 +112,27 @@ class ToolExecutor:
 
     def _tool_camera_capture(self) -> Dict:
         try:
-            from apps.vision.service import VisionService
-            from config.config_manager import config
-            vs = VisionService(simulation=config.get("simulation_mode", True))
-            frame = vs.capture_frame()
-            desc = vs.describe_scene()
+            from apps.vision.service import vision_service
+            frame = vision_service.capture_frame()
+            desc = vision_service.describe_scene(frame.get("image_path"))
             frame["description"] = desc
             return frame
         except Exception as e:
-            return {"error": str(e), "description": "Camera unavailable."}
+            return {"error": str(e), "description": "Camera unavailable.", "simulated": False}
+
+    def _tool_detect_objects(self) -> Dict:
+        try:
+            from apps.vision.service import vision_service
+            return vision_service.detect_objects()
+        except Exception as e:
+            return {"error": str(e), "objects": [], "count": 0}
+
+    def _tool_identify_user(self) -> Dict:
+        try:
+            from apps.vision.service import vision_service
+            return vision_service.identify_present_user()
+        except Exception as e:
+            return {"error": str(e), "identified": False, "role": "GUEST", "display_name": "Guest"}
 
     # ── Memory ────────────────────────────────────────────────
 

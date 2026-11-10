@@ -458,6 +458,7 @@
     <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: Fallback (Ryan)</span>
     <span id="hdr-wake-pill" class="status-pill live" title="12-State Background Voice Engine">🎙️ Wake: STANDBY</span>
     <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Cam: IMX708</span>
+    <span id="hdr-user-pill" class="status-pill" title="Security Identity & Role" onclick="showTab('vision')" style="cursor:pointer">👤 Guest</span>
     <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Chrome :0</span>
   </div>
   <div class="header-actions">
@@ -718,38 +719,120 @@
     </div>
   </div>
 
-  <!-- 5. VISION CENTER -->
+  <!-- 5. VISION & IDENTITY CENTER -->
   <div id="tab-vision" class="tab">
     <div class="panel">
-      <h2>Vision Subsystem (Sony IMX708 Camera Module 3)</h2>
-      <div style="display:grid;grid-template-columns:1fr 340px;gap:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h2>Vision & Identity Subsystem (Sony IMX708 + YOLOv8 + YuNet + Moondream)</h2>
+        <span id="vision-hardware-badge" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,0.15);color:var(--green);border:1px solid var(--green)">🟢 IMX708 ONLINE</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 360px;gap:20px">
         <div>
+          <!-- Viewfinder -->
           <div style="background:#050711;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;min-height:360px;display:flex;align-items:center;justify-content:center;position:relative">
             <img id="vision-viewfinder" src="" alt="Camera Viewfinder" style="max-width:100%;max-height:480px;display:none;border-radius:6px">
             <div id="vision-placeholder" style="color:var(--muted);text-align:center;padding:40px">
               <span style="font-size:3rem;display:block;margin-bottom:8px">📷</span>
-              Click "Capture Still Frame" to acquire image from Sony IMX708
+              Click "Capture Photo" to acquire image from Sony IMX708
             </div>
           </div>
-          <div style="display:flex;gap:10px;margin-top:14px">
-            <button class="btn" onclick="captureVisionFrame()">📸 Capture Still Frame</button>
-            <button class="btn dark" onclick="describeVisionScene()">🧠 Neural Scene Description</button>
-            <button class="btn dark" onclick="checkCameraStatus()">ℹ️ Hardware Status</button>
+          <!-- Action Buttons -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+            <button class="btn" onclick="captureVisionFrame()">📸 Capture Photo</button>
+            <button class="btn" style="background:var(--accent);color:#050811" onclick="detectVisionObjects()">🎯 Detect Objects (YOLOv8)</button>
+            <button class="btn dark" onclick="describeVisionScene()">🧠 Scene Description (Moondream)</button>
+            <button class="btn dark" onclick="identifyFaceVision()">👤 Identify Face</button>
+            <button class="btn dark" onclick="checkCameraStatus()">ℹ️ Camera Status</button>
+          </div>
+          <div style="font-size:0.72rem;color:var(--muted);margin-top:8px">
+            Latest Capture Path: <span id="vision-capture-path" style="font-family:monospace;color:var(--text)">None</span>
           </div>
         </div>
+
         <div>
-          <div class="card" style="margin-bottom:14px">
+          <!-- Right Column Info Panels -->
+          <div class="card" style="margin-bottom:12px">
             <h3>Camera Backend</h3>
-            <div class="val" id="cam-backend-val" style="font-size:1.1rem">IMX708</div>
-            <div class="sub" id="cam-sub-val">rpicam-still / picamera2</div>
+            <div class="val" id="cam-backend-val" style="font-size:1.1rem">Sony IMX708</div>
+            <div class="sub" id="cam-sub-val">rpicam-still (Debian 13 libcamera)</div>
           </div>
-          <div class="panel" style="padding:14px">
-            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Scene Description</h3>
-            <p id="vision-desc" style="font-size:0.84rem;color:var(--text);line-height:1.5">No capture yet.</p>
+
+          <div class="panel" style="padding:12px;margin-bottom:12px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">👤 Active Identity Scan</h3>
+            <div id="vision-identity-val" style="font-size:0.85rem;color:var(--text);font-weight:600">Scan face to identify</div>
           </div>
-          <div class="panel" style="padding:14px">
-            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Detected Objects</h3>
+
+          <div class="panel" style="padding:12px;margin-bottom:12px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🧠 Moondream Scene Description</h3>
+            <p id="vision-desc" style="font-size:0.82rem;color:var(--text);line-height:1.4">No capture yet.</p>
+          </div>
+
+          <div class="panel" style="padding:12px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Detected Objects (YOLOv8 COCO)</h3>
             <div id="vision-objects" style="font-size:0.82rem;color:var(--muted)">None</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Administrator & Multi-User Governance -->
+      <div style="margin-top:24px;border-top:1px solid var(--card-border);padding-top:16px">
+        <h3 style="font-size:1rem;color:var(--text);margin-bottom:12px">🔐 Administrator & User Management (PBKDF2-HMAC-SHA256 + SFace)</h3>
+        
+        <div id="admin-enroll-status-banner" style="padding:10px 14px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--card-border);margin-bottom:16px;font-size:0.85rem">
+          Loading identity status...
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <!-- Left: Enrollment Wizard -->
+          <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px">
+            <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Admin Face Enrollment Wizard</h4>
+            <div style="margin-bottom:8px">
+              <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Administrator Name:</label>
+              <input type="text" id="enroll-admin-name" value="Roshan" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Admin PIN (min 4 digits):</label>
+                <input type="password" id="enroll-admin-pin" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
+              </div>
+              <div>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Confirm PIN:</label>
+                <input type="password" id="enroll-admin-pin-confirm" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
+              </div>
+            </div>
+            <div style="margin-bottom:12px;font-size:0.78rem;color:var(--text)">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" id="enroll-admin-confirm-chk">
+                <span>I confirm face photo capture and PIN enrollment for ADMIN role.</span>
+              </label>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center">
+              <button class="btn" onclick="enrollAdminSubmit()">📸 Capture Face & Enroll Admin</button>
+              <div id="enroll-admin-msg" style="font-size:0.78rem;color:var(--muted)"></div>
+            </div>
+          </div>
+
+          <!-- Right: PIN Verification & User Table -->
+          <div>
+            <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:14px">
+              <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Admin PIN Verification Gate</h4>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="password" id="verify-pin-input" placeholder="Enter PIN..." style="padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem;width:140px">
+                <button class="btn dark" onclick="verifyAdminPinSubmit()">Verify PIN</button>
+                <div id="verify-pin-result" style="font-size:0.78rem"></div>
+              </div>
+            </div>
+
+            <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <h4 style="font-size:0.85rem;color:var(--accent)">Registered Users</h4>
+                <button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="loadUsersList()">🔄 Refresh</button>
+              </div>
+              <div id="enrolled-users-list">
+                Loading enrolled users...
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1325,6 +1408,7 @@ function showTab(name) {
   if (name === 'chat') loadChatHistory();
   if (name === 'desktop') { loadDesktopStatus(); loadDesktopApps(); loadDesktopProjects(); }
   if (name === 'computer') { loadComputerStatus(); loadComputerHistory(); }
+  if (name === 'vision') loadIdentityStatus();
   if (name === 'agents') { loadAgentManager(); }
 }
 
@@ -2247,7 +2331,7 @@ async function runStudioTest() {
   }
 }
 
-// ─── Vision Center App ───────────────────────────────────────
+// ─── Vision & Identity Center (Phase 7) ──────────────────────────
 async function captureVisionFrame() {
   const ph = document.getElementById('vision-placeholder');
   const img = document.getElementById('vision-viewfinder');
@@ -2258,30 +2342,90 @@ async function captureVisionFrame() {
   try {
     const r = await fetch('/api/vision/capture');
     const d = await r.json();
-    const frame = d.data || {};
-    if (frame.data_b64) {
-      img.src = 'data:image/jpeg;base64,' + frame.data_b64;
+    const frame = d.data || d || {};
+    if (d.data_b64 || frame.data_b64) {
+      img.src = 'data:image/jpeg;base64,' + (d.data_b64 || frame.data_b64);
       img.style.display = 'block';
       ph.style.display = 'none';
     } else {
-      ph.textContent = `Simulation mode capture (${frame.width}x${frame.height}). Objects: ${(frame.objects_detected || []).join(', ')}`;
+      ph.textContent = `Captured (${frame.width || 1280}x${frame.height || 720})`;
     }
-    document.getElementById('cam-backend-val').textContent = frame.backend || 'IMX708';
-    document.getElementById('vision-desc').textContent = frame.description || 'Raw frame captured.';
-    document.getElementById('vision-objects').textContent = (frame.objects_detected || ['desk', 'workbench']).join(', ');
+    document.getElementById('cam-backend-val').textContent = frame.camera_model || frame.backend || 'Sony IMX708';
+    document.getElementById('vision-desc').textContent = frame.description || 'Hardware frame captured successfully.';
+    const pathEl = document.getElementById('vision-capture-path');
+    if (pathEl) pathEl.textContent = frame.image_path || 'Pictures/JARVIS_Photo_*.jpg';
   } catch(e) {
     ph.textContent = 'Camera capture error: ' + e;
   }
 }
 
+async function detectVisionObjects() {
+  const ph = document.getElementById('vision-placeholder');
+  const img = document.getElementById('vision-viewfinder');
+  const objContainer = document.getElementById('vision-objects');
+  objContainer.innerHTML = '<em>Detecting objects with YOLOv8...</em>';
+
+  try {
+    const r = await fetch('/api/vision/detect', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' });
+    const d = await r.json();
+    if (d.success) {
+      img.src = '/api/vision/image/annotated?t=' + Date.now();
+      img.style.display = 'block';
+      ph.style.display = 'none';
+
+      if (d.count > 0) {
+        let html = `<div style="margin-bottom:6px"><strong>${d.count} Object(s) Detected</strong> (${d.inference_ms}ms):</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+        d.objects.forEach(obj => {
+          html += `<span style="background:rgba(0,255,255,0.15);border:1px solid #00ffff;color:#00ffff;padding:3px 8px;border-radius:4px;font-size:0.75rem">📦 ${obj.label} ${Math.round(obj.confidence*100)}%</span>`;
+        });
+        html += `</div>`;
+        objContainer.innerHTML = html;
+      } else {
+        objContainer.innerHTML = `No objects detected (${d.inference_ms}ms).`;
+      }
+    } else {
+      objContainer.textContent = 'Object detection error: ' + (d.error || 'unknown');
+    }
+  } catch(e) {
+    objContainer.textContent = 'Detection error: ' + e;
+  }
+}
+
 async function describeVisionScene() {
-  document.getElementById('vision-desc').textContent = 'Analyzing scene with AI...';
+  const descEl = document.getElementById('vision-desc');
+  descEl.textContent = 'Querying local Moondream Vision model...';
   try {
     const r = await fetch('/api/vision/describe');
     const d = await r.json();
-    document.getElementById('vision-desc').textContent = d.description || 'Scene analyzed.';
+    descEl.textContent = d.description || 'Scene analyzed.';
   } catch(e) {
-    document.getElementById('vision-desc').textContent = 'Error: ' + e;
+    descEl.textContent = 'Error: ' + e;
+  }
+}
+
+async function identifyFaceVision() {
+  const identEl = document.getElementById('vision-identity-val');
+  if (identEl) identEl.textContent = 'Scanning face with YuNet & SFace...';
+  try {
+    const r = await fetch('/api/identity/identify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({capture_camera: true}) });
+    const d = await r.json();
+    if (d.identified) {
+      if (identEl) identEl.innerHTML = `<span style="color:var(--green)">✓ ${d.display_name} (${d.role}) — ${Math.round(d.similarity_score*100)}% Match</span>`;
+      updateHeaderUserPill(d.display_name, d.role);
+    } else {
+      if (identEl) identEl.innerHTML = `<span style="color:var(--warn)">👤 ${d.display_name} (${d.role}) — ${d.reason || 'Unknown Face'}</span>`;
+      updateHeaderUserPill('Guest', 'GUEST');
+    }
+  } catch(e) {
+    if (identEl) identEl.textContent = 'Identification error: ' + e;
+  }
+}
+
+function updateHeaderUserPill(name, role) {
+  const pill = document.getElementById('hdr-user-pill');
+  if (pill) {
+    pill.textContent = `👤 ${name} (${role})`;
+    pill.className = role === 'ADMIN' ? 'status-pill live' : 'status-pill';
   }
 }
 
@@ -2292,6 +2436,109 @@ async function checkCameraStatus() {
     alert('Camera Status:\n' + JSON.stringify(d, null, 2));
   } catch(e) {
     alert('Could not retrieve camera status: ' + e);
+  }
+}
+
+async function loadIdentityStatus() {
+  try {
+    const r = await fetch('/api/identity/status');
+    const d = await r.json();
+    const active = d.active_user || {};
+    updateHeaderUserPill(active.display_name || 'Guest', active.role || 'GUEST');
+
+    const adminBanner = document.getElementById('admin-enroll-status-banner');
+    if (adminBanner) {
+      if (d.is_admin_enrolled) {
+        adminBanner.innerHTML = `<span style="color:var(--green)">✓ Primary Administrator Enrolled: <strong>${d.admin_name || 'Roshan'}</strong></span>`;
+      } else {
+        adminBanner.innerHTML = `<span style="color:var(--warn)">⚠️ No Administrator Enrolled. Complete setup below to register Admin Face & PIN.</span>`;
+      }
+    }
+    loadUsersList();
+  } catch(e) {
+    console.warn('Identity status load error:', e);
+  }
+}
+
+async function loadUsersList() {
+  const listEl = document.getElementById('enrolled-users-list');
+  if (!listEl) return;
+  try {
+    const r = await fetch('/api/identity/users');
+    const d = await r.json();
+    const users = d.users || [];
+    if (users.length === 0) {
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:0.8rem">No users enrolled yet.</div>';
+      return;
+    }
+    let html = '<table style="width:100%;font-size:0.8rem;border-collapse:collapse">';
+    html += '<thead><tr style="color:var(--muted);border-bottom:1px solid var(--card-border)"><th style="text-align:left;padding:4px">Name</th><th style="text-align:left;padding:4px">Role</th><th style="text-align:left;padding:4px">Face</th><th style="text-align:left;padding:4px">Last Seen</th></tr></thead><tbody>';
+    users.forEach(u => {
+      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:4px"><strong>${u.display_name}</strong></td><td style="padding:4px"><span style="color:${u.role==='ADMIN'?'var(--accent)':'var(--text)'}">${u.role}</span></td><td style="padding:4px">${u.has_face_enrolled ? '✓ Yes' : 'No'}</td><td style="padding:4px;color:var(--muted)">${u.last_seen_at ? u.last_seen_at.substring(0,19).replace('T',' ') : 'Never'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+  } catch(e) {
+    listEl.textContent = 'Failed to load user list: ' + e;
+  }
+}
+
+async function enrollAdminSubmit() {
+  const name = document.getElementById('enroll-admin-name').value.trim();
+  const pin = document.getElementById('enroll-admin-pin').value.trim();
+  const pinConfirm = document.getElementById('enroll-admin-pin-confirm').value.trim();
+  const confirmed = document.getElementById('enroll-admin-confirm-chk').checked;
+  const msgEl = document.getElementById('enroll-admin-msg');
+
+  if (!name) { msgEl.textContent = 'Please enter admin display name.'; return; }
+  if (!pin || pin.length < 4) { msgEl.textContent = 'Admin PIN must be at least 4 digits.'; return; }
+  if (pin !== pinConfirm) { msgEl.textContent = 'PINs do not match.'; return; }
+  if (!confirmed) { msgEl.textContent = 'Please check the confirmation box.'; return; }
+
+  msgEl.textContent = 'Capturing face photo from Sony IMX708 and enrolling...';
+  try {
+    const r = await fetch('/api/identity/enroll_admin', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        display_name: name,
+        pin: pin,
+        confirmed: true,
+        capture_camera: true
+      })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) {
+      msgEl.innerHTML = `<span style="color:var(--green)">✓ Successfully enrolled ${d.display_name} as ADMIN!</span>`;
+      loadIdentityStatus();
+    } else {
+      msgEl.innerHTML = `<span style="color:var(--err)">Error: ${d.detail || d.error || 'Enrollment failed'}</span>`;
+    }
+  } catch(e) {
+    msgEl.innerHTML = `<span style="color:var(--err)">Request error: ${e}</span>`;
+  }
+}
+
+async function verifyAdminPinSubmit() {
+  const pin = document.getElementById('verify-pin-input').value.trim();
+  const resEl = document.getElementById('verify-pin-result');
+  if (!pin) { resEl.textContent = 'Enter PIN.'; return; }
+
+  resEl.textContent = 'Verifying...';
+  try {
+    const r = await fetch('/api/identity/verify_pin', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ pin: pin })
+    });
+    const d = await r.json();
+    if (r.ok && d.success) {
+      resEl.innerHTML = `<span style="color:var(--green)">✓ PIN Verified: ${d.message}</span>`;
+    } else {
+      resEl.innerHTML = `<span style="color:var(--err)">❌ ${d.detail || 'Incorrect PIN'}</span>`;
+    }
+  } catch(e) {
+    resEl.innerHTML = `<span style="color:var(--err)">Error: ${e}</span>`;
   }
 }
 
@@ -3612,6 +3859,7 @@ async function rollbackAgentCheckpoint() {
 
 setInterval(updateStatusCenter, 3000);
 loadTheme();
+loadIdentityStatus();
 setTimeout(updateStatusCenter, 500);
 </script>
 </body>

@@ -167,6 +167,7 @@ _include("", "apps.api.health_api",   "health_router",prefix="/api",     tags=["
 _include("", "apps.api.diagnostics_api","diag_router",prefix="/api",     tags=["diagnostics"])
 _include("", "apps.api.desktop_api",  "desktop_router",prefix="/api",    tags=["desktop"])
 _include("", "apps.api.terminal_api", "terminal_router",prefix="/api",   tags=["terminal"])
+_include("", "apps.api.identity_api", "identity_router", prefix="/api", tags=["identity"])
 _include("", "apps.api.browser_media_api", "browser_media_router", prefix="/api", tags=["browser_media"])
 _include("", "apps.api.agent_orchestrator_api", "agents_router", prefix="/api", tags=["agents"])
 _include("", "apps.api.computer_api", "router", prefix="", tags=["computer"])

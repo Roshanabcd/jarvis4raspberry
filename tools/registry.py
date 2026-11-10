@@ -1081,13 +1081,13 @@ class ToolRegistry:
             "execute": _fn_read_pir,
         })
 
-        # ── Category D: Vision Tools ──────────────────────────
-        from apps.vision.service import VisionService
-        vs = VisionService(simulation=config.get("simulation_mode", True))
+        # ── Category D: Vision & Identity Tools ──────────────
+        from apps.vision.service import vision_service
+        vs = vision_service
 
         def _fn_camera_capture(**_):
             f = vs.capture_frame()
-            f["description"] = vs.describe_scene()
+            f["description"] = vs.describe_scene(f.get("image_path"))
             return f
 
         def _fn_camera_describe(**_):
@@ -1096,9 +1096,15 @@ class ToolRegistry:
         def _fn_camera_status(**_):
             return vs.camera_status()
 
+        def _fn_detect_objects(**_):
+            return vs.detect_objects()
+
+        def _fn_identify_user(**_):
+            return vs.identify_present_user()
+
         self.register_tool({
             "name": "camera_capture",
-            "description": "Capture an image frame from Camera Module 3 and analyze scene",
+            "description": "Capture a physical image from Sony IMX708 Camera and analyze scene",
             "schema": {},
             "risk_level": 0,
             "permissions": ["vision:capture"],
@@ -1106,7 +1112,7 @@ class ToolRegistry:
         })
         self.register_tool({
             "name": "camera_describe",
-            "description": "Provide a descriptive text summary of current camera field-of-view",
+            "description": "Provide a descriptive text summary of current camera field-of-view using Moondream VLM",
             "schema": {},
             "risk_level": 0,
             "permissions": ["vision:describe"],
@@ -1119,6 +1125,22 @@ class ToolRegistry:
             "risk_level": 0,
             "permissions": ["vision:status"],
             "execute": _fn_camera_status,
+        })
+        self.register_tool({
+            "name": "detect_objects",
+            "description": "Run YOLOv8n object detection to find items (person, bottle, chair, phone, etc.)",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["vision:detect"],
+            "execute": _fn_detect_objects,
+        })
+        self.register_tool({
+            "name": "identify_user",
+            "description": "Recognize the face of the user in front of the camera using YuNet and SFace",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["identity:read"],
+            "execute": _fn_identify_user,
         })
 
         # ── Category E: Memory Tools ──────────────────────────
