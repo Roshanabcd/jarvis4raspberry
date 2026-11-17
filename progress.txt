@@ -381,3 +381,151 @@ Learnings:
 - A background voice assistant must never have multiple independent threads listening to ALSA/PipeWire; unifying `VoiceService` and `WakeWordEngine` into a single 12-state coordinator prevents device contention.
 - In desktop application launchers, `google-chrome --app=...` provides a native desktop experience with full WebRTC and WebSocket capabilities without requiring hundreds of megabytes of Electron dependencies.
 ==================================================
+
+Date: 2026-11-17
+Phase: Phase 14 - Automated Multi-Agent Development Orchestrator & Sandboxed Worktree Execution
+Status: COMPLETE & VERIFIED
+
+Accomplishments:
+- Completed CLI Verification and Telemetry Inspection:
+  1. Google Antigravity CLI (`/home/roshan/.local/bin/agy` v1.5.10): Authenticated; verified non-interactive prompt mode (`-p`) and `--sandbox` flag.
+  2. GitHub Copilot CLI (`/home/roshan/.local/bin/copilot` v1.0.112): Authenticated via Copilot Fusion (GPT-5.6 Luna); verified non-interactive prompt mode (`-p`) with sandboxed permissions (`--allow-tool=write`, `--allow-tool='shell(git:*)'`, `--add-dir`).
+  3. OpenAI Codex CLI (`/home/roshan/.local/bin/codex` v0.167.1): Authenticated via ChatGPT Plus (`chatgpt` auth token); doctor check verified 19 ok; enforced workspace-write sandbox (`-s workspace-write`).
+- Implemented Sandboxed Multi-Agent Adapters (`tools/hybrid-jarvis-developer/adapters.py`):
+  1. `AntigravityCliAdapter`: Executes `agy -p <prompt> --sandbox` within isolated worktree directories with clean timeout and cancellation.
+  2. `CopilotCliAdapter`: Executes `copilot -p <prompt>` with granular sandboxing (`--allow-tool=write`, `--add-dir`), avoiding unrestricted permission bypass.
+  3. `CodexCliAdapter`: Detects API usage limits / rate limits, sets `rate_limited_until` timestamp, and raises `RateLimitError` for automatic orchestrator failover.
+- Implemented Multi-Stage Quality Pipeline (`tools/hybrid-jarvis-developer/pipeline.py`):
+  1. Syntax Gate: AST validation and `py_compile.compile` across all modified `.py` files in the worktree.
+  2. Security Gate: Detects raw API keys, private keys, passwords, and destructive shell/filesystem operations.
+  3. Test Gate: Automated `pytest` execution against isolated worktree targets.
+  4. Second-Opinion Peer Code Review Gate: Generates diff against HEAD and triggers automated peer agent evaluation with structured scores and rationale.
+- Implemented Persistent Checkpoints & Interruption Recovery (`tools/hybrid-jarvis-developer/core.py`):
+  1. SQLite `checkpoints` table recording step numbers, diffs, porcelain status, and summaries.
+  2. Orchestrator startup automatically detects tasks left in RUNNING state across restarts and transitions them to INTERRUPTED.
+  3. Added `resume_task()` to seamlessly resume interrupted or failed tasks from their preserved worktree checkpoint.
+- Implemented Worktree Concurrency & Controlled Branch Integration (`tools/hybrid-jarvis-developer/worktrees.py`):
+  1. Ephemeral branch isolation: `hybrid/{task_id}` in `.worktrees/{task_id}`.
+  2. `controlled_merge()`: Pre-merge validation, conflict-free verification, atomic rollback if merge fails, and zero uncontrolled mutations to master.
+  3. `process_pending_queue()` and `run_concurrent()`: Resolves task dependencies, prevents path claim overlaps via `detect_conflicts()`, and dispatches up to `max_concurrency` tasks in parallel threads.
+- Expanded Developer Hub API & Dashboard (`apps/api/hybrid_developer_api.py` & `apps/dashboard/static/index.html`):
+  1. REST endpoints for `/diff`, `/checkpoints`, `/resume`, `/verify`, `/review`, `/merge`, and `/scheduler/process`.
+  2. UI controls: Auto-Dispatch Queue button, Diff viewer modal, Verify, Peer Review, Controlled Merge, and Resume buttons.
+- Regression & Verification Testing:
+  1. 31 focused developer and multi-agent unit tests passed in 5.84s (100% pass rate).
+  2. 150 full repository Python tests passed in 9.21s (100% pass rate).
+  3. 18 frontend desktop tests passed in 348ms (100% pass rate).
+  4. Bytecode compilation passed with 0 errors; git diff whitespace checks passed cleanly.
+
+Learnings:
+- Hardcoded agent selection without health/rate-limit awareness causes brittle pipeline failures when a cloud provider hits quota limits. Implementing intelligent capability matching combined with automatic failover (e.g., from Codex to Antigravity or Copilot upon detecting usage limits) creates a self-healing multi-agent architecture.
+- Running coding agents in Git worktrees (`git worktree add -b hybrid/{id}`) provides complete filesystem and branch isolation, allowing multiple independent tasks to execute concurrently without colliding on uncommitted working tree files.
+- Controlled merges should always record pre-merge commit refs and execute post-merge syntax gates, performing atomic rollbacks (`git merge --abort` or `git reset --hard`) if conflicts or compilation errors are detected.
+==================================================
+
+2026-11-17 - Phase 11: YouTube Video Summarizer (JARVIS YouTube AI) Completion
+- Complete Architecture Audit and App Catalog Update:
+  1. Authored `PHASE11_YOUTUBE_AI_AUDIT.md`.
+  2. Registered `youtube-summarizer` in `data/apps/registry.json` under category `media_content`, setting status to `available` and lifecycle state to `active`.
+- Core URL Validation & SSRF Defense (`apps/youtube/url_parser.py`):
+  1. Extracts 11-character video IDs from standard watch URLs, short links (`youtu.be`), embed URLs, Shorts, mobile, YouTube Music, and bare IDs.
+  2. Enforces strict SSRF protections: blocks RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), loopback (`127.0.0.0/8`), AWS metadata (`169.254.169.254`), non-standard ports, and direct bare IP access.
+- Metadata Integration Service (`apps/youtube/metadata.py`):
+  1. Official YouTube Data API v3 (`videos.list`) integration with API key configuration.
+  2. Public oEmbed API fallback without inventing or fabricating metadata.
+  3. ISO 8601 duration parser (`PT15M33S` -> 933 seconds).
+- Authorized Transcript Processing (`apps/youtube/transcripts.py`):
+  1. Zero scraping policy: No unauthorized web scraping or audiovisual downloading.
+  2. Parsers for user-uploaded SRT, VTT, TXT, and JSON files, preserving timestamps, stripping HTML tags, and parsing speaker labels.
+  3. Local media transcription using FFmpeg 16kHz mono WAV conversion and local Whisper with explicit user rights confirmation gate.
+  4. Official YouTube Data API OAuth caption downloader for creator-owned videos.
+  5. Transparent UNAVAILABLE response with 4 authorized user choices.
+- Timestamp-Aware Indexing & Semantic Retrieval (`apps/youtube/indexing.py`):
+  1. Boundary-preserving chunker targeting 180 words while preserving exact start and end timestamps.
+  2. Hybrid search index combining TF-IDF cosine similarity and inverted keyword token coverage.
+- AI Summarization, Chapterization & Information Extractor (`apps/youtube/summarizer.py`):
+  1. 12 summary formats: Quick, Detailed, Executive, Key Points, Chapters, Concepts, Action Items, Study Notes, FAQ, Revision, Pros & Cons, Technical.
+  2. Creator chapter extraction from video descriptions (`CREATOR_PROVIDED_CHAPTER`) and synthetic AI chapterization (`AI_GENERATED_CHAPTER`) with official YouTube seeking URLs (`&t=Xs`).
+  3. Key information extraction for topics, concepts, terminology, facts, dates/numbers, action items, and quotes.
+  4. Prompt injection quarantine isolating untrusted transcript text inside `<transcript_data>` tags.
+- Grounded Conversational Video Assistant (`apps/youtube/qa.py`):
+  1. Semantic retrieval of top relevant chunks with prompt injection defense.
+  2. Grounded response contract: returns cited timestamp and supporting quote.
+  3. Strict adherence: returns truthful "insufficient supporting information" when evidence is missing.
+- User-Isolated SQLite Database (`apps/youtube/database.py`):
+  1. Storage at `data/youtube_notes.sqlite3` with WAL mode.
+  2. User-isolated tables for `videos`, `transcripts`, `notes`, and `history`.
+  3. Multi-format export: Markdown (`.md`), JSON (`.json`), and Plaintext (`.txt`).
+- FastAPI REST Router (`apps/api/youtube_api.py`):
+  1. 15 REST endpoints mounted at `/api/youtube/*` with RBAC permissions.
+  2. Registered in `apps/core/app_factory.py` under `DEFAULT_ROUTER_SPECS`.
+- Single-Page Dashboard Tab (`apps/dashboard/static/index.html`):
+  1. Navigation button `#nav-youtube` and full `#tab-youtube` panel with all 11 functional sections.
+  2. Complete client-side JavaScript for video validation, transcript ingestion, 12 summary tabs, chapter navigation, grounded Q&A, and notes library.
+- Voice Assistant Intent Routing (`ai/local_engine.py`):
+  1. Mapped natural voice commands: "Open YouTube AI", "Summarize this YouTube video", "Ask the video what tools are recommended", "Read the YouTube summary aloud".
+- Verification & Test Execution:
+  1. 40/40 unit tests in `tests/test_phase11_youtube_ai.py` passed (100% pass rate in 0.28s).
+  2. 6/6 API integration tests in `tests/test_phase11_youtube_api.py` passed (100% pass rate).
+  3. 5/5 Node frontend tests in `tests/frontend/youtube-ai.test.cjs` passed (100% pass rate).
+  4. Authored `PHASE11_YOUTUBE_AI_ARCHITECTURE.md`, `PHASE11_YOUTUBE_AI_BROWSER_REPORT.md`, and `PHASE11_YOUTUBE_AI_IMPLEMENTATION_REPORT.md`.
+
+Learnings:
+- In URL and SSRF validation, exception inheritance must be handled with care: `SSRFSecurityError` inheriting from `ValueError` can be unintentionally caught and suppressed if an inner `try...except ValueError:` block wraps hostname parsing. Separating the IP address parser from security checks prevents exception masking.
+- When parsing WebVTT captions, speaker tags `<v Speaker>` resemble HTML tags; extracting the speaker from `<v ...>` prior to running generic HTML tag stripping ensures speaker metadata is preserved accurately.
+- For high-reliability testing on resource-constrained devices like Raspberry Pi 5, unit tests for LLM summarization and grounded Q&A should use injected mock AI providers to execute in sub-second intervals while verifying full business logic and data schema transformations.
+==================================================
+
+2026-11-17 - Phase 12: Autonomous AI Research Assistant (JARVIS Research AI) Completion
+- Complete Architecture Audit and App Catalog Update:
+  1. Authored `PHASE12_RESEARCH_ASSISTANT_AUDIT.md`.
+  2. Registered `research-assistant` in `data/apps/registry.json` under category `research_knowledge`, setting status to `available` and lifecycle state to `active`.
+- Core Data Models & Schema (`apps/research/models.py`):
+  1. Implemented `ResearchMode`, `ResearchStatus`, `SourceCategory`, `ExtractionStatus`, `SupportLevel`, and `ReportFormat` enums.
+  2. Defined `ResearchTask`, `ResearchPlan`, `ResearchQuery`, `ResearchSource`, `EvidenceRecord`, `ContradictionRecord`, `CitationRecord`, `ResearchReport` dataclasses.
+  3. Added `@property def duration_seconds(self) -> float` for latency tracking.
+- Autonomous Planning Engine (`apps/research/planner.py`):
+  1. Decomposes questions into supporting sub-questions, targeted search queries, explicit objectives, and required report sections.
+  2. Supports user inspection, interactive modification (`user_modifications`), and auto-approval flows.
+- Multi-Repository Scholarly & Web Search (`apps/research/search_providers.py`):
+  1. Integrations: DuckDuckGo Instant Answer API, arXiv Atom XML API (`xml.etree.ElementTree`), Crossref Works API, OpenAlex API (abstract reconstruction from inverted index), and Europe PMC REST API.
+  2. `SearchDispatcher` deduplicating by normalized URL, title hash, and DOI.
+- Content Extractor & Anti-SSRF Defense (`apps/research/extractor.py`):
+  1. Kernel-level SSRF defense: blocks loopback (`127.0.0.0/8`), RFC 1918 private subnets, link-local, and AWS metadata (`169.254.169.254`).
+  2. HTML text cleaner with 50,000 char memory cap, Poppler `pdftotext` subprocess extractor for open-access academic papers, and Phase 11 YouTube transcript reuse.
+  3. Honest `ACCESS_BLOCKED` reporting for paywalls and anti-bot challenges without data fabrication.
+- Credibility & Evidence Store (`apps/research/credibility.py` & `apps/research/evidence.py`):
+  1. 9-tier transparent source authority classification and publication vs retrieval date disambiguation.
+  2. Verifiable evidence linking: pairs every factual claim with exact verbatim source quotes and offsets.
+- Verification & Contradiction Detection (`apps/research/verification.py`):
+  1. Cross-source corroboration checker, numerical and polarity contradiction detector, and research limitations compiler.
+- AI Synthesis & Deterministic Citations (`apps/research/synthesizer.py` & `apps/research/citations.py`):
+  1. Strict prompt injection quarantine isolating external materials inside `<research_materials>` tags.
+  2. Deterministic grounded synthesis fallback for offline or unauthenticated scenarios.
+  3. Deterministic citation validator verifying `[N]` tags against actual retrieved sources and purging hallucinated citations.
+- Comparative Analysis & Multi-Format Reports (`apps/research/comparative.py` & `apps/research/reports.py`):
+  1. Multi-dimensional comparison matrix and structured pros/cons analysis.
+  2. Multi-format export: Markdown (`.md`), standalone responsive dark-mode HTML (`.html`), and complete JSON evidence archive (`.json`).
+- Multi-Step Research Agent & Database (`apps/research/agent.py` & `apps/research/database.py`):
+  1. Orchestrates the 9-stage bounded loop with progress tracking, stage transitions, and cancellation tokens.
+  2. SQLite WAL persistence in `data/research_assistant.sqlite3` with multi-tenant user isolation.
+- FastAPI REST API Router (`apps/api/research_api.py`):
+  1. 14 REST endpoints mounted at `/api/research/*` with RBAC permissions.
+  2. Registered in `apps/core/app_factory.py` under `DEFAULT_ROUTER_SPECS`.
+- Single-Page Dashboard Tab (`apps/dashboard/static/index.html`):
+  1. Navigation button `#nav-research` and full `#tab-research` panel with all 11 functional sections.
+  2. Client-side JavaScript for planning, live monitoring, evidence browsing, report viewing, and multi-format export.
+- Voice Assistant Intent Routing (`ai/local_engine.py`):
+  1. Mapped natural voice commands: "Open the research assistant", "Research <topic>", "Compare <A> and <B>", "What is the research status", "Read research summary aloud", "Show the research sources".
+- Verification & Test Execution:
+  1. 36/36 tests in `tests/test_phase12_research_assistant.py` passed (100% pass rate in 4.41s).
+  2. 4/4 Node frontend tests in `tests/frontend/research-assistant.test.cjs` passed (100% pass rate).
+  3. 27/27 full Node frontend suite passed in 1.54s.
+  4. 46/46 Phase 11 YouTube AI regression tests passed in 20.7s.
+  5. Authored `PHASE12_RESEARCH_ASSISTANT_AUDIT.md`, `PHASE12_RESEARCH_ASSISTANT_ARCHITECTURE.md`, `PHASE12_RESEARCH_ASSISTANT_BROWSER_REPORT.md`, and `PHASE12_RESEARCH_ASSISTANT_IMPLEMENTATION_REPORT.md`.
+
+Learnings:
+- FastAPI Dependency Injection in unit tests: Monkeypatching module-level functions that serve as `Depends()` providers does not override FastAPI's internally compiled dependency graph. Utilizing `app.dependency_overrides[dependency]` ensures clean, reliable mock injection during unit and integration tests.
+- Local LLM inference on Raspberry Pi 5 ARM64 Cortex-A76 requires 20-40 seconds per synthesis call. Implementing a high-fidelity deterministic grounded fallback engine ensures instantaneous sub-second responses during automated testing and completely offline operation while maintaining strict factual grounding.
+- OpenAlex abstracts are stored in an inverted index dictionary format (mapping words to token position lists). Reconstructing the abstract requires sorting token positions and assembling the word array, which avoids large text payload bloat while providing full abstract text for indexing.
+==================================================

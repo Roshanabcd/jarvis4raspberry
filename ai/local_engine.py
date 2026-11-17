@@ -53,8 +53,10 @@ INTENTS = [
     (r"\bservo\s+(\d+)\s+(?:to\s+)?(\d+)\b", "servo_set", None),
 
     # System (before sensors to take priority)
-    (r"\b(status|cpu|cpu usage|processor|ram|memory usage|disk|system info|health|system status)\b", "system_status", None),
-    (r"\b(how much (memory|ram)|memory available|uptime)\b", "system_status", None),
+    (r"\b(system\s+status|cpu\s+usage|processor\s+usage|ram\s+usage|memory\s+usage|disk\s+usage|system\s+info|system\s+health|hardware\s+status)\b", "system_status", None),
+    (r"\b(?:check|show|get|display|report)\s+(?:the\s+)?(?:system|cpu|ram|memory|disk|hardware)(?:\s+(?:status|usage|info|health))?\b", "system_status", None),
+    (r"^(?:status|health|system info)$", "system_status", None),
+    (r"\b(how much (memory|ram)|memory available|free (memory|ram|disk)|disk space|uptime)\b", "system_status", None),
 
     # Sensors
     (r"\b(sensors?|temperatures?|humidity|pressure|light|lux|distance|motion|pir|ultrasonic)\b", "read_sensors", None),
@@ -66,7 +68,7 @@ INTENTS = [
 
     # Memory
     (r"\b(remember|store|save|note|record)\s+(.+)", "memory_store", None),
-    (r"\b(what do you remember|recall|search memory|look up|what do you know about|tell me about|do you know)\s+(.+)?", "memory_search", None),
+    (r"\b(what do you remember|recall|search memory|look up in memory|what do you know about me|do you remember|do you recall)\s*(.+)?", "memory_search", None),
 
     # Coding & Program Execution (Specific test helper only; general programming routes to LLM)
     (r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", "create_calculator", None),
@@ -183,6 +185,46 @@ class LocalIntelligenceEngine:
             ord_raw = m_ord_short.group(1).lower()
             chosen_idx = idx_map.get(ord_raw, 1)
             return "youtube_play_index", {"index": chosen_idx, "autoplay": autoplay, "text": text}
+
+        # 2c-ii. Phase 11: YouTube Video AI Summarizer Voice Commands
+        m_yt_sum = re.search(r'\b(?:summarize|summarise|analyze|understand)\s+(?:this\s+|the\s+)?(?:youtube\s+)?video(?:\s+(.+))?\b', text_lower)
+        if m_yt_sum:
+            target = m_yt_sum.group(1).strip() if (m_yt_sum and m_yt_sum.group(1)) else ""
+            return "youtube_summarize_command", {"target": target, "text": text}
+
+        m_yt_ask = re.search(r'\b(?:ask\s+(?:this\s+|the\s+)?(?:youtube\s+)?video|what\s+does\s+(?:the|this)\s+(?:youtube\s+)?video\s+say\s+about)\s+(.+)\b', text_lower)
+        if m_yt_ask:
+            return "youtube_ask_command", {"question": m_yt_ask.group(1).strip(), "text": text}
+
+        if re.search(r'\b(?:read|speak)\s+(?:the\s+|this\s+)?(?:youtube\s+|video\s+)?summary(?:\s+aloud)?\b', text_lower):
+            return "youtube_read_summary", {"text": text}
+
+        if re.search(r'\b(?:open|launch|start|show)\s+(?:youtube\s+ai|youtube\s+summarizer|video\s+summarizer)\b', text_lower):
+            return "open_youtube_ai", {"text": text}
+
+        # 2c-iii. Phase 12: Autonomous AI Research Assistant Intents
+        if re.search(r'\b(?:open|launch|show)\s+(?:the\s+)?(?:research\s+assistant|research\s+tab|research\s+app)\b', text_lower):
+            return "research_open", {"text": text}
+
+        if re.search(r'\b(?:read|speak)\s+(?:the\s+)?research\s+(?:summary|report|findings)\b', text_lower):
+            return "research_read_summary", {"text": text}
+
+        if re.search(r'\b(?:research\s+status|status\s+of\s+research|how\s+is\s+research\s+going)\b', text_lower):
+            return "research_status", {"text": text}
+
+        if re.search(r'\b(?:show|list|what\s+are)\s+(?:the\s+)?research\s+sources\b', text_lower):
+            return "research_sources", {"text": text}
+
+        m_res_comp = re.search(r'\bcompare\s+(.+?)\s+(?:and|vs\.?|with)\s+(.+)', text_lower)
+        if m_res_comp:
+            ent1 = m_res_comp.group(1).replace("research", "").strip()
+            ent2 = m_res_comp.group(2).strip()
+            return "research_compare", {"topic": f"{ent1} vs {ent2}", "text": text}
+
+        m_res_inv = re.search(r'\b(?:research|investigate|study|deep\s+dive\s+into)\s+(.+)', text_lower)
+        if m_res_inv and not re.search(r'\b(?:youtube|video|screen|camera|summary|status|sources|report)\b', text_lower):
+            target = m_res_inv.group(1).strip()
+            return "research_investigate", {"topic": target, "text": text}
 
         # YouTube Unified Search ("Open a horror video in YouTube", "Search YouTube for a horror movie", "Find ... on YouTube")
         m_yt_search = (
@@ -408,8 +450,22 @@ class LocalIntelligenceEngine:
                 pass
 
         # 4. Code generation, programming, algorithms, or technical explanations -> LLM ("general")
-        # (Test 3: "Write a Python script...", Test 4: "Write a Python function to compute Fibonacci numbers...")
-        if re.search(r"\b(write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|explanation|explain|why is|why are|how does|what is a\b|tell me about the concept|joke|story|poem|who was)\b", text_lower):
+        # Explanatory and conceptual questions must NOT accidentally trigger hardware/system fast-paths
+        if re.search(
+            r"\b("
+            r"write|create|implement|code|generate|build|program|script|function|def\s+\w+|fibonacci|algorithm|"
+            r"explanation|explain|why\s+(?:is|are|does|do|can|could|would|should|must|did|have|has|need|robots?)|"
+            r"how\s+(?:does|do|can|could|would|to|is|are|should|come)|"
+            r"what\s+(?:is|are)\s+(?:the\s+)?(?:difference|meaning|definition|concept|theory|function|purpose|role|history|architecture|benefit|flaw|use)|"
+            r"what\s+(?:does|do)\s+.*\s+(?:mean|stand\s+for|do)|"
+            r"what\s+is\s+(?:a|an|the|cpu|ram|rom|gpu|ai|os|stt|tts|vad|pipewire|pid|systemd|linux|python|hardware|software|firmware|memory|cache|recursion|decorator|algorithm|neural\s+network)|"
+            r"tell\s+me\s+about\s+(?:the\s+)?(?:history|concept|theory|meaning|background|difference|future|story)|"
+            r"(?:can|could|would)\s+you\s+(?:explain|describe|clarify|elaborate|tell\s+me\s+about)|"
+            r"difference\s+between|meaning\s+of|definition\s+of|"
+            r"joke|story|poem|who\s+was"
+            r")\b",
+            text_lower
+        ):
             # Unless explicitly commanding to open desktop editor or run an existing script
             if not re.search(r"\b(?:open|launch|start)\b.*(?:vs\s*code|vscode|mousepad|lxterminal)\b", text_lower) and not re.search(r"\b(?:run|execute)\s+(?:the\s+|my\s+|this\s+)?(?:python\s+)?(?:script|file|code|program)\b", text_lower):
                 return "general", {"text": text}
@@ -546,6 +602,33 @@ class LocalIntelligenceEngine:
 
             elif intent == "youtube_volume":
                 return self._respond_youtube_volume(ctx)
+
+            # Phase 11 YouTube AI Dispatches
+            elif intent == "youtube_summarize_command":
+                return self._respond_youtube_summarize(ctx)
+
+            elif intent == "youtube_ask_command":
+                return self._respond_youtube_ask(ctx)
+
+            elif intent == "youtube_read_summary":
+                return self._respond_youtube_read_summary(ctx)
+
+            elif intent == "open_youtube_ai":
+                return self._respond_open_youtube_ai(ctx)
+
+            # Phase 12 AI Research Assistant Dispatches
+            elif intent == "research_open":
+                return self._respond_research_open(ctx)
+            elif intent == "research_investigate":
+                return self._respond_research_investigate(ctx)
+            elif intent == "research_compare":
+                return self._respond_research_compare(ctx)
+            elif intent == "research_status":
+                return self._respond_research_status(ctx)
+            elif intent == "research_read_summary":
+                return self._respond_research_read_summary(ctx)
+            elif intent == "research_sources":
+                return self._respond_research_sources(ctx)
 
             elif intent == "stream_volume_control":
                 return self._respond_stream_volume_control(ctx)
@@ -1588,6 +1671,252 @@ if __name__ == "__main__":
             "response": f"🔊 YouTube video volume set to **{vol}%** (PipeWire stream adjusted).",
             "tools_used": ["youtube_volume"],
             "raw": res,
+        }
+
+    def _respond_open_youtube_ai(self, ctx: Dict) -> Dict:
+        return {
+            "response": "🎬 Opening YouTube Video Summarizer in the JARVIS Dashboard.",
+            "tools_used": ["open_app"],
+            "action": "open_tab",
+            "target_tab": "youtube",
+        }
+
+    # ── Phase 12 Research Assistant Voice Handlers ─────────────────────
+
+    def _respond_research_open(self, ctx: Dict) -> Dict:
+        return {
+            "response": "🔬 Opening the AI Research Assistant in the JARVIS Dashboard.",
+            "tools_used": ["open_app"],
+            "action": "open_tab",
+            "target_tab": "research",
+        }
+
+    def _respond_research_investigate(self, ctx: Dict) -> Dict:
+        topic = ctx.get("topic", "").strip()
+        if not topic:
+            return {
+                "response": "🔬 Please state the topic you would like me to research.",
+                "tools_used": ["research_investigate"],
+            }
+
+        from apps.research.agent import get_research_agent
+        agent = get_research_agent()
+        task = agent.create_task(
+            user_id="default_user",
+            topic=topic,
+            question=f"Comprehensive investigation into {topic}",
+            mode="standard",
+            auto_approve=True,
+            auto_start=True,
+        )
+
+        return {
+            "response": f"🔬 Initiated autonomous research on **{topic}** (Task ID: `{task.task_id}`). Decomposing queries and querying verified repositories.",
+            "tools_used": ["research_investigate"],
+            "task_id": task.task_id,
+        }
+
+    def _respond_research_compare(self, ctx: Dict) -> Dict:
+        topic = ctx.get("topic", "").strip()
+        if not topic:
+            return {
+                "response": "⚖️ Please specify the entities or technologies to compare.",
+                "tools_used": ["research_compare"],
+            }
+
+        from apps.research.agent import get_research_agent
+        agent = get_research_agent()
+        task = agent.create_task(
+            user_id="default_user",
+            topic=topic,
+            question=f"Comparative analysis between {topic}",
+            mode="comparative",
+            auto_approve=True,
+            auto_start=True,
+        )
+
+        return {
+            "response": f"⚖️ Initiated comparative analysis on **{topic}** (Task ID: `{task.task_id}`). Building feature comparison matrix and evaluating trade-offs.",
+            "tools_used": ["research_compare"],
+            "task_id": task.task_id,
+        }
+
+    def _respond_research_status(self, ctx: Dict) -> Dict:
+        from apps.research.database import get_research_db
+        db = get_research_db()
+        tasks = db.list_tasks(user_id="default_user", limit=1)
+        if not tasks:
+            return {
+                "response": "🔬 No research tasks found. You can say 'JARVIS, research <topic>' to begin an investigation.",
+                "tools_used": ["research_status"],
+            }
+
+        latest = tasks[0]
+        return {
+            "response": f"🔬 Research task **{latest['topic']}** is currently **{latest['status']}** ({latest['progress_percent']}%): {latest['current_step']}.",
+            "tools_used": ["research_status"],
+            "task_id": latest["task_id"],
+        }
+
+    def _respond_research_read_summary(self, ctx: Dict) -> Dict:
+        from apps.research.database import get_research_db
+        db = get_research_db()
+        reports = db.list_reports(user_id="default_user", limit=1)
+        if not reports:
+            return {
+                "response": "🔬 No completed research reports found to read aloud.",
+                "tools_used": ["research_read_summary"],
+            }
+
+        report = db.get_report(reports[0]["report_id"])
+        if not report or not report.sections:
+            return {
+                "response": "🔬 Latest research report has no readable sections.",
+                "tools_used": ["research_read_summary"],
+            }
+
+        first_sec = report.sections[0]
+        text_preview = first_sec.get("content", "")[:500]
+        return {
+            "response": f"🔊 **{report.title}** ({first_sec.get('title', 'Summary')}):\n\n{text_preview}",
+            "tools_used": ["research_read_summary"],
+            "report_id": report.report_id,
+        }
+
+    def _respond_research_sources(self, ctx: Dict) -> Dict:
+        from apps.research.database import get_research_db
+        db = get_research_db()
+        tasks = db.list_tasks(user_id="default_user", limit=1)
+        if not tasks:
+            return {
+                "response": "🔬 No research tasks available.",
+                "tools_used": ["research_sources"],
+            }
+
+        task_id = tasks[0]["task_id"]
+        sources = db.get_sources_for_task(task_id)
+        if not sources:
+            return {
+                "response": f"🔬 No sources retrieved yet for task **{tasks[0]['topic']}**.",
+                "tools_used": ["research_sources"],
+            }
+
+        summary_lines = []
+        for i, s in enumerate(sources[:4], start=1):
+            summary_lines.append(f"{i}. {s.title} ({s.publisher_or_domain or 'Web'}, {s.category.value})")
+
+        return {
+            "response": f"🔬 Verified sources for **{tasks[0]['topic']}** ({len(sources)} total):\n" + "\n".join(summary_lines),
+            "tools_used": ["research_sources"],
+            "count": len(sources),
+        }
+
+    def _respond_youtube_summarize(self, ctx: Dict) -> Dict:
+        target = ctx.get("target", "").strip()
+        from apps.youtube.database import YouTubeDatabase
+        from apps.youtube.summarizer import YouTubeSummarizer
+        from apps.youtube.url_parser import extract_video_id, is_valid_youtube_url
+
+        db = YouTubeDatabase()
+        summarizer = YouTubeSummarizer()
+
+        video_id = None
+        if target:
+            try:
+                video_id = extract_video_id(target)
+            except Exception:
+                pass
+
+        if not video_id:
+            # Check recent history for last video
+            history = db.get_history(user_id="default_user", limit=1)
+            if history:
+                video_id = history[0].get("video_id")
+
+        if not video_id:
+            return {
+                "response": "🎬 To summarize a YouTube video, please provide a video URL or open the YouTube AI dashboard to select a video.",
+                "tools_used": ["youtube_summarize"],
+            }
+
+        transcript_data = db.get_transcript(video_id=video_id, user_id="default_user")
+        if not transcript_data or not transcript_data.get("chunks"):
+            return {
+                "response": f"🎬 I have identified video `{video_id}`, but no authorized transcript is currently loaded. Please upload a subtitle file or transcribe local media in the YouTube AI tab.",
+                "tools_used": ["youtube_summarize"],
+            }
+
+        chunks = transcript_data["chunks"]
+        text = "\n".join(c.text for c in chunks)
+        video_info = db.get_video(video_id)
+        title = video_info.title if video_info else "YouTube Video"
+
+        res = summarizer.summarize(transcript_text=text, summary_type="quick", video_title=title)
+        content = res.get("content", "")
+
+        return {
+            "response": f"🎬 **Summary for {title}:**\n\n{content}",
+            "tools_used": ["youtube_summarize"],
+            "raw": res,
+        }
+
+    def _respond_youtube_ask(self, ctx: Dict) -> Dict:
+        question = ctx.get("question", "").strip()
+        if not question:
+            return {
+                "response": "Please ask a specific question about the video content.",
+                "tools_used": ["youtube_ask"],
+            }
+
+        from apps.youtube.database import YouTubeDatabase
+        from apps.youtube.indexing import TranscriptIndex
+        from apps.youtube.qa import VideoQAAssistant
+
+        db = YouTubeDatabase()
+        qa = VideoQAAssistant()
+
+        history = db.get_history(user_id="default_user", limit=1)
+        video_id = history[0].get("video_id") if history else None
+
+        if not video_id:
+            return {
+                "response": "🎬 No active video found. Please load a YouTube video in the dashboard first.",
+                "tools_used": ["youtube_ask"],
+            }
+
+        transcript_data = db.get_transcript(video_id=video_id, user_id="default_user")
+        if not transcript_data or not transcript_data.get("chunks"):
+            return {
+                "response": f"🎬 Transcript for video `{video_id}` is not available. Please load subtitles first.",
+                "tools_used": ["youtube_ask"],
+            }
+
+        index = TranscriptIndex(video_id=video_id, chunks=transcript_data["chunks"])
+        video_info = db.get_video(video_id)
+        title = video_info.title if video_info else "YouTube Video"
+
+        ans = qa.ask(question=question, index=index, video_title=title)
+        return {
+            "response": f"🎬 {ans.answer}",
+            "tools_used": ["youtube_ask"],
+            "raw": ans.to_dict(),
+        }
+
+    def _respond_youtube_read_summary(self, ctx: Dict) -> Dict:
+        from apps.youtube.database import YouTubeDatabase
+        db = YouTubeDatabase()
+        notes = db.list_notes(user_id="default_user", limit=1)
+        if not notes:
+            return {
+                "response": "🎬 No saved YouTube summaries found to read aloud.",
+                "tools_used": ["youtube_read_summary"],
+            }
+        latest = notes[0]
+        # Return summary formatted for reading
+        first_paragraph = latest.content.split("\n\n")[0]
+        return {
+            "response": f"🔊 Reading summary for **{latest.video_title}**: {first_paragraph}",
+            "tools_used": ["youtube_read_summary"],
         }
 
     def _respond_stream_volume_control(self, ctx: Dict) -> Dict:

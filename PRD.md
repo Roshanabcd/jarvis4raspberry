@@ -69,6 +69,47 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
 - [ ] **PHASE 10: Robotics Hardware Safety Integration**
   - [ ] Disarmed boot state, latched e-stop, hardware detection with graceful simulation fallback
 
+- [x] **PHASE 11: YouTube Video Summarizer (JARVIS YouTube AI)**
+  - [x] Application ID: `youtube-summarizer` in `data/apps/registry.json` (status: `available`)
+  - [x] Strict compliance: Zero web scraping, zero media stream ripping, authorized caption and media sources only
+  - [x] URL parser with comprehensive SSRF protection (private subnets, AWS metadata, non-standard ports blocked)
+  - [x] Official YouTube Data API v3 integration with public oEmbed fallback
+  - [x] Subtitle parsers (SRT, VTT, TXT, JSON) with speaker extraction and timestamp preservation
+  - [x] Local media transcription via FFmpeg + Whisper with legal rights confirmation gate
+  - [x] Timestamp-aware chunking and TF-IDF semantic search index (`TranscriptIndex`)
+  - [x] 12 summary formats with prompt injection quarantine
+  - [x] Video chapters (Creator vs AI) and key information extraction
+  - [x] Grounded conversational "Ask This Video" assistant with cited timestamps
+  - [x] User-isolated SQLite storage (`data/youtube_notes.sqlite3`) and export (MD, JSON, TXT)
+  - [x] FastAPI REST API (`apps/api/youtube_api.py`) mounted at `/api/youtube/*`
+  - [x] Single-page dashboard tab `#tab-youtube` with 11 functional sections
+  - [x] Voice assistant intent integration in `ai/local_engine.py`
+  - [x] 46 automated tests passing in `tests/test_phase11_youtube_ai.py` & `tests/test_phase11_youtube_api.py`
+  - [x] 5 frontend tests passing in `tests/frontend/youtube-ai.test.cjs`
+  - [x] Documentation: `PHASE11_YOUTUBE_AI_ARCHITECTURE.md`, `PHASE11_YOUTUBE_AI_BROWSER_REPORT.md`, `PHASE11_YOUTUBE_AI_IMPLEMENTATION_REPORT.md`
+
+- [x] **PHASE 12: Autonomous AI Research Assistant (JARVIS Research AI)**
+  - [x] Application ID: `research-assistant` in `data/apps/registry.json` (status: `available`, lifecycle: `active`)
+  - [x] Strict compliance: Zero web scraping of anti-bot or policy-protected sites, public REST APIs only
+  - [x] URL validator with comprehensive kernel-level SSRF defense (blocking loopback, private subnets, link-local, AWS metadata)
+  - [x] Multi-repository search providers: DuckDuckGo Instant Answer, arXiv Atom XML, Crossref Works, OpenAlex, Europe PMC
+  - [x] Content extraction: HTML text cleaner with 50k char cap, Poppler `pdftotext` for open-access PDFs, YouTube transcript reuse
+  - [x] Transparent 9-tier source authority categorization and publication vs retrieval date disambiguation
+  - [x] Verifiable evidence linking: pairs every factual claim with exact verbatim source quotes and offsets
+  - [x] Verification engine: multi-source corroboration checker, contradiction detector, limitations compiler
+  - [x] AI synthesis with strict `<research_materials>` prompt injection quarantine and deterministic grounded fallback
+  - [x] Deterministic citation validator verifying `[N]` references against actual sources and purging hallucinations
+  - [x] Comparative analysis with multi-dimensional matrix and pros/cons synthesizers
+  - [x] Multi-format export: Markdown (`.md`), responsive dark-styled HTML (`.html`), and full JSON evidence archive (`.json`)
+  - [x] Multi-step research agent orchestrating the 9-stage bounded loop with status transitions and cancellation tokens
+  - [x] User-isolated SQLite WAL database (`data/research_assistant.sqlite3`)
+  - [x] FastAPI REST router (`apps/api/research_api.py`) with 14 endpoints mounted at `/api/research/*`
+  - [x] Single-page dashboard tab `#tab-research` with all 11 functional sections in `apps/dashboard/static/index.html`
+  - [x] Voice assistant intent integration in `ai/local_engine.py` (open, investigate, compare, status, read summary, sources)
+  - [x] 36 automated tests passing in `tests/test_phase12_research_assistant.py`
+  - [x] 4 frontend DOM tests passing in `tests/frontend/research-assistant.test.cjs`
+  - [x] Documentation: `PHASE12_RESEARCH_ASSISTANT_AUDIT.md`, `PHASE12_RESEARCH_ASSISTANT_ARCHITECTURE.md`, `PHASE12_RESEARCH_ASSISTANT_BROWSER_REPORT.md`, `PHASE12_RESEARCH_ASSISTANT_IMPLEMENTATION_REPORT.md`
+
 - [ ] **PHASE 11: Security, Privacy & Reliability**
   - [ ] Watchdog daemon, resource isolation, credential sanitization
 
