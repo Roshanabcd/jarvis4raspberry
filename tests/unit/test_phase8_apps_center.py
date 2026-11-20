@@ -149,7 +149,7 @@ class TestPhase8AppsCenter(unittest.TestCase):
         original_status = app.status
         try:
             app.status = AppStatus.PLANNED
-            resp = self.client.post("/api/apps/launch/document-qa", json={"user_id": "test_user"})
+            resp = self.client.post("/api/apps/launch/document-qa")
             self.assertEqual(resp.status_code, 400)
             detail = resp.json().get("detail", "")
             self.assertIn("Planned", detail)

@@ -78,6 +78,22 @@ def get_voice_status():
     return st
 
 
+@voice_router.get("/devices")
+def get_voice_devices():
+    """Return all detected input and output audio devices."""
+    input_devs = voice_service.audio_manager.detect_devices()
+    output_devs = voice_service.audio_manager.detect_playback_devices()
+    selected_in = voice_service.audio_manager.select_best_device()
+    selected_out = voice_service.audio_manager.select_best_playback_device()
+    return {
+        "status": "ok",
+        "input_devices": input_devs,
+        "output_devices": output_devs,
+        "selected_input": selected_in,
+        "selected_output": selected_out,
+    }
+
+
 @voice_router.get("/session")
 def get_voice_session():
     """Return the local, server-owned voice identity session.

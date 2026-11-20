@@ -45,10 +45,7 @@ class PCA9685:
     def _reset(self) -> None:
         if self.simulated or not self.bus:
             return
-        try:
-            self.bus.write_byte_data(self.address, self.MODE1, 0x00)
-        except Exception as exc:
-            logger.error(f"PCA9685 reset error: {exc}")
+        self.bus.write_byte_data(self.address, self.MODE1, 0x00)
 
     def set_pwm_freq(self, freq_hz: int = 50) -> None:
         """Set PWM frequency in Hz (typically 50Hz for RC servos)."""

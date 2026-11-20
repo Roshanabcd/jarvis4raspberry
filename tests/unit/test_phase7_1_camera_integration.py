@@ -21,6 +21,8 @@ from PIL import Image
 from fastapi.testclient import TestClient
 
 from apps.core.main import app
+from tools.identity.permission_manager import permission_manager
+from tools.identity.user_manager import UserRole
 from tools.vision.camera_manager import CameraManager, PICTURES_DIR
 from apps.vision.service import vision_service
 
@@ -30,6 +32,16 @@ class TestPhase71CameraIntegration(unittest.TestCase):
     def setUpClass(cls):
         cls.client = TestClient(app)
         cls.cam_mgr = CameraManager()
+        cls._prev_active_user = permission_manager._current_user
+        permission_manager.set_active_user({
+            "user_id": "test_user",
+            "display_name": "Test User",
+            "role": UserRole.USER.value,
+        })
+
+    @classmethod
+    def tearDownClass(cls):
+        permission_manager._current_user = cls._prev_active_user
 
     def test_01_camera_service_health(self):
         """Camera service running on 127.0.0.1:8082 must return HTTP 200 with IMX708 info."""

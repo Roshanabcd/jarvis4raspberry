@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-11-20T08:50:11.004Z",
+  "timestamp": "2026-11-20T14:46:17.179Z",
   "files": [
     {
       "file": "api.js",
-      "rawBytes": 25659,
-      "rawKb": 25.06,
-      "gzipBytes": 5561,
-      "gzipKb": 5.43
+      "rawBytes": 27590,
+      "rawKb": 26.94,
+      "gzipBytes": 5854,
+      "gzipKb": 5.72
     },
     {
       "file": "avatar.js",
@@ -31,38 +31,38 @@
     },
     {
       "file": "developer.js",
-      "rawBytes": 39216,
-      "rawKb": 38.3,
-      "gzipBytes": 8505,
-      "gzipKb": 8.31
+      "rawBytes": 39088,
+      "rawKb": 38.17,
+      "gzipBytes": 8493,
+      "gzipKb": 8.29
     },
     {
       "file": "index.html",
-      "rawBytes": 19224,
-      "rawKb": 18.77,
-      "gzipBytes": 3968,
-      "gzipKb": 3.88
+      "rawBytes": 20261,
+      "rawKb": 19.79,
+      "gzipBytes": 4145,
+      "gzipKb": 4.05
     },
     {
       "file": "operations.js",
-      "rawBytes": 73696,
-      "rawKb": 71.97,
-      "gzipBytes": 12653,
-      "gzipKb": 12.36
+      "rawBytes": 82871,
+      "rawKb": 80.93,
+      "gzipBytes": 14504,
+      "gzipKb": 14.16
     },
     {
       "file": "robot_devices.js",
-      "rawBytes": 34325,
-      "rawKb": 33.52,
-      "gzipBytes": 7712,
-      "gzipKb": 7.53
+      "rawBytes": 34596,
+      "rawKb": 33.79,
+      "gzipBytes": 7814,
+      "gzipKb": 7.63
     },
     {
       "file": "shell.js",
-      "rawBytes": 34076,
-      "rawKb": 33.28,
-      "gzipBytes": 7738,
-      "gzipKb": 7.56
+      "rawBytes": 34241,
+      "rawKb": 33.44,
+      "gzipBytes": 7768,
+      "gzipKb": 7.59
     },
     {
       "file": "theme.css",
@@ -73,14 +73,14 @@
     },
     {
       "file": "voice.js",
-      "rawBytes": 44024,
-      "rawKb": 42.99,
-      "gzipBytes": 10010,
-      "gzipKb": 9.78
+      "rawBytes": 45687,
+      "rawKb": 44.62,
+      "gzipBytes": 10253,
+      "gzipKb": 10.01
     }
   ],
-  "totalRawKb": 386.7,
-  "totalGzipKb": 80.9,
+  "totalRawKb": 400.48,
+  "totalGzipKb": 83.53,
   "gzipTargetLimitKb": 250,
   "passLimit": true,
   "zeroMockData": true,

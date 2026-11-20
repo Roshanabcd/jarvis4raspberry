@@ -228,7 +228,12 @@ class VoiceService:
             from apps.voice.wake_word_engine import wake_word_engine
             ww_status = wake_word_engine.get_status()
             active = bool(self.listening and wake_word_engine._is_running)
-            curr_state = ww_status.get("state", "STANDBY")
+            if self.simulation_mode:
+                curr_state = "MUTED" if self._muted else ("LISTENING" if self.listening else "STANDBY")
+            elif wake_word_engine._is_running:
+                curr_state = ww_status.get("state", "STANDBY")
+            else:
+                curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
         except Exception:
             active = self.listening
             curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")

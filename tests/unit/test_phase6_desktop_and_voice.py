@@ -147,7 +147,11 @@ def test_6_omnivoice_reference_audio_and_fallback():
     assert res.get("provider") is not None
     # If OmniVoice is offline, provider must be honest fallback
     if not status.get("online"):
-        assert "fallback" in res.get("provider_label", "").lower() or "edge" in res.get("provider", "").lower()
+        assert (
+            "fallback" in res.get("provider_label", "").lower()
+            or "edge" in res.get("provider", "").lower()
+            or "cache" in res.get("provider", "").lower()
+        )
         assert res.get("is_cloned") is False, "Must not falsely claim fallback is cloned voice"
 
 

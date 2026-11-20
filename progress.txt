@@ -668,3 +668,31 @@ Learnings:
 - In real-time audio systems with microphone input levels that vary across USB soundcards (e.g., Seeed ReSpeaker Lite), hardcoding fixed upper energy thresholds (like 350 RMS) is hazardous. VAD noise floor calibration must adapt on non-speech chunks so the threshold dynamically floats comfortably above the ambient noise floor, completely eliminating false speech triggers.
 - In low-resource edge architectures (Raspberry Pi 5 ARM64), heavy models like Whisper (taking 15-25s per slice on CPU) must never be executed on ambient noise slices in real-time streaming standby loops. Reserving Whisper for offline failover or post-wake-word command transcription ensures the standby engine stays at <2% CPU and zero latency.
 ==================================================
+
+
+==================================================
+=== ITERATION: FULL SYSTEM ACCEPTANCE & E2E BROWSER PASS ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Frontend Shell Accessibility & ARIA Integrity:
+  1. Fixed WCAG 2.1 AA `aria-required-children` violation in `apps/dashboard/futuristic/index.html`: wrapped AI Feature Suite link in standard `button[role="tab"]` to ensure all direct children of `div[role="tablist"]` are valid tab elements.
+  2. Passed 100% of Axe accessibility audits with 0 critical/serious violations across all 18 routes in `tests/browser/phase2_design_shell.cjs` and `tests/browser/phase10_responsive_accessibility.cjs`.
+- Telemetry & Offline Alert State Synchronization:
+  1. In `apps/dashboard/futuristic/api.js`: introduced `this.isPolling` flag and decoupled in-flight telemetry requests from explicit `setState('offline')` calls to prevent in-flight polls from overwriting offline banner state when polling is stopped.
+  2. Verified offline alert banner transitions, reconnect states, and secret scanning in `tests/browser/phase11_full_verification.cjs` (4/4 passed).
+- UI Controller & Global Toast Event Bus:
+  1. In `apps/dashboard/futuristic/shell.js`: mapped `showToast: (msg, type) => window.showToast(msg, type)` on `shellController`, eliminating TypeErrors across operations, robot devices, developer hub, and voice panels.
+  2. In `apps/dashboard/futuristic/developer.js`: classified GitHub Copilot as Class C (`isClassC: true`, `Class C: IDE-Only`) with action buttons disabled and IDE guidance notice, matching `phase7_agents_developer.cjs` specifications.
+  3. In `apps/dashboard/static/index.html`: updated integrations button to `💾 Save Keys to .env` matching both manual workflows and automated browser test selectors.
+- Hardware Abstraction & Edge Optimization:
+  1. In `hardware/pca9685/driver.py`: allowed `_reset()` I/O errors to propagate to `__init__`, enabling truthful automatic fallback to `simulated = True` when the physical I2C PCA9685 chip is not attached to bus 1.
+  2. In `apps/voice/service.py`: updated `get_state()` to return `STANDBY` when running in simulation mode or when the wake daemon is idle, avoiding spurious `DISABLED` state assertions.
+  3. In `apps/api/voice_api.py`: mounted `@voice_router.get("/devices")` exposing detected input/playback devices and active selections.
+  4. In `ai/brain.py`: sanitized socket/connectionpool internal details from user-facing error messages in `_provider_failure_message`.
+- Comprehensive Verification:
+  1. All 166 frontend and browser E2E tests passing (100% pass across Playwright, Axe-core, and Node test runner).
+  2. All 656 unit tests in `tests/unit/` passing (100% pass).
+  3. All 103 Phase 10 (Document AI), Phase 11 (YouTube AI), and Phase 12 (Research Assistant) tests passing.
+  4. Live systemd services active and verified on Pi 5: `jarvis-backend.service`, `jarvis-voice.service`, `jarvis-camera.service`.
+==================================================
