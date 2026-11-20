@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const active = new Set(['accepted', 'running']);
-  const labels = {accepted:'Accepted — waiting to start', running:'Working…', succeeded:'Completed', failed:'Failed', cancelled:'Cancelled', interrupted:'Interrupted by restart — not replayed'};
+  const labels = {accepted:'Accepted — waiting to start', running:'Working…', succeeded:'Reply ready — review result', failed:'Failed', cancelled:'Cancelled', interrupted:'Interrupted by restart — not replayed'};
 
   function mount(doc, options = {}) {
     const form = doc.getElementById('background-task-form');
@@ -16,7 +16,7 @@
     let pending = null, timer = null, loading = false, sending = false, disposed = false;
 
     async function api(path, init) {
-      const response = await request('/api/task-jobs' + path, {...init, signal: root.AbortSignal.timeout(10000)});
+      const response = await request('/api/task-jobs' + path, {...init, headers:{'X-Jarvis-Client':'dashboard', ...init?.headers}, signal: root.AbortSignal.timeout(10000)});
       if (!response.ok) throw new Error(String(response.status));
       return response.json();
     }

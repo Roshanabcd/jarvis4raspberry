@@ -349,3 +349,55 @@ synthetic greeting returned/queued in **23ms** and its voice job reached
 **completed in 3.56s**, with no delivery error. The audio-session fix is deployed;
 no restart remains pending. This is actual player completion for controlled text,
 not proof of a complete spoken-input conversation or user-confirmed audibility.
+
+
+## 20 November 2026 — NVIDIA, background tasks and control-center dashboard
+
+User acceptance: the user confirmed “It answers aloud” for “Jarvis, hello” and
+“It reads the text correctly” for shared-window OCR. Record these as actual user
+checks, not synthetic fixtures. Interruption/noise/languages and screen vision
+remain separate unfinished acceptance work.
+
+Implemented NVIDIA dynamic catalog/cache, retired-model diagnosis, environment
+model precedence and configured Nemotron Bolt as the selected free model. Authorized
+key/model stored privately with no credential output. Direct provider probes passed:
+text 0.523s, valid synthetic tool call 0.91s, streaming first token 0.563s / total
+0.637s. OpenRouter remains available. No silent paid fallback added.
+
+Added explicit streaming conversation-only mode, bounded streaming requests,
+resource cleanup, truncation failure, and safe browser delivery. Added private,
+atomic, exclusively owned voice metadata history with interrupted-on-restart
+status and no replay. Added bounded background tasks with SQLite metadata,
+idempotency, server-resolved identity, live identity guards at tool boundaries,
+no retries/replay, cancellation, and shutdown handling. Root finished integration
+and review after the background-task helper reached its usage limit.
+
+Built the requested futuristic home UI into the existing dashboard, preserving all
+existing tabs. New control-center CSS/JS connects live system data, models, task
+history, schedules and memory; missing readings are unavailable. The supplied TSX
+is a prototype and was inspected but not installed as a simulated backend. The
+provided image is a local decorative avatar reference. Browser voice choice/rate,
+preview, long-reply segmentation and actual speaking events are wired into chat;
+server synthesis is suppressed when browser speech is selected. No second recorder.
+
+Checks: 174 affected Python tests passed; 65 frontend tests passed; new actual
+Chromium workflow with synthetic APIs passed home chat, browser-speech routing,
+background status, conversation-mode request and desktop/mobile layout. Speech
+was stubbed in that browser check, so real selected-voice audibility remains for
+the user. No production desktop images were captured in browser QA.
+
+Deployment boundary: core and user voice services were found inactive. Started
+`jarvis-voice.service` successfully. Core restart via `sudo -n` required a local
+password, so the user was asked to run `sudo systemctl restart jarvis-core.service`.
+Do not report new backend deployment or live background completion until verified.
+Updated `docs/JARVIS_NEXT_AGENT_PROMPT.md` with complete/partial evidence, source
+ownership, current blocker, concrete next tasks and engineering rules. The overall
+JARVIS project is NOT claimed complete.
+
+Final UI refinement: kept Account sign-in visible in the top bar, added a home
+model selector synchronized with Chat, checked rejected model changes, removed
+hardcoded microphone/speaker percentages, and cropped the decorative reference
+with CSS so its mock status labels are not shown. The final Chromium workflow
+passed in 24.35s, including desktop/mobile navigation. The 21 focused frontend
+checks after voice/model wiring passed. `git diff --check` and JS syntax checks
+passed. Core still inactive; voice service active while awaiting user restart.

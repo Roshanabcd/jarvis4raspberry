@@ -855,6 +855,7 @@
     }
   }
 </style>
+<link rel="stylesheet" href="/control-center.css">
 </head>
 <body>
 
@@ -870,25 +871,27 @@
     <span class="logo">⚡ JARVIS OS</span>
     <span class="tagline">Raspberry Pi 5 AI & Robotics</span>
   </div>
+  <div class="cc-topnav" aria-label="Quick navigation"><button onclick="showTab('home')">⌂ Control center</button><button onclick="showTab('developer')">⌘ Workspace</button><button onclick="showTab('agents')">AI agents</button><button onclick="showTab('memory')">Memory</button><button onclick="showTab('integrations')">Integrations</button></div>
   <div class="status-center" aria-label="System status" role="group">
-    <span id="hdr-backend-pill" class="status-pill live" title="JARVIS OS Backend Service">⚡ Backend OK</span>
-    <span id="hdr-ai-pill" class="status-pill" title="AI Provider and Active Model">🧠 AI: Ollama (1B)</span>
-    <span id="hdr-mic-pill" class="status-pill live" title="Microphone Input Device">🎤 Mic: ReSpeaker (94%)</span>
-    <span id="hdr-audio-pill" class="status-pill" title="Physical Speaker Volume">🔈 Spk: ReSpeaker (65%)</span>
-    <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: Fallback (Ryan)</span>
+    <span id="hdr-backend-pill" class="status-pill live" title="JARVIS OS Backend Service">⚡ Backend: checking</span>
+    <span id="hdr-ai-pill" class="status-pill" title="AI Provider and Active Model">🧠 AI: checking</span>
+    <span id="hdr-mic-pill" class="status-pill live" title="Microphone Input Device">🎤 Mic: checking</span>
+    <span id="hdr-audio-pill" class="status-pill" title="Physical Speaker Volume">🔈 Speaker: checking</span>
+    <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: local fallback</span>
     <span id="hdr-wake-pill" class="status-pill live" title="12-State Background Voice Engine">🎙️ Wake: STANDBY</span>
-    <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Cam: IMX708</span>
+    <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Camera: unverified</span>
     <span id="hdr-user-pill" class="status-pill" title="Security Identity & Role" onclick="showTab('vision')" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('vision')}">👤 Guest</span>
-    <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Chrome :0</span>
+    <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Local dashboard</span>
   </div>
   <div class="header-actions">
+    <button class="btn dark" onclick="showTab('vision')" aria-label="Account and administrator sign in">Account</button>
     <span id="ws-badge" class="ws-badge" role="status" aria-live="polite">● Connecting...</span>
     <button class="btn danger" style="padding: 4px 12px; font-size: 0.75rem;" onclick="robotCmd('estop')" aria-label="Emergency stop all robot actuators">🛑 E-STOP</button>
   </div>
 </header>
 
 <nav role="tablist" aria-label="JARVIS OS sections">
-  <button class="active" role="tab" aria-selected="true" aria-controls="tab-home" id="nav-home" data-tab="home" onclick="showTab('home')">🏠 Home</button>
+  <button class="active" role="tab" aria-selected="true" aria-controls="tab-home" id="nav-home" data-tab="home" onclick="showTab('home')">⌂ Dashboard</button>
   <button role="tab" aria-selected="false" aria-controls="tab-apps" id="nav-apps" data-tab="apps" onclick="showTab('apps')">📱 Apps</button>
   <button role="tab" aria-selected="false" aria-controls="tab-chat" id="nav-chat" data-tab="chat" onclick="showTab('chat')">💬 AI Chat</button>
   <button role="tab" aria-selected="false" aria-controls="tab-voice" id="nav-voice" data-tab="voice" onclick="showTab('voice')">🎙️ Voice</button>
@@ -914,18 +917,53 @@
 <main id="main-content">
   <!-- 1. HOME -->
   <div id="tab-home" class="tab active" role="tabpanel" aria-labelledby="nav-home">
-    <div class="grid">
-      <div class="card"><h3>CPU Load</h3><div class="val" id="h-cpu">—</div><div class="sub">4× Cortex-A76</div></div>
-      <div class="card"><h3>RAM Usage</h3><div class="val" id="h-ram">—</div><div class="sub">8 GB LPDDR4X</div></div>
-      <div class="card"><h3>Temperature</h3><div class="val" id="h-temp">—</div><div class="sub">Thermal sensor</div></div>
-      <div class="card"><h3>Storage</h3><div class="val" id="h-disk">—</div><div class="sub">Root filesystem</div></div>
-      <div class="card"><h3>Robot State</h3><div class="val" style="font-size:1.1rem" id="h-robot">—</div><div class="sub">Actuator gate</div></div>
-      <div class="card"><h3>Voice Pipeline</h3><div class="val" style="font-size:1.1rem" id="h-voice">—</div><div class="sub">OmniVoice / ReSpeaker</div></div>
+    <div class="cc-masthead">
+      <div><div class="cc-eyebrow">Personal intelligence · Control center</div><h1>JARVIS</h1><p>AI Assistant / Agent / OS</p></div>
+      <div class="cc-clock"><span id="cc-date">Today</span><time id="cc-clock">—</time></div>
     </div>
-    <div class="panel">
-      <h2>System Diagnostics & Health <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="loadHealth()">↺ Refresh</button></h2>
-      <div id="health-table">Checking health...</div>
+    <div class="cc-grid">
+      <div class="cc-stack">
+        <section class="cc-panel"><h2><span><span class="cc-icon">◌</span>Conversation</span><button class="cc-link" onclick="showTab('chat')">Open chat</button></h2><p class="cc-description">Live chat with JARVIS</p>
+          <div class="cc-chat" id="cc-conversation" role="log" aria-label="Recent conversation"><p>Ready when you are. Start a conversation below.</p></div>
+          <form id="cc-chat-form" class="cc-compose"><label class="sr-only" for="cc-message">Message JARVIS</label><input id="cc-message" required maxlength="4096" placeholder="Message JARVIS…"><button class="btn" type="submit" id="cc-send">Send</button></form>
+          <p id="cc-chat-feedback" class="cc-subtle" role="status" aria-live="polite"></p>
+        </section>
+        <section class="cc-panel"><h2><span><span class="cc-icon">ϟ</span>Tasks &amp; agents</span><button class="cc-link" onclick="showTab('chat');document.getElementById('background-task-input').focus()">New task</button></h2><p class="cc-description">Your background work</p><div id="cc-tasks" class="cc-list"><p class="cc-subtle">Checking task history…</p></div></section>
+      </div>
+      <section class="cc-hero" id="cc-hero" data-state="idle" aria-label="JARVIS assistant">
+        <div class="cc-chips"><span id="cc-connection">Connecting</span><span id="cc-wake">Voice: checking</span><span id="cc-provider">Model: checking</span></div>
+        <div class="cc-avatar" role="img" aria-label="Blue holographic JARVIS character"></div>
+        <div class="cc-wave" aria-hidden="true"><i style="--level:2"></i><i style="--level:4"></i><i style="--level:7"></i><i style="--level:3"></i><i style="--level:9"></i><i style="--level:14"></i><i style="--level:8"></i><i style="--level:18"></i><i style="--level:12"></i><i style="--level:7"></i><i style="--level:20"></i><i style="--level:15"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:8"></i><i style="--level:14"></i><i style="--level:20"></i><i style="--level:12"></i><i style="--level:17"></i><i style="--level:8"></i><i style="--level:13"></i><i style="--level:5"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:7"></i><i style="--level:4"></i><i style="--level:2"></i></div>
+        <button class="cc-mic" type="button" id="cc-speak" aria-label="Speak to JARVIS using the existing microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button>
+        <div class="cc-state" id="cc-state" role="status" aria-live="polite">Ready</div>
+        <div class="cc-caption" id="cc-caption">Hello. What would you like to work on?</div>
+        <div class="cc-controls"><button class="btn dark" onclick="showTab('chat');document.getElementById('active-desktop-start').focus()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
+        <details class="cc-voice-settings"><summary>Voice &amp; conversation preferences</summary>
+          <div class="cc-controls"><label for="cc-ai-model">AI model</label><select id="cc-ai-model" aria-label="Home AI model"><option value="">Loading configured models…</option></select></div>
+          <div class="cc-controls"><label for="cc-voice-output">Reply voice</label><select id="cc-voice-output"><option value="server">JARVIS voice engine</option><option value="browser">Browser voice</option><option value="off">Silent</option></select></div>
+          <div class="cc-controls"><label for="cc-browser-voice">Browser voice</label><select id="cc-browser-voice"><option value="">Default voice</option></select></div>
+          <div class="cc-controls"><label for="cc-voice-rate">Speed</label><input id="cc-voice-rate" type="range" min="0.6" max="1.5" step="0.05" value="1"><output id="cc-rate-value">1×</output><button class="btn dark" type="button" id="cc-preview-voice">Preview voice</button></div>
+          <p id="cc-voice-feedback" class="cc-subtle" role="status">Browser voices depend on voices installed in this browser.</p>
+        </details>
+      </section>
+      <div class="cc-stack">
+        <section class="cc-panel"><h2><span><span class="cc-icon">⌁</span>System status</span><span id="cc-system-status" class="cc-badge">Checking</span></h2><p class="cc-description">Live readings from this computer</p><div class="cc-metrics">
+          <div class="cc-metric"><span>CPU</span><strong id="h-cpu">—</strong><meter id="cc-cpu-meter" min="0" max="100" value="0" aria-label="CPU usage"></meter></div>
+          <div class="cc-metric"><span>RAM</span><strong id="h-ram">—</strong><meter id="cc-ram-meter" min="0" max="100" value="0" aria-label="Memory usage"></meter></div>
+          <div class="cc-metric"><span>Disk</span><strong id="h-disk">—</strong><meter id="cc-disk-meter" min="0" max="100" value="0" aria-label="Storage usage"></meter></div>
+          <div class="cc-metric"><span>Temperature</span><strong id="h-temp">—</strong><span>Measured sensor</span></div>
+        </div></section>
+        <section class="cc-panel"><h2><span><span class="cc-icon">⌘</span>Terminal / coding</span><button class="cc-link" onclick="showTab('desktop')">Open</button></h2><p class="cc-description">Local developer workspace</p><div class="cc-terminal" id="cc-terminal"><em>[JARVIS]</em> Waiting for service status…</div><button class="cc-link" onclick="showTab('developer')">Developer hub</button></section>
+        <section class="cc-panel"><h2><span><span class="cc-icon">▦</span>Schedule &amp; reminders</span><button class="cc-link" onclick="showTab('automations')">Manage</button></h2><p class="cc-description">Saved JARVIS schedules</p><div id="cc-schedules" class="cc-list"><p class="cc-subtle">Checking schedules…</p></div></section>
+      </div>
     </div>
+    <div class="cc-bottom">
+      <section class="cc-panel"><h2><span><span class="cc-icon">▣</span>Devices &amp; sensors</span></h2><p class="cc-description">This computer · live status</p><div class="cc-list"><div class="cc-list-row"><span>Host</span><span id="cc-host">Checking</span></div><div class="cc-list-row"><span>Uptime</span><span id="cc-uptime">—</span></div><div class="cc-list-row"><span>Hardware</span><span id="h-robot">Unverified</span></div><div class="cc-list-row"><span>Voice</span><span id="h-voice">Checking</span></div></div><button class="cc-link" onclick="showTab('sensors')">Sensor details</button></section>
+      <section class="cc-panel"><h2><span><span class="cc-icon">▱</span>Memory &amp; knowledge</span></h2><p class="cc-description">Persistent assistant memory</p><div id="cc-memory" class="cc-stat-number">—</div><p class="cc-subtle">Saved memory entries. Open your library to search and manage them.</p><hr class="cc-rule"><button class="cc-link" onclick="showTab('memory')">Open memory</button></section>
+      <section class="cc-panel"><h2><span><span class="cc-icon">⊞</span>App integrations</span></h2><p class="cc-description">Configure and test connections</p><div class="cc-integrations"><button onclick="showTab('integrations')">AI providers</button><button onclick="showTab('developer')">Code tools</button><button onclick="showTab('apps')">Apps</button><button onclick="showTab('research')">Research</button></div><p class="cc-subtle" id="cc-model-name" style="margin-top:10px">No model verified yet.</p></section>
+      <section class="cc-panel"><h2><span><span class="cc-icon">⚙</span>Automation center</span></h2><p class="cc-description">Your saved workflows</p><div class="cc-stat-number" id="cc-automation-count">—</div><p class="cc-subtle">Enabled schedules. Open automations to review or change a workflow.</p><hr class="cc-rule"><button class="cc-link" onclick="showTab('automations')">Manage automations</button></section>
+    </div>
+    <details><summary>Detailed system diagnostics</summary><div class="panel"><h2>System diagnostics <button class="btn dark" onclick="loadHealth()">Refresh</button></h2><div id="health-table">Checking health…</div></div></details>
   </div>
 
   <!-- 2. AI CHAT -->
@@ -3456,13 +3494,19 @@ async function switchChatModel(val) {
   const provider = parts[0];
   const model = parts.slice(1).join(':');
   try {
-    await fetch('/api/chat/model', {
+    const response = await fetch('/api/chat/model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, model })
     });
+    if (!response.ok) throw new Error('Model selection was rejected');
     setChatStatus('ready', `Active: ${provider} (${model})`);
-  } catch (e) {}
+    return true;
+  } catch (e) {
+    setChatStatus('error', 'Model could not be selected. Check provider settings.');
+    await initChatModels();
+    return false;
+  }
 }
 
 function setChatStatus(state, msg) {
@@ -3521,6 +3565,8 @@ async function sendChat() {
     if (currentChatAbort === controller) setChatStatus(state, text);
   };
   let fullText = "";
+  const browserVoiceRequested = Boolean(globalThis.jarvisHome?.browserVoiceEnabled());
+  const autoSpeakRequested = document.getElementById('chat-auto-speak').checked;
   let terminalReceived = false;
   let requestId = null;
   let timedOut = false;
@@ -3534,7 +3580,7 @@ async function sendChat() {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, provider, model, use_tools: document.getElementById('chat-mode')?.value !== 'conversation', speak: document.getElementById('chat-auto-speak').checked, audio_output: 'browser' }),
+      body: JSON.stringify({ message: msg, provider, model, use_tools: document.getElementById('chat-mode')?.value !== 'conversation', speak: autoSpeakRequested && !browserVoiceRequested, audio_output: 'browser' }),
       signal: controller.signal
     });
 
@@ -3585,6 +3631,7 @@ async function sendChat() {
             const cancelled = event.status === 'cancelled';
             progress.textContent = cancelled ? 'Stopped. Actions already performed have not been undone.' : failed ? 'Request incomplete. See the message above.' : 'Reply ready.';
             if (!fullText && typeof event.response === 'string') fullText = event.response;
+            if (!failed && !cancelled && fullText && browserVoiceRequested && autoSpeakRequested && currentChatAbort === controller && document.getElementById('chat-auto-speak').checked) globalThis.jarvisHome?.speak(fullText);
             const tEnd = performance.now();
             const totalMs = Math.round(tEnd - tStart);
             const tokSec = totalMs > 0 ? ((fullText.split(/\s+/).length / (totalMs / 1000)).toFixed(1)) : '--';
@@ -3774,6 +3821,7 @@ function clearChat() {
 }
 
 async function stopSpeech() {
+  globalThis.jarvisHome?.stopBrowserSpeech();
   const player = document.getElementById('jarvis-audio-player');
   if (player) {
     player.pause();
@@ -5697,7 +5745,7 @@ async function updateStatusCenter() {
       const micComp = comps.microphone_capture || {};
       const elMic = document.getElementById('hdr-mic-pill');
       if (elMic) {
-        elMic.textContent = `🎤 Mic: ${micComp.status === 'CONNECTED' ? 'ReSpeaker (94%)' : 'None'}`;
+        elMic.textContent = `🎤 Mic: ${micComp.status === 'CONNECTED' ? 'Connected' : 'Unavailable'}`;
         elMic.className = micComp.status === 'CONNECTED' ? 'status-pill live' : 'status-pill';
       }
 
@@ -5705,7 +5753,7 @@ async function updateStatusCenter() {
       const spkComp = comps.speaker_playback || {};
       const elSpk = document.getElementById('hdr-audio-pill');
       if (elSpk) {
-        elSpk.textContent = `🔈 Spk: ${spkComp.device.includes('ReSpeaker') ? 'ReSpeaker (65%)' : spkComp.device}`;
+        elSpk.textContent = `🔈 Spk: ${spkComp.device || 'Unavailable'}`;
         elSpk.className = spkComp.user_audibility_confirmed ? 'status-pill live' : 'status-pill';
       }
 
@@ -5717,7 +5765,7 @@ async function updateStatusCenter() {
           elVoice.textContent = '🗣️ Voice: OmniVoice (Cloned)';
           elVoice.className = 'status-pill live';
         } else {
-          elVoice.textContent = '🗣️ Voice: Fallback (Ryan)';
+          elVoice.textContent = '🗣️ Voice: local fallback';
           elVoice.className = 'status-pill';
         }
       }
@@ -7842,6 +7890,7 @@ setTimeout(updateStatusCenter, 500);
 <script src="/active-desktop.js"></script>
 <script src="/provider-settings.js"></script>
 <script src="/background-tasks.js"></script>
+<script src="/control-center.js"></script>
 <script>
 window.jarvisProviderSettings = JarvisProviderSettings.mount(document.getElementById('provider-settings-panel'), {
   authorizeTest: async () => {

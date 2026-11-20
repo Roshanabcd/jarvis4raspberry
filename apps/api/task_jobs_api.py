@@ -28,6 +28,13 @@ def get_manager():
         return _manager
 
 
+def close_manager():
+    """Shutdown never creates a worker or a store that was not already used."""
+    with _manager_lock:
+        if _manager is not None:
+            _manager.close()
+
+
 class SubmitTask(BaseModel):
     model_config = ConfigDict(extra='forbid', strict=True)
     transcript: str = Field(min_length=1, max_length=4096)

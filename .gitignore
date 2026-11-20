@@ -32,9 +32,12 @@ tmp/
 data/audio_stage/*.mp3
 data/audio_stage/*.wav
 data/voice_jobs/
+data/task_jobs/
 data/checkpoints/
 data/agents/snapshots/
 data/agents/*.json
+dist/
+*.egg-info/
 data/agents/*.jsonl
 data/screenshots/*.png
 data/screenshots/*.jpg

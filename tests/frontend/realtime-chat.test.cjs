@@ -76,3 +76,22 @@ test('conversation mode explicitly disables tool execution in request', async()=
   await ui.context.sendChat();
   assert.equal(JSON.parse(ui.calls[0].options.body).use_tools,false);
 });
+
+test('browser voice receives successful reply once without server synthesis', async()=>{
+  const ui=setup([{type:'token',content:'Answer'},{type:'done'}]);
+  const spoken=[];
+  ui.context.jarvisHome={browserVoiceEnabled:()=>true,speak:text=>spoken.push(text)};
+  ui.nodes['chat-auto-speak'].checked=true;
+  await ui.context.sendChat();
+  assert.equal(JSON.parse(ui.calls[0].options.body).speak,false);
+  assert.deepEqual(spoken,['Answer']);
+});
+
+test('failed reply never starts browser speech', async()=>{
+  const ui=setup([{type:'token',content:'Partial'},{type:'done',status:'failed'}]);
+  const spoken=[];
+  ui.context.jarvisHome={browserVoiceEnabled:()=>true,speak:text=>spoken.push(text)};
+  ui.nodes['chat-auto-speak'].checked=true;
+  await ui.context.sendChat();
+  assert.deepEqual(spoken,[]);
+});

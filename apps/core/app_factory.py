@@ -142,6 +142,11 @@ async def production_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("JARVIS OS — Shutting down gracefully...")
     try:
+        from apps.api.task_jobs_api import close_manager
+        close_manager()
+    except Exception:
+        logger.warning("Background tasks interrupted during shutdown; they will not replay.")
+    try:
         from apps.voice.service import voice_service
 
         voice_service.stop()

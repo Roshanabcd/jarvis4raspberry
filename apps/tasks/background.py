@@ -89,7 +89,9 @@ def run_brain(work: Work, on_progress: Callable) -> dict:
     return brain.chat(user_message=work.transcript, user_id=work.identity.user_id,
                       role=work.identity.role, session_id=work.session_id,
                       _request_id=work.request_id, on_progress=on_progress,
-                      allow_fallback=False, max_provider_retries=0)
+                      allow_fallback=False, max_provider_retries=0,
+                      _authorization_check=lambda: not work.cancelled.is_set() and resolve_identity() == work.identity,
+                      _allow_compound=False)
 
 
 def cancel_brain(request_id: str):
