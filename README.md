@@ -228,3 +228,4 @@ Wake word detection uses keyword matching by default. Upgrade to Picovoice Porcu
 ## License
 
 MIT License — see LICENSE file.
+# jarvis4raspberry
