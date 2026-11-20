@@ -5,9 +5,9 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 ## Status
 | # | Phase | Status | Commit | Evidence |
 |---|-------|--------|--------|----------|
-| 0 | Audit (read-only) | awaiting-approval | | docs/jarvis-ui/evidence/phase-0/ |
-| 1 | Regression harness and safe delivery path | pending | | |
-| 2 | Design system and shell | pending | | |
+| 0 | Audit (read-only) | verified | 8f386b4 | docs/jarvis-ui/evidence/phase-0/ |
+| 1 | Regression harness and safe delivery path | verified | (pending commit) | docs/jarvis-ui/evidence/phase-1/ |
+| 2 | Design system and shell | in-progress | | |
 | 3 | Data layer and dashboard | pending | | |
 | 4 | Conversation panel | pending | | |
 | 5 | Avatar | pending | | |
@@ -85,4 +85,5 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
 - 2026-11-20: Populated `docs/jarvis-ui/SPEC.md` with operator master prompt. Copied reference prototype `jarvis_os_futuristic_ai_interface.tsx` and design assets to `docs/jarvis-ui/references/`.
-- 2026-11-20: Executed Phase 0 Read-Only Audit. Discovered stack, versions, routes, audio pipeline, providers, storage, robot safety, and test baseline. Generated `docs/jarvis-ui/AUDIT.md` and `docs/jarvis-ui/FEATURES.md`. Set status to `awaiting-approval`. STOPPING for user approval per Stop Condition 1.
+- 2026-11-20: Executed Phase 0 Read-Only Audit. Discovered stack, versions, routes, audio pipeline, providers, storage, robot safety, and test baseline. Generated `docs/jarvis-ui/AUDIT.md` and `docs/jarvis-ui/FEATURES.md`. Operator approved with "continue". Phase 0 verified in commit `8f386b4`.
+- 2026-11-20: Executed Phase 1 Regression harness and safe delivery path. Mounted `/futuristic/` parallel route in `apps/core/app_factory.py`. Root `/` remains identical to baseline. Authored Playwright regression smoke suite `tests/browser/phase1_smoke_suite.cjs` covering all 21 FEATURES.md destinations (26/26 passed). Captured baseline screenshots at 4 viewports in `docs/jarvis-ui/evidence/phase-1/screenshots/`. Verified ASGI mounting via `tests/unit/test_phase1_safe_delivery.py` (2/2 passed). Phase 1 verified.

@@ -1,0 +1,157 @@
+{
+  "testedTabs": [
+    {
+      "destination": "Home",
+      "tabId": "tab-home",
+      "navId": "nav-home",
+      "verified": true
+    },
+    {
+      "destination": "Apps Center",
+      "tabId": "tab-apps",
+      "navId": "nav-apps",
+      "verified": true
+    },
+    {
+      "destination": "AI Chat",
+      "tabId": "tab-chat",
+      "navId": "nav-chat",
+      "verified": true
+    },
+    {
+      "destination": "Voice",
+      "tabId": "tab-voice",
+      "navId": "nav-voice",
+      "verified": true
+    },
+    {
+      "destination": "AI Studio",
+      "tabId": "tab-aistudio",
+      "navId": "nav-aistudio",
+      "verified": true
+    },
+    {
+      "destination": "Vision",
+      "tabId": "tab-vision",
+      "navId": "nav-vision",
+      "verified": true
+    },
+    {
+      "destination": "Robot",
+      "tabId": "tab-robot",
+      "navId": "nav-robot",
+      "verified": true
+    },
+    {
+      "destination": "Sensors",
+      "tabId": "tab-sensors",
+      "navId": "nav-sensors",
+      "verified": true
+    },
+    {
+      "destination": "Memory",
+      "tabId": "tab-memory",
+      "navId": "nav-memory",
+      "verified": true
+    },
+    {
+      "destination": "Automations",
+      "tabId": "tab-automations",
+      "navId": "nav-automations",
+      "verified": true
+    },
+    {
+      "destination": "Tools",
+      "tabId": "tab-tools",
+      "navId": "nav-tools",
+      "verified": true
+    },
+    {
+      "destination": "Integrations",
+      "tabId": "tab-integrations",
+      "navId": "nav-integrations",
+      "verified": true
+    },
+    {
+      "destination": "System",
+      "tabId": "tab-system",
+      "navId": "nav-system",
+      "verified": true
+    },
+    {
+      "destination": "Logs",
+      "tabId": "tab-logs",
+      "navId": "nav-logs",
+      "verified": true
+    },
+    {
+      "destination": "Desktop & Terminal",
+      "tabId": "tab-desktop",
+      "navId": "nav-desktop",
+      "verified": true
+    },
+    {
+      "destination": "Computer Use",
+      "tabId": "tab-computer",
+      "navId": "nav-computer",
+      "verified": true
+    },
+    {
+      "destination": "AI Agents",
+      "tabId": "tab-agents",
+      "navId": "nav-agents",
+      "verified": true
+    },
+    {
+      "destination": "Developer Hub",
+      "tabId": "tab-developer",
+      "navId": "nav-developer",
+      "verified": true
+    },
+    {
+      "destination": "YouTube AI",
+      "tabId": "tab-youtube",
+      "navId": "nav-youtube",
+      "verified": true
+    },
+    {
+      "destination": "Research Assistant",
+      "tabId": "tab-research",
+      "navId": "nav-research",
+      "verified": true
+    },
+    {
+      "destination": "Settings",
+      "tabId": "tab-settings",
+      "navId": "nav-settings",
+      "verified": true
+    }
+  ],
+  "breakpoints": [
+    {
+      "viewport": "desktop_1920x1080",
+      "dimensions": "1920x1080",
+      "screenshot": "baseline_desktop_1920x1080.png",
+      "bytes": 155640
+    },
+    {
+      "viewport": "laptop_1366x768",
+      "dimensions": "1366x768",
+      "screenshot": "baseline_laptop_1366x768.png",
+      "bytes": 129838
+    },
+    {
+      "viewport": "tablet_768x1024",
+      "dimensions": "768x1024",
+      "screenshot": "baseline_tablet_768x1024.png",
+      "bytes": 137124
+    },
+    {
+      "viewport": "mobile_375x667",
+      "dimensions": "375x667",
+      "screenshot": "baseline_mobile_375x667.png",
+      "bytes": 54905
+    }
+  ],
+  "timestamp": "2026-11-20T06:26:21.774Z"
+}

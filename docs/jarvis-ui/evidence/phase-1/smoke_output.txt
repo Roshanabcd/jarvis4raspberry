@@ -1,0 +1,35 @@
+▶ Phase 1 Smoke Suite: 21 Destinations Regression & Viewport Verification
+  ✔ Navigate to Home (#tab-home) (287.205098ms)
+  ✔ Navigate to Apps Center (#tab-apps) (417.832634ms)
+  ✔ Navigate to AI Chat (#tab-chat) (601.047663ms)
+  ✔ Navigate to Voice (#tab-voice) (339.977851ms)
+  ✔ Navigate to AI Studio (#tab-aistudio) (409.469876ms)
+  ✔ Navigate to Vision (#tab-vision) (347.366443ms)
+  ✔ Navigate to Robot (#tab-robot) (303.076204ms)
+  ✔ Navigate to Sensors (#tab-sensors) (231.636591ms)
+  ✔ Navigate to Memory (#tab-memory) (293.363062ms)
+  ✔ Navigate to Automations (#tab-automations) (295.499537ms)
+  ✔ Navigate to Tools (#tab-tools) (189.966753ms)
+  ✔ Navigate to Integrations (#tab-integrations) (364.151787ms)
+  ✔ Navigate to System (#tab-system) (233.648474ms)
+  ✔ Navigate to Logs (#tab-logs) (244.773797ms)
+  ✔ Navigate to Desktop & Terminal (#tab-desktop) (498.791774ms)
+  ✔ Navigate to Computer Use (#tab-computer) (305.576362ms)
+  ✔ Navigate to AI Agents (#tab-agents) (356.620453ms)
+  ✔ Navigate to Developer Hub (#tab-developer) (841.485613ms)
+  ✔ Navigate to YouTube AI (#tab-youtube) (367.542758ms)
+  ✔ Navigate to Research Assistant (#tab-research) (155.017582ms)
+  ✔ Navigate to Settings (#tab-settings) (196.078995ms)
+  ✔ Capture baseline screenshot at desktop_1920x1080 (838.739487ms)
+  ✔ Capture baseline screenshot at laptop_1366x768 (810.872261ms)
+  ✔ Capture baseline screenshot at tablet_768x1024 (717.331704ms)
+  ✔ Capture baseline screenshot at mobile_375x667 (642.354656ms)
+✔ Phase 1 Smoke Suite: 21 Destinations Regression & Viewport Verification (14643.121974ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15939.510766

@@ -3,7 +3,8 @@
   "private": true,
   "scripts": {
     "test:desktop": "node --test tests/frontend/*.test.cjs",
-    "test:browser": "node --test tests/browser/browser_verification.cjs"
+    "test:browser": "node --test tests/browser/browser_verification.cjs",
+    "test:smoke": "node --test tests/browser/phase1_smoke_suite.cjs"
   },
   "devDependencies": {
     "playwright": "^1.65.1"

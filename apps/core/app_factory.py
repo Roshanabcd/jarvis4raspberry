@@ -210,6 +210,11 @@ def create_app(
         _include_router(app, spec)
 
     if include_dashboard:
+        futuristic_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "futuristic")
+        if os.path.isdir(futuristic_dir):
+            app.mount("/futuristic", StaticFiles(directory=futuristic_dir, html=True), name="futuristic")
+            logger.info("✓ Futuristic dashboard at %s", futuristic_dir)
+
         dashboard_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "static")
         if os.path.isdir(dashboard_dir):
             app.mount("/", StaticFiles(directory=dashboard_dir, html=True), name="dashboard")
