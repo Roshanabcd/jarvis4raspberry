@@ -280,6 +280,119 @@
       });
     }
 
+    // --- AI Agents & Orchestration Methods (Phase 7) ---
+    async getAgents() {
+      return await this.request('/api/agents');
+    }
+
+    async discoverAgents() {
+      return await this.request('/api/agents/discover');
+    }
+
+    async getAgentStatus() {
+      return await this.request('/api/agents/status');
+    }
+
+    async cancelAgent(agentId) {
+      return await this.request(`/api/agents/${encodeURIComponent(agentId)}/cancel`, { method: 'POST' });
+    }
+
+    async checkAgentHealth(agentId) {
+      return await this.request(`/api/agents/${encodeURIComponent(agentId)}/health`, { method: 'POST' });
+    }
+
+    async getAgentPermissions() {
+      return await this.request('/api/agents/permissions');
+    }
+
+    async approveAgentPermission(requestId, reason = 'Manually approved by operator') {
+      return await this.request('/api/agents/permissions/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, reason }),
+      });
+    }
+
+    async denyAgentPermission(requestId, reason = 'Denied by operator') {
+      return await this.request('/api/agents/permissions/deny', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId, reason }),
+      });
+    }
+
+    async getAgentPermissionHistory() {
+      return await this.request('/api/agents/permissions/history');
+    }
+
+    // --- Developer Workspace & Git Worktrees Methods (Phase 7) ---
+    async getDeveloperStatus() {
+      return await this.request('/api/developer/status');
+    }
+
+    async getDeveloperWorktrees() {
+      return await this.request('/api/developer/worktrees');
+    }
+
+    async getDeveloperTasks() {
+      return await this.request('/api/developer/tasks');
+    }
+
+    async createDeveloperTask(task) {
+      return await this.request('/api/developer/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task),
+      });
+    }
+
+    async runDeveloperTask(taskId, agentId = null) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agent_id: agentId }),
+      });
+    }
+
+    async cancelDeveloperTask(taskId) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/cancel`, { method: 'POST' });
+    }
+
+    async getDeveloperTaskDiff(taskId) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/diff`);
+    }
+
+    async deleteDeveloperWorktree(taskId) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/worktree`, { method: 'DELETE' });
+    }
+
+    // --- Secure Terminal Execution & Process Tracking (Phase 7) ---
+    async executeTerminalCommand(command, options = {}) {
+      return await this.request('/api/terminal/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          command,
+          session_id: options.sessionId || 'default',
+          confirm: Boolean(options.confirm),
+          confirmation_token: options.confirmationToken || null,
+          timeout: options.timeout || 45,
+        }),
+      });
+    }
+
+    async getTerminalHistory(sessionId = 'default') {
+      return await this.request(`/api/terminal/history?session_id=${encodeURIComponent(sessionId)}`);
+    }
+
+    async getTerminalProcesses() {
+      return await this.request('/api/terminal/processes');
+    }
+
+    async stopTerminalProcess(jobId) {
+      return await this.request(`/api/terminal/processes/${encodeURIComponent(jobId)}/stop`, { method: 'POST' });
+    }
+
     // Allowlisted Metric Extraction with strict truthfulness
     sanitizeTelemetry(rawSystem, rawHealth, rawDev) {
       const formatNumber = (val, decimals = 1) => {

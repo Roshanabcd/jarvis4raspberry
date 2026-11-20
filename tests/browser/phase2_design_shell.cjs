@@ -198,6 +198,12 @@ test('Phase 2 Gate: Design System & Accessible Shell Verification', async (t) =>
           assert.ok(content.includes('JARVIS Neural Interface'), 'Chat route must render Neural Interface');
         } else if (destId === 'voice') {
           assert.ok(content.includes('JARVIS Voice Assistant'), 'Voice route must render Voice Assistant');
+        } else if (destId === 'agents') {
+          assert.ok(content.includes('AI Agents'), 'Agents route must render AI Agents');
+        } else if (destId === 'workspace') {
+          assert.ok(content.includes('Developer Workspace'), 'Workspace route must render Developer Workspace');
+        } else if (destId === 'terminal') {
+          assert.ok(content.includes('JARVIS Secure Terminal'), 'Terminal route must render Terminal');
         } else {
           assert.ok(
             content.includes('Not implemented yet'),

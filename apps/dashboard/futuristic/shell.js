@@ -193,6 +193,18 @@
       if (window.jarvisVoice) {
         window.jarvisVoice.render(mainContainer);
       }
+    } else if (routeId === 'agents') {
+      if (window.jarvisDevHub) {
+        window.jarvisDevHub.renderAgents(mainContainer);
+      }
+    } else if (routeId === 'workspace') {
+      if (window.jarvisDevHub) {
+        window.jarvisDevHub.renderWorkspace(mainContainer);
+      }
+    } else if (routeId === 'terminal') {
+      if (window.jarvisDevHub) {
+        window.jarvisDevHub.renderTerminal(mainContainer);
+      }
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);
     }
