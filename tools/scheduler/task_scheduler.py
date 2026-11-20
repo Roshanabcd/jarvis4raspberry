@@ -15,12 +15,12 @@ logger = logging.getLogger("JARVIS.Scheduler")
 
 def _parse_daily_time(cron_expr: str) -> Optional[tuple]:
     """
-    Parse simple daily HH:MM format.
-    Returns (hour, minute) or None if not matched.
+    Parse simple daily HH:MM format or HH:MM TZ format (e.g. '14:30 UTC').
+    Returns (hour, minute, tz_str) or None if not matched.
     """
-    m = re.match(r'^(\d{1,2}):(\d{2})$', cron_expr.strip())
+    m = re.match(r'^(\d{1,2}):(\d{2})(?:\s+([A-Za-z0-9_/+-]+))?$', cron_expr.strip())
     if m:
-        return int(m.group(1)), int(m.group(2))
+        return int(m.group(1)), int(m.group(2)), m.group(3)
     return None
 
 
@@ -93,11 +93,23 @@ class TaskScheduler:
         parsed = _parse_daily_time(schedule)
         if parsed:
             import datetime
-            h, m = parsed
-            today = datetime.date.today()
-            target_ts = datetime.datetime.combine(
-                today, datetime.time(h, m)
-            ).timestamp()
+            h, m, tz_name = parsed
+            tz = None
+            if tz_name:
+                try:
+                    from zoneinfo import ZoneInfo
+                    tz = ZoneInfo(tz_name)
+                except Exception:
+                    tz = None
+            if tz:
+                now_dt = datetime.datetime.now(tz)
+                target_dt = datetime.datetime(now_dt.year, now_dt.month, now_dt.day, h, m, tzinfo=tz)
+                target_ts = target_dt.timestamp()
+            else:
+                today = datetime.date.today()
+                target_ts = datetime.datetime.combine(
+                    today, datetime.time(h, m)
+                ).timestamp()
             return now >= target_ts and last_run < target_ts
 
         if schedule.startswith("every ") and schedule.endswith("s"):

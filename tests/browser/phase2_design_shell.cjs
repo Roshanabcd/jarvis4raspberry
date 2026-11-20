@@ -204,6 +204,20 @@ test('Phase 2 Gate: Design System & Accessible Shell Verification', async (t) =>
           assert.ok(content.includes('Developer Workspace'), 'Workspace route must render Developer Workspace');
         } else if (destId === 'terminal') {
           assert.ok(content.includes('JARVIS Secure Terminal'), 'Terminal route must render Terminal');
+        } else if (destId === 'tasks') {
+          assert.ok(content.includes('Tasks Center'), 'Tasks route must render Tasks Center');
+        } else if (destId === 'automation') {
+          assert.ok(content.includes('Automations & Workflows'), 'Automation route must render Automations');
+        } else if (destId === 'calendar') {
+          assert.ok(content.includes('Calendar & Reminders'), 'Calendar route must render Calendar');
+        } else if (destId === 'memory') {
+          assert.ok(content.includes('Long-Term Memory'), 'Memory route must render Memory');
+        } else if (destId === 'knowledge') {
+          assert.ok(content.includes('Knowledge Base'), 'Knowledge route must render Knowledge');
+        } else if (destId === 'integrations') {
+          assert.ok(content.includes('Integrations & Connectors'), 'Integrations route must render Integrations');
+        } else if (destId === 'apps') {
+          assert.ok(content.includes('Connected Applications'), 'Apps route must render Connected Applications');
         } else {
           assert.ok(
             content.includes('Not implemented yet'),
