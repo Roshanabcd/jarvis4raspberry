@@ -196,6 +196,8 @@ test('Phase 2 Gate: Design System & Accessible Shell Verification', async (t) =>
           assert.ok(content.includes('JARVIS Control Center'), 'Dashboard route must render Control Center');
         } else if (destId === 'chat') {
           assert.ok(content.includes('JARVIS Neural Interface'), 'Chat route must render Neural Interface');
+        } else if (destId === 'voice') {
+          assert.ok(content.includes('JARVIS Voice Assistant'), 'Voice route must render Voice Assistant');
         } else {
           assert.ok(
             content.includes('Not implemented yet'),

@@ -430,6 +430,9 @@
     }
 
     mount(container) {
+      if (this.renderer && typeof this.renderer.destroy === 'function') {
+        this.renderer.destroy();
+      }
       this.container = container;
       this.renderer = new Svg2DRenderer({
         avatarType: this.avatarType,

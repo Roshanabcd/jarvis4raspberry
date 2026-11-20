@@ -189,6 +189,10 @@
       if (window.jarvisChat) {
         window.jarvisChat.render(mainContainer);
       }
+    } else if (routeId === 'voice') {
+      if (window.jarvisVoice) {
+        window.jarvisVoice.render(mainContainer);
+      }
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);
     }

@@ -847,8 +847,12 @@
         audioBtn.addEventListener('click', () => {
           const url = audioBtn.getAttribute('data-audio');
           if (url) {
-            const audio = new Audio(url);
-            audio.play().catch((err) => console.warn('Audio playback error:', err));
+            if (window.jarvisVoice && window.jarvisVoice.playAudioUrl) {
+              window.jarvisVoice.playAudioUrl(url, msg.text);
+            } else {
+              const audio = new Audio(url);
+              audio.play().catch((err) => console.warn('Audio playback error:', err));
+            }
           }
         });
       }

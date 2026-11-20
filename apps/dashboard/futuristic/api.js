@@ -195,6 +195,91 @@
       }
     }
 
+    // --- Voice Assistant & Pipeline Methods (Phase 6) ---
+    async getVoiceStatus() {
+      return await this.request('/api/voice/status');
+    }
+
+    async getWakeStatus() {
+      return await this.request('/api/voice/wake_status');
+    }
+
+    async getVoiceDiagnostics() {
+      return await this.request('/api/voice/diagnostics');
+    }
+
+    async getVoiceTuning() {
+      return await this.request('/api/voice/tuning');
+    }
+
+    async updateVoiceTuning(tuning) {
+      return await this.request('/api/voice/tuning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tuning),
+      });
+    }
+
+    async muteVoice() {
+      return await this.request('/api/voice/mute', { method: 'POST' });
+    }
+
+    async unmuteVoice() {
+      return await this.request('/api/voice/unmute', { method: 'POST' });
+    }
+
+    async startVoiceListening() {
+      return await this.request('/api/voice/start', { method: 'POST' });
+    }
+
+    async stopVoiceListening() {
+      return await this.request('/api/voice/stop', { method: 'POST' });
+    }
+
+    async interruptVoice() {
+      return await this.request('/api/voice/interrupt', { method: 'POST' });
+    }
+
+    async listenOnce(durationSecs = 4) {
+      return await this.request('/api/voice/listen_once', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration_secs: durationSecs }),
+      });
+    }
+
+    async synthesizeSpeech(text, options = {}) {
+      return await this.request('/api/voice/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text,
+          voice_type: options.voiceType || 'cloned',
+          speed: options.speed,
+          num_steps: options.numSteps,
+          reference_text: options.referenceText,
+        }),
+      });
+    }
+
+    async testMicrophone(durationSecs = 3) {
+      return await this.request(`/api/voice/test/microphone?duration_secs=${encodeURIComponent(durationSecs)}`, {
+        method: 'POST',
+      });
+    }
+
+    async testSpeaker() {
+      return await this.request('/api/voice/test/speaker', { method: 'POST' });
+    }
+
+    async confirmSpeaker(confirmed = true) {
+      return await this.request('/api/voice/test/speaker/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed }),
+      });
+    }
+
     // Allowlisted Metric Extraction with strict truthfulness
     sanitizeTelemetry(rawSystem, rawHealth, rawDev) {
       const formatNumber = (val, decimals = 1) => {

@@ -1297,4 +1297,362 @@ input:checked + .slider-toggle::before {
   font-weight: 700;
 }
 
+/* ==========================================================================
+   Voice Assistant & Waveform Pipeline Components (Phase 6)
+   ========================================================================== */
+
+.voice-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.voice-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-card);
+}
+
+.voice-privacy-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  transition: all var(--transition-fast);
+}
+
+.voice-privacy-badge.privacy-recording {
+  background: rgba(255, 51, 102, 0.15);
+  border: 1px solid #FF3366;
+  color: #FF3366;
+  box-shadow: 0 0 10px rgba(255, 51, 102, 0.3);
+}
+
+.voice-privacy-badge.privacy-standby {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.voice-privacy-badge.privacy-muted {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid #F59E0B;
+  color: #F59E0B;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
+}
+
+.voice-privacy-badge.privacy-offline {
+  background: rgba(100, 116, 139, 0.15);
+  border: 1px solid #64748B;
+  color: #94A3B8;
+}
+
+.voice-privacy-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.privacy-recording .voice-privacy-dot {
+  animation: pulse-recording 1s infinite alternate;
+}
+
+@keyframes pulse-recording {
+  from { opacity: 0.4; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
+.voice-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 0.75fr;
+  gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .voice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.voice-hero-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.voice-waveform-canvas {
+  width: 100%;
+  height: 180px;
+  background: #060D1A;
+  border: 1px solid rgba(0, 217, 255, 0.18);
+  border-radius: 12px;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+  display: block;
+}
+
+.voice-subtitles-box {
+  background: rgba(8, 17, 32, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  transition: border-color var(--transition-fast);
+}
+
+.voice-subtitles-box.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px var(--accent-glow);
+}
+
+.voice-subtitles-speaker {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.voice-subtitles-speaker.speaker-user {
+  color: var(--accent-purple);
+}
+
+.voice-subtitles-speaker.speaker-jarvis {
+  color: var(--accent);
+}
+
+.voice-subtitles-text {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.voice-subtitles-status {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.voice-mic-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.voice-mic-main-btn {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.3) 0%, rgba(16, 30, 48, 0.9) 70%);
+  border: 2px solid var(--accent);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 0 20px var(--accent-glow);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.voice-mic-main-btn:hover:not(:disabled) {
+  transform: scale(1.06);
+  border-color: #66E5FF;
+  box-shadow: 0 0 28px rgba(0, 217, 255, 0.55);
+}
+
+.voice-mic-main-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.voice-mic-main-btn.listening {
+  background: radial-gradient(circle, rgba(255, 51, 102, 0.35) 0%, rgba(20, 10, 25, 0.95) 70%);
+  border-color: #FF3366;
+  color: #FFDDE6;
+  box-shadow: 0 0 30px rgba(255, 51, 102, 0.65);
+  animation: pulse-mic 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-mic {
+  0% { box-shadow: 0 0 15px rgba(255, 51, 102, 0.4); transform: scale(1); }
+  50% { box-shadow: 0 0 35px rgba(255, 51, 102, 0.8); transform: scale(1.05); }
+  100% { box-shadow: 0 0 15px rgba(255, 51, 102, 0.4); transform: scale(1); }
+}
+
+.voice-mic-main-btn.muted {
+  border-color: #F59E0B;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.2) 0%, rgba(20, 25, 35, 0.9) 70%);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3);
+}
+
+.voice-mic-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.voice-controls-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.voice-action-btn {
+  background: rgba(16, 30, 48, 0.8);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.voice-action-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.voice-action-btn.bargein {
+  border-color: rgba(255, 51, 102, 0.5);
+  color: #FF5577;
+}
+
+.voice-action-btn.bargein:hover:not(:disabled) {
+  border-color: #FF3366;
+  background: rgba(255, 51, 102, 0.15);
+  color: #FFAAC0;
+  box-shadow: 0 0 12px rgba(255, 51, 102, 0.35);
+}
+
+.voice-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.voice-panel-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.voice-panel-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-card);
+  padding-bottom: 8px;
+}
+
+.voice-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  padding: 4px 0;
+}
+
+.voice-stat-label {
+  color: var(--text-secondary);
+}
+
+.voice-stat-val {
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.voice-tuning-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.voice-tuning-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.voice-tuning-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #0C1A2E;
+  outline: none;
+  border: 1px solid var(--border-card);
+}
+
+.voice-tuning-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent-glow);
+  transition: transform var(--transition-fast);
+}
+
+.voice-tuning-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.voice-error-banner {
+  background: rgba(255, 51, 102, 0.12);
+  border: 1px solid #FF3366;
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  color: #FFAAC0;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 
