@@ -106,7 +106,9 @@ class TestActuatorSafety:
         with pytest.raises(ValueError):
             controller.set_servo(16, 90)
 
-        # Valid channels
+        # Valid servo movement also requires the same explicit arm gate as
+        # motor movement.
+        controller.arm()
         assert controller.set_servo(0, 90) is True
         assert controller.set_servo(15, 180) is True
 

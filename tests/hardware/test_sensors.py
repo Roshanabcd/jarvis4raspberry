@@ -2,7 +2,6 @@
 
 import time
 import pytest
-from fastapi.testclient import TestClient
 
 from hardware.sensors.base_sensor import BaseSensor
 from hardware.sensors.bme280 import BME280Sensor
@@ -10,11 +9,21 @@ from hardware.sensors.bh1750 import BH1750Sensor
 from hardware.sensors.vl53l0x import VL53L0XSensor
 from hardware.sensors.hcsr501 import PIRSensor, HCSR501Sensor
 from hardware.sensors.hcsr04 import UltrasonicSensor, HCSR04Sensor
-from hardware.sensors.sensor_manager import SensorManager, sensor_manager
-from apps.core.main import app
 
 
-client = TestClient(app)
+def _sensor_manager_class():
+    """Delay manager import until an explicitly opted-in hardware test runs."""
+    from hardware.sensors.sensor_manager import SensorManager
+
+    return SensorManager
+
+
+def _hardware_client():
+    """Delay full-app import; collection itself must never initialize devices."""
+    from fastapi.testclient import TestClient
+    from apps.core.main import app
+
+    return TestClient(app)
 
 
 def test_base_sensor_abstract():
@@ -108,7 +117,7 @@ def test_hcsr04_ultrasonic_sensor_simulation():
 
 def test_sensor_manager_initialization():
     """Verify SensorManager holds all expected sensors and handles aliases."""
-    mgr = SensorManager(simulation_mode=True)
+    mgr = _sensor_manager_class()(simulation_mode=True)
     assert "bme280" in mgr.sensors
     assert "bh1750" in mgr.sensors
     assert "vl53l0x" in mgr.sensors
@@ -136,7 +145,7 @@ def test_sensor_manager_initialization():
 
 def test_sensor_manager_read_all():
     """Verify SensorManager read_all returns all sensor telemetry with timestamps."""
-    mgr = SensorManager(simulation_mode=True)
+    mgr = _sensor_manager_class()(simulation_mode=True)
     all_readings = mgr.read_all()
 
     for sensor_name in ["bme280", "bh1750", "vl53l0x", "hcsr501", "hcsr04"]:
@@ -148,7 +157,7 @@ def test_sensor_manager_read_all():
 
 def test_sensor_manager_status_all():
     """Verify SensorManager status_all returns status for all sensors."""
-    mgr = SensorManager(simulation_mode=True)
+    mgr = _sensor_manager_class()(simulation_mode=True)
     statuses = mgr.status_all()
 
     for sensor_name in ["bme280", "bh1750", "vl53l0x", "hcsr501", "hcsr04"]:
@@ -158,46 +167,49 @@ def test_sensor_manager_status_all():
 
 def test_api_sensors_all_endpoint():
     """Test GET /sensors/all and GET /api/sensors/all."""
-    for prefix in ["/sensors", "/api/sensors"]:
-        response = client.get(f"{prefix}/all")
-        assert response.status_code == 200
-        data = response.json()
-        assert "bme280" in data
-        assert "bh1750" in data
-        assert "vl53l0x" in data
-        assert "hcsr501" in data
-        assert "hcsr04" in data
-        assert data["bme280"]["temperature_c"] == 24.5
-        assert data["bh1750"]["lux"] == 350.0
+    with _hardware_client() as client:
+        for prefix in ["/sensors", "/api/sensors"]:
+            response = client.get(f"{prefix}/all")
+            assert response.status_code == 200
+            data = response.json()
+            assert "bme280" in data
+            assert "bh1750" in data
+            assert "vl53l0x" in data
+            assert "hcsr501" in data
+            assert "hcsr04" in data
+            assert data["bme280"]["temperature_c"] == 24.5
+            assert data["bh1750"]["lux"] == 350.0
 
 
 def test_api_sensors_status_endpoint():
     """Test GET /sensors/status and GET /api/sensors/status."""
-    for prefix in ["/sensors", "/api/sensors"]:
-        response = client.get(f"{prefix}/status")
-        assert response.status_code == 200
-        data = response.json()
-        assert "bme280" in data
-        assert data["bme280"] == "simulated"
+    with _hardware_client() as client:
+        for prefix in ["/sensors", "/api/sensors"]:
+            response = client.get(f"{prefix}/status")
+            assert response.status_code == 200
+            data = response.json()
+            assert "bme280" in data
+            assert data["bme280"] == "simulated"
 
 
 def test_api_sensors_get_by_name():
     """Test GET /sensors/{name} with valid sensors and aliases."""
-    # Direct sensor
-    res = client.get("/sensors/bme280")
-    assert res.status_code == 200
-    assert res.json()["temperature_c"] == 24.5
+    with _hardware_client() as client:
+        # Direct sensor
+        res = client.get("/sensors/bme280")
+        assert res.status_code == 200
+        assert res.json()["temperature_c"] == 24.5
 
-    # Alias sensor
-    res = client.get("/sensors/pir")
-    assert res.status_code == 200
-    assert res.json()["motion_detected"] is False
+        # Alias sensor
+        res = client.get("/sensors/pir")
+        assert res.status_code == 200
+        assert res.json()["motion_detected"] is False
 
-    # Ultrasonic
-    res = client.get("/sensors/ultrasonic")
-    assert res.status_code == 200
-    assert res.json()["distance_cm"] == 45.0
+        # Ultrasonic
+        res = client.get("/sensors/ultrasonic")
+        assert res.status_code == 200
+        assert res.json()["distance_cm"] == 45.0
 
-    # 404 for unknown sensor
-    res = client.get("/sensors/unknown_sensor")
-    assert res.status_code == 404
+        # 404 for unknown sensor
+        res = client.get("/sensors/unknown_sensor")
+        assert res.status_code == 404

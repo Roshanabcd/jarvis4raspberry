@@ -56,6 +56,11 @@ WAKE_PHRASES = [
 
 def is_voice_service_daemon_running() -> bool:
     """Check if the dedicated background systemd user service is currently active."""
+    # System units running as the user often lack the user-bus environment.
+    # Query the same user's daemon instead of treating a missing bus as no owner.
+    runtime_dir = f"/run/user/{os.getuid()}"
+    env = {**os.environ, "XDG_RUNTIME_DIR": runtime_dir,
+           "DBUS_SESSION_BUS_ADDRESS": f"unix:path={runtime_dir}/bus"}
     try:
         res = subprocess.run(
             ["systemctl", "--user", "is-active", "jarvis-voice.service"],
@@ -63,10 +68,16 @@ def is_voice_service_daemon_running() -> bool:
             text=True,
             check=False,
             timeout=1.5,
+            env=env,
         )
-        return res.stdout.strip() == "active"
-    except Exception:
-        return False
+        state = res.stdout.strip()
+        if state in {"active", "activating", "reloading", "deactivating"}:
+            return True
+        if state in {"inactive", "failed", "unknown"}:
+            return False
+        raise RuntimeError("Cannot determine the existing microphone owner")
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError("Cannot determine the existing microphone owner") from exc
 
 
 class WakeWordEngine:
@@ -96,6 +107,14 @@ class WakeWordEngine:
         self.adaptive_threshold: float = float(v_cfg.get("energy_threshold", energy_threshold))
         self.min_energy_threshold: float = 90.0
         self.max_energy_threshold: float = 350.0
+        self.wake_word_enabled: bool = True
+        self._device_consecutive_errors: int = 0
+        self._recorder_consecutive_failures: int = 0
+        self._last_capture_time: float = 0.0
+        self._last_audio_rms: Optional[float] = None
+        self._capture_status = "waiting"
+        self._recorder_exit_code = None
+        self._capture_failure_reason = 'none'
 
         self._state: WakeState = WakeState.DISABLED
         self._is_running: bool = False
@@ -153,9 +172,20 @@ class WakeWordEngine:
             elapsed_in_state = round(now - self._state_entered_time, 2)
             follow_up_remaining = max(0.0, round(self._follow_up_deadline - now, 1)) if self._state == WakeState.FOLLOW_UP_STANDBY else 0.0
 
+            try:
+                from apps.voice.session_manager import voice_session_mgr
+                session_data = voice_session_mgr.get_active_session().model_dump()
+            except Exception:
+                session_data = {"user_id": "guest", "display_name": "Guest", "role": "GUEST"}
+
+            stt_lang = self.stt.get_language() if self.stt and hasattr(self.stt, "get_language") else "en-US"
+
             return {
                 "state": self._state.value,
                 "is_running": self._is_running,
+                "wake_word_enabled": self.wake_word_enabled,
+                "language": stt_lang,
+                "session": session_data,
                 "elapsed_in_state_s": elapsed_in_state,
                 "follow_up_remaining_s": follow_up_remaining,
                 "silence_timeout_s": self.silence_timeout_s,
@@ -166,7 +196,22 @@ class WakeWordEngine:
                 "last_command": self._last_command,
                 "last_response": self._last_response,
                 "error": self._last_error,
+                **self.get_capture_diagnostics(),
             }
+
+    def get_capture_diagnostics(self) -> Dict[str, Any]:
+        """Numeric capture health only; never persist audio, text, or identity."""
+        return {
+            "capture_status": self._capture_status,
+            "recorder_exit_code": self._recorder_exit_code,
+            "capture_failure_reason": self._capture_failure_reason,
+            "last_capture_age_s": round(max(0.0, time.monotonic() - self._last_capture_time), 1) if self._last_capture_time else None,
+            "audio_level_rms": round(self._last_audio_rms, 2) if self._last_audio_rms is not None else None,
+            "energy_threshold_rms": round(self.adaptive_threshold, 2),
+            "recorder_failures": self._recorder_consecutive_failures,
+            "stt_status": getattr(self._stt, "last_status", "idle"),
+            "wake_word_enabled": self.wake_word_enabled,
+        }
 
     def start(self) -> None:
         """Start the background voice assistant daemon thread."""
@@ -203,7 +248,27 @@ class WakeWordEngine:
             self._stop_event.clear()
             self.set_state(WakeState.STANDBY_LISTENING)
 
-        self._run_loop()
+        def publish_telemetry():
+            from apps.voice.daemon_status import publish_status
+            while not self._stop_event.is_set():
+                try:
+                    publish_status(self.state.value, self._is_running, diagnostics=self.get_capture_diagnostics())
+                except OSError:
+                    logger.warning("Could not publish voice daemon telemetry")
+                self._stop_event.wait(2.0)
+            try:
+                publish_status(WakeState.DISABLED.value, False)
+            except OSError:
+                pass
+
+        telemetry = threading.Thread(target=publish_telemetry, daemon=True, name="VoiceTelemetry")
+        telemetry.start()
+        try:
+            self._run_loop()
+        finally:
+            self._is_running = False
+            self._stop_event.set()
+            telemetry.join(timeout=3)
 
     def stop(self) -> None:
         """Stop the background voice assistant."""
@@ -211,8 +276,11 @@ class WakeWordEngine:
             self._is_running = False
             self._stop_event.set()
             self.set_state(WakeState.DISABLED)
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
+        thread = self._thread
+        if thread and thread is not threading.current_thread() and thread.is_alive():
+            thread.join(timeout=2.0)
+        if thread is threading.current_thread():
+            self._thread = None
         logger.info("WakeWordEngine stopped.")
 
     def mute(self) -> None:
@@ -223,6 +291,53 @@ class WakeWordEngine:
         """Unmute listening back to standby."""
         self.set_state(WakeState.STANDBY_LISTENING)
 
+    def set_wake_word_enabled(self, enabled: bool) -> None:
+        """Toggle automatic wake-word detection."""
+        with self._state_lock:
+            self.wake_word_enabled = bool(enabled)
+            logger.info("Wake word detection enabled: %s", self.wake_word_enabled)
+
+    def set_silence_timeout(self, timeout_s: float) -> None:
+        """Update continuous silence duration threshold."""
+        with self._state_lock:
+            if 0.5 <= timeout_s <= 10.0:
+                self.silence_timeout_s = float(timeout_s)
+                logger.info("Silence timeout updated to %.1fs", self.silence_timeout_s)
+
+    def set_vad_sensitivity(self, level: str) -> None:
+        """Adjust VAD sensitivity (low, medium, high)."""
+        with self._state_lock:
+            lvl = level.lower().strip()
+            if lvl == "high":
+                self.min_energy_threshold = 60.0
+                self.adaptive_threshold = max(60.0, self.ambient_noise_floor * 1.5)
+            elif lvl == "low":
+                self.min_energy_threshold = 150.0
+                self.adaptive_threshold = max(150.0, self.ambient_noise_floor * 2.5)
+            else:  # medium / default
+                self.min_energy_threshold = 90.0
+                self.adaptive_threshold = max(90.0, self.ambient_noise_floor * 2.0)
+            logger.info("VAD sensitivity configured to %s (threshold: %.1f)", lvl, self.adaptive_threshold)
+
+    def barge_in(self) -> None:
+        """Immediately halt active speech playback and transition to listening."""
+        with self._state_lock:
+            try:
+                from apps.voice.speech_manager import speech_manager
+                speech_manager.stop()
+            except Exception as e:
+                logger.debug("barge_in stop_playback error: %s", e)
+            logger.info("Barge-in activated. Speech playback stopped.")
+            self._current_transcript = ""
+            self._last_speech_time = time.time()
+            self.set_state(WakeState.LISTENING_SPEECH)
+
+    def trigger_push_to_talk(self) -> None:
+        """Directly activate voice command listening without waiting for wake word."""
+        with self._state_lock:
+            self.barge_in()
+            logger.info("Push-to-Talk manually activated.")
+
     def _calculate_audio_rms(self, wav_path: str) -> float:
         """Calculate Root Mean Square audio amplitude for voice energy detection."""
         if not os.path.exists(wav_path) or os.path.getsize(wav_path) < 100:
@@ -230,10 +345,12 @@ class WakeWordEngine:
         try:
             with wave.open(wav_path, "rb") as wf:
                 n_frames = wf.getnframes()
-                if n_frames == 0:
+                channels = wf.getnchannels()
+                sample_width = wf.getsampwidth()
+                if n_frames == 0 or channels <= 0 or sample_width != 2:
                     return 0.0
                 raw_bytes = wf.readframes(n_frames)
-                fmt = f"{n_frames}h"
+                fmt = f"<{n_frames * channels}h"
                 samples = struct.unpack(fmt, raw_bytes)
                 sum_sq = sum(s * s for s in samples)
                 return math.sqrt(sum_sq / max(1, len(samples)))
@@ -241,22 +358,86 @@ class WakeWordEngine:
             logger.debug("RMS calculation error on %s: %s", wav_path, e)
             return 0.0
 
+    def _get_recorder_backoff_delay(self) -> float:
+        """Calculate exponential backoff delay when recording device is unavailable."""
+        if self._recorder_consecutive_failures <= 0:
+            return 0.05
+        return min(4.0, 0.5 * (1.5 ** min(self._recorder_consecutive_failures, 6)))
+
     def _record_audio_chunk(self, output_path: str, duration_s: float = 1.5) -> bool:
         """Record audio chunk using pw-record with PipeWire default source."""
+        started_at = time.time()
+        self._capture_status = "recording"
+        self._capture_failure_reason = 'none'
+        try:
+            os.unlink(output_path)
+        except FileNotFoundError:
+            pass
+        except OSError as exc:
+            logger.warning("Could not remove stale audio chunk %s: %s", output_path, exc)
+            self._recorder_consecutive_failures += 1
+            self._capture_status = "failed"
+            self._capture_failure_reason = 'file_cleanup_failed'
+            return False
+
+        proc = None
         try:
             cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(duration_s)
-            proc.terminate()
+            stopped_by_us = proc.poll() is None
+            if stopped_by_us:
+                proc.terminate()
             try:
                 proc.communicate(timeout=1.0)
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.communicate()
 
-            return os.path.exists(output_path) and os.path.getsize(output_path) > 300
+            self._recorder_exit_code = proc.returncode
+            # PipeWire can exit 1 on a requested SIGTERM after successfully
+            # finalizing the WAV. Never accept an early exit or an invalid file.
+            acceptable_exit = proc.returncode in (0, -signal.SIGTERM) or (stopped_by_us and proc.returncode == 1)
+            if not acceptable_exit:
+                self._recorder_consecutive_failures += 1
+                self._capture_status = "failed"
+                self._capture_failure_reason = 'recorder_exit'
+                if self._recorder_consecutive_failures <= 3 or self._recorder_consecutive_failures % 15 == 0:
+                    logger.warning("pw-record exited with status %s (consecutive failures: %d)",
+                                   proc.returncode, self._recorder_consecutive_failures)
+                return False
+
+            success = (
+                os.path.isfile(output_path)
+                and os.path.getsize(output_path) > 300
+                and os.path.getmtime(output_path) >= started_at
+            )
+            if success:
+                try:
+                    with wave.open(output_path, 'rb') as audio:
+                        success = (audio.getnchannels() == 1 and audio.getsampwidth() == 2
+                                   and audio.getframerate() == 16000 and audio.getnframes() > 0
+                                   and audio.getnframes() / 16000 >= max(0, duration_s * 0.25))
+                except (OSError, EOFError, wave.Error):
+                    success = False
+            if success:
+                self._recorder_consecutive_failures = 0
+                self._last_capture_time = time.monotonic()
+                self._last_audio_rms = self._calculate_audio_rms(output_path)
+                self._capture_status = "ok"
+            else:
+                self._recorder_consecutive_failures += 1
+                self._capture_status = "failed"
+                self._capture_failure_reason = 'empty_or_stale_file'
+            return success
         except Exception as e:
+            self._recorder_consecutive_failures += 1
+            self._capture_status = "failed"
+            self._capture_failure_reason = 'recorder_exception'
             logger.error("Audio recording error: %s", e)
+            if proc is not None and proc.poll() is None:
+                proc.kill()
+                proc.wait()
             return False
 
     def _transcribe(self, wav_path: str) -> str:
@@ -280,13 +461,51 @@ class WakeWordEngine:
                 return True
         return False
 
-    def _is_tts_playing(self) -> bool:
-        """Check if JARVIS physical speaker is currently outputting speech (prevents acoustic feedback)."""
+    def _command_after_wake_phrase(self, text: str) -> str:
+        """Keep commands spoken in the same breath as the wake phrase."""
+        for pattern in self.wake_phrases:
+            match = re.search(pattern, text, flags=re.IGNORECASE)
+            if match:
+                return text[match.end():].lstrip(" ,.!?:;-").strip()
+        return ""
+
+    def _is_tts_playing(self, playback_path: Optional[Any] = None) -> bool:
+        """Check if JARVIS physical speaker is currently outputting speech (prevents acoustic feedback).
+
+        Checks both in-process speech manager and cross-process active playback leases.
+        """
         try:
-            from apps.voice.speech_manager import speech_manager
-            return speech_manager.is_playing()
+            from apps.voice.playback_state import is_playback_active
+            return is_playback_active(path=playback_path)
         except Exception:
-            return False
+            try:
+                from apps.voice.speech_manager import speech_manager
+                return speech_manager.is_playing()
+            except Exception:
+                return False
+
+    def _check_daemon_commands(self) -> None:
+        """Poll and execute cross-process control directives sent to this daemon."""
+        try:
+            from apps.voice.daemon_control import poll_daemon_command
+            cmd = poll_daemon_command()
+            if cmd == "mute":
+                logger.info("Executing cross-process mute command.")
+                self.mute()
+            elif cmd == "unmute":
+                logger.info("Executing cross-process unmute command.")
+                self.unmute()
+            elif cmd == "stop":
+                logger.info("Executing cross-process stop command.")
+                self.stop()
+            elif cmd == "barge_in":
+                logger.info("Executing cross-process barge_in command.")
+                self.barge_in()
+            elif cmd == "push_to_talk":
+                logger.info("Executing cross-process push_to_talk command.")
+                self.trigger_push_to_talk()
+        except Exception as exc:
+            logger.debug("Error checking daemon commands: %s", exc)
 
     def _update_adaptive_threshold(self, rms: float) -> None:
         """Smoothly calibrate noise floor and compute dynamic energy threshold."""
@@ -303,6 +522,11 @@ class WakeWordEngine:
         standby_chunk = os.path.join(self.temp_dir, "standby_chunk.wav")
 
         while self._is_running and not self._stop_event.is_set():
+            # Check for cross-process control directives (mute, unmute, stop, barge_in, push_to_talk)
+            self._check_daemon_commands()
+            if not self._is_running or self._stop_event.is_set():
+                break
+
             # Acoustic Feedback Guard: Suppress VAD while TTS is actively playing through physical speaker
             if self._is_tts_playing():
                 self._stop_event.wait(0.2)
@@ -315,10 +539,13 @@ class WakeWordEngine:
                 continue
 
             elif curr == WakeState.STANDBY_LISTENING:
+                if not self.wake_word_enabled:
+                    self._stop_event.wait(0.2)
+                    continue
                 # 1. Capture small 1.5-second audio window
                 ok = self._record_audio_chunk(standby_chunk, duration_s=1.5)
                 if not ok:
-                    self._stop_event.wait(0.2)
+                    self._stop_event.wait(self._get_recorder_backoff_delay())
                     continue
 
                 # 2. Check energy against adaptive threshold
@@ -327,10 +554,11 @@ class WakeWordEngine:
                     # Potential speech detected, transcribe
                     text = self._transcribe(standby_chunk)
                     if text:
-                        logger.info("Heard in standby: '%s' (RMS: %.1f, threshold: %.1f)", text, rms, self.adaptive_threshold)
+                        logger.debug("Speech detected in standby (RMS: %.1f, threshold: %.1f)", rms, self.adaptive_threshold)
                         if self._matches_wake_phrase(text):
                             logger.info(">>> WAKE PHRASE DETECTED! <<<")
-                            self.set_state(WakeState.WAKE_DETECTED)
+                            self._current_transcript = self._command_after_wake_phrase(text)
+                            self.set_state(WakeState.LISTENING_SPEECH if self._current_transcript else WakeState.WAKE_DETECTED)
                             continue
                 else:
                     self._update_adaptive_threshold(rms)
@@ -352,7 +580,7 @@ class WakeWordEngine:
                     if rms > self.adaptive_threshold:
                         text = self._transcribe(standby_chunk)
                         if text and len(text.split()) >= 1:
-                            logger.info("Direct follow-up command heard: '%s'", text)
+                            logger.info("Direct follow-up speech detected")
                             self._current_transcript = text
                             self.set_state(WakeState.LISTENING_SPEECH)
                             continue
@@ -386,6 +614,9 @@ class WakeWordEngine:
                 has_heard_speech = bool(cmd_parts)
 
                 while self._is_running and not self._stop_event.is_set():
+                    self._check_daemon_commands()
+                    if self.state not in {WakeState.LISTENING_SPEECH, WakeState.STREAMING_TRANSCRIPTION, WakeState.SILENCE_COUNTDOWN}:
+                        break
                     # Acoustic Feedback Guard inside listening loop
                     if self._is_tts_playing():
                         self._stop_event.wait(0.2)
@@ -393,6 +624,7 @@ class WakeWordEngine:
 
                     ok = self._record_audio_chunk(speech_chunk, duration_s=1.5)
                     if not ok:
+                        self._stop_event.wait(self._get_recorder_backoff_delay())
                         continue
 
                     rms = self._calculate_audio_rms(speech_chunk)
@@ -404,10 +636,12 @@ class WakeWordEngine:
                         self.set_state(WakeState.STREAMING_TRANSCRIPTION)
 
                         text_chunk = self._transcribe(speech_chunk)
+                        # Recognition time is a capture gap, not observed silence.
+                        self._last_speech_time = time.time()
                         if text_chunk:
                             cmd_parts.append(text_chunk)
                             self._current_transcript = " ".join(cmd_parts)
-                            logger.info("Live speech stream: '%s'", self._current_transcript)
+                            logger.debug("Speech chunk transcribed")
 
                         self.set_state(WakeState.LISTENING_SPEECH)
                     else:
@@ -430,7 +664,7 @@ class WakeWordEngine:
                     final_cmd = self._current_transcript.strip()
                     self._last_command = final_cmd
                     if final_cmd:
-                        logger.info("Executing automatic submitted command: '%s'", final_cmd)
+                        logger.info("Submitting recognized voice command")
                         self.set_state(WakeState.PROCESSING_AGENT)
                         self._execute_command_and_respond(final_cmd)
                     else:
@@ -440,47 +674,50 @@ class WakeWordEngine:
         """Route recognized command to JARVIS Brain, deliver dual text/speech, and enter follow-up window."""
         try:
             submitted_to_backend = False
-            # 1. Try sending command via localhost REST API to trigger coordinated UI updates and audio
+            self._last_error = None
+            self._last_response = ""
+
+            # 1. Let the authoritative backend refresh its own identity session.
+            # The daemon is a separate process, so forwarding its in-memory
+            # session would be both stale and unsafe. A failed recognition is
+            # intentionally non-fatal: the backend retains or falls back to a
+            # GUEST session.
+            try:
+                identity = requests.post(
+                    "http://127.0.0.1:8000/api/voice/session/identify",
+                    timeout=8.0,
+                )
+                if identity.status_code != 200:
+                    logger.warning("Voice identity refresh was rejected (HTTP %s); using safe existing session.", identity.status_code)
+            except Exception as e:
+                logger.debug("Voice identity refresh unavailable (%s); using safe existing session.", e)
+
+            # 2. Submit only the transcript. The backend resolves the session
+            # from its own trusted state and rejects caller-supplied roles.
             try:
                 resp = requests.post(
                     "http://127.0.0.1:8000/api/voice/command",
                     json={"text": command_text},
-                    timeout=20.0,
+                    timeout=95.0,
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    self._last_response = data.get("response", "")
+                    response_text = data.get("response") if isinstance(data, dict) else None
+                    if not isinstance(response_text, str) or not response_text.strip():
+                        raise ValueError("Backend returned no command result")
+                    self._last_response = response_text
                     submitted_to_backend = True
             except Exception as e:
-                logger.debug("REST command dispatch failed or backend offline (%s); falling back to direct execution.", e)
+                logger.warning("Voice command outcome is unknown (%s); it will not be replayed.", type(e).__name__)
 
             if not submitted_to_backend:
-                # Fallback: direct in-process execution
-                try:
-                    from apps.api.websocket_api import broadcast_chat_message
-                    broadcast_chat_message(role="user", text=command_text)
-                except Exception as e:
-                    logger.debug("Failed to broadcast user chat message: %s", e)
-
-                if self._on_command_handler:
-                    response = self._on_command_handler(command_text)
-                else:
-                    from ai.brain import get_brain
-                    brain = get_brain()
-                    chat_res = brain.chat(command_text, session_id="voice-session")
-                    response = chat_res.get("response", "Command executed.")
-
-                self._last_response = str(response)
-
-                try:
-                    from apps.api.websocket_api import broadcast_chat_message
-                    broadcast_chat_message(role="assistant", text=self._last_response)
-                except Exception as e:
-                    logger.debug("Failed to broadcast assistant chat message: %s", e)
-
-                self.set_state(WakeState.SPEAKING_RESPONSE)
-                from apps.voice.speech_manager import speech_manager
-                speech_manager.synthesize_and_stage(str(response), play_system=True)
+                # The backend may already have executed an action before a timeout,
+                # disconnect, or invalid response. Retrying here could execute it twice.
+                self._last_error = "Command completion could not be verified. Check the dashboard before retrying."
+                self._last_response = self._last_error
+                self._follow_up_deadline = 0.0
+                self.set_state(WakeState.STANDBY_LISTENING)
+                return
 
             # 2. Enter 15-second follow-up window
             self._follow_up_deadline = time.time() + self.follow_up_window_s

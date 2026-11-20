@@ -1,0 +1,45 @@
+{
+  "testSuite": "Chromium E2E Browser Verification",
+  "browser": "Google Chrome / Chromium v157",
+  "executablePath": "/usr/bin/google-chrome",
+  "targetUrl": "http://127.0.0.1:8000",
+  "testedWorkflows": [
+    "01_home_dashboard",
+    "02_ai_chat_and_model_switching",
+    "03_voice_center_and_daemon_ipc",
+    "04_desktop_terminal_execution",
+    "05_integrations_security",
+    "06_robot_safety_disarmed",
+    "07_computer_use",
+    "08_settings_center",
+    "10_developer_hub_task_creation",
+    "11_developer_task_execution",
+    "09_mobile_responsive",
+    "12_developer_mobile_responsive"
+  ],
+  "pageErrors": [],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "networkFailures": [],
+  "screenshots": [
+    "01_home.png",
+    "02_ai_chat.png",
+    "02_chat_active_desktop.png",
+    "03_desktop_terminal.png",
+    "03_voice_controls_and_jobs.png",
+    "04_computer_use.png",
+    "04_terminal_execution.png",
+    "05_chat_mobile.png",
+    "05_integrations_masked.png",
+    "06_robot_safety_disarmed.png",
+    "07_computer_use.png",
+    "08_settings_center.png",
+    "09_mobile_responsive.png",
+    "10_developer_hub.png",
+    "11_developer_task_executed.png",
+    "12_developer_mobile.png",
+    "dashboard_verified.png"
+  ],
+  "verifiedAt": "2026-11-14T04:26:16.539Z"
+}

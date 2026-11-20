@@ -100,11 +100,17 @@ class UserManager:
                 "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "users": self._users,
             }
-            USERS_FILE.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            import tempfile
+            fd, temporary = tempfile.mkstemp(prefix='.identity-', dir=USERS_FILE.parent)
             try:
-                os.chmod(USERS_FILE, stat.S_IRUSR | stat.S_IWUSR)
-            except Exception:
-                pass
+                with os.fdopen(fd, 'w', encoding='utf-8') as stream:
+                    json.dump(payload, stream, indent=2)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, USERS_FILE)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
 
     def is_admin_enrolled(self) -> bool:
         """Check if an administrator account is registered."""
@@ -179,8 +185,9 @@ class UserManager:
         self,
         display_name: str,
         pin: str,
-        photo_path: str,
+        photo_path: Optional[str],
         confirmed: bool = False,
+        pin_only: bool = False,
     ) -> Dict[str, Any]:
         """
         Enroll the primary administrator.
@@ -205,12 +212,12 @@ class UserManager:
             if not pin or len(pin) < 4:
                 return {"success": False, "error": "Admin PIN must be at least 4 digits."}
 
-            if not os.path.exists(photo_path):
+            if not pin_only and (not photo_path or not os.path.exists(photo_path)):
                 return {"success": False, "error": f"Photo file not found: {photo_path}"}
 
             # 1. Detect face and extract embedding
-            faces = face_engine.detect_faces(photo_path)
-            if not faces:
+            faces = face_engine.detect_faces(photo_path) if not pin_only else []
+            if not pin_only and not faces:
                 return {
                     "success": False,
                     "error": "No face was detected in the captured photo. Please ensure good lighting and face the camera directly.",
@@ -221,8 +228,8 @@ class UserManager:
                     "error": f"Multiple faces ({len(faces)}) detected. Administrator enrollment requires exactly one person in the frame.",
                 }
 
-            embedding = face_engine.extract_embedding(photo_path, faces[0])
-            if not embedding:
+            embedding = face_engine.extract_embedding(photo_path, faces[0]) if not pin_only else None
+            if not pin_only and not embedding:
                 return {"success": False, "error": "Failed to extract facial recognition embedding from photo."}
 
             # 2. Hash PIN securely
@@ -237,13 +244,20 @@ class UserManager:
                 "pin_hash": pin_hash,
                 "pin_salt": salt,
                 "face_embedding": embedding,
-                "face_confidence": faces[0]["confidence"],
+                "face_confidence": faces[0]["confidence"] if faces else 0.0,
                 "enrolled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 "last_seen_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
             self._users[user_id] = user_doc
-            self._save_users()
+            try:
+                self._save_users()
+            except OSError:
+                self._users.pop(user_id, None)
+                logger.error('Administrator enrollment could not be persisted')
+                return {'success': False, 'error': 'Could not save the administrator account. Check local storage permissions and retry.'}
+            self._failed_pin_attempts = 0
+            self._lockout_until = 0.0
             logger.info("✓ Administrator enrolled successfully: %s (ID: %s)", display_name, user_id)
 
             return {
@@ -251,7 +265,7 @@ class UserManager:
                 "user_id": user_id,
                 "display_name": display_name.strip(),
                 "role": UserRole.ADMIN.value,
-                "face_confidence": faces[0]["confidence"],
+                "face_confidence": faces[0]["confidence"] if faces else 0.0,
                 "message": f"Administrator '{display_name.strip()}' enrolled successfully with role ADMIN.",
             }
 

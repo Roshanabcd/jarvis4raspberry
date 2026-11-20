@@ -52,6 +52,8 @@ class TestVisionService:
 
         frame = vs.capture_frame()
         assert frame["status"] == "ok"
-        assert frame["backend"] in ("rpicam_cli", "picamera2")
+        # The current production architecture delegates physical ownership to
+        # the dedicated Picamera2 camera service when it is available.
+        assert frame["backend"] in ("rpicam_cli", "picamera2", "camera_service_picamera2")
         assert frame["data_b64"] is not None
         assert frame.get("size_bytes", 0) > 1000

@@ -15,6 +15,7 @@ import json
 import logging
 import os
 import re
+import secrets
 import threading
 import time
 import urllib.parse
@@ -25,14 +26,15 @@ from config.config_manager import config
 
 logger = logging.getLogger("JARVIS.Voice.ColabRegistration")
 
-# Default registration secret token if not explicitly configured in .env / config.yaml
-DEFAULT_REGISTRATION_TOKEN = "jarvis_omnivoice_secret_2026"
+# Remote registration is disabled until the operator explicitly configures a
+# token.  Never ship a reusable registration secret in source code.
+DEFAULT_REGISTRATION_TOKEN = ""
 
 
 class ColabRegistrationManager:
     """Manages dynamic Gradio URL registration, verification, persistence, and health monitoring."""
 
-    def __init__(self, state_file: Optional[str] = None):
+    def __init__(self, state_file: Optional[str] = None, monitor_enabled: Optional[bool] = None):
         self.project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         self.state_file = state_file or os.path.join(self.project_root, "data", "omnivoice_state.json")
         os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
@@ -41,8 +43,14 @@ class ColabRegistrationManager:
         self._monitor_thread: Optional[threading.Thread] = None
         self._stop_monitor = threading.Event()
 
-        # Load token from config or env
         v_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+        self.monitor_enabled = (
+            bool(v_cfg.get("omnivoice_monitor_enabled", False))
+            if monitor_enabled is None
+            else bool(monitor_enabled)
+        )
+
+        # Load token from config or env
         self.registration_token = (
             os.environ.get("OMNIVOICE_REGISTRATION_TOKEN")
             or v_cfg.get("registration_token")
@@ -65,7 +73,10 @@ class ColabRegistrationManager:
         }
 
         self._load_state()
-        self.start_background_monitor()
+        # A persisted endpoint is only monitored when the operator explicitly
+        # opted in.  Importing this module must not create network traffic.
+        if self.monitor_enabled and self.state.get("verified"):
+            self.start_background_monitor()
 
     def _load_state(self) -> None:
         """Load persisted state from disk if present."""
@@ -81,16 +92,22 @@ class ColabRegistrationManager:
                 except Exception as e:
                     logger.warning("Failed to load omnivoice_state.json: %s", e)
 
-            # If no active URL from state file, check config/env defaults
+            # A configured URL is informational until the operator explicitly
+            # registers/verifies it.  Do not seed a public fallback URL.
             if not self.state.get("active_url"):
                 default_url = (
                     os.environ.get("GRADIO_VOICE_URL")
                     or (config.get("voice", {}).get("gradio_url") if hasattr(config, "get") else None)
-                    or "https://eb0f339f7e0be198a9.gradio.live"
                 )
                 if default_url and default_url.startswith("http"):
                     self.state["active_url"] = default_url.strip()
-                    self.state["runtime_status"] = "waiting_for_verification"
+                    self.state["runtime_status"] = "configured_unverified"
+
+            # Older state files may have marked an endpoint ready without the
+            # explicit verification marker introduced by this manager.  Treat
+            # those URLs as informational until they are registered again.
+            if self.state.get("active_url") and not self.state.get("verified", False):
+                self.state["runtime_status"] = "configured_unverified"
 
     def _save_state(self) -> None:
         """Persist state to disk safely with atomic write."""
@@ -193,7 +210,11 @@ class ColabRegistrationManager:
 
         # 1. Authenticate registration
         if not is_local_request:
-            if not token or token != self.registration_token:
+            if (
+                not self.registration_token
+                or not token
+                or not secrets.compare_digest(token, self.registration_token)
+            ):
                 logger.warning("Registration rejected: unauthorized token from IP %s", client_ip)
                 return {
                     "status": "error",
@@ -252,6 +273,9 @@ class ColabRegistrationManager:
             self.state["endpoints"] = endpoints
             self._save_state()
 
+        if self.monitor_enabled:
+            self.start_background_monitor()
+
         # 5. Notify GradioVoiceCloner
         try:
             from apps.voice.gradio_tts import gradio_cloner
@@ -293,12 +317,28 @@ class ColabRegistrationManager:
                 "history_count": len(self.state.get("history", [])),
                 "registration_token_masked": masked_token,
                 "cloned_voice_ready": self.state.get("runtime_status") == "ready",
+                "monitor_enabled": self.monitor_enabled,
+                "monitor_running": bool(self._monitor_thread and self._monitor_thread.is_alive()),
             }
 
     def get_active_url(self) -> str:
-        """Return the current active Gradio URL."""
+        """Return the configured URL for operator-facing status displays."""
         with self._lock:
             return self.state.get("active_url", "")
+
+    def get_verified_active_url(self) -> str:
+        """Return a registered endpoint only when it is currently verified.
+
+        Code that could cause outbound traffic must use this method rather than
+        treating a configuration value as an approved external destination.
+        """
+        with self._lock:
+            if (
+                self.state.get("verified", False)
+                and self.state.get("runtime_status") == "ready"
+            ):
+                return self.state.get("active_url", "")
+            return ""
 
     def mark_offline(self, reason: str = "Server unreachable") -> None:
         """Mark integration as offline and notify gradio_cloner to use fallback."""
@@ -314,7 +354,15 @@ class ColabRegistrationManager:
             pass
 
     def start_background_monitor(self) -> None:
-        """Start daemon thread for periodic lightweight connection checks."""
+        """Start daemon thread for periodic lightweight connection checks.
+
+        Callers must opt in through ``monitor_enabled``.  This method is kept
+        explicit so a module import or failed provider never creates a retry
+        loop against a remote host.
+        """
+        if not self.monitor_enabled:
+            logger.info("OmniVoice health monitor remains disabled by configuration.")
+            return
         if self._monitor_thread and self._monitor_thread.is_alive():
             return
 
@@ -327,11 +375,18 @@ class ColabRegistrationManager:
         self._monitor_thread.start()
         logger.info("OmniVoice background health monitor started.")
 
+    def stop_background_monitor(self) -> None:
+        """Stop the optional monitor promptly, including in tests and shutdown."""
+        self._stop_monitor.set()
+        thread = self._monitor_thread
+        if thread and thread.is_alive() and thread is not threading.current_thread():
+            thread.join(timeout=1.0)
+        self._monitor_thread = None
+
     def _monitor_loop(self) -> None:
         """Lightweight monitor loop: checks active URL every 45s."""
-        while not self._stop_monitor.is_set():
-            time.sleep(45.0)
-            if self._stop_monitor.is_set():
+        while not self._stop_monitor.wait(45.0):
+            if not self.monitor_enabled:
                 break
 
             active_url = self.get_active_url()

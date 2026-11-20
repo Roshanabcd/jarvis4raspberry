@@ -111,6 +111,40 @@ class SystemTools:
         }
 
     @staticmethod
+    def get_process_info(limit: int = 25) -> Dict[str, Any]:
+        """Return bounded, read-only process telemetry without command lines.
+
+        Command lines are intentionally excluded because they can contain API
+        tokens or other secrets. Results are sorted by resident memory so the
+        tool is useful for resource diagnostics on the Raspberry Pi.
+        """
+        safe_limit = max(1, min(int(limit), 100))
+        processes: List[Dict[str, Any]] = []
+        for proc in psutil.process_iter([
+            "pid", "name", "status", "username", "memory_info", "create_time",
+        ]):
+            try:
+                info = proc.info
+                memory_info = info.get("memory_info")
+                processes.append({
+                    "pid": info.get("pid"),
+                    "name": info.get("name") or "unknown",
+                    "status": info.get("status") or "unknown",
+                    "username": info.get("username") or "unknown",
+                    "rss_mb": round((memory_info.rss if memory_info else 0) / (1024 ** 2), 1),
+                    "created_at": info.get("create_time"),
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        processes.sort(key=lambda item: item["rss_mb"], reverse=True)
+        return {
+            "count": min(len(processes), safe_limit),
+            "limit": safe_limit,
+            "processes": processes[:safe_limit],
+        }
+
+    @staticmethod
     def get_application_status() -> Dict[str, Any]:
         """Check status of JARVIS application components and Ollama daemon."""
         services = {}

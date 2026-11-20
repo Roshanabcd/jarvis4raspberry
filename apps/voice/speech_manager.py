@@ -22,7 +22,8 @@ import subprocess
 import threading
 import time
 import uuid
-from typing import Any, Dict, Optional, Tuple
+import wave
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from config.config_manager import config
 from apps.voice.gradio_tts import gradio_cloner, sanitize_speech_text
@@ -43,6 +44,8 @@ class SpeechOutputManager:
         self._audio_store: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._current_player: Optional[subprocess.Popen] = None
+        self._playback_lease_id: Optional[str] = None
+        self._playback_owner: Optional[str] = None
         self._last_playback: Dict[str, Any] = {
             "status": "idle",
             "provider": "none",
@@ -60,6 +63,13 @@ class SpeechOutputManager:
         mic_avail = mgr.is_microphone_available()
         best_mic = mgr.select_best_device()
         best_spk = mgr.select_best_playback_device()
+        remote_enabled = bool(cloner_status.get("remote_voice_enabled", False))
+        cloud_enabled = bool(cloner_status.get("cloud_tts_enabled", False))
+        fallback_provider = (
+            "cloud_neural_tts"
+            if cloud_enabled
+            else cloner_status.get("fallback_backend", "local_tts")
+        )
 
         return {
             "microphone": {
@@ -77,17 +87,15 @@ class SpeechOutputManager:
                 "playing": self.is_playing(),
             },
             "tts": {
-                "provider": "omnivoice" if cloner_status.get("online") else "fallback_edge_tts",
+                "provider": "omnivoice" if cloner_status.get("online") else fallback_provider,
                 "cloning_available": cloner_status.get("online", False),
                 "cloning_enabled": cloner_status.get("cloning_enabled", True),
+                "remote_voice_enabled": remote_enabled,
+                "cloud_tts_enabled": cloud_enabled,
                 "reference_voice": cloner_status.get("has_reference_audio", False),
                 "reference_audio_path": cloner_status.get("reference_audio_path"),
                 "active_url": cloner_status.get("url", ""),
-                "status_label": (
-                    "OMNIVOICE CLONED VOICE READY"
-                    if cloner_status.get("online")
-                    else "OMNIVOICE OFFLINE — FALLBACK VOICE ACTIVE"
-                ),
+                "status_label": cloner_status.get("label", "Local TTS fallback"),
             },
             "last_playback": self._last_playback,
             "staged_audio_count": len(self._audio_store),
@@ -129,7 +137,7 @@ class SpeechOutputManager:
         if play_system is None:
             play_system = route_policy in ("system", "both")
 
-        # 1. Synthesize via gradio_cloner (OmniVoice or neural fallback)
+        # 1. Synthesize via the optional remote cloner or local fallback.
         result = gradio_cloner.synthesize(clean_text, voice_config=voice_config)
         latency_ms = round((time.perf_counter() - t0) * 1000, 2)
 
@@ -160,11 +168,16 @@ class SpeechOutputManager:
 
         media_type = "audio/mpeg" if ext == ".mp3" else "audio/wav"
         is_cloned = bool("clone" in result.provider.lower())
-        provider_label = (
-            "OmniVoice (Personal Cloned Voice)"
-            if is_cloned
-            else "Neural Fallback (Edge-TTS Ryan)"
-        )
+        if is_cloned:
+            provider_label = "OmniVoice (Personal Cloned Voice)"
+        elif result.provider == "edge_neural_tts":
+            provider_label = "Cloud Neural TTS (operator enabled)"
+        elif result.provider == "espeak_local_tts":
+            provider_label = "Local eSpeak TTS"
+        elif result.provider == "cache":
+            provider_label = "Cached speech"
+        else:
+            provider_label = "Local TTS fallback"
 
         with self._lock:
             self._audio_store[audio_id] = {
@@ -219,12 +232,29 @@ class SpeechOutputManager:
 
         return None
 
-    def play_system_audio(self, file_path: str, wait: bool = False) -> bool:
+    def play_system_audio(
+        self, file_path: str, wait: bool = False,
+        should_play: Optional[Callable[[], bool]] = None,
+        playback_owner: Optional[str] = None,
+    ) -> bool:
         """Play audio file through PipeWire system speaker (pw-play / aplay)."""
         if not file_path or not os.path.exists(file_path):
             return False
 
+        # Use the same allowance for playback and the cross-process capture
+        # pause, so a long answer cannot become microphone input after 10s.
+        wait_seconds = 180.0
+        try:
+            with wave.open(file_path, "rb") as audio:
+                duration = audio.getnframes() / audio.getframerate()
+            wait_seconds = max(15.0, min(duration + 10.0, 600.0))
+        except (OSError, EOFError, wave.Error, ZeroDivisionError):
+            pass
+
         with self._lock:
+            # Check cancellation under the same lock used to launch/stop a player.
+            if should_play is not None and not should_play():
+                return False
             self.stop()
 
             player_bin = (
@@ -244,19 +274,49 @@ class SpeechOutputManager:
                 except Exception as duck_err:
                     logger.debug("Stream ducking notice: %s", duck_err)
 
-                self._current_player = subprocess.Popen(
+                lease_id = uuid.uuid4().hex
+                from apps.voice.audio_environment import local_audio_environment
+                player = subprocess.Popen(
                     [player_bin, file_path],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    env=local_audio_environment(),
                 )
+                self._current_player = player
+                self._playback_owner = playback_owner
+                self._playback_lease_id = lease_id
                 self._last_playback["status"] = "playing"
+                try:
+                    from apps.voice.playback_state import set_playback_active
+                    set_playback_active(True, lease_id=lease_id, duration_hint_s=wait_seconds)
+                except Exception:
+                    pass
 
                 def _monitor_restore(proc: subprocess.Popen) -> None:
                     try:
-                        proc.wait()
+                        # The capture daemon rejects telemetry older than 30s.
+                        # Renew only this player's lease while it still owns
+                        # playback, including for non-blocking chat audio.
+                        while True:
+                            try:
+                                proc.wait(timeout=10.0)
+                                break
+                            except subprocess.TimeoutExpired:
+                                with self._lock:
+                                    if self._current_player is not proc:
+                                        break
+                                    from apps.voice.playback_state import set_playback_active
+                                    set_playback_active(True, lease_id=lease_id,
+                                                        duration_hint_s=wait_seconds)
                     except Exception:
                         pass
                     finally:
+                        if lease_id is not None:
+                            try:
+                                from apps.voice.playback_state import set_playback_active
+                                set_playback_active(False, lease_id=lease_id)
+                            except Exception:
+                                pass
                         try:
                             from tools.media.audio_stream_manager import audio_stream_manager
                             audio_stream_manager.restore_active_streams()
@@ -265,29 +325,57 @@ class SpeechOutputManager:
 
                 threading.Thread(target=_monitor_restore, args=(self._current_player,), daemon=True).start()
 
-                if wait:
-                    self._current_player.wait(timeout=15)
-                    self._current_player = None
-                    self._last_playback["status"] = "completed"
-                return True
             except Exception as e:
                 logger.error("Failed to start system audio playback: %s", e)
                 return False
 
-    def stop(self) -> None:
+        if not wait:
+            return True
+        # Do not hold the player lock while waiting: stop() must remain usable
+        # during barge-in, and a failed child process is not successful delivery.
+        try:
+            completed = player.wait(timeout=wait_seconds) == 0
+        except Exception as exc:
+            logger.warning("System audio playback did not complete: %s", exc)
+            with self._lock:
+                if self._current_player is player:
+                    self.stop()
+                    self._last_playback["status"] = "error"
+            return False
+        with self._lock:
+            if self._current_player is not player:
+                return False
+            self._current_player = None
+            self._playback_lease_id = None
+            self._playback_owner = None
+            self._last_playback["status"] = "completed" if completed else "error"
+        return completed
+
+    def stop(self, *, expected_owner: Optional[str] = None) -> None:
         """Interrupt and terminate any active background audio playback."""
         with self._lock:
-            if self._current_player and self._current_player.poll() is None:
+            if expected_owner is not None and self._playback_owner != expected_owner:
+                return
+            player = self._current_player
+            lease_id = self._playback_lease_id
+            self._current_player = None
+            self._playback_lease_id = None
+            self._playback_owner = None
+            if player and player.poll() is None:
                 try:
-                    self._current_player.terminate()
-                    self._current_player.wait(timeout=1.0)
+                    player.terminate()
+                    player.wait(timeout=1.0)
                 except Exception:
                     try:
-                        self._current_player.kill()
+                        player.kill()
                     except Exception:
                         pass
-                self._current_player = None
             self._last_playback["status"] = "stopped"
+        try:
+            from apps.voice.playback_state import set_playback_active
+            set_playback_active(False, lease_id=lease_id)
+        except Exception:
+            pass
         try:
             from tools.media.audio_stream_manager import audio_stream_manager
             audio_stream_manager.restore_active_streams()
@@ -534,14 +622,22 @@ class SpeechOutputManager:
         cloner_status = gradio_cloner.get_provider_status()
         is_omni_online = cloner_status.get("online", False)
         ref_ok = cloner_status.get("has_reference_audio", False)
+        cloud_enabled = bool(cloner_status.get("cloud_tts_enabled", False))
+        fallback_label = (
+            "Cloud neural fallback (operator enabled)"
+            if cloud_enabled
+            else f"Local fallback ({cloner_status.get('fallback_backend', 'local_tts')})"
+        )
         diag["text_to_speech"] = {
             "status": "OMNIVOICE_READY" if is_omni_online else "FALLBACK_READY",
-            "active_provider": "OmniVoice (Personal Cloned Voice)" if is_omni_online else "Neural Fallback (Edge-TTS Ryan)",
+            "active_provider": "OmniVoice (Personal Cloned Voice)" if is_omni_online else fallback_label,
             "omnivoice_online": is_omni_online,
+            "remote_voice_enabled": bool(cloner_status.get("remote_voice_enabled", False)),
+            "cloud_tts_enabled": cloud_enabled,
             "reference_sample_available": ref_ok,
             "reference_audio_path": cloner_status.get("reference_audio_path"),
             "gradio_url": cloner_status.get("url"),
-            "fallback_backend": "edge_neural_tts",
+            "fallback_backend": cloner_status.get("fallback_backend", "local_tts"),
         }
 
         # 6. Speaker Playback

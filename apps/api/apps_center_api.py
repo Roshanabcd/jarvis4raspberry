@@ -6,8 +6,8 @@ user-isolated settings, shared AI inferences, resource telemetry, and admin cont
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException, Query, Header, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field
 
 from apps.apps_center.ai_service import shared_ai
 from apps.apps_center.database import apps_db
@@ -17,7 +17,7 @@ from apps.apps_center.models import (
     AppStatus,
     ResourceProfile,
 )
-from apps.apps_center.permissions import apps_permissions
+from apps.apps_center.permissions import AppRequestIdentity, apps_permissions
 from apps.apps_center.registry import app_registry
 from apps.apps_center.resource_manager import resource_manager
 from apps.apps_center.task_manager import task_manager
@@ -31,16 +31,18 @@ apps_center_router = APIRouter(prefix="/apps", tags=["apps_center"])
 # ─── Request Schemas ─────────────────────────────────────────
 
 class AppLaunchRequest(BaseModel):
-    user_id: Optional[str] = "guest"
-    pin: Optional[str] = None
+    """Reserved for future launch options; identity is always server-owned."""
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class AppSettingsRequest(BaseModel):
-    user_id: Optional[str] = "guest"
+    model_config = ConfigDict(extra="forbid")
     settings: Dict[str, Any] = Field(default_factory=dict)
 
 
 class AppStatusUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     app_id: str
     status: AppStatus
     admin_pin: str
@@ -74,20 +76,30 @@ class SharedJsonRequest(BaseModel):
 
 # ─── Endpoints ───────────────────────────────────────────────
 
+def get_active_app_identity() -> AppRequestIdentity:
+    """FastAPI dependency for the single local operator identity.
+
+    This intentionally does not inspect request JSON, query strings, or
+    headers for user IDs or roles.  Until browser sessions are introduced,
+    Apps Center is a process-local single-operator experience.
+    """
+    return apps_permissions.get_current_identity()
+
+
 @apps_center_router.get("/catalog")
 def get_application_catalog(
     query: Optional[str] = Query(None, description="Search term for name or description"),
     category: Optional[str] = Query(None, description="Category filter"),
     status: Optional[str] = Query(None, description="Status filter"),
     capability: Optional[str] = Query(None, description="Capability filter"),
-    user_id: Optional[str] = Query("guest", description="Current user ID for favorite status"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """
     Search and filter application manifests in the central registry.
     Decorates results with user favorite flags.
     """
     apps = app_registry.search_apps(query=query, category=category, status=status, capability=capability)
-    user_favs = set(apps_db.get_user_favorites(user_id=user_id or "guest"))
+    user_favs = set(apps_db.get_user_favorites(user_id=identity.user_id))
 
     out = []
     for app in apps:
@@ -114,15 +126,15 @@ def get_categories():
 @apps_center_router.get("/app/{app_id}")
 def get_app_details(
     app_id: str,
-    user_id: Optional[str] = Query("guest"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Fetch complete metadata, resource requirements, and settings for a single app."""
     manifest = app_registry.get_app(app_id)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found in registry.")
 
-    user_favs = set(apps_db.get_user_favorites(user_id=user_id or "guest"))
-    user_settings = apps_db.get_app_settings(app_id=app_id, user_id=user_id or "guest")
+    user_favs = set(apps_db.get_user_favorites(user_id=identity.user_id))
+    user_settings = apps_db.get_app_settings(app_id=app_id, user_id=identity.user_id)
 
     d = manifest.model_dump()
     d["is_favorite"] = manifest.id in user_favs
@@ -138,6 +150,7 @@ def get_app_details(
 def launch_application(
     app_id: str,
     req: Optional[AppLaunchRequest] = None,
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """
     Attempt to open an application.
@@ -148,14 +161,8 @@ def launch_application(
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
-    user_id = req.user_id if req else "guest"
-    pin = req.pin if req else None
-
-    # Determine user role securely
-    current_user, role = apps_permissions.get_current_user_role(pin=pin, user_id=user_id)
-
     # Check launch permissions and lifecycle state
-    can_launch, reason = apps_permissions.can_launch_app(manifest, role)
+    can_launch, reason = apps_permissions.can_launch_app(manifest, identity.role)
     if not can_launch:
         # If planned, return truthful HTTP 400 with roadmap
         if manifest.status == AppStatus.PLANNED:
@@ -166,7 +173,7 @@ def launch_application(
         raise HTTPException(status_code=403, detail=reason or "Cannot launch application")
 
     # Record recent launch in DB
-    apps_db.record_app_opened(user_id=user_id, app_id=manifest.id)
+    apps_db.record_app_opened(user_id=identity.user_id, app_id=manifest.id)
 
     return {
         "status": "ok",
@@ -182,14 +189,14 @@ def launch_application(
 @apps_center_router.post("/favorite/{app_id}")
 def toggle_favorite(
     app_id: str,
-    user_id: Optional[str] = Query("guest"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Toggle starred / favorite state for an application."""
     manifest = app_registry.get_app(app_id)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
-    is_fav = apps_db.toggle_favorite(user_id=user_id or "guest", app_id=app_id)
+    is_fav = apps_db.toggle_favorite(user_id=identity.user_id, app_id=app_id)
     return {
         "status": "ok",
         "app_id": app_id,
@@ -199,10 +206,10 @@ def toggle_favorite(
 
 @apps_center_router.get("/favorites")
 def get_user_favorites(
-    user_id: Optional[str] = Query("guest"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Retrieve list of starred application IDs for the specified user."""
-    fav_ids = apps_db.get_user_favorites(user_id=user_id or "guest")
+    fav_ids = apps_db.get_user_favorites(user_id=identity.user_id)
     # Return manifest summaries
     fav_apps = [app_registry.get_app(aid).model_dump() for aid in fav_ids if app_registry.get_app(aid)]
     return {
@@ -213,11 +220,11 @@ def get_user_favorites(
 
 @apps_center_router.get("/recent")
 def get_recent_apps(
-    user_id: Optional[str] = Query("guest"),
     limit: Optional[int] = Query(6, ge=1, le=20),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Retrieve recently opened applications for the user."""
-    recents = apps_db.get_recently_opened(user_id=user_id or "guest", limit=limit or 6)
+    recents = apps_db.get_recently_opened(user_id=identity.user_id, limit=limit or 6)
     out = []
     for r in recents:
         manifest = app_registry.get_app(r["app_id"])
@@ -235,14 +242,14 @@ def get_recent_apps(
 @apps_center_router.get("/settings/{app_id}")
 def get_app_settings(
     app_id: str,
-    user_id: Optional[str] = Query("guest"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Fetch user-isolated application configuration."""
     manifest = app_registry.get_app(app_id)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
-    settings = apps_db.get_app_settings(app_id=app_id, user_id=user_id or "guest")
+    settings = apps_db.get_app_settings(app_id=app_id, user_id=identity.user_id)
     return {
         "status": "ok",
         "app_id": app_id,
@@ -254,15 +261,15 @@ def get_app_settings(
 def save_app_settings(
     app_id: str,
     req: AppSettingsRequest,
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Persist user-isolated application configuration."""
     manifest = app_registry.get_app(app_id)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
-    user_id = req.user_id or "guest"
     for k, v in req.settings.items():
-        apps_db.set_app_setting(app_id=app_id, user_id=user_id, key=k, value=v)
+        apps_db.set_app_setting(app_id=app_id, user_id=identity.user_id, key=k, value=v)
 
     return {
         "status": "ok",
@@ -339,11 +346,11 @@ def get_system_resources():
 
 @apps_center_router.get("/tasks")
 def list_tasks(
-    user_id: Optional[str] = Query("guest"),
     app_id: Optional[str] = Query(None),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """List background application tasks for the current user."""
-    tasks = task_manager.list_user_tasks(user_id=user_id or "guest", app_id=app_id)
+    tasks = task_manager.list_user_tasks(user_id=identity.user_id, app_id=app_id)
     return {
         "status": "ok",
         "total": len(tasks),
@@ -354,10 +361,10 @@ def list_tasks(
 @apps_center_router.post("/tasks/cancel/{task_id}")
 def cancel_task(
     task_id: str,
-    user_id: Optional[str] = Query("guest"),
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
 ):
     """Cancel a running or queued background task."""
-    ok = task_manager.cancel_task(task_id=task_id, user_id=user_id or "guest")
+    ok = task_manager.cancel_task(task_id=task_id, user_id=identity.user_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Task not found or cancellation unauthorized.")
     return {
@@ -370,11 +377,17 @@ def cancel_task(
 # ─── Admin Status Governance ─────────────────────────────────
 
 @apps_center_router.post("/admin/status")
-def update_application_status(req: AppStatusUpdateRequest):
+def update_application_status(
+    req: AppStatusUpdateRequest,
+    identity: AppRequestIdentity = Depends(get_active_app_identity),
+):
     """
     Administrator endpoint to enable, disable, or transition application status.
     Protected by PBKDF2-HMAC-SHA256 admin PIN verification.
     """
+    if identity.role != UserRole.ADMIN.value:
+        raise HTTPException(status_code=403, detail="Administrator identity is required to change application status.")
+
     is_valid, msg = user_manager.verify_admin_pin(req.admin_pin)
     if not is_valid:
         raise HTTPException(status_code=403, detail=f"Administrator verification failed: {msg}")

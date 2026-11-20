@@ -1,16 +1,30 @@
 """Voice REST API for JARVIS OS — speech control, status, devices, and push-to-talk."""
+import os
 import logging
 from typing import Optional
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field
 from apps.voice.service import voice_service
+from apps.voice.remote_control_policy import require_external_voice_control
 
 logger = logging.getLogger("JARVIS.API.Voice")
 voice_router = APIRouter(prefix="/voice", tags=["voice"])
 
 
+def _send_daemon_command_or_raise(action: str) -> None:
+    from apps.voice.daemon_control import send_daemon_command
+    if not send_daemon_command(action):
+        raise HTTPException(status_code=503, detail=f"Could not dispatch voice daemon command: {action}")
+
+
 class CommandRequest(BaseModel):
-    text: str
+    """A transcript only; the backend owns the authenticated voice session."""
+    model_config = ConfigDict(extra="forbid")
+    text: str = Field(..., min_length=1, max_length=4096)
+
+
+class VoiceSessionPinRequest(BaseModel):
+    pin: str = Field(..., min_length=1, max_length=128)
 
 
 class ListenOnceRequest(BaseModel):
@@ -32,11 +46,31 @@ class VoiceTuningRequest(BaseModel):
     reference_audio_path: Optional[str] = None
 
 
+def _daemon_snapshot():
+    """Resolve the capture owner and accept only fresh daemon telemetry."""
+    from apps.voice.wake_word_engine import is_voice_service_daemon_running
+    from apps.voice.daemon_status import read_status
+    try:
+        external_owner = is_voice_service_daemon_running()
+    except RuntimeError:
+        external_owner = None
+    return external_owner, read_status() if external_owner else None
+
+
 @voice_router.get("/status")
 def get_voice_status():
     """Return real-time voice pipeline state and hardware device status."""
     from apps.voice.speech_manager import speech_manager
     st = voice_service.get_state()
+    external_owner, telemetry = _daemon_snapshot()
+    st["capture_owner"] = "voice_daemon" if external_owner else "unknown" if external_owner is None else "backend"
+    if external_owner is not False:
+        st["local_state"] = st["state"]
+        st["state"] = telemetry["state"] if telemetry else "EXTERNAL_OWNER"
+        st["listening"] = (telemetry["is_running"] and telemetry["state"] in {"STANDBY_LISTENING", "FOLLOW_UP_STANDBY", "LISTENING_SPEECH"}) if telemetry else None
+        st["muted"] = telemetry["muted"] if telemetry else None
+        st["daemon_telemetry"] = telemetry
+        st["wake_engine"] = telemetry or {"state": "EXTERNAL_OWNER", "is_running": None}
     diag = speech_manager.get_status()
     st["diagnostics"] = diag
     st["speaker"] = diag["speaker"]
@@ -44,9 +78,64 @@ def get_voice_status():
     return st
 
 
+@voice_router.get("/session")
+def get_voice_session():
+    """Return the local, server-owned voice identity session.
+
+    The response intentionally distinguishes the recognized display role from
+    the effective authorization role: a recognized administrator still needs a
+    PIN before administrative tools become available.
+    """
+    from apps.voice.session_manager import voice_session_mgr
+    session = voice_session_mgr.get_active_session()
+    return {
+        "status": "ok",
+        "session": session.model_dump(),
+        "authorization_role": session.authorization_role(),
+    }
+
+
+@voice_router.post("/session/identify")
+def identify_voice_speaker():
+    """Refresh the voice session from the existing camera service snapshot."""
+    from apps.voice.session_manager import voice_session_mgr
+    return voice_session_mgr.identify_speaker_from_camera()
+
+
+@voice_router.post("/session/verify-pin")
+def elevate_voice_session(req: VoiceSessionPinRequest):
+    """Grant time-limited admin authority after local PIN verification."""
+    from apps.voice.session_manager import voice_session_mgr
+    verified, message = voice_session_mgr.verify_admin_pin(req.pin)
+    if not verified:
+        raise HTTPException(status_code=401, detail=message)
+    session = voice_session_mgr.get_active_session()
+    return {
+        "status": "ok",
+        "message": message,
+        "session": session.model_dump(),
+        "authorization_role": session.authorization_role(),
+    }
+
+
+@voice_router.post("/session/invalidate")
+def invalidate_voice_session():
+    """End the current voice identity session and return to GUEST authority."""
+    from apps.voice.session_manager import voice_session_mgr
+    session = voice_session_mgr.invalidate_session()
+    return {
+        "status": "ok",
+        "session": session.model_dump(),
+        "authorization_role": session.authorization_role(),
+    }
+
+
 @voice_router.post("/start")
 def start_voice_listening():
     """Start continuous background wake-word listening loop."""
+    from apps.voice.wake_word_engine import is_voice_service_daemon_running
+    if is_voice_service_daemon_running():
+        return {"status": "existing_owner", "message": "The dedicated voice daemon already owns the microphone."}
     voice_service.start()
     return {"status": "ok", "state": voice_service.get_state()}
 
@@ -54,27 +143,51 @@ def start_voice_listening():
 @voice_router.post("/stop")
 def stop_voice_listening():
     """Stop continuous background listening loop."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("stop")
+        return {"status": "ok", "target": "daemon", "state": "STOPPING"}
     voice_service.stop()
-    return {"status": "ok", "state": voice_service.get_state()}
+    return {"status": "ok", "target": "backend", "state": voice_service.get_state()}
 
 
 @voice_router.post("/mute")
 def mute_voice():
     """Mute microphone capture."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("mute")
+        return {"status": "ok", "muted": True, "target": "daemon"}
     voice_service.mute()
-    return {"status": "ok", "muted": True, "state": voice_service.get_state()}
+    return {"status": "ok", "muted": True, "target": "backend", "state": voice_service.get_state()}
 
 
 @voice_router.post("/unmute")
 def unmute_voice():
     """Unmute microphone capture."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("unmute")
+        return {"status": "ok", "muted": False, "target": "daemon"}
     voice_service.unmute()
-    return {"status": "ok", "muted": False, "state": voice_service.get_state()}
+    return {"status": "ok", "muted": False, "target": "backend", "state": voice_service.get_state()}
 
 
 @voice_router.post("/interrupt")
 def interrupt_speech():
     """Immediately halt any active voice playback (barge-in)."""
+    try:
+        from apps.voice.voice_jobs import voice_job_mgr
+        voice_job_mgr.cancel_active_jobs()
+    except Exception:
+        pass
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        try:
+            from apps.voice.daemon_control import send_daemon_command
+            send_daemon_command("barge_in")
+        except Exception:
+            pass
     voice_service.stop_playback()
     return {"status": "ok", "interrupted": True}
 
@@ -86,28 +199,49 @@ def listen_once(req: ListenOnceRequest = ListenOnceRequest()):
     return result
 
 
-@voice_router.get("/devices")
-def list_audio_devices():
-    """Return all detected audio input (microphones) and output (speakers) devices."""
-    mgr = voice_service.audio_manager
-    inputs = mgr.detect_devices()
-    outputs = mgr.detect_playback_devices()
-    best_in = mgr.select_best_device()
-    best_out = mgr.select_best_playback_device()
-    return {
-        "input_devices": inputs,
-        "output_devices": outputs,
-        "selected_input": best_in,
-        "selected_output": best_out,
-        "microphone_available": mgr.is_microphone_available(),
-    }
+@voice_router.get("/jobs")
+def list_voice_jobs(limit: int = 20):
+    """List recent in-process voice synthesis and playback jobs."""
+    from apps.voice.voice_jobs import voice_job_mgr
+    return {"status": "ok", "jobs": [j.model_dump() for j in voice_job_mgr.list_jobs(limit=limit)]}
+
+
+@voice_router.get("/jobs/{job_id}")
+def get_voice_job(job_id: str):
+    """Inspect in-process voice job status, audio URL, or error."""
+    from apps.voice.voice_jobs import voice_job_mgr
+    job = voice_job_mgr.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Voice job not found")
+    return {"status": "ok", "job": job.model_dump()}
+
+
+@voice_router.post("/jobs/{job_id}/cancel")
+def cancel_voice_job(job_id: str):
+    """Cancel a pending or active voice synthesis job."""
+    from apps.voice.voice_jobs import voice_job_mgr
+    job = voice_job_mgr.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Voice job not found")
+    if job.status in {"queued", "synthesizing", "playing"}:
+        cancelled = voice_service.cancel_response(job_id)
+        return {"status": "ok", "job_id": job_id,
+                "cancelled": bool(cancelled and cancelled.status == "cancelled")}
+    return {"status": "ok", "job_id": job_id, "cancelled": False, "current_status": job.status}
 
 
 @voice_router.post("/command")
-def run_command(req: CommandRequest):
-    """Execute text command through voice pipeline dialogue manager."""
-    response = voice_service.process_command(req.text)
-    return {"status": "ok", "response": response}
+def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
+    """Execute inference once and submit exactly one bounded voice reply job."""
+    response = voice_service.process_command(req.text, speak=False)
+    try:
+        job = voice_service.enqueue_response(response, broadcast=False)
+    except (RuntimeError, ValueError) as exc:
+        # Inference may already have performed an action: keep its confirmed
+        # response and report only delivery rejection, so callers do not replay it.
+        return {"status": "ok", "response": response, "job_id": None,
+                "job_status": "rejected", "audio_error": str(exc)}
+    return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status}
 
 
 @voice_router.post("/synthesize")
@@ -216,6 +350,13 @@ def get_voice_diagnostics():
 @voice_router.get("/wake_status")
 def get_wake_word_status():
     """Return live 12-state state machine telemetry for the background wake-word engine."""
+    external_owner, telemetry = _daemon_snapshot()
+    if external_owner is not False:
+        return {
+            **(telemetry or {"state": "EXTERNAL_OWNER", "is_running": None, "muted": None}),
+            "capture_owner": "voice_daemon" if external_owner else "unknown",
+            "telemetry_available": telemetry is not None,
+        }
     from apps.voice.wake_word_engine import wake_word_engine
     return wake_word_engine.get_status()
 
@@ -261,22 +402,24 @@ from apps.voice.colab_registration import colab_manager
 
 
 class ColabVoiceRegisterRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     gradio_url: str
     session_id: Optional[str] = None
-    token: Optional[str] = None
     verify: Optional[bool] = True
 
 
 @voice_router.post("/colab/register")
-def register_colab_url_alias(req: ColabVoiceRegisterRequest, request: Request):
+def register_colab_url_alias(
+    req: ColabVoiceRegisterRequest,
+    request: Request,
+    _: None = Depends(require_external_voice_control),
+):
     """Alias for POST /api/integrations/omnivoice/register."""
     client_ip = request.client.host if request.client else "unknown"
-    is_local = client_ip in ("127.0.0.1", "localhost", "::1", "testclient")
     result = colab_manager.register_url(
         gradio_url=req.gradio_url,
         session_id=req.session_id,
-        token=req.token,
-        is_local_request=is_local,
+        is_local_request=True,
         client_ip=client_ip,
         verify_now=bool(req.verify),
     )
@@ -292,7 +435,10 @@ def get_colab_status_alias():
 
 
 @voice_router.post("/colab/verify")
-def verify_colab_url_alias(gradio_url: Optional[str] = None):
+def verify_colab_url_alias(
+    gradio_url: Optional[str] = None,
+    _: None = Depends(require_external_voice_control),
+):
     """Alias for POST /api/integrations/omnivoice/verify."""
     url = (gradio_url or "").strip() or colab_manager.get_active_url()
     if not url:
@@ -309,7 +455,7 @@ def get_colab_runner_status():
 
 
 @voice_router.post("/colab/runner/start")
-def start_colab_runner():
+def start_colab_runner(_: None = Depends(require_external_voice_control)):
     """Trigger background execution of Super_Eleven_Lab_Lite_2_1.ipynb on Google Colab."""
     from apps.voice.colab_runner import colab_runner
     ok = colab_runner.start(restart_if_running=True)
@@ -324,7 +470,7 @@ def stop_colab_runner():
 
 
 @voice_router.post("/colab/test")
-def test_colab_voice_alias():
+def test_colab_voice_alias(_: None = Depends(require_external_voice_control)):
     """Alias for POST /api/integrations/omnivoice/test."""
     from apps.voice.speech_manager import speech_manager
     res = speech_manager.synthesize_and_stage(

@@ -6,5 +6,5 @@ providers:
   - name: openai
     model: 'gpt-4o'
     enabled: false
-default_provider: ollama
+default_provider: nvidia
 fallback_message: 'I am operating in offline mode. Cloud AI is unavailable.'

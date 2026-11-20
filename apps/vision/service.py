@@ -31,6 +31,11 @@ from tools.identity.user_manager import UserManager, user_manager
 logger = logging.getLogger("JARVIS.Vision.Service")
 
 
+def _check_rpicam_available() -> bool:
+    """Confirm managed camera availability without creating another owner."""
+    return CameraManager().is_camera_available()
+
+
 class VisionService:
     """
     Central vision coordination service for JARVIS OS on Raspberry Pi 5.
@@ -46,12 +51,12 @@ class VisionService:
         self.width = width
         self.height = height
 
-        # Only simulate if explicitly requested AND hardware is not available
+        # An explicit simulation request must never touch a physical camera.
         self.camera_mgr = CameraManager()
         hw_available = self.camera_mgr.is_camera_available()
 
         if simulation is not None:
-            self.simulation = simulation and not hw_available
+            self.simulation = bool(simulation)
         else:
             # If real hardware is detected, we ALWAYS use real hardware
             self.simulation = False if hw_available else True
@@ -61,6 +66,7 @@ class VisionService:
         self.user_mgr = user_manager
         self._last_capture_time: Optional[float] = None
         self._last_image_path: Optional[str] = None
+        self._backend = "simulated" if self.simulation else "camera_manager"
 
         logger.info(
             "VisionService initialized (hw_available=%s, simulation=%s, resolution=%dx%d)",
@@ -138,6 +144,22 @@ class VisionService:
         Run real YOLO object detection on a newly captured frame or specified image.
         Leverages active dedicated camera service (YOLO11 NCNN) if running, or falls back to local YOLOv8n ONNX.
         """
+        # Explicit simulation is isolated from both the network camera service
+        # and local ONNX inference, even if hardware is connected.
+        if self.simulation:
+            return {
+                "status": "simulated",
+                "simulated": True,
+                "count": 3,
+                "objects": [
+                    {"label": "desk", "confidence": 0.92, "bbox": {"x": 50, "y": 300, "width": 500, "height": 300}},
+                    {"label": "monitor", "confidence": 0.88, "bbox": {"x": 150, "y": 100, "width": 300, "height": 200}},
+                    {"label": "keyboard", "confidence": 0.85, "bbox": {"x": 200, "y": 350, "width": 250, "height": 100}},
+                ],
+                "labels": ["desk", "monitor", "keyboard"],
+                "source": "simulation",
+            }
+
         # If no specific image requested and the camera service is active, fetch live real-time detections
         if not image_path and self.camera_mgr.is_service_running():
             svc_url = self.camera_mgr.get_service_url()
@@ -312,6 +334,8 @@ class VisionService:
     def shutdown(self) -> None:
         """Gracefully release camera resources."""
         self._last_capture_time = None
+        if self.simulation:
+            self._backend = "simulated"
         logger.info("VisionService shutdown completed.")
 
 

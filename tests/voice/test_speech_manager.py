@@ -46,6 +46,53 @@ class TestSpeechOutputManager:
         ok = custom_stage_manager.play_system_audio("/tmp/non_existent_audio_file_123.wav")
         assert ok is False
 
+    def test_new_playback_stops_previous_player(self, custom_stage_manager, monkeypatch):
+        class FakeProcess:
+            def __init__(self):
+                self.terminated = False
+
+            def poll(self):
+                return None if not self.terminated else 0
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self, timeout=None):
+                self.terminated = True
+                return 0
+
+            def kill(self):
+                self.terminated = True
+
+        players = []
+
+        def fake_popen(*args, **kwargs):
+            player = FakeProcess()
+            players.append(player)
+            return player
+
+        audio_path = os.path.join(custom_stage_manager.stage_dir, "playback.wav")
+        with open(audio_path, "wb") as stream:
+            stream.write(b"RIFF" + b"\x00" * 40)
+
+        monkeypatch.setattr("apps.voice.speech_manager.shutil.which", lambda name: "/usr/bin/pw-play")
+        monkeypatch.setattr("apps.voice.speech_manager.subprocess.Popen", fake_popen)
+        monkeypatch.setattr(
+            "tools.media.audio_stream_manager.audio_stream_manager.duck_active_streams",
+            lambda **kwargs: None,
+        )
+        monkeypatch.setattr(
+            "tools.media.audio_stream_manager.audio_stream_manager.restore_active_streams",
+            lambda: None,
+        )
+
+        assert custom_stage_manager.play_system_audio(audio_path) is True
+        assert custom_stage_manager.play_system_audio(audio_path) is True
+        assert len(players) == 2
+        assert players[0].terminated is True
+        assert custom_stage_manager._current_player is players[1]
+        custom_stage_manager.stop()
+
     def test_synthesize_and_stage_with_mock(self, custom_stage_manager, monkeypatch):
         """Verify audio staging and URL generation when TTS produces an audio file."""
         tmp_wav = os.path.join(custom_stage_manager.stage_dir, "mock_source.wav")
@@ -74,7 +121,7 @@ class TestSpeechOutputManager:
         assert res["audio_id"] is not None
         assert res["audio_url"] == f"/api/voice/audio/{res['audio_id']}"
         assert res["provider"] == "edge_neural_tts"
-        assert "Neural Fallback" in res["provider_label"]
+        assert res["provider_label"] == "Cloud Neural TTS (operator enabled)"
 
         # Retrieve staged file
         staged = custom_stage_manager.get_staged_audio(res["audio_id"])

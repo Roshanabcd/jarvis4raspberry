@@ -17,6 +17,8 @@ from fastapi.testclient import TestClient
 
 from apps.core.main import app
 from apps.vision.service import VisionService, vision_service
+from tools.identity.permission_manager import permission_manager
+from tools.identity.user_manager import UserRole
 from tools.vision.camera_manager import CameraManager, PICTURES_DIR
 from tools.vision.object_detector import ObjectDetector, object_detector, COCO_CLASSES
 from tools.vision.vision_vlm import VisionVLM, vision_vlm
@@ -26,6 +28,16 @@ class TestPhase7CameraAndVision(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.client = TestClient(app)
+        # Establish a USER session so gated vision API endpoints (capture,
+        # detect, describe) remain reachable during these acceptance tests.
+        # The previous active user is restored in tearDownClass to avoid
+        # leaking this session into other test modules via the singleton.
+        cls._prev_active_user = permission_manager._current_user
+        permission_manager.set_active_user({
+            "user_id": "test_user",
+            "display_name": "Test User",
+            "role": UserRole.USER.value,
+        })
         # Create a synthetic 640x480 test image with a circle and rectangle
         cls.test_dir = tempfile.mkdtemp(prefix="jarvis_phase7_vision_")
         cls.test_image_path = os.path.join(cls.test_dir, "test_bench.jpg")
@@ -41,6 +53,7 @@ class TestPhase7CameraAndVision(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        permission_manager._current_user = cls._prev_active_user
         shutil.rmtree(cls.test_dir, ignore_errors=True)
 
     def test_01_camera_manager_singleton_and_binary(self):

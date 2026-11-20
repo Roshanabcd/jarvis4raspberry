@@ -3,8 +3,9 @@ JARVIS Chat API — Real AI brain with streaming SSE, tool calling, and multi-pr
 """
 import json
 import logging
-from typing import Any, Dict, Optional
-from fastapi import APIRouter
+from typing import Any, Dict, Optional, Literal
+from fastapi import APIRouter, Depends, HTTPException
+from apps.api.admin_action_policy import require_admin_action
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -18,7 +19,10 @@ class ChatRequest(BaseModel):
     use_tools: bool = True
     provider: Optional[str] = None
     model: Optional[str] = None
+    allow_fallback: bool = False
+    max_provider_retries: int = Field(default=1, ge=0, le=3)
     speak: bool = False
+    audio_output: Literal["browser", "system"] = "system"
 
 
 class ModelSwitchRequest(BaseModel):
@@ -26,26 +30,66 @@ class ModelSwitchRequest(BaseModel):
     model: Optional[str] = None
 
 
+class ProviderTestRequest(BaseModel):
+    provider: Literal['openai', 'gemini', 'anthropic', 'nvidia', 'openrouter', 'groq', 'together']
+
+
+class ChatCancelRequest(BaseModel):
+    request_id: str
+
+
+@chat_router.post("/cancel")
+def cancel_chat_endpoint(req: ChatCancelRequest):
+    """Cancel a running AI chat request."""
+    from ai.brain import get_brain
+    brain = get_brain()
+    ok = brain.cancel_request(req.request_id)
+    return {"status": "ok" if ok else "not_found", "request_id": req.request_id}
+
+
+@chat_router.post("/cancel/{request_id}")
+def cancel_chat_by_id_endpoint(request_id: str):
+    """Cancel a running AI chat request by URL parameter."""
+    from ai.brain import get_brain
+    brain = get_brain()
+    ok = brain.cancel_request(request_id)
+    return {"status": "ok" if ok else "not_found", "request_id": request_id}
+
+
+@chat_router.post('/providers/test')
+def test_provider_endpoint(req: ProviderTestRequest, _: None = Depends(require_admin_action)):
+    """Send one synthetic prompt only after an explicit authenticated test action."""
+    from ai.brain import get_brain
+    from ai.providers.diagnostics import probe_provider
+    provider = next((p for p in get_brain()._providers if p.name == req.provider), None)
+    if provider is None:
+        raise HTTPException(status_code=404, detail='Provider is not registered')
+    return probe_provider(provider)
+
+
 @chat_router.post("")
 def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
     """Process a chat message through the JARVIS AI brain synchronously."""
     from ai.brain import get_brain
     brain = get_brain()
-    if req.provider:
-        brain.set_active_provider(req.provider, req.model)
-
     result = brain.chat(
         user_message=req.message,
         use_tools=req.use_tools,
         session_id=req.session_id,
+        provider_name=req.provider,
+        model_name=req.model,
+        allow_fallback=req.allow_fallback,
+        max_provider_retries=req.max_provider_retries,
     )
 
     # Text-first: only synthesize speech if explicitly requested (speak=True)
     resp_text = result.get("response", "")
-    if req.speak and resp_text:
+    if req.speak and resp_text and not result.get('error') and result.get('status') not in {'failed', 'cancelled'}:
         try:
             from apps.voice.speech_manager import speech_manager
-            audio_info = speech_manager.synthesize_and_stage(resp_text, play_system=True)
+            audio_info = speech_manager.synthesize_and_stage(resp_text, play_system=req.audio_output == "system")
+            if not audio_info.get("audio_url"):
+                result["audio_error"] = audio_info.get("error") or "Speech synthesis produced no playable audio"
             result["audio_id"] = audio_info.get("audio_id")
             result["audio_url"] = audio_info.get("audio_url")
             result["audio_provider"] = audio_info.get("provider")
@@ -69,23 +113,35 @@ def chat_stream_endpoint(req: ChatRequest):
 
     def event_stream():
         full_text = ""
+        successful = False
+        events = None
         try:
-            for event in brain.stream_chat(
+            yield f"data: {json.dumps({'type': 'accepted', 'message': 'Message received. I am working on it.'})}\n\n"
+            events = brain.stream_chat(
                 user_message=req.message,
                 session_id=req.session_id,
                 provider_name=req.provider,
                 model_name=req.model,
-            ):
+                use_tools=req.use_tools,
+                allow_fallback=req.allow_fallback,
+                max_provider_retries=req.max_provider_retries,
+            )
+            for event in events:
                 if event.get("type") == "token":
                     full_text += event.get("content", "")
+                if event.get('type') == 'done':
+                    successful = not event.get('error') and event.get('status') not in {'failed', 'cancelled'}
                 payload = json.dumps(event)
                 yield f"data: {payload}\n\n"
 
             # Optional post-stream speech synthesis if explicitly enabled
-            if req.speak and full_text.strip():
+            if req.speak and successful and full_text.strip():
                 try:
                     from apps.voice.speech_manager import speech_manager
-                    audio_info = speech_manager.synthesize_and_stage(full_text.strip(), play_system=True)
+                    audio_info = speech_manager.synthesize_and_stage(full_text.strip(), play_system=req.audio_output == "system")
+                    if not audio_info.get("audio_url"):
+                        yield f"data: {json.dumps({'type': 'audio_error', 'message': audio_info.get('error') or 'Speech synthesis produced no playable audio'})}\n\n"
+                        return
                     audio_event = {
                         "type": "audio",
                         "audio_id": audio_info.get("audio_id"),
@@ -97,11 +153,15 @@ def chat_stream_endpoint(req: ChatRequest):
                     yield f"data: {json.dumps(audio_event)}\n\n"
                 except Exception as ae:
                     logger.warning(f"Post-stream audio error: {ae}")
+                    yield f"data: {json.dumps({'type': 'audio_error', 'message': 'Speech synthesis failed'})}\n\n"
 
         except Exception as e:
             logger.error(f"Event stream error: {e}")
-            err_payload = json.dumps({"type": "error", "message": str(e)})
+            err_payload = json.dumps({"type": "error", "message": "The reply was interrupted. Check task results before retrying."})
             yield f"data: {err_payload}\n\n"
+        finally:
+            if events is not None and hasattr(events, 'close'):
+                events.close()
 
     return StreamingResponse(
         event_stream(),

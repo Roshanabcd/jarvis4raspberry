@@ -5,12 +5,12 @@ preventing privilege escalation and unauthorized application launches.
 """
 
 import logging
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from tools.identity.permission_manager import permission_manager
-from tools.identity.user_manager import UserRole, user_manager
+from tools.identity.user_manager import UserRole
 from apps.apps_center.models import ApplicationManifest, AppStatus
-from apps.apps_center.registry import app_registry
 
 logger = logging.getLogger("JARVIS.AppsCenter.Permissions")
 
@@ -21,33 +21,55 @@ ROLE_HIERARCHY = {
 }
 
 
+@dataclass(frozen=True)
+class AppRequestIdentity:
+    """A normalized, server-owned identity for Apps Center requests.
+
+    The current identity subsystem is process-local and therefore suitable only
+    for a single local operator.  It is deliberately resolved on the server,
+    rather than from request-supplied ``user_id`` or role values.
+    """
+
+    user_id: str
+    display_name: str
+    role: str
+    is_setup: bool = False
+
+
 class AppsPermissionEngine:
     """Enforces application-level access control on the backend."""
 
     @staticmethod
-    def get_current_user_role(pin: Optional[str] = None, user_id: Optional[str] = None) -> Tuple[str, str]:
+    def get_current_identity() -> AppRequestIdentity:
         """
-        Derive active user ID and verified role from session, PIN, or active face.
-        Defaults to ('guest', 'GUEST') for safety.
+        Resolve a request identity from the server-owned active identity.
+
+        Browser input is never accepted as identity evidence.  A malformed or
+        incomplete identity falls back to the same GUEST state used elsewhere
+        in the system.
         """
-        # If valid admin PIN is provided, verify against UserManager
-        if pin:
-            is_valid, msg = user_manager.verify_admin_pin(pin)
-            if is_valid:
-                admin_user = user_manager.get_admin_user()
-                admin_name = admin_user.get("username", "admin") if admin_user else "admin"
-                return admin_name, UserRole.ADMIN.value
+        active = permission_manager.get_active_user() or {}
+        role = str(active.get("role", UserRole.GUEST.value)).upper()
+        if role not in ROLE_HIERARCHY:
+            role = UserRole.GUEST.value
 
-        # Check if user_id is an enrolled user in UserManager
-        if user_id and user_id.lower() != "guest":
-            for u in user_manager.list_users():
-                if u.get("username") == user_id:
-                    return user_id, u.get("role", UserRole.USER.value)
-            # Default non-guest usernames to standard USER role
-            return user_id, UserRole.USER.value
+        user_id = str(active.get("user_id") or "guest_session").strip()
+        if not user_id:
+            user_id = "guest_session"
 
-        # Safe default
-        return "guest", UserRole.GUEST.value
+        display_name = str(active.get("display_name") or "Guest").strip() or "Guest"
+        return AppRequestIdentity(
+            user_id=user_id,
+            display_name=display_name,
+            role=role,
+            is_setup=bool(active.get("is_setup", False)),
+        )
+
+    @classmethod
+    def get_current_user_role(cls) -> Tuple[str, str]:
+        """Compatibility helper returning the server-owned user ID and role."""
+        identity = cls.get_current_identity()
+        return identity.user_id, identity.role
 
     @classmethod
     def can_access_app(cls, app: ApplicationManifest, role: str) -> Tuple[bool, Optional[str]]:

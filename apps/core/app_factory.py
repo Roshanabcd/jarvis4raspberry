@@ -40,6 +40,7 @@ DEFAULT_ROUTER_SPECS: Tuple[RouterSpec, ...] = (
     ("apps.api.sensors_api", "sensors_router", "", ("sensors",)),
     ("apps.api.active_desktop_api", "router", "", ("active_desktop",)),
     ("apps.api.chat_api", "chat_router", "/api", ("chat",)),
+    ("apps.api.task_jobs_api", "router", "", ("task_jobs",)),
     ("apps.api.logs_api", "logs_router", "/api", ("logs",)),
     ("apps.api.settings_api", "settings_router", "/api", ("settings",)),
     ("apps.api.tools_api", "tools_router", "/api", ("tools",)),

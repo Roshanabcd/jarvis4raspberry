@@ -4,15 +4,47 @@ Exposes desktop perception, window listing, screenshot capture, UI element disco
 action execution, and multi-step computer task management.
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+logger = logging.getLogger("JARVIS.API.Computer")
+
 from tools.desktop.desktop_perception import desktop_perception
 from tools.desktop.element_detector import element_detector
 from tools.desktop.computer_action_engine import computer_action_engine
+from tools.identity.permission_manager import permission_manager
 
 router = APIRouter(prefix="/api/computer", tags=["Computer Use"])
+
+
+def _require_computer_permission(tool_name: str) -> None:
+    """Enforce role-based access on computer-interaction hardware actions.
+
+    Raises HTTP 403 when the active session lacks permission for the tool.
+    Read-only introspection endpoints are intentionally left ungated.
+    """
+    allowed, reason = permission_manager.check_tool_permission(tool_name)
+    if not allowed:
+        logger.warning("Computer access denied for %s: %s", tool_name, reason)
+        raise HTTPException(status_code=403, detail=reason)
+
+
+_COMPUTER_ACTION_TOOLS = {
+    "click": "computer_click",
+    "double_click": "computer_double_click",
+    "right_click": "computer_right_click",
+    "click_named": "computer_click",
+    "type": "computer_type",
+    "press_key": "computer_press_key",
+    "press_hotkey": "computer_press_hotkey",
+    "scroll": "computer_scroll",
+    "switch_window": "computer_switch_window",
+    "focus_window": "computer_focus_window",
+    "minimize": "computer_minimize_window",
+    "maximize": "computer_maximize_window",
+}
 
 # Pydantic Schemas
 class ScreenshotRequest(BaseModel):
@@ -106,6 +138,7 @@ def list_running_applications() -> Dict[str, Any]:
 @router.post("/screenshot")
 def capture_screenshot(req: ScreenshotRequest) -> Dict[str, Any]:
     """Capture fullscreen, active window, or region screenshot with thumbnail generation."""
+    _require_computer_permission("desktop_screenshot")
     if req.target == "active_window":
         snap = desktop_perception.capture_active_window()
     elif req.target == "region" and all(v is not None for v in [req.x, req.y, req.width, req.height]):
@@ -121,6 +154,7 @@ def capture_screenshot(req: ScreenshotRequest) -> Dict[str, Any]:
 @router.post("/observe")
 def observe_desktop() -> Dict[str, Any]:
     """Execute a complete perceptual observation cycle of the current desktop."""
+    _require_computer_permission("desktop_perception")
     return desktop_perception.observe_desktop()
 
 
@@ -138,6 +172,9 @@ def find_ui_element(req: FindElementRequest) -> Dict[str, Any]:
 def execute_computer_action(req: ActionRequest) -> Dict[str, Any]:
     """Dispatch a single verified computer interaction."""
     act = req.action.lower()
+    tool = _COMPUTER_ACTION_TOOLS.get(act)
+    if tool is not None:
+        _require_computer_permission(tool)
 
     if act == "click":
         if req.x is None or req.y is None:

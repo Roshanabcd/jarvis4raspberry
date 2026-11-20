@@ -702,6 +702,9 @@ class ToolRegistry:
         def _fn_get_network_status(**_):
             return system_tools.get_network_status()
 
+        def _fn_get_process_info(limit: int = 25, **_):
+            return system_tools.get_process_info(limit=limit)
+
         self.register_tool({
             "name": "get_system_status",
             "description": "Get real-time CPU, RAM (total, used, avail in GB), temperature, disk usage, uptime, and robot state",
@@ -773,6 +776,14 @@ class ToolRegistry:
             "risk_level": 0,
             "permissions": ["system:read"],
             "execute": _fn_get_network_status,
+        })
+        self.register_tool({
+            "name": "get_process_info",
+            "description": "Get bounded read-only process telemetry without command-line arguments",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_process_info,
         })
 
         # ── Category A2: Calculator Tools ─────────────────────
@@ -914,7 +925,9 @@ class ToolRegistry:
             }
 
         def _fn_robot_arm(**_):
-            robot.arm()
+            result = robot.arm()
+            if not result.get("armed", False):
+                raise PermissionError(result.get("error", "Robot arm request rejected by safety interlock"))
             return {"armed": _is_armed(), "status": "ARMED"}
 
         def _fn_robot_disarm(**_):
@@ -935,7 +948,9 @@ class ToolRegistry:
             fn = actions.get(direction.lower())
             if not fn:
                 return {"error": f"Invalid direction: {direction}"}
-            fn()
+            outcome = fn()
+            if direction.lower() in {"forward", "backward", "left", "right"} and not outcome:
+                raise PermissionError("Robot motion rejected by the armed/e-stop safety interlock")
             if safe_duration > 0:
                 time.sleep(safe_duration / 1000.0)
                 robot.stop()
@@ -950,7 +965,8 @@ class ToolRegistry:
         def _fn_servo_set(channel: int, angle: int, **_):
             c = max(0, min(15, int(channel)))
             a = max(0, min(180, int(angle)))
-            robot.set_servo(c, a)
+            if not robot.set_servo(c, a):
+                raise PermissionError("Servo motion rejected by the armed/e-stop safety interlock")
             return {"channel": c, "angle": a, "status": "ok"}
 
         def _fn_robot_estop(**_):
@@ -969,7 +985,7 @@ class ToolRegistry:
             "name": "robot_arm",
             "description": "Explicitly arm robot drive motors (requires confirmation)",
             "schema": {},
-            "risk_level": 2,
+            "risk_level": 3,
             "permissions": ["robot:arm"],
             "execute": _fn_robot_arm,
         })
@@ -985,7 +1001,7 @@ class ToolRegistry:
             "name": "robot_move",
             "description": "Drive robot motors: forward|backward|left|right|stop|estop",
             "schema": {"direction": "str", "speed": "int", "duration_ms": "int"},
-            "risk_level": 2,
+            "risk_level": 3,
             "permissions": ["robot:move"],
             "execute": _fn_robot_move,
         })
@@ -993,7 +1009,7 @@ class ToolRegistry:
             "name": "servo_set",
             "description": "Position a servo channel (0-15) to angle (0-180 deg)",
             "schema": {"channel": "int", "angle": "int"},
-            "risk_level": 1,
+            "risk_level": 3,
             "permissions": ["robot:servo"],
             "execute": _fn_servo_set,
         })
@@ -1253,7 +1269,7 @@ class ToolRegistry:
             return {
                 "system": get_system_status(),
                 "camera": vs.camera_status(),
-                "robot": robot.is_armed(),
+                "robot": _is_armed(),
                 "status": "HEALTHY",
             }
 

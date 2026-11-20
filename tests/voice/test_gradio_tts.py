@@ -14,7 +14,9 @@ class TestGradioVoiceCloner:
         cache_dir = str(tmp_path / "voice_cache")
         return GradioVoiceCloner(
             gradio_url="https://13f7044a4e78090fd2.gradio.live/",
-            cache_dir=cache_dir
+            cache_dir=cache_dir,
+            remote_voice_enabled=False,
+            cloud_tts_enabled=False,
         )
 
     def test_provider_status_offline_handling(self, cloner):
@@ -35,7 +37,7 @@ class TestGradioVoiceCloner:
         """When Gradio link is unreachable, cloner must fall back to local TTS."""
         res = cloner.synthesize("Unit test speech synthesis")
         assert res.success is True
-        assert res.provider in ("fallback_local_tts", "edge_neural_tts")
+        assert res.provider in ("fallback_local_tts", "espeak_local_tts")
         assert res.cached is False
 
     def test_audio_file_validation(self, cloner, tmp_path):
@@ -129,7 +131,7 @@ class TestGradioVoiceCloner:
         cloner = GradioVoiceCloner(
             gradio_url="https://roshan-omnivoice-jarvis.hf.space",
             reference_voice_path=str(ref_sample),
-            cache_dir=str(tmp_path / "cache")
+            cache_dir=str(tmp_path / "cache"),
         )
 
         status = cloner.get_provider_status()
@@ -157,7 +159,8 @@ class TestGradioVoiceCloner:
         cloner = GradioVoiceCloner(
             gradio_url="https://roshan-omnivoice-jarvis.hf.space",
             reference_voice_path=str(ref_sample),
-            cache_dir=str(tmp_path / "cache")
+            cache_dir=str(tmp_path / "cache"),
+            remote_voice_enabled=True,
         )
 
         class MockGradioClient:
@@ -186,7 +189,7 @@ class TestGradioVoiceCloner:
         cloner._last_probe = 9999999999.0
         res = cloner.synthesize("Testing missing reference audio")
         assert res.success is True
-        assert res.provider in ("fallback_local_tts", "edge_neural_tts")
+        assert res.provider in ("fallback_local_tts", "espeak_local_tts")
 
     def test_cloning_disabled_toggle(self, tmp_path):
         """When cloning_enabled is False, cloner must bypass remote Gradio."""
@@ -199,7 +202,7 @@ class TestGradioVoiceCloner:
         cloner._last_probe = 9999999999.0
         res = cloner.synthesize("Testing disabled cloning toggle")
         assert res.success is True
-        assert res.provider in ("fallback_local_tts", "edge_neural_tts")
+        assert res.provider in ("fallback_local_tts", "espeak_local_tts")
 
     def test_sanitize_text_for_speech(self):
         """Verify markdown and non-verbal tags are sanitized before speech synthesis."""

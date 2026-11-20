@@ -41,8 +41,22 @@ class TestSearchManager:
         assert session.get_by_index(0).title == "Best Robot Kits"
         assert session.get_by_index(99) is None
 
-    def test_search_web_organic_results(self):
+    def test_search_web_organic_results(self, monkeypatch):
         sm = SearchManager()
+
+        # Web providers can rate-limit or present anti-bot challenges.  Test the
+        # manager's result/session contract with a deterministic provider result
+        # instead of making the unit suite dependent on external HTML.
+        provider_results = [
+            SearchRecord(
+                1,
+                "Raspberry Pi 5",
+                "www.raspberrypi.com",
+                "https://www.raspberrypi.com/products/raspberry-pi-5/",
+                "Official Raspberry Pi 5 product information.",
+            )
+        ]
+        monkeypatch.setattr(sm, "_fetch_organic_results", lambda *_args, **_kwargs: provider_results)
         res = sm.search_web("Raspberry Pi 5", max_results=3)
         assert res["status"] == "ok"
         assert res["count"] > 0

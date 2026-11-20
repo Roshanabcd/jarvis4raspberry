@@ -15,13 +15,22 @@ import logging
 import os
 import re
 import time
+import threading
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generator, List, Optional, Union
 import requests
 
 from config.config_manager import config
+from ai.providers.credentials import usable_key
 
 logger = logging.getLogger("JARVIS.AI.Providers")
+
+
+def _chat_messages(messages):
+    """Exclude local persistence metadata from the remote chat protocol."""
+    allowed = {'role', 'content', 'name', 'tool_calls', 'tool_call_id'}
+    return [{key: value for key, value in message.items() if key in allowed}
+            for message in messages]
 
 # ──────────────────────────────────────────────
 # Global Tool Schema
@@ -271,7 +280,7 @@ class OllamaProvider(AIProvider):
         self,
         base_url: Optional[str] = None,
         model: Optional[str] = None,
-        timeout: float = 180.0,
+        timeout: float = 45.0,
         enabled: bool = True,
     ) -> None:
         cfg = config.get("ai", {}).get("ollama", {}) or {}
@@ -284,17 +293,22 @@ class OllamaProvider(AIProvider):
         self._available: Optional[bool] = None
         self._last_check: float = 0.0
         self._models_cache: List[str] = []
+        self._inference_slot = threading.BoundedSemaphore(1)
+        self._retry_after = 0.0
 
     def is_available(self) -> bool:
         if not self.enabled:
             return False
+        if self._available is not None and time.monotonic() - self._last_check < 5:
+            return self._available
+        self._last_check = time.monotonic()
         try:
             r = requests.get(f"{self.base_url}/api/tags", timeout=3.0)
             if r.status_code == 200:
                 tags = r.json().get("models", [])
                 models = [m["name"] for m in tags if isinstance(m, dict)]
                 self._models_cache = models
-                self._available = True
+                self._available = bool(models)
 
                 # If current model not installed, select best match
                 if self.model not in models:
@@ -304,7 +318,7 @@ class OllamaProvider(AIProvider):
                         self.model = next(m for m in models if "qwen3.5:4b" in m)
                     elif models:
                         self.model = models[0]
-                return True
+                return self._available
         except Exception as e:
             logger.debug(f"Ollama availability check failed: {e}")
 
@@ -345,7 +359,7 @@ class OllamaProvider(AIProvider):
             if sys_prompt:
                 payload["system"] = sys_prompt
             try:
-                r = requests.post(url, json=payload, timeout=self.timeout)
+                r = requests.post(url, json=payload, timeout=min(self.timeout, float(kwargs.get("request_timeout", self.timeout))))
                 if r.status_code == 200:
                     return r.json().get("response", "")
                 return None
@@ -357,7 +371,7 @@ class OllamaProvider(AIProvider):
         chat_messages = []
         sys_prompt = system or "You are JARVIS, an advanced AI operating environment on Raspberry Pi 5."
         if tools:
-            tool_desc = ", ".join(t['name'] for t in tools)
+            tool_desc = json.dumps(tools)
             sys_prompt += (
                 f"\nTools available: {tool_desc}.\n"
                 "To invoke a tool, output: TOOL_CALL: {\"name\": \"<name>\", \"args\": {...}}\n"
@@ -374,9 +388,12 @@ class OllamaProvider(AIProvider):
                 chat_messages.append({"role": role, "content": content})
 
         model_to_use = kwargs.get("model", self.model)
-        # Adapt timeout to model size and Pi 5 CPU inference
-        req_timeout = 240.0 if "4b" in model_to_use else max(180.0, self.timeout)
+        req_timeout = min(self.timeout, float(kwargs.get("request_timeout", self.timeout)))
 
+        if time.monotonic() < self._retry_after:
+            return {"text": "", "tool_calls": [], "error": "local_provider_cooling_down", "provider": self.name}
+        if not self._inference_slot.acquire(blocking=False):
+            return {"text": "", "tool_calls": [], "error": "local_provider_busy", "provider": self.name}
         try:
             r = requests.post(
                 f"{self.base_url}/api/chat",
@@ -407,6 +424,8 @@ class OllamaProvider(AIProvider):
             }
         except Exception as e:
             logger.error(f"Ollama chat error: {e}")
+            if isinstance(e, (requests.Timeout, requests.ConnectionError)):
+                self._retry_after = time.monotonic() + 30.0
             return {
                 "text": "",
                 "tool_calls": [],
@@ -415,6 +434,8 @@ class OllamaProvider(AIProvider):
                 "tokens": 0,
                 "error": str(e),
             }
+        finally:
+            self._inference_slot.release()
 
     def stream_generate(
         self,
@@ -431,8 +452,9 @@ class OllamaProvider(AIProvider):
             chat_messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
 
         model_to_use = kwargs.get("model", self.model)
-        req_timeout = 120.0 if "4b" in model_to_use else self.timeout
+        req_timeout = min(self.timeout, float(kwargs.get("request_timeout", self.timeout)))
 
+        r = None
         try:
             r = requests.post(
                 f"{self.base_url}/api/chat",
@@ -442,7 +464,7 @@ class OllamaProvider(AIProvider):
                     "stream": True,
                     "options": {
                         "temperature": kwargs.get("temperature", 0.2),
-                        "num_predict": kwargs.get("num_predict", 2048),
+                        "num_predict": kwargs.get("num_predict", kwargs.get('max_tokens', 2048)),
                     }
                 },
                 stream=True,
@@ -477,6 +499,9 @@ class OllamaProvider(AIProvider):
                 "model": model_to_use,
                 "error": str(e),
             }
+        finally:
+            if r is not None:
+                r.close()
 
     def _extract_tool_calls(self, text: str) -> List[Dict]:
         calls = []
@@ -516,7 +541,7 @@ class GeminiProvider(AIProvider):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "gemini-2.0-flash",
+        model: Optional[str] = None,
         enabled: bool = True,
     ) -> None:
         cfg = config.get("ai", {}).get("gemini", {}) or {}
@@ -528,13 +553,13 @@ class GeminiProvider(AIProvider):
                 os.environ.get("GEMINI_API_KEY") or
                 cfg.get("api_key", "")
             ).strip()
-        self.model = model or cfg.get("model", "gemini-2.0-flash")
+        self.model = model or os.environ.get("GEMINI_MODEL") or cfg.get("model", "gemini-2.0-flash")
         self.enabled = enabled
 
     def is_available(self) -> bool:
         if not self.enabled:
             return False
-        if not self.api_key or "your-" in self.api_key or "REPLACE" in self.api_key:
+        if not usable_key(self.api_key):
             return False
         return True
 
@@ -551,51 +576,19 @@ class GeminiProvider(AIProvider):
         if not self.is_available():
             return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": "Gemini key missing"}
 
-        # Attempt SDK first, fallback to direct REST
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
+        return self._compatible_client().generate(messages, tools=tools, system=system, **kwargs)
 
-            model_kwargs = {"model_name": self.model}
-            if system:
-                model_kwargs["system_instruction"] = system
-            model = genai.GenerativeModel(**model_kwargs)
+    def _compatible_client(self):
+        # Google's documented compatibility API preserves history, system prompts,
+        # streaming, and native tool-call IDs through the shared adapter.
+        client = OpenAIProvider(api_key=self.api_key, model=self.model,
+                                base_url="https://generativelanguage.googleapis.com/v1beta/openai",
+                                enabled=self.enabled, timeout=getattr(self, "timeout", 30.0))
+        client.name = self.name
+        return client
 
-            prompt_text = messages if isinstance(messages, str) else (
-                messages[-1].get("content", "") if messages else ""
-            )
-            response = model.generate_content(prompt_text)
-            text = response.text.strip() if hasattr(response, "text") else ""
-
-            if isinstance(messages, str):
-                return text
-
-            return {
-                "text": text,
-                "tool_calls": [],
-                "provider": "gemini",
-                "model": self.model,
-                "tokens": 0,
-            }
-        except Exception as sdk_err:
-            # Fallback to direct REST API
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
-                prompt_text = messages if isinstance(messages, str) else messages[-1].get("content", "")
-                payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
-                r = requests.post(url, json=payload, timeout=30)
-                if r.status_code == 200:
-                    cand = r.json().get("candidates", [{}])[0]
-                    text = cand.get("content", {}).get("parts", [{}])[0].get("text", "")
-                    if isinstance(messages, str):
-                        return text
-                    return {"text": text, "tool_calls": [], "provider": "gemini", "model": self.model, "tokens": 0}
-            except Exception as e:
-                logger.error(f"Gemini REST error: {e}")
-
-            if isinstance(messages, str):
-                return None
-            return {"text": "", "tool_calls": [], "provider": "gemini", "model": self.model, "error": str(sdk_err)}
+    def stream_generate(self, messages, tools=None, system=None, **kwargs):
+        yield from self._compatible_client().stream_generate(messages, tools=tools, system=system, **kwargs)
 
 
 # ──────────────────────────────────────────────
@@ -617,14 +610,14 @@ class OpenAIProvider(AIProvider):
         self.api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY", "").strip()
         default_base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         self.base_url = (base_url or cfg.get("base_url") or default_base_url).rstrip("/")
-        self.model = model or cfg.get("model") or "gpt-4o-mini"
+        self.model = model or os.getenv("OPENAI_MODEL") or cfg.get("model") or "gpt-4o-mini"
         self.timeout = timeout
         self.enabled = enabled if enabled is not None else cfg.get("enabled", False)
 
     def is_available(self) -> bool:
         if not self.enabled:
             return False
-        if not self.api_key or self.api_key.startswith("sk-REPLACE") or "your-" in self.api_key:
+        if not usable_key(self.api_key):
             return False
         return True
 
@@ -658,7 +651,7 @@ class OpenAIProvider(AIProvider):
         else:
             if system:
                 oai_messages.append({"role": "system", "content": system})
-            oai_messages.extend(messages)
+            oai_messages.extend(_chat_messages(messages))
 
         payload: Dict[str, Any] = {
             "model": kwargs.get("model", self.model),
@@ -666,25 +659,38 @@ class OpenAIProvider(AIProvider):
             "temperature": kwargs.get("temperature", 0.7),
         }
 
+        if "max_tokens" in kwargs:
+            payload["max_tokens"] = kwargs["max_tokens"]
+        if tools:
+            payload["tools"] = [{"type": "function", "function": tool} for tool in tools]
+
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
+            r = requests.post(url, headers=headers, json=payload, timeout=min(self.timeout, float(kwargs.get("request_timeout", self.timeout))))
             if r.status_code == 200:
                 data = r.json()
                 msg = data.get("choices", [{}])[0].get("message", {})
-                content = msg.get("content", "")
+                content = msg.get("content") or ""
+                calls = []
+                for call in msg.get("tool_calls") or []:
+                    function = call["function"]
+                    arguments = json.loads(function["arguments"])
+                    if not isinstance(arguments, dict):
+                        raise ValueError("Tool arguments must be a JSON object")
+                    calls.append({"id": call["id"], "name": function["name"], "args": arguments})
                 if isinstance(messages, str):
                     return content
                 return {
                     "text": content,
-                    "tool_calls": [],
+                    "tool_calls": calls,
                     "provider": self.name,
-                    "model": self.model,
+                    "model": payload["model"],
                     "tokens": data.get("usage", {}).get("total_tokens", 0),
+                    "assistant_message": {**{k: v for k, v in msg.items() if k in {"content", "tool_calls"}}, "role": "assistant"},
                 }
-            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": r.text}
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": f"{self.name} returned HTTP {r.status_code}", "http_status": r.status_code}
         except Exception as e:
-            logger.warning(f"OpenAI error: {e}")
-            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": str(e)}
+            logger.warning("%s request failed: %s", self.name, type(e).__name__)
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": f"{self.name} request failed ({type(e).__name__})"}
 
     def stream_generate(
         self,
@@ -701,15 +707,19 @@ class OpenAIProvider(AIProvider):
         oai_messages = []
         if system:
             oai_messages.append({"role": "system", "content": system})
-        oai_messages.extend(messages)
+        oai_messages.extend(_chat_messages(messages))
 
         payload = {
             "model": kwargs.get("model", self.model),
             "messages": oai_messages,
             "stream": True,
         }
+        if 'max_tokens' in kwargs:
+            payload['max_tokens'] = kwargs['max_tokens']
+        r = None
+        completed = False
         try:
-            r = requests.post(url, headers=headers, json=payload, stream=True, timeout=self.timeout)
+            r = requests.post(url, headers=headers, json=payload, stream=True, timeout=min(self.timeout, float(kwargs.get("request_timeout", self.timeout))))
             r.raise_for_status()
             for line in r.iter_lines():
                 if not line:
@@ -718,18 +728,34 @@ class OpenAIProvider(AIProvider):
                 if decoded.startswith("data: "):
                     body = decoded[6:].strip()
                     if body == "[DONE]":
+                        completed = True
                         yield {"token": "", "done": True, "provider": self.name, "model": self.model}
                         break
                     try:
                         chunk = json.loads(body)
-                        delta = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                        choices = chunk.get('choices') or []
+                        if not choices:
+                            continue
+                        choice = choices[0]
+                        delta = choice.get("delta", {}).get("content", "")
                         if delta:
                             yield {"token": delta, "done": False, "provider": self.name, "model": self.model}
+                        reason = choice.get('finish_reason')
+                        if reason and reason != 'stop':
+                            yield {"token": "", "done": True, "error": "Reply ended before completion", "provider": self.name, "model": self.model}
+                            return
+                        if reason == 'stop':
+                            completed = True
                     except Exception:
                         pass
+            if not completed:
+                yield {"token": "", "done": True, "error": "Reply stream ended unexpectedly", "provider": self.name, "model": self.model}
         except Exception as e:
-            logger.error(f"OpenAI stream error: {e}")
-            yield {"token": f" [Error: {e}]", "done": True, "provider": self.name, "model": self.model}
+            logger.error("%s stream failed: %s", self.name, type(e).__name__)
+            yield {"token": "", "done": True, "error": f"{self.name} stream failed ({type(e).__name__})", "provider": self.name, "model": self.model}
+        finally:
+            if r is not None:
+                r.close()
 
     def get_model_info(self) -> Dict[str, Any]:
         return {
@@ -750,13 +776,65 @@ OpenAICompatibleProvider = OpenAIProvider
 # 4. Anthropic Claude Provider
 # ──────────────────────────────────────────────
 
+def _format_anthropic_messages(messages: List[Dict]) -> List[Dict]:
+    """Format standard chat messages for Anthropic's Messages API.
+
+    Handles tool results as role: user with tool_result blocks, and assistant
+    tool calls as tool_use content blocks.
+    """
+    formatted: List[Dict[str, Any]] = []
+    for msg in messages:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if role == "system":
+            continue
+        elif role == "tool":
+            tool_block = {
+                "type": "tool_result",
+                "tool_use_id": msg.get("tool_call_id") or "",
+                "content": str(content if content is not None else ""),
+            }
+            if formatted and formatted[-1]["role"] == "user" and isinstance(formatted[-1]["content"], list):
+                formatted[-1]["content"].append(tool_block)
+            else:
+                formatted.append({"role": "user", "content": [tool_block]})
+        elif role == "assistant":
+            if isinstance(content, list):
+                formatted.append({"role": "assistant", "content": content})
+            elif msg.get("tool_calls"):
+                blocks = []
+                if content:
+                    blocks.append({"type": "text", "text": str(content)})
+                for tc in msg["tool_calls"]:
+                    fn = tc.get("function") or {}
+                    fn_name = fn.get("name") or tc.get("name") or ""
+                    args = fn.get("arguments") or tc.get("args") or {}
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except Exception:
+                            args = {}
+                    blocks.append({
+                        "type": "tool_use",
+                        "id": tc.get("id") or "",
+                        "name": fn_name,
+                        "input": args if isinstance(args, dict) else {},
+                    })
+                formatted.append({"role": "assistant", "content": blocks})
+            else:
+                formatted.append({"role": "assistant", "content": str(content or "")})
+        else:
+            formatted.append({"role": "user", "content": content if isinstance(content, list) else str(content or "")})
+    return formatted
+
+
 class AnthropicProvider(AIProvider):
     name = "anthropic"
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "claude-3-haiku-20240307",
+        model: Optional[str] = None,
         enabled: bool = True,
     ) -> None:
         cfg = config.get("ai", {}).get("anthropic", {}) or {}
@@ -764,13 +842,13 @@ class AnthropicProvider(AIProvider):
             self.api_key = api_key.strip()
         else:
             self.api_key = (os.environ.get("ANTHROPIC_API_KEY", "") or cfg.get("api_key", "")).strip()
-        self.model = model or cfg.get("model", "claude-3-haiku-20240307")
+        self.model = model or os.environ.get("ANTHROPIC_MODEL") or cfg.get("model", "claude-3-haiku-20240307")
         self.enabled = enabled
 
     def is_available(self) -> bool:
         if not self.enabled:
             return False
-        if not self.api_key or self.api_key.startswith("sk-ant-REPLACE") or "your-" in self.api_key:
+        if not usable_key(self.api_key):
             return False
         return True
 
@@ -793,38 +871,142 @@ class AnthropicProvider(AIProvider):
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
         }
-        ant_messages = []
         if isinstance(messages, str):
-            ant_messages.append({"role": "user", "content": messages})
+            ant_messages = [{"role": "user", "content": messages}]
         else:
-            ant_messages.extend(messages)
+            ant_messages = _format_anthropic_messages(messages)
 
+        model_to_use = kwargs.get("model", self.model)
         payload: Dict[str, Any] = {
-            "model": self.model,
-            "max_tokens": 1024,
+            "model": model_to_use,
+            "max_tokens": kwargs.get("max_tokens", 1024),
             "messages": ant_messages,
         }
         if system:
             payload["system"] = system
+        if tools:
+            payload["tools"] = [
+                {
+                    "name": t["name"],
+                    "description": t.get("description", ""),
+                    "input_schema": t.get("parameters") or {"type": "object", "properties": {}},
+                }
+                for t in tools
+            ]
 
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=30)
+            r = requests.post(url, headers=headers, json=payload, timeout=min(getattr(self, "timeout", 30), float(kwargs.get("request_timeout", 30))))
             if r.status_code == 200:
                 data = r.json()
-                text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+                content_blocks = data.get("content", [])
+                text = "".join(b.get("text", "") for b in content_blocks if b.get("type") == "text")
+                calls = []
+                for b in content_blocks:
+                    if b.get("type") == "tool_use":
+                        calls.append({
+                            "id": b.get("id"),
+                            "name": b.get("name"),
+                            "args": b.get("input", {}),
+                        })
                 if isinstance(messages, str):
                     return text
                 return {
                     "text": text,
-                    "tool_calls": [],
+                    "tool_calls": calls,
                     "provider": "anthropic",
-                    "model": self.model,
+                    "model": model_to_use,
                     "tokens": data.get("usage", {}).get("output_tokens", 0),
+                    "assistant_message": {
+                        "role": "assistant",
+                        "content": content_blocks,
+                        "tool_calls": [
+                            {
+                                "id": b["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": b["name"],
+                                    "arguments": json.dumps(b.get("input", {}))
+                                }
+                            }
+                            for b in content_blocks if b.get("type") == "tool_use"
+                        ]
+                    }
                 }
-            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": r.text}
+            return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": f"{self.name} returned HTTP {r.status_code}", "http_status": r.status_code}
         except Exception as e:
             logger.error(f"Anthropic error: {e}")
             return None if isinstance(messages, str) else {"text": "", "tool_calls": [], "error": str(e)}
+
+    def stream_generate(
+        self,
+        messages: List[Dict],
+        tools: Optional[List[Dict]] = None,
+        system: Optional[str] = None,
+        **kwargs: Any,
+    ) -> Generator[Dict[str, Any], None, None]:
+        if not self.is_available():
+            yield {"token": "", "done": True, "error": "Anthropic not available", "provider": self.name, "model": self.model}
+            return
+
+        url = "https://api.anthropic.com/v1/messages"
+        headers = {
+            "x-api-key": self.api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        }
+        ant_messages = _format_anthropic_messages(messages)
+        model_to_use = kwargs.get("model", self.model)
+        payload: Dict[str, Any] = {
+            "model": model_to_use,
+            "max_tokens": kwargs.get("max_tokens", 2048),
+            "messages": ant_messages,
+            "stream": True,
+        }
+        if system:
+            payload["system"] = system
+        if tools:
+            payload["tools"] = [
+                {
+                    "name": t["name"],
+                    "description": t.get("description", ""),
+                    "input_schema": t.get("parameters") or {"type": "object", "properties": {}},
+                }
+                for t in tools
+            ]
+
+        try:
+            r = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                stream=True,
+                timeout=min(getattr(self, "timeout", 30), float(kwargs.get("request_timeout", 30)))
+            )
+            r.raise_for_status()
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                decoded = line.decode("utf-8")
+                if decoded.startswith("data: "):
+                    data_str = decoded[6:].strip()
+                    if data_str == "[DONE]":
+                        yield {"token": "", "done": True, "provider": self.name, "model": model_to_use}
+                        break
+                    try:
+                        event = json.loads(data_str)
+                        evt_type = event.get("type")
+                        if evt_type == "content_block_delta":
+                            delta = event.get("delta", {})
+                            if delta.get("type") == "text_delta":
+                                yield {"token": delta.get("text", ""), "done": False, "provider": self.name, "model": model_to_use}
+                        elif evt_type == "message_stop":
+                            yield {"token": "", "done": True, "provider": self.name, "model": model_to_use}
+                            break
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.error(f"Anthropic stream failed: {e}")
+            yield {"token": "", "done": True, "error": f"Anthropic stream failed: {e}", "provider": self.name, "model": model_to_use}
 
 
 # ──────────────────────────────────────────────
@@ -837,25 +1019,43 @@ class NvidiaNimProvider(OpenAIProvider):
     def __init__(
         self,
         api_key: Optional[str] = None,
-        model: str = "meta/llama-3.1-70b-instruct",
+        model: Optional[str] = None,
         base_url: str = "https://integrate.api.nvidia.com/v1",
         enabled: bool = True,
     ) -> None:
         key = api_key or os.environ.get("NVIDIA_API_KEY", "") or os.environ.get("NIM_API_KEY", "")
+        cfg = config.get("ai", {}).get("nvidia", {}) or {}
+        chosen_model = model or os.environ.get("NVIDIA_MODEL") or cfg.get("model") or "nvidia/nemotron-3.5-bolt-e4b"
         super().__init__(
             api_key=key,
-            model=model,
+            model=chosen_model,
             base_url=base_url,
             enabled=enabled,
         )
+        self._catalog_models = []
+        self._catalog_checked_at = None
+        self._catalog_lock = threading.Lock()
 
     def list_models(self) -> List[str]:
-        return [
-            "meta/llama-3.1-70b-instruct",
-            "meta/llama-3.1-8b-instruct",
-            "mistralai/mixtral-8x7b-instruct-v0.1",
-            "nvidia/nemotron-4-340b-instruct",
-        ]
+        # The hosted catalog changes; a fixed list advertised retired models.
+        # Catalog presence is discovery, not evidence of generation success.
+        if not self.enabled or not usable_key(self.api_key):
+            return [self.model]
+        with self._catalog_lock:
+            if self._catalog_checked_at is None or time.monotonic() - self._catalog_checked_at >= 300:
+                self._catalog_checked_at = time.monotonic()
+                try:
+                    response = requests.get(f'{self.base_url}/models',
+                                            headers={'Authorization': f'Bearer {self.api_key}'}, timeout=5)
+                    if response.status_code == 200:
+                        data = response.json().get('data', [])
+                        if isinstance(data, list):
+                            ids = [item.get('id') for item in data[:500] if isinstance(item, dict)]
+                            self._catalog_models = sorted({item for item in ids if isinstance(item, str)
+                                and len(item) <= 200 and re.fullmatch(r'[A-Za-z0-9_.:/-]+', item)})
+                except Exception as exc:
+                    logger.debug('NVIDIA catalog unavailable (%s)', type(exc).__name__)
+            return list(dict.fromkeys([self.model, *self._catalog_models]))
 
 
 # ──────────────────────────────────────────────
@@ -886,3 +1086,18 @@ class GenericOpenAIProvider(OpenAIProvider):
             return False
         # If API key is present or local URL, consider available
         return bool(self.base_url)
+
+
+class OpenRouterProvider(OpenAIProvider):
+    """OpenRouter uses the shared OpenAI-compatible chat and tool protocol."""
+    name = "openrouter"
+
+    def __init__(self, api_key=None, model=None, enabled=True):
+        cfg = (config.get("ai", {}) or {}).get("openrouter", {}) or {}
+        chosen_model = model or os.getenv("OPENROUTER_MODEL") or cfg.get("model") or "openrouter/free"
+        super().__init__(api_key=api_key if api_key is not None else os.getenv("OPENROUTER_API_KEY", ""),
+                         model=chosen_model,
+                         base_url="https://openrouter.ai/api/v1", enabled=enabled)
+
+    def list_models(self):
+        return list(dict.fromkeys([self.model, "openrouter/free"]))

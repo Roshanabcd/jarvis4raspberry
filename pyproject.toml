@@ -7,11 +7,17 @@ dependencies = [
     "fastapi>=0.100",
     "uvicorn[standard]>=0.20",
     "pydantic>=2.0",
+    "pillow>=10.0",
     "pyyaml>=6.0",
     "smbus2>=0.4.0",
     "pyserial>=3.5",
     "requests>=2.31.0",
     "psutil>=5.9.0",
+    "edge-tts>=7.0.0",
+    "SpeechRecognition>=3.10,<4",
+    # Required by the local YuNet/SFace face-identification engine. The
+    # headless build avoids pulling a second GUI stack onto Raspberry Pi OS.
+    "opencv-python-headless>=4.10.0",
 ]
 requires-python = ">=3.11"
 
@@ -21,3 +27,8 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["apps", "hardware", "ai", "memory", "tools", "security", "config"]
+
+[tool.pytest.ini_options]
+markers = [
+    "hardware: requires explicitly enabled attached hardware",
+]

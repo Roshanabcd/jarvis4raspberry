@@ -8,6 +8,7 @@ Enforces:
 - Servo channel and angle bounds validation.
 """
 import logging
+import threading
 from typing import Optional, Dict, Any
 from config.config_manager import config
 from hardware.pca9685.driver import PCA9685
@@ -154,10 +155,22 @@ class RobotController:
         return {"status": "ok", "state": self.state, "armed": self.armed}
 
     def set_servo(self, channel: int, angle: int) -> bool:
-        """Set servo channel (0-15) to angle (0-180)."""
+        """Set servo channel (0-15) to angle (0-180) only when armed.
+
+        Servo PWM is physical motion just like a motor command.  It must obey
+        the same disarmed and emergency-stop interlocks instead of bypassing
+        them through a separate API path.
+        """
         if not (0 <= channel <= 15):
             logger.error(f"Invalid servo channel {channel}. Must be 0-15.")
             raise ValueError(f"Servo channel must be between 0 and 15, got {channel}")
+
+        if self._emergency_stopped or self.state == "EMERGENCY_STOP":
+            logger.warning("Servo command rejected: EMERGENCY STOP active.")
+            return False
+        if not self.armed:
+            logger.warning("Servo command rejected: Robot actuators are DISARMED.")
+            return False
 
         angle = max(0, min(180, angle))
         pulse = int(150 + (angle / 180.0) * 450)
@@ -189,5 +202,38 @@ class RobotController:
         }
 
 
-# Global default instance
-robot = RobotController()
+# The production controller is created only when an action actually needs it.
+# Importing a router or registering a tool must not open I2C/serial devices,
+# which keeps unit tests and non-robot services from claiming physical ports.
+_robot: Optional[RobotController] = None
+_robot_lock = threading.RLock()
+
+
+def get_robot() -> RobotController:
+    """Return the process-wide robot controller, constructing it lazily."""
+    global _robot
+    with _robot_lock:
+        if _robot is None:
+            _robot = RobotController()
+        return _robot
+
+
+def get_existing_robot() -> Optional[RobotController]:
+    """Return the existing controller without creating hardware as a side effect."""
+    with _robot_lock:
+        return _robot
+
+
+class _LazyRobotProxy:
+    """Backward-compatible proxy for legacy ``from … import robot`` users."""
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(get_robot(), name)
+
+    def __repr__(self) -> str:
+        return "<LazyRobotProxy>"
+
+
+# Kept for existing callers; unlike the old module singleton it does not
+# construct hardware during module import.
+robot = _LazyRobotProxy()

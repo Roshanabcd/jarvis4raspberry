@@ -13,4 +13,6 @@ Requires-Dist: smbus2>=0.4.0
 Requires-Dist: pyserial>=3.5
 Requires-Dist: requests>=2.31.0
 Requires-Dist: psutil>=5.9.0
+Requires-Dist: edge-tts>=7.0.0
+Requires-Dist: opencv-python-headless>=4.10.0
 Dynamic: license-file

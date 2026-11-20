@@ -1,0 +1,14 @@
+{
+  "name": "jarvis-os-dashboard",
+  "private": true,
+  "scripts": {
+    "test:desktop": "node --test tests/frontend/*.test.cjs",
+    "test:browser": "node --test tests/browser/browser_verification.cjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.65.1"
+  },
+  "dependencies": {
+    "windsurf-agent-cli": "^1.2.2"
+  }
+}

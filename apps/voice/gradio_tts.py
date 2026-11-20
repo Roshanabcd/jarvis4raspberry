@@ -89,6 +89,8 @@ class GradioVoiceCloner:
         cache_dir: Optional[str] = None,
         fallback_tts: Optional[TextToSpeech] = None,
         cloning_enabled: Optional[bool] = None,
+        remote_voice_enabled: Optional[bool] = None,
+        cloud_tts_enabled: Optional[bool] = None,
     ):
         v_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
         self.cloning_enabled = (
@@ -96,21 +98,36 @@ class GradioVoiceCloner:
             if cloning_enabled is not None
             else v_cfg.get("cloning_enabled", True)
         )
+        # A configured URL is not consent to transmit speech or reference audio
+        # to an external provider.  Remote cloning and cloud fallback each need
+        # their own explicit opt-in, and both are disabled by default.
+        self.remote_voice_enabled = (
+            bool(remote_voice_enabled)
+            if remote_voice_enabled is not None
+            else bool(v_cfg.get("remote_voice_enabled", False))
+        )
+        self.cloud_tts_enabled = (
+            bool(cloud_tts_enabled)
+            if cloud_tts_enabled is not None
+            else bool(v_cfg.get("cloud_tts_enabled", False))
+        )
 
         self._explicit_url = bool(gradio_url)
 
-        # Dynamic URL resolution: colab_manager takes precedence if active and not explicitly overridden
+        # Dynamic URL resolution only accepts a successfully registered, verified
+        # runtime.  A config/environment URL alone must never trigger a probe.
+        active_colab = ""
         try:
             from apps.voice.colab_registration import colab_manager
-            active_colab = colab_manager.get_active_url() if not self._explicit_url else ""
+            if self.remote_voice_enabled and not self._explicit_url:
+                active_colab = colab_manager.get_verified_active_url()
         except Exception:
             active_colab = ""
 
         self.gradio_url = (
             gradio_url
             or active_colab
-            or os.environ.get("GRADIO_VOICE_URL")
-            or v_cfg.get("gradio_url", "https://roshan-omnivoice-jarvis.hf.space")
+            or ""
         ).strip()
 
         # Find reference voice sample (prioritize 3-10s clean reference clip)
@@ -221,10 +238,14 @@ class GradioVoiceCloner:
 
     def _probe_gradio_client(self, force: bool = False) -> bool:
         """Inspect and connect to the remote Gradio instance without guessing."""
+        if not self.remote_voice_enabled or not self.cloning_enabled:
+            self._online = False
+            return False
+
         if not getattr(self, "_explicit_url", False):
             try:
                 from apps.voice.colab_registration import colab_manager
-                dynamic_url = colab_manager.get_active_url()
+                dynamic_url = colab_manager.get_verified_active_url()
                 if dynamic_url and dynamic_url != self.gradio_url:
                     self.update_url(dynamic_url)
             except Exception:
@@ -320,26 +341,35 @@ class GradioVoiceCloner:
 
     def get_provider_status(self) -> Dict[str, Any]:
         """Return provider connectivity and configuration status."""
-        if not getattr(self, "_explicit_url", False):
+        if self.remote_voice_enabled and not getattr(self, "_explicit_url", False):
             try:
                 from apps.voice.colab_registration import colab_manager
-                dynamic_url = colab_manager.get_active_url()
+                dynamic_url = colab_manager.get_verified_active_url()
                 if dynamic_url and dynamic_url != self.gradio_url:
                     self.update_url(dynamic_url)
             except Exception:
                 pass
 
-        is_online = self._probe_gradio_client(force=False) if self.cloning_enabled else False
-        ref_info = self.get_reference_audio_info()
-        status_label = (
-            "OMNIVOICE CLONED VOICE READY"
-            if is_online
-            else "Neural Fallback (Edge-TTS Ryan)"
+        is_online = (
+            self._probe_gradio_client(force=False)
+            if self.cloning_enabled and self.remote_voice_enabled
+            else False
         )
+        ref_info = self.get_reference_audio_info()
+        if not self.remote_voice_enabled:
+            status_label = "Remote voice disabled (Local TTS Fallback)"
+        elif is_online:
+            status_label = "OMNIVOICE CLONED VOICE READY"
+        elif self.cloud_tts_enabled:
+            status_label = "Cloud neural fallback available"
+        else:
+            status_label = "Local TTS fallback"
         return {
             "name": "gradio_voice_clone",
             "url": self.gradio_url,
             "cloning_enabled": self.cloning_enabled,
+            "remote_voice_enabled": self.remote_voice_enabled,
+            "cloud_tts_enabled": self.cloud_tts_enabled,
             "is_hf_space": self.is_hf_space,
             "online": is_online,
             "label": status_label,
@@ -424,11 +454,11 @@ class GradioVoiceCloner:
             )
 
         # 2. Try Gradio remote synthesis if enabled and reference sample exists
-        if self.cloning_enabled:
+        if self.cloning_enabled and self.remote_voice_enabled:
             if not getattr(self, "_explicit_url", False):
                 try:
                     from apps.voice.colab_registration import colab_manager
-                    dynamic_url = colab_manager.get_active_url()
+                    dynamic_url = colab_manager.get_verified_active_url()
                     if dynamic_url and dynamic_url != self.gradio_url:
                         self.update_url(dynamic_url)
                 except Exception:
@@ -543,48 +573,46 @@ class GradioVoiceCloner:
                             colab_manager.state["last_error"] = err_msg
                     except Exception:
                         pass
-                        with colab_manager._lock:
-                            colab_manager.state["last_error"] = str(exc)
-                    except Exception:
-                        pass
 
-        # 3. Fallback: High quality Neural TTS or local espeak saved to cache_path
+        # 3. Optional cloud neural TTS, then local espeak saved to cache_path.
+        # Edge TTS transmits the requested text, so it remains disabled unless
+        # the operator has explicitly enabled cloud_tts_enabled.
         logger.info("[Gradio Offline/Fallback] Synthesizing via neural/local TTS: '%s'", clean_text[:50])
-        try:
-            import sys
-            edge_bin = (
-                shutil.which("edge-tts")
-                or os.path.join(os.path.dirname(sys.executable), "edge-tts")
-            )
-            if edge_bin and os.path.exists(edge_bin):
-                cmd = [edge_bin, "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
-            else:
-                cmd = [sys.executable, "-m", "edge_tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
-
-            res = subprocess.run(cmd, capture_output=True, timeout=25)
-            if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
-                return AudioResult(
-                    audio_path=cache_path,
-                    format="mp3",
-                    duration_s=0.0,
-                    cached=False,
-                    provider="edge_neural_tts",
-                    is_cloned=False,
-                    text=clean_text,
-                    success=True,
-                    latency_ms=(time.perf_counter() - t_start) * 1000,
+        if self.cloud_tts_enabled:
+            try:
+                import sys
+                edge_bin = (
+                    shutil.which("edge-tts")
+                    or os.path.join(os.path.dirname(sys.executable), "edge-tts")
                 )
-            else:
+                if edge_bin and os.path.exists(edge_bin):
+                    cmd = [edge_bin, "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+                else:
+                    cmd = [sys.executable, "-m", "edge_tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+
+                res = subprocess.run(cmd, capture_output=True, timeout=25)
+                if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
+                    return AudioResult(
+                        audio_path=cache_path,
+                        format="mp3",
+                        duration_s=0.0,
+                        cached=False,
+                        provider="edge_neural_tts",
+                        is_cloned=False,
+                        text=clean_text,
+                        success=True,
+                        latency_ms=(time.perf_counter() - t_start) * 1000,
+                    )
                 logger.warning("edge-tts process returned code %d: %s", res.returncode, res.stderr.decode() if res.stderr else "")
-        except Exception as e:
-            logger.debug("edge-tts fallback exception: %s", e)
+            except Exception as exc:
+                logger.debug("edge-tts fallback exception: %s", exc)
 
         # Espeak local offline fallback
         espeak_bin = shutil.which("espeak") or shutil.which("espeak-ng")
         if espeak_bin:
             try:
-                cmd = [espeak_bin, "-w", cache_path, clean_text]
-                res = subprocess.run(cmd, capture_output=True, timeout=5)
+                cmd = [espeak_bin, "-w", cache_path, "--stdin"]
+                res = subprocess.run(cmd, input=clean_text.encode("utf-8"), capture_output=True, timeout=15)
                 if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:
                     return AudioResult(
                         audio_path=cache_path,
@@ -600,8 +628,8 @@ class GradioVoiceCloner:
             except Exception as e:
                 logger.debug("espeak fallback exception: %s", e)
 
-        # Simulation or pyttsx3 fallback
-        self.fallback_tts.speak_sync(clean_text)
+        # Synthesis must return a playable asset. Never speak as a side effect
+        # of a staging request or label missing audio as successful synthesis.
         return AudioResult(
             audio_path=None,
             format="pcm",
@@ -610,7 +638,8 @@ class GradioVoiceCloner:
             provider="fallback_local_tts",
             is_cloned=False,
             text=clean_text,
-            success=True,
+            success=False,
+            error="No playable audio produced. Install espeak-ng or configure a speech provider.",
             latency_ms=(time.perf_counter() - t_start) * 1000,
         )
 

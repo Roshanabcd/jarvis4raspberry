@@ -15,11 +15,24 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from apps.vision.service import vision_service
+from tools.identity.permission_manager import permission_manager
 from tools.vision.camera_manager import CameraManager
 
 logger = logging.getLogger("JARVIS.API.Vision")
 
 vision_router = APIRouter(prefix="/vision", tags=["vision"])
+
+
+def _require_vision_permission(tool_name: str) -> None:
+    """Enforce role-based access on vision hardware actions.
+
+    Raises HTTP 403 when the active session lacks permission for the tool.
+    Read-only telemetry (/vision/status) is intentionally left ungated.
+    """
+    allowed, reason = permission_manager.check_tool_permission(tool_name)
+    if not allowed:
+        logger.warning("Vision access denied for %s: %s", tool_name, reason)
+        raise HTTPException(status_code=403, detail=reason)
 
 
 class VisualQARequest(BaseModel):
@@ -45,6 +58,7 @@ def capture_photo():
     Capture a real photograph from the Sony IMX708 camera.
     Saves image into /home/roshan/Pictures/JARVIS_Photo_YYYYMMDD_HHMMSS.jpg.
     """
+    _require_vision_permission("camera_capture")
     frame = vision_service.capture_frame()
     if frame.get("status") == "error":
         raise HTTPException(status_code=500, detail=frame.get("error", "Camera capture error"))
@@ -68,6 +82,7 @@ def capture_photo():
 @vision_router.get("/describe")
 def describe_scene(image_path: Optional[str] = Query(None)):
     """Describe what is currently visible to the camera using local Moondream VLM."""
+    _require_vision_permission("camera_describe")
     desc = vision_service.describe_scene(image_path=image_path)
     return {
         "description": desc,
@@ -83,6 +98,7 @@ def detect_objects(req: Optional[ObjectDetectionRequest] = None):
     Returns 80 COCO class labels, bounding box coordinates, confidence scores,
     and path to annotated visualization image.
     """
+    _require_vision_permission("detect_objects")
     img_path = req.image_path if req else None
     conf = req.conf_threshold if req else 0.35
 
@@ -95,6 +111,7 @@ def detect_objects(req: Optional[ObjectDetectionRequest] = None):
 @vision_router.post("/qa")
 def visual_qa(req: VisualQARequest):
     """Answer a natural language question about what the camera sees."""
+    _require_vision_permission("camera_describe")
     target_path = req.image_path or vision_service._last_image_path
     if not target_path or not os.path.exists(target_path):
         frame = vision_service.capture_frame()

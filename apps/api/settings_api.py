@@ -3,10 +3,12 @@ import os
 import time
 import logging
 from typing import Any, Dict, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from apps.api.admin_action_policy import require_admin_action
 from config.config_manager import config
+from tools.robotics.controller import get_existing_robot
 
 logger = logging.getLogger("JARVIS.API.Settings")
 settings_router = APIRouter(prefix="/settings", tags=["settings"])
@@ -18,6 +20,34 @@ class CategoryUpdateRequest(BaseModel):
     env_updates: Optional[Dict[str, str]] = None
 
 
+def _robot_status() -> Dict[str, Any]:
+    """Describe a controller only if this process already owns one.
+
+    Rendering settings must not open I2C or serial interfaces through the
+    backwards-compatible lazy ``robot`` proxy.
+    """
+    controller = get_existing_robot()
+    robot_cfg = config.get("robot", {}) or {}
+    if controller is None:
+        return {
+            "armed": False,
+            "emergency_stopped": False,
+            "controller_initialized": False,
+            "simulation_mode": bool(config.get("simulation_mode", True)),
+            "default_speed": robot_cfg.get("default_speed", 50),
+            "max_speed": robot_cfg.get("max_speed", 100),
+        }
+
+    return {
+        "armed": bool(controller.is_armed),
+        "emergency_stopped": bool(controller.is_emergency_stopped),
+        "controller_initialized": True,
+        "simulation_mode": bool(controller.simulated),
+        "default_speed": controller.default_speed,
+        "max_speed": controller.max_speed,
+    }
+
+
 @settings_router.get("")
 @settings_router.get("/")
 def get_all_settings():
@@ -25,7 +55,6 @@ def get_all_settings():
     from hardware.raspberry_pi.rpi_info import get_system_status, get_cpu_temp, is_online
     from apps.voice.service import voice_service
     from apps.voice.gradio_tts import gradio_cloner
-    from tools.robotics.controller import robot
     from apps.vision.service import VisionService
 
     # 1. System Info
@@ -65,13 +94,7 @@ def get_all_settings():
     }
 
     # 5. Robotics Info
-    robot_info = {
-        "armed": bool(robot.is_armed),
-        "emergency_stopped": bool(robot.is_emergency_stopped),
-        "simulation_mode": bool(config.get("simulation_mode", True)),
-        "default_speed": config.get("robot", {}).get("default_speed", 50),
-        "max_speed": config.get("robot", {}).get("max_speed", 100),
-    }
+    robot_info = _robot_status()
 
     # 6. Sensors Info
     sensors_cfg = config.get("sensors", {})
@@ -140,6 +163,7 @@ def get_all_settings():
             "simulation_mode": robot_info["simulation_mode"],
             "armed": robot_info["armed"],
             "emergency_stopped": robot_info["emergency_stopped"],
+            "controller_initialized": robot_info["controller_initialized"],
             "default_speed": robot_info["default_speed"],
             "max_speed": robot_info["max_speed"],
         },
@@ -208,12 +232,12 @@ def get_category_settings(category: str):
     cat_key = category.lower().strip()
     if cat_key == "integrations":
         def mask(k):
-            val = os.environ.get(k) or config.get(k.lower(), "")
+            from ai.providers.credentials import resolve_key
+            provider_name = k.removesuffix("_API_KEY").lower()
+            val = resolve_key(provider_name, config)
             if not val:
                 return ""
-            if len(val) <= 8:
-                return "********"
-            return val[:4] + "****" + val[-4:]
+            return "********"
 
         return {
             "name": "Cloud AI & Service Integrations",
@@ -222,6 +246,9 @@ def get_category_settings(category: str):
                 "openai_api_key": mask("OPENAI_API_KEY"),
                 "anthropic_api_key": mask("ANTHROPIC_API_KEY"),
                 "nvidia_api_key": mask("NVIDIA_API_KEY"),
+                "openrouter_api_key": mask("OPENROUTER_API_KEY"),
+                "groq_api_key": mask("GROQ_API_KEY"),
+                "together_api_key": mask("TOGETHER_API_KEY"),
                 "huggingface_space_url": os.environ.get("HUGGINGFACE_SPACE_URL") or config.get("voice", {}).get("gradio_url", ""),
             }
         }
@@ -237,7 +264,11 @@ def get_category_settings(category: str):
 
 
 @settings_router.post("/{category}")
-def update_category_settings(category: str, req: CategoryUpdateRequest):
+def update_category_settings(
+    category: str,
+    req: CategoryUpdateRequest,
+    _: None = Depends(require_admin_action),
+):
     """Update settings for a category and atomically persist to config.yaml and .env."""
     cat_key = category.lower().strip()
     updates = req.settings
@@ -251,11 +282,23 @@ def update_category_settings(category: str, req: CategoryUpdateRequest):
             ("openai_api_key", "OPENAI_API_KEY"),
             ("anthropic_api_key", "ANTHROPIC_API_KEY"),
             ("nvidia_api_key", "NVIDIA_API_KEY"),
+            ("openrouter_api_key", "OPENROUTER_API_KEY"),
+            ("groq_api_key", "GROQ_API_KEY"),
+            ("together_api_key", "TOGETHER_API_KEY"),
             ("huggingface_space_url", "HUGGINGFACE_SPACE_URL"),
         ]:
-            if updates.get(key_name) and not updates[key_name].startswith("****"):
-                env_dict[env_var] = updates[key_name]
-                os.environ[env_var] = updates[key_name]
+            value = updates.get(key_name)
+            if value and (not isinstance(value, str) or any(c in value for c in ('\n', '\r', '\x00'))):
+                raise HTTPException(status_code=422, detail="Integration values must be single-line text.")
+            if value and "****" not in value:
+                env_dict[env_var] = value.strip()
+
+        if env_dict:
+            if not config.save_env(env_dict):
+                raise HTTPException(status_code=500, detail="Could not persist integrations; credentials were not activated.")
+            os.environ.update(env_dict)
+            from ai.brain import get_brain
+            get_brain().refresh_providers()
 
         if updates.get("huggingface_space_url"):
             v = config.get("voice", {})
@@ -263,8 +306,6 @@ def update_category_settings(category: str, req: CategoryUpdateRequest):
             config.set("voice", v)
             config.save()
 
-        if env_dict:
-            config.save_env(env_dict)
         return {"status": "ok", "category": "integrations", "saved_env": True}
 
     # Update in-memory and write to config.yaml
@@ -312,7 +353,10 @@ def update_category_settings(category: str, req: CategoryUpdateRequest):
 
 
 @settings_router.post("/test/{component}")
-def run_component_test(component: str):
+def run_component_test(
+    component: str,
+    _: None = Depends(require_admin_action),
+):
     """Execute real hardware or service diagnostic test for a component."""
     comp = component.lower().strip()
 
@@ -347,8 +391,13 @@ def run_component_test(component: str):
         return {"component": comp, "status": "ok", "provider": provider.name if provider else "none", "response": res.get("response", "")}
 
     elif comp == "robot":
-        from tools.robotics.controller import robot
-        st = robot.get_state()
+        controller = get_existing_robot()
+        st = controller.get_state() if controller is not None else {
+            "state": "UNINITIALIZED",
+            "armed": False,
+            "emergency_stopped": False,
+            "simulated": bool(config.get("simulation_mode", True)),
+        }
         return {"component": comp, "status": "ok", "state": st}
 
     else:
@@ -356,7 +405,7 @@ def run_component_test(component: str):
 
 
 @settings_router.get("/export/backup")
-def export_configuration():
+def export_configuration(_: None = Depends(require_admin_action)):
     """Export active system configuration as downloadable backup payload."""
     return {
         "timestamp": time.time(),

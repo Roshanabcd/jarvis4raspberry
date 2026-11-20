@@ -37,8 +37,8 @@ def execute_tool(req: ToolExecuteRequest):
     """Execute a registered tool directly with validated parameters."""
     res = tool_registry.execute_tool(
         name=req.tool_name,
-        arguments=req.arguments,
-        user_confirmed=req.confirmed,
+        args=req.arguments,
+        confirmed=req.confirmed,
     )
     if not res.get("success", False) and "Tool" in res.get("error", "") and "not found" in res.get("error", ""):
         raise HTTPException(status_code=404, detail=res.get("error"))

@@ -2,10 +2,31 @@
 import logging
 import os
 import subprocess
+from typing import List
 from fastapi import APIRouter
 
 logger = logging.getLogger("JARVIS.API.Health")
 health_router = APIRouter(prefix="/health", tags=["health"])
+
+
+def _listener_addresses(port: int) -> List[str]:
+    """Return actual local addresses listening on ``port`` when observable.
+
+    Configuration alone cannot prove an ASGI server is bound only to loopback;
+    this keeps the health response from labelling a wildcard listener as safe.
+    """
+    try:
+        import psutil
+
+        addresses = {
+            str(conn.laddr.ip)
+            for conn in psutil.net_connections(kind="inet")
+            if conn.status == psutil.CONN_LISTEN
+            and getattr(conn.laddr, "port", None) == int(port)
+        }
+        return sorted(addresses)
+    except Exception:
+        return []
 
 
 @health_router.get("")
@@ -60,7 +81,7 @@ def health_check():
         if c_status.get("online"):
             components["voice_engine"] = "OK (OmniVoice Cloned Voice Active)"
         else:
-            components["voice_engine"] = "OK (Neural Fallback: Edge-TTS Ryan)"
+            components["voice_engine"] = f"OK ({c_status.get('label', 'Local TTS fallback')})"
     except Exception as e:
         components["voice_engine"] = f"FALLBACK ({e})"
 
@@ -95,10 +116,23 @@ def health_check():
     try:
         from config.config_manager import config
         host = config.get("api_host", "127.0.0.1")
-        if host in ("127.0.0.1", "localhost"):
-            components["localhost_security"] = f"OK (Strict {host}:8000 Localhost Only)"
+        port = int(config.get("api_port", 8000))
+        listeners = _listener_addresses(port)
+        wildcard_listener = any(addr in {"0.0.0.0", "::"} for addr in listeners)
+        local_listener = any(addr in {"127.0.0.1", "::1"} for addr in listeners)
+        if wildcard_listener:
+            components["localhost_security"] = (
+                f"WARNING (listener exposed on all interfaces at port {port}; "
+                f"configured host is {host})"
+            )
+        elif host in ("127.0.0.1", "localhost") and local_listener:
+            components["localhost_security"] = f"OK (verified loopback listener at port {port})"
+        elif host in ("127.0.0.1", "localhost"):
+            components["localhost_security"] = (
+                f"UNKNOWN (loopback configured at {host}:{port}, listener could not be verified)"
+            )
         else:
-            components["localhost_security"] = f"WARNING (Non-Localhost: {host})"
+            components["localhost_security"] = f"WARNING (non-localhost configured host: {host})"
     except Exception as e:
         components["localhost_security"] = f"UNKNOWN: {e}"
 

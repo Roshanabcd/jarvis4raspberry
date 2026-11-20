@@ -4,12 +4,14 @@ Documentation=https://github.com/your-user/jarvis-os
 After=network-online.target ollama.service
 Wants=network-online.target
 Requires=ollama.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
 
 [Service]
 User=roshan
 WorkingDirectory=/home/roshan/.gemini/antigravity/scratch/jarvis-os
-ExecStart=/home/roshan/miniconda3/bin/python3 -m uvicorn apps.core.main:app \
-    --host 0.0.0.0 \
+ExecStart=/home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/bin/python -m uvicorn apps.core.main:app \
+    --host 127.0.0.1 \
     --port 8000 \
     --log-level info \
     --access-log
@@ -20,8 +22,6 @@ Environment=DISPLAY=:0
 EnvironmentFile=-/home/roshan/.gemini/antigravity/scratch/jarvis-os/.env
 Restart=on-failure
 RestartSec=10
-StartLimitIntervalSec=120
-StartLimitBurst=5
 KillMode=mixed
 TimeoutStopSec=15
 StandardOutput=journal

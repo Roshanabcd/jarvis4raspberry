@@ -111,11 +111,12 @@ class ColabAutoRunner:
             else:
                 err = new_res.stderr or new_res.stdout
                 self.append_log(f"Session creation notice: {err.strip()}")
-                return True
+                self.last_error = f"Colab session creation failed: {err.strip()}"
+                return False
         except Exception as exc:
             self.last_error = str(exc)
             self.append_log(f"Warning in ensure_session: {exc}")
-            return True
+            return False
 
     def start(self, restart_if_running: bool = False) -> bool:
         """Start the background execution loop for the Colab OmniVoice notebook."""
@@ -211,8 +212,8 @@ class ColabAutoRunner:
             from apps.voice.colab_registration import colab_manager
             registered = colab_manager.register_url(
                 gradio_url=gradio_url,
-                token="jarvis_omnivoice_secret_2026",
                 session_id=self.session_name,
+                is_local_request=True,
                 verify_now=True,
             )
             if registered.get("status") == "ok":

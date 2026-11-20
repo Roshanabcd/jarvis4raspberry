@@ -936,11 +936,13 @@
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <label class="sr-only" for="chat-model-select">Chat model</label>
           <select id="chat-model-select" style="max-width:280px" onchange="switchChatModel(this.value)" aria-label="Chat model">
-            <option value="ollama:llama3.2:1b">🟢 OLLAMA: llama3.2:1b (Fast Local)</option>
-            <option value="ollama:qwen3.5:4b">🟢 OLLAMA: qwen3.5:4b (Advanced Local)</option>
-            <option value="gemini:gemini-2.0-flash">⚪ GEMINI: gemini-2.0-flash</option>
-            <option value="openai:gpt-4o-mini">⚪ OPENAI: gpt-4o-mini</option>
-            <option value="anthropic:claude-3-haiku-20240307">⚪ ANTHROPIC: claude-3-haiku</option>
+            <option value="">Loading configured models…</option>
+          </select>
+          <button id="chat-ai-setup" class="btn dark" onclick="showTab('integrations');document.getElementById('key-openrouter').focus()">API keys &amp; models</button>
+          <label class="sr-only" for="chat-mode">Conversation or task mode</label>
+          <select id="chat-mode" aria-label="Conversation or task mode" title="Conversation streams text without executing tools. Chat and tasks can run authorized actions.">
+            <option value="tasks">Chat and tasks</option>
+            <option value="conversation">Conversation only · streaming</option>
           </select>
           <span id="chat-status-badge" class="badge online" role="status" aria-live="polite">🟢 Ready</span>
           <span id="chat-telemetry-badge" style="font-size:0.75rem;color:var(--muted)">⚡ --</span>
@@ -981,6 +983,18 @@
         <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()" aria-label="Message to JARVIS">
         <button id="chat-send-btn" class="btn" onclick="sendChat()">Send</button>
       </div>
+      <section class="panel" id="background-tasks-panel" aria-labelledby="background-tasks-heading" style="margin-top:16px">
+        <h2 id="background-tasks-heading">Background tasks</h2>
+        <p>Give JARVIS a task and keep chatting while it works. Task history survives restarts; interrupted tasks are never rerun automatically. Replies remain available until the service restarts.</p>
+        <form id="background-task-form" style="display:flex;gap:8px;flex-wrap:wrap">
+          <label class="sr-only" for="background-task-input">Task for JARVIS</label>
+          <input id="background-task-input" maxlength="4000" required placeholder="Describe a task for JARVIS…" style="flex:1;min-width:200px">
+          <button class="btn" type="submit" id="background-task-submit">Start task</button>
+          <button class="btn dark" type="button" id="background-task-refresh">Refresh tasks</button>
+        </form>
+        <p id="background-task-feedback" role="status" aria-live="polite"></p>
+        <div id="background-task-list" aria-label="Recent background tasks"></div>
+      </section>
     </div>
   </div>
 
@@ -1127,13 +1141,14 @@
           </div>
         </div>
         <div id="voice-daemon-fb" style="font-family:monospace;font-size:0.78rem;color:var(--accent);margin-bottom:12px">Daemon control ready.</div>
+        <p id="voice-capture-health" role="status" style="font-size:0.8rem;color:var(--muted)">Loading microphone capture and recognition status…</p>
 
         <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <strong style="font-size:0.82rem;color:var(--text)">Durable Voice Synthesis Jobs</strong>
+            <strong style="font-size:0.82rem;color:var(--text)">Recent Voice Reply Jobs</strong>
             <button id="btn-refresh-voice-jobs" class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="loadVoiceJobs()">🔄 Refresh Jobs</button>
           </div>
-          <div id="voice-jobs-list" style="font-size:0.8rem">Loading durable voice jobs...</div>
+          <div id="voice-jobs-list" style="font-size:0.8rem">Loading recent voice jobs...</div>
         </div>
       </div>
       <div class="form-group">
@@ -1260,7 +1275,7 @@
 
       <!-- Administrator & Multi-User Governance -->
       <div style="margin-top:24px;border-top:1px solid var(--card-border);padding-top:16px">
-        <h3 style="font-size:1rem;color:var(--text);margin-bottom:12px">🔐 Administrator & User Management (PBKDF2-HMAC-SHA256 + SFace)</h3>
+        <h3 style="font-size:1rem;color:var(--text);margin-bottom:12px">🔐 Administrator access</h3>
         
         <div id="admin-enroll-status-banner" style="padding:10px 14px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--card-border);margin-bottom:16px;font-size:0.85rem">
           Loading identity status...
@@ -1269,14 +1284,14 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
           <!-- Left: Enrollment Wizard -->
           <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px">
-            <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Admin Face Enrollment Wizard</h4>
+            <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">First-time administrator setup</h4>
             <div style="margin-bottom:8px">
               <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Administrator Name:</label>
               <input type="text" id="enroll-admin-name" value="Roshan" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
               <div>
-                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Admin PIN (min 4 digits):</label>
+                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Admin PIN (at least 4 characters):</label>
                 <input type="password" id="enroll-admin-pin" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
               </div>
               <div>
@@ -1287,11 +1302,12 @@
             <div style="margin-bottom:12px;font-size:0.78rem;color:var(--text)">
               <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
                 <input type="checkbox" id="enroll-admin-confirm-chk">
-                <span>I confirm face photo capture and PIN enrollment for ADMIN role.</span>
+                <span>I confirm creating the administrator account with this PIN.</span>
               </label>
             </div>
             <div style="display:flex;gap:10px;align-items:center">
-              <button class="btn" onclick="enrollAdminSubmit()">📸 Capture Face & Enroll Admin</button>
+              <label><input type="checkbox" id="enroll-admin-use-camera"> Also enroll my face using the camera</label>
+              <button class="btn" onclick="enrollAdminSubmit()">Create administrator</button>
               <div id="enroll-admin-msg" style="font-size:0.78rem;color:var(--muted)"></div>
             </div>
           </div>
@@ -1299,11 +1315,12 @@
           <!-- Right: PIN Verification & User Table -->
           <div>
             <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:14px">
-              <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Admin PIN Verification Gate</h4>
+              <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Sign in as administrator</h4>
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="password" id="verify-pin-input" placeholder="Enter PIN..." style="padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem;width:140px">
-                <button class="btn dark" onclick="verifyAdminPinSubmit()">Verify PIN</button>
-                <div id="verify-pin-result" style="font-size:0.78rem"></div>
+                <button class="btn dark" onclick="verifyAdminPinSubmit()">Sign in</button>
+                <button class="btn dark" onclick="logoutAdminSession()">Sign out</button>
+                <div id="verify-pin-result" role="status" aria-live="polite" style="font-size:0.78rem"></div>
               </div>
             </div>
 
@@ -1476,11 +1493,12 @@
         </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn" onclick="saveIntegrations()">💾 Save Keys to .env</button>
+        <button class="btn" onclick="saveIntegrations()">💾 Save API keys</button>
         <button class="btn dark" onclick="loadIntegrations()">↺ Reload Current</button>
         <button class="btn dark" onclick="testIntegrations()">Test cloud providers</button>
       </div>
       <div id="integrations-status" class="status-msg" role="status" aria-live="polite" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
+      <div id="provider-settings-panel" style="margin-top:20px"></div>
     </div>
   </div>
 
@@ -3393,6 +3411,7 @@ loadVoiceStatus();
 
 // ─── AI Chat Subsystem ───────────────────────────────────────
 let currentChatAbort = null;
+let currentChatRequestId = null;
 let lastUserMessage = "";
 
 async function initChatModels() {
@@ -3473,7 +3492,7 @@ function renderMarkdown(raw) {
 async function sendChat() {
   const inp = document.getElementById('chat-in');
   const msg = inp.value.trim();
-  if (!msg) return;
+  if (!msg || document.getElementById('chat-send-btn').disabled) return;
 
   lastUserMessage = msg;
   inp.value = '';
@@ -3484,26 +3503,45 @@ async function sendChat() {
   const [provider, ...rest] = selVal.split(':');
   const model = rest.join(':');
 
-  setChatStatus('loading', 'Model Thinking...');
+  setChatStatus('loading', 'Sending your message…');
   document.getElementById('cancel-chat-btn').style.display = 'inline-block';
   document.getElementById('chat-send-btn').disabled = true;
 
   const tStart = performance.now();
-  currentChatAbort = new AbortController();
+  const controller = new AbortController();
+  currentChatAbort = controller;
+  currentChatRequestId = null;
   const assistantMsgElem = createStreamingBubble();
+  const progress = document.createElement('p');
+  progress.className = 'chat-progress';
+  progress.setAttribute('role', 'status');
+  progress.textContent = 'Sending your message…';
+  assistantMsgElem.appendChild(progress);
+  const updateStatus = (state, text) => {
+    if (currentChatAbort === controller) setChatStatus(state, text);
+  };
   let fullText = "";
+  let terminalReceived = false;
+  let requestId = null;
+  let timedOut = false;
+  const deadline = setTimeout(() => {
+    timedOut = true;
+    if (requestId) fetch('/api/chat/cancel', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({request_id:requestId}), keepalive:true}).catch(() => {});
+    controller.abort();
+  }, 90000);
 
   try {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, provider, model, speak: document.getElementById('chat-auto-speak').checked, audio_output: 'browser' }),
-      signal: currentChatAbort.signal
+      body: JSON.stringify({ message: msg, provider, model, use_tools: document.getElementById('chat-mode')?.value !== 'conversation', speak: document.getElementById('chat-auto-speak').checked, audio_output: 'browser' }),
+      signal: controller.signal
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-    setChatStatus('loading', 'Streaming...');
+    if (!res.body) throw new Error('The server returned no response stream.');
+    updateStatus('loading', 'Waiting for JARVIS…');
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
@@ -3522,55 +3560,94 @@ async function sendChat() {
 
         try {
           const event = JSON.parse(jsonStr);
-          if (event.type === 'token') {
+          if (event.type === 'accepted' || event.type === 'start') {
+            if (event.request_id) {
+              requestId = event.request_id;
+              if (currentChatAbort === controller) currentChatRequestId = requestId;
+            }
+            progress.textContent = 'Message received. I’m working on it.';
+            updateStatus('loading', 'Working…');
+          } else if (event.type === 'progress') {
+            const stages = {intent_classification:'Understanding your request…', model_inferring:'Waiting for the selected AI model…', tool_executing:'Running the requested tools…', tool_observed:'Checking tool results…', compound_planning:'Preparing the task steps…', waiting:'Still working; no result yet.'};
+            progress.textContent = stages[event.stage] || 'Working on your request…';
+            if (Number.isFinite(event.elapsed_ms)) progress.textContent += ` ${Math.round(event.elapsed_ms / 1000)}s elapsed.`;
+            updateStatus('loading', progress.textContent);
+          } else if (event.type === 'token') {
+            progress.textContent = 'Receiving reply…';
+            updateStatus('loading', 'Receiving reply…');
             fullText += event.content;
             assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText) + '<span class="cursor-blink">▊</span>';
             const box = document.getElementById('chat-box');
             box.scrollTop = box.scrollHeight;
           } else if (event.type === 'done') {
+            terminalReceived = true;
+            const failed = Boolean(event.error) || event.status === 'failed';
+            const cancelled = event.status === 'cancelled';
+            progress.textContent = cancelled ? 'Stopped. Actions already performed have not been undone.' : failed ? 'Request incomplete. See the message above.' : 'Reply ready.';
+            if (!fullText && typeof event.response === 'string') fullText = event.response;
             const tEnd = performance.now();
             const totalMs = Math.round(tEnd - tStart);
             const tokSec = totalMs > 0 ? ((fullText.split(/\s+/).length / (totalMs / 1000)).toFixed(1)) : '--';
-            document.getElementById('chat-telemetry-badge').textContent = `⚡ ${totalMs}ms (${tokSec} tok/s) • ${event.provider || provider}`;
-            setChatStatus(event.error ? 'error' : 'ready', event.error ? 'Incomplete' : 'Completed');
+            if (currentChatAbort === controller) {
+              document.getElementById('chat-telemetry-badge').textContent = `⚡ ${totalMs}ms (${tokSec} tok/s) • ${event.provider || provider}`;
+              document.getElementById('chat-send-btn').disabled = false;
+              document.getElementById('cancel-chat-btn').style.display = 'none';
+              setChatStatus(failed ? 'error' : 'ready', cancelled ? 'Stopped' : failed ? 'Incomplete' : 'Reply ready');
+            }
           } else if (event.type === 'audio') {
             attachAudioToBubble(assistantMsgElem, event.audio_url, event.provider_label, event.is_cloned);
             const autoSpeak = document.getElementById('chat-auto-speak');
-            if (!autoSpeak || autoSpeak.checked) {
+            if (currentChatAbort === controller && (!autoSpeak || autoSpeak.checked)) {
               playJarvisAudio(event.audio_url);
             }
           } else if (event.type === 'audio_error') {
-            setChatStatus('error', 'Reply ready · speech unavailable');
+            updateStatus('error', 'Reply ready · speech unavailable');
             const notice = document.createElement('p');
             notice.textContent = event.message || 'Speech unavailable';
             assistantMsgElem.appendChild(notice);
           } else if (event.type === 'error') {
+            terminalReceived = true;
             fullText += `\n[Error: ${event.message}]`;
             assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
-            setChatStatus('error', 'Error encountered');
+            progress.textContent = 'Request incomplete.';
+            updateStatus('error', 'Request incomplete');
           }
         } catch (parseErr) {}
       }
     }
+    if (!terminalReceived) {
+      progress.textContent = 'Connection ended before completion was confirmed. Check task results before retrying.';
+      updateStatus('error', 'Reply interrupted');
+    }
     assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
   } catch (err) {
     if (err.name === 'AbortError') {
-      fullText += '\n[Stopped by User]';
+      fullText += timedOut ? '\n[Response timed out. Check task results before retrying.]' : '\n[Stopped waiting. Actions already performed have not been undone.]';
       assistantMsgElem.querySelector('.msg-content').innerHTML = renderMarkdown(fullText);
-      setChatStatus('ready', 'Stopped');
+      progress.textContent = timedOut ? 'Response timed out.' : 'Stop requested.';
+      updateStatus(timedOut ? 'error' : 'ready', timedOut ? 'Timed out' : 'Stopped');
     } else {
       assistantMsgElem.classList.add('err-msg');
-      assistantMsgElem.querySelector('.msg-content').innerHTML = `Error: ${err.message}`;
-      setChatStatus('error', 'Failed');
+      assistantMsgElem.querySelector('.msg-content').textContent = 'Connection failed. Check whether JARVIS is running, then retry.';
+      progress.textContent = 'No completion confirmed.';
+      updateStatus('error', 'Connection failed');
     }
   } finally {
-    document.getElementById('cancel-chat-btn').style.display = 'none';
-    document.getElementById('chat-send-btn').disabled = false;
-    currentChatAbort = null;
+    clearTimeout(deadline);
+    if (currentChatAbort === controller) {
+      document.getElementById('cancel-chat-btn').style.display = 'none';
+      document.getElementById('chat-send-btn').disabled = false;
+      currentChatAbort = null;
+      currentChatRequestId = null;
+    }
   }
 }
 
 function cancelChat() {
+  if (currentChatRequestId) {
+    fetch('/api/chat/cancel', {method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({request_id:currentChatRequestId}), keepalive:true}).catch(() => {});
+  }
   if (currentChatAbort) currentChatAbort.abort();
 }
 
@@ -3775,9 +3852,23 @@ async function loadVoiceStatus() {
 
     const micElem = document.getElementById('voice-state-val');
     const micSub = document.getElementById('voice-mic-sub');
-    if (micElem) micElem.textContent = d.voice_state || (d.listening ? 'LISTENING' : 'STANDBY');
+    if (!res.ok) throw new Error('Voice status unavailable');
+    if (micElem) micElem.textContent = d.state || d.voice_state || 'UNKNOWN';
     if (micSub && d.diagnostics && d.diagnostics.microphone) {
       micSub.textContent = d.diagnostics.microphone.device || 'PipeWire ReSpeaker Lite';
+    }
+    const health = document.getElementById('voice-capture-health');
+    if (health) {
+      const capture = d.daemon_telemetry;
+      if (!capture) health.textContent = 'No fresh microphone-owner telemetry. Check the voice service before testing capture.';
+      else {
+        const age = Number.isFinite(capture.last_capture_age_s) ? `${capture.last_capture_age_s.toFixed(1)}s ago` : 'not yet reported';
+        health.textContent = `Capture: ${capture.capture_status || 'not reported'} · Last frame: ${age} · Recognition: ${capture.stt_status || 'not reported'} · Wake word: ${capture.wake_word_enabled === false ? 'off' : capture.wake_word_enabled === true ? 'on' : 'unknown'}. A captured frame does not confirm speech recognition.`;
+        if (Number.isFinite(capture.audio_level_rms) && Number.isFinite(capture.energy_threshold_rms)) {
+          health.textContent += ` Input level: ${Math.round(capture.audio_level_rms)}; speech trigger: ${Math.round(capture.energy_threshold_rms)}.`;
+        }
+        if (capture.capture_status === 'failed') health.textContent += ' Recording failed. Check the microphone connection and voice service.';
+      }
     }
 
     const clonerElem = document.getElementById('cloner-provider-val');
@@ -3811,7 +3902,10 @@ async function loadVoiceStatus() {
 
     await loadColabOmniVoiceStatus();
     await loadVoiceJobs();
-  } catch(e) {}
+  } catch(e) {
+    const health = document.getElementById('voice-capture-health');
+    if (health) health.textContent = 'Voice status unavailable. Check the connection and voice service.';
+  }
 }
 
 async function muteVoiceDaemon() {
@@ -3867,37 +3961,67 @@ async function loadVoiceJobs() {
   if (!container) return;
   try {
     const res = await fetch('/api/voice/jobs');
+    if (!res.ok) throw new Error('Voice job status is unavailable.');
     const data = await res.json();
-    if (!data.jobs || data.jobs.length === 0) {
-      container.innerHTML = '<div style="color:var(--muted);font-size:0.8rem">No voice synthesis jobs recorded yet.</div>';
+    if (!Array.isArray(data.jobs)) throw new Error('Invalid voice job status.');
+    container.replaceChildren();
+    if (data.jobs.length === 0) {
+      container.textContent = 'No voice synthesis jobs recorded yet.';
       return;
     }
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
     for (const job of data.jobs) {
+      if (!job || typeof job.job_id !== 'string' || typeof job.status !== 'string') continue;
       const isPending = ['queued', 'synthesizing', 'playing'].includes(job.status);
       const badgeColor = job.status === 'completed' ? '#00e5ff' : (job.status === 'cancelled' ? '#ffaa00' : (job.status === 'failed' ? '#ff4444' : '#a855f7'));
-      html += `<div style="display:flex;justify-content:space-between;align-items:center;background:var(--card-bg);padding:6px 10px;border-radius:4px;border:1px solid var(--card-border)">
-        <div style="font-size:0.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">
-          <code>${job.job_id}</code>: <span style="color:var(--text)">${(job.text || '').substring(0, 45)}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:0.72rem;padding:2px 6px;border-radius:3px;background:${badgeColor}22;color:${badgeColor};font-weight:600">${job.status.toUpperCase()}</span>
-          ${isPending ? `<button class="btn dark" style="padding:2px 6px;font-size:0.7rem" onclick="cancelVoiceJob('${job.job_id}')">Cancel</button>` : ''}
-        </div>
-      </div>`;
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:8px;margin-bottom:6px;border:1px solid var(--card-border);border-radius:4px;overflow-wrap:anywhere';
+      const label = document.createElement('div');
+      label.textContent = `${job.job_id}: ${String(job.text || 'Earlier reply (text not retained)').substring(0, 160)}`;
+      const badge = document.createElement('span');
+      badge.style.color = badgeColor;
+      badge.textContent = job.status.toUpperCase();
+      row.appendChild(label);
+      row.appendChild(badge);
+      if (job.status === 'failed') {
+        const error = document.createElement('div');
+        error.textContent = job.error === 'Voice delivery interrupted by process restart; not replayed'
+          ? 'Interrupted by restart. This reply was not replayed.'
+          : 'Audio delivery failed. The original task will not be repeated automatically.';
+        row.appendChild(error);
+      }
+      if (isPending) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'btn dark';
+        button.textContent = 'Cancel';
+        button.setAttribute('aria-label', `Cancel voice reply ${job.job_id}`);
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          await cancelVoiceJob(job.job_id);
+          button.disabled = false;
+        });
+        row.appendChild(button);
+      }
+      container.appendChild(row);
     }
-    html += '</div>';
-    container.innerHTML = html;
   } catch(e) {
-    container.innerHTML = `<div style="color:#ff4444;font-size:0.8rem">Error loading voice jobs: ${e.message}</div>`;
+    container.textContent = 'Unable to load voice jobs. Check the connection and refresh.';
   }
 }
 
 async function cancelVoiceJob(jobId) {
   try {
-    await fetch(`/api/voice/jobs/${jobId}/cancel`, { method: 'POST' });
+    const response = await fetch(`/api/voice/jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+    if (!response.ok) throw new Error('Cancellation was rejected');
+    const data = await response.json();
+    if (data.status !== 'ok') throw new Error('Cancellation was not confirmed');
     await loadVoiceJobs();
-  } catch(e) {}
+    return true;
+  } catch(e) {
+    const feedback = document.getElementById('voice-daemon-fb');
+    if (feedback) feedback.textContent = 'Voice cancellation could not be confirmed. Refresh job status before retrying.';
+    return false;
+  }
 }
 
 async function testVoiceListen() {
@@ -4467,21 +4591,22 @@ async function identifyFaceVision() {
   const identEl = document.getElementById('vision-identity-val');
   if (identEl) identEl.textContent = 'Scanning face with YuNet & SFace...';
   try {
-    const r = await fetch('/api/identity/identify', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({capture_camera: true}) });
+    const r = await fetch('/api/identity/identify', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Jarvis-Client': 'dashboard'}, body: JSON.stringify({capture_camera: true}) });
     const d = await r.json();
     if (d.identified) {
-      if (identEl) identEl.innerHTML = `<span style="color:var(--green)">✓ ${d.display_name} (${d.role}) — ${Math.round(d.similarity_score*100)}% Match</span>`;
-      updateHeaderUserPill(d.display_name, d.role);
+      if (identEl) identEl.textContent = `Recognized ${d.display_name} (${d.role}). Administrator access requires PIN sign-in.`;
     } else {
-      if (identEl) identEl.innerHTML = `<span style="color:var(--warn)">👤 ${d.display_name} (${d.role}) — ${d.reason || 'Unknown Face'}</span>`;
-      updateHeaderUserPill('Guest', 'GUEST');
+      if (identEl) identEl.textContent = d.reason || d.detail || 'Face not recognized';
     }
+    await loadIdentityStatus();
   } catch(e) {
     if (identEl) identEl.textContent = 'Identification error: ' + e;
   }
 }
 
+let dashboardIdentityRole = "GUEST";
 function updateHeaderUserPill(name, role) {
+  dashboardIdentityRole = role;
   const pill = document.getElementById('hdr-user-pill');
   if (pill) {
     pill.textContent = `👤 ${name} (${role})`;
@@ -4502,6 +4627,7 @@ async function checkCameraStatus() {
 async function loadIdentityStatus() {
   try {
     const r = await fetch('/api/identity/status');
+    if (!r.ok) throw new Error(`Identity status unavailable (HTTP ${r.status})`);
     const d = await r.json();
     const active = d.active_user || {};
     updateHeaderUserPill(active.display_name || 'Guest', active.role || 'GUEST');
@@ -4509,9 +4635,9 @@ async function loadIdentityStatus() {
     const adminBanner = document.getElementById('admin-enroll-status-banner');
     if (adminBanner) {
       if (d.is_admin_enrolled) {
-        adminBanner.innerHTML = `<span style="color:var(--green)">✓ Primary Administrator Enrolled: <strong>${d.admin_name || 'Roshan'}</strong></span>`;
+        adminBanner.textContent = `Administrator enrolled: ${d.admin_name || "Administrator"}. Sign in with your PIN. Admin sessions expire after five minutes.`;
       } else {
-        adminBanner.innerHTML = `<span style="color:var(--warn)">⚠️ No Administrator Enrolled. Complete setup below to register Admin Face & PIN.</span>`;
+        adminBanner.textContent = "No administrator enrolled. Create your administrator account below. Camera enrollment is optional.";
       }
     }
     loadUsersList();
@@ -4531,13 +4657,19 @@ async function loadUsersList() {
       listEl.innerHTML = '<div style="color:var(--muted);font-size:0.8rem">No users enrolled yet.</div>';
       return;
     }
-    let html = '<table style="width:100%;font-size:0.8rem;border-collapse:collapse">';
-    html += '<thead><tr style="color:var(--muted);border-bottom:1px solid var(--card-border)"><th style="text-align:left;padding:4px">Name</th><th style="text-align:left;padding:4px">Role</th><th style="text-align:left;padding:4px">Face</th><th style="text-align:left;padding:4px">Last Seen</th></tr></thead><tbody>';
-    users.forEach(u => {
-      html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)"><td style="padding:4px"><strong>${u.display_name}</strong></td><td style="padding:4px"><span style="color:${u.role==='ADMIN'?'var(--accent)':'var(--text)'}">${u.role}</span></td><td style="padding:4px">${u.has_face_enrolled ? '✓ Yes' : 'No'}</td><td style="padding:4px;color:var(--muted)">${u.last_seen_at ? u.last_seen_at.substring(0,19).replace('T',' ') : 'Never'}</td></tr>`;
-    });
-    html += '</tbody></table>';
-    listEl.innerHTML = html;
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    const heading = table.insertRow();
+    for (const title of ['Name', 'Role', 'Face', 'Last seen']) {
+      const cell = document.createElement('th'); cell.textContent = title; heading.appendChild(cell);
+    }
+    for (const user of users) {
+      const row = table.insertRow();
+      for (const value of [user.display_name, user.role, user.has_face_enrolled ? 'Enrolled' : 'Not enrolled', user.last_seen_at || 'Never']) {
+        row.insertCell().textContent = String(value || '');
+      }
+    }
+    listEl.replaceChildren(table);
   } catch(e) {
     listEl.textContent = 'Failed to load user list: ' + e;
   }
@@ -4545,62 +4677,73 @@ async function loadUsersList() {
 
 async function enrollAdminSubmit() {
   const name = document.getElementById('enroll-admin-name').value.trim();
-  const pin = document.getElementById('enroll-admin-pin').value.trim();
-  const pinConfirm = document.getElementById('enroll-admin-pin-confirm').value.trim();
-  const confirmed = document.getElementById('enroll-admin-confirm-chk').checked;
-  const msgEl = document.getElementById('enroll-admin-msg');
-
-  if (!name) { msgEl.textContent = 'Please enter admin display name.'; return; }
-  if (!pin || pin.length < 4) { msgEl.textContent = 'Admin PIN must be at least 4 digits.'; return; }
-  if (pin !== pinConfirm) { msgEl.textContent = 'PINs do not match.'; return; }
-  if (!confirmed) { msgEl.textContent = 'Please check the confirmation box.'; return; }
-
-  msgEl.textContent = 'Capturing face photo from Sony IMX708 and enrolling...';
+  const pinField = document.getElementById('enroll-admin-pin');
+  const confirmField = document.getElementById('enroll-admin-pin-confirm');
+  const pin = pinField.value;
+  const msg = document.getElementById('enroll-admin-msg');
+  if (!name || pin.length < 4) { msg.textContent = 'Enter a name and a PIN of at least four characters.'; return; }
+  if (pin !== confirmField.value) { msg.textContent = 'PINs do not match.'; return; }
+  if (!document.getElementById('enroll-admin-confirm-chk').checked) { msg.textContent = 'Confirm account creation first.'; return; }
+  const useCamera = document.getElementById('enroll-admin-use-camera').checked;
+  msg.textContent = useCamera ? 'Capturing your face and creating the account...' : 'Creating your administrator account...';
   try {
     const r = await fetch('/api/identity/enroll_admin', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        display_name: name,
-        pin: pin,
-        confirmed: true,
-        capture_camera: true
-      })
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-Jarvis-Client': 'dashboard'},
+      body: JSON.stringify({display_name: name, pin, confirmed: true, capture_camera: useCamera, pin_only: !useCamera})
     });
     const d = await r.json();
-    if (r.ok && d.success) {
-      msgEl.innerHTML = `<span style="color:var(--green)">✓ Successfully enrolled ${d.display_name} as ADMIN!</span>`;
-      loadIdentityStatus();
-    } else {
-      msgEl.innerHTML = `<span style="color:var(--err)">Error: ${d.detail || d.error || 'Enrollment failed'}</span>`;
-    }
-  } catch(e) {
-    msgEl.innerHTML = `<span style="color:var(--err)">Request error: ${e}</span>`;
-  }
+    if (!r.ok || !d.success) throw new Error(typeof d.detail === 'string' ? d.detail : 'Administrator setup failed');
+    msg.textContent = d.signed_in ? 'Administrator created. You are signed in.' : 'Administrator created. Sign in with your PIN.';
+    await loadIdentityStatus();
+  } catch(e) { msg.textContent = e.message; }
+  finally { pinField.value = ''; confirmField.value = ''; }
 }
 
 async function verifyAdminPinSubmit() {
-  const pin = document.getElementById('verify-pin-input').value.trim();
-  const resEl = document.getElementById('verify-pin-result');
-  if (!pin) { resEl.textContent = 'Enter PIN.'; return; }
-
-  resEl.textContent = 'Verifying...';
+  const input = document.getElementById('verify-pin-input');
+  const status = document.getElementById('verify-pin-result');
+  if (!input.value) { status.textContent = 'Enter your administrator PIN.'; return; }
+  status.textContent = 'Signing in...';
   try {
     const r = await fetch('/api/identity/verify_pin', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ pin: pin })
+      method: 'POST', headers: {'Content-Type': 'application/json', 'X-Jarvis-Client': 'dashboard'},
+      body: JSON.stringify({pin: input.value})
     });
     const d = await r.json();
-    if (r.ok && d.success) {
-      resEl.innerHTML = `<span style="color:var(--green)">✓ PIN Verified: ${d.message}</span>`;
-    } else {
-      resEl.innerHTML = `<span style="color:var(--err)">❌ ${d.detail || 'Incorrect PIN'}</span>`;
-    }
-  } catch(e) {
-    resEl.innerHTML = `<span style="color:var(--err)">Error: ${e}</span>`;
-  }
+    if (!r.ok || d.authorization_role !== 'ADMIN') throw new Error(typeof d.detail === 'string' ? d.detail : 'Administrator sign-in failed');
+    updateHeaderUserPill(d.active_user.display_name, d.authorization_role);
+    status.textContent = 'Signed in as administrator. Privileged settings still request your PIN for each change.';
+    await loadIdentityStatus();
+  } catch(e) { status.textContent = e.message; }
+  finally { input.value = ''; }
 }
+
+async function logoutAdminSession() {
+  const status = document.getElementById('verify-pin-result');
+  try {
+    const r = await fetch('/api/identity/logout', {method: 'POST', headers: {'X-Jarvis-Client': 'dashboard'}});
+    if (!r.ok) throw new Error('Sign-out failed');
+    updateHeaderUserPill('Guest', 'GUEST');
+    status.textContent = 'Signed out.';
+    await loadIdentityStatus();
+  } catch(e) { status.textContent = e.message; }
+}
+
+async function refreshIdentityBadge() {
+  try {
+    const r = await fetch('/api/identity/status');
+    if (!r.ok) return;
+    const d = await r.json();
+    const active = d.active_user || {};
+    const role = d.authorization_role || active.role || 'GUEST';
+    if (dashboardIdentityRole === 'ADMIN' && role !== 'ADMIN') {
+      const status = document.getElementById('verify-pin-result');
+      if (status) status.textContent = 'Administrator session ended. Sign in again with your PIN.';
+    }
+    updateHeaderUserPill(active.display_name || 'Guest', role);
+  } catch(e) { /* A network failure does not grant a new role. */ }
+}
+setInterval(refreshIdentityBadge, 10000);
 
 // ─── Robot Actuator Subsystem ────────────────────────────────
 async function updateRobotGateStatus() {
@@ -4911,6 +5054,7 @@ async function loadIntegrations() {
       el.placeholder = cfg[name + '_api_key'] ? 'Saved — leave blank to keep' : 'Not configured';
     }
     document.getElementById('url-hf-space').value = cfg.huggingface_space_url || '';
+    if (typeof window !== 'undefined' && window.jarvisProviderSettings) await window.jarvisProviderSettings.refresh();
   } catch(e) {
     const status = document.getElementById('integrations-status');
     status.textContent = e.message;
@@ -7696,5 +7840,16 @@ setTimeout(updateStatusCenter, 500);
 </script>
 <div id="active-desktop-banner" hidden aria-hidden="true" role="status" aria-live="polite" style="position:fixed;bottom:16px;right:16px;z-index:9999;background:#102b35;border:1px solid #00e5ff;padding:10px;border-radius:8px;max-width:min(420px, calc(100vw - 24px))">JARVIS active · <button class="btn warn" type="button" onclick="jarvisDesktop.stop()" aria-label="Stop screen sharing and active mode">Stop sharing &amp; active mode</button></div>
 <script src="/active-desktop.js"></script>
+<script src="/provider-settings.js"></script>
+<script src="/background-tasks.js"></script>
+<script>
+window.jarvisProviderSettings = JarvisProviderSettings.mount(document.getElementById('provider-settings-panel'), {
+  authorizeTest: async () => {
+    try { return integrationAdminHeaders(); }
+    finally { document.getElementById('integrations-admin-pin').value = ''; }
+  },
+  onSelectionChange: async () => { await initChatModels(); }
+});
+</script>
 </body>
 </html>

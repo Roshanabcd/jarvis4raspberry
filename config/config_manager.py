@@ -61,29 +61,21 @@ class ConfigManager:
             with open(env_path, "r") as f:
                 lines = f.readlines()
 
-        existing_keys = set()
-        new_lines = []
-        for line in lines:
-            line_str = line.strip()
-            if line_str and not line_str.startswith("#") and "=" in line_str:
-                k, _ = line_str.split("=", 1)
-                k = k.strip()
-                existing_keys.add(k)
-                if k in updates:
-                    new_lines.append(f"{k}={updates[k]}\n")
-                else:
-                    new_lines.append(line)
-            else:
-                new_lines.append(line)
-
-        for k, v in updates.items():
-            if k not in existing_keys:
-                new_lines.append(f"{k}={v}\n")
-
         temp_env = f"{env_path}.tmp"
         try:
-            with open(temp_env, "w") as f:
-                f.writelines(new_lines)
+            import tempfile
+            from dotenv import set_key
+            # Keep existing settings and quote values with python-dotenv's parser.
+            # A private, unique temporary file avoids exposing newly entered keys.
+            fd, temp_env = tempfile.mkstemp(prefix=".env-", dir=os.path.dirname(env_path))
+            with os.fdopen(fd, "w") as f:
+                f.writelines(lines)
+            for key, value in updates.items():
+                if not key.replace("_", "").isalnum() or any(c in value for c in ('\n', '\r', '\x00')):
+                    raise ValueError("Invalid environment setting")
+                set_key(temp_env, key, value, quote_mode="always")
+            with open(temp_env, "rb") as f:
+                os.fsync(f.fileno())
             os.replace(temp_env, env_path)
             logging.info(f"Environment variables successfully persisted to {env_path}")
             return True

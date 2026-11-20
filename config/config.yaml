@@ -14,6 +14,17 @@ voice:
   speed: 0.85
   num_steps: 32
   cloning_enabled: true
+  # Remote voice cloning can transmit spoken text and a reference sample to an
+  # external provider.  Keep it disabled until an operator explicitly opts in.
+  remote_voice_enabled: false
+  # Cloud neural fallback can transmit spoken text to its provider.  Local TTS
+  # remains available while this is disabled.
+  cloud_tts_enabled: false
+  # External GPU/Colab execution and remote health probing must be explicitly
+  # enabled by the operator.  They are deliberately off at boot.
+  colab_autorun: false
+  omnivoice_monitor_enabled: false
+  colab_manual_control_enabled: false
   simulation_mode: false
   routing_policy: both
   fallback_voice: en-GB-RyanNeural
@@ -29,10 +40,17 @@ audio:
 memory:
   db_path: jarvis_memory.db
   max_context: 20
+  semantic_search:
+    enabled: true
+    similarity_threshold: 0.25
+    max_candidates: 50
 robot:
   default_speed: 55
   max_speed: 100
   acceleration_ramp_ms: 500
+  # HTTP requests cannot arm or move physical actuators unless an operator
+  # explicitly enables this after completing the hardware safety checklist.
+  http_actuation_enabled: false
 sensors:
   bme280:
     i2c_bus: 1
@@ -83,7 +101,7 @@ providers:
 - name: openai
   model: gpt-4o
   enabled: false
-default_provider: ollama
+default_provider: nvidia
 fallback_message: I am operating in offline mode. Cloud AI is unavailable.
 default_max_risk: 2
 require_confirmation_above: 3

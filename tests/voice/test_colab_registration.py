@@ -6,7 +6,7 @@ import os
 import tempfile
 import pytest
 
-from apps.voice.colab_registration import ColabRegistrationManager, DEFAULT_REGISTRATION_TOKEN
+from apps.voice.colab_registration import ColabRegistrationManager
 from apps.voice.gradio_tts import GradioVoiceCloner, AudioResult
 
 
@@ -15,8 +15,10 @@ class TestColabRegistration:
     def temp_manager(self):
         with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             temp_path = f.name
-        mgr = ColabRegistrationManager(state_file=temp_path)
+        mgr = ColabRegistrationManager(state_file=temp_path, monitor_enabled=False)
+        mgr.registration_token = "test-registration-token"
         yield mgr
+        mgr.stop_background_monitor()
         if os.path.exists(temp_path):
             os.remove(temp_path)
 
@@ -61,7 +63,7 @@ class TestColabRegistration:
         # Valid token accepted
         res = temp_manager.register_url(
             gradio_url="https://test.gradio.live",
-            token=DEFAULT_REGISTRATION_TOKEN,
+            token="test-registration-token",
             is_local_request=False,
             verify_now=False,
         )
@@ -72,7 +74,7 @@ class TestColabRegistration:
     def test_state_persistence(self, temp_manager):
         temp_manager.register_url(
             gradio_url="https://persisted-test.gradio.live",
-            token=DEFAULT_REGISTRATION_TOKEN,
+            token="test-registration-token",
             session_id="sess_123",
             is_local_request=True,
             verify_now=False,
@@ -92,6 +94,16 @@ class TestColabRegistration:
         temp_manager.mark_offline("Connection dropped")
         assert temp_manager.state["runtime_status"] == "offline"
         assert temp_manager.state["last_error"] == "Connection dropped"
+
+    def test_monitor_does_not_start_without_explicit_opt_in(self, temp_manager):
+        assert temp_manager.get_status()["monitor_enabled"] is False
+        assert temp_manager.get_status()["monitor_running"] is False
+        temp_manager.register_url(
+            gradio_url="https://manual-test.gradio.live",
+            is_local_request=True,
+            verify_now=False,
+        )
+        assert temp_manager.get_status()["monitor_running"] is False
 
 
 class TestGradioVoiceClonerIntegration:

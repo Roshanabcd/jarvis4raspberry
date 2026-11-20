@@ -58,30 +58,48 @@ class TestPhase2ToolRegistry:
         assert "run_code" in names
 
     def test_schema_validation_type_checking(self):
-        # servo_set requires channel (int) and angle (int)
-        valid_res = self.registry.execute_tool("servo_set", {"channel": 2, "angle": 90})
-        assert valid_res["success"] is True
+        from tools.robotics.controller import robot
+        robot.arm()
+        try:
+            # servo_set requires channel (int) and angle (int)
+            valid_res = self.registry.execute_tool("servo_set", {"channel": 2, "angle": 90}, confirmed=True)
+            assert valid_res["success"] is True
 
-        # Invalid type for channel: string instead of int
-        invalid_res = self.registry.execute_tool("servo_set", {"channel": "invalid", "angle": 90})
-        assert invalid_res["success"] is False
-        assert "must be an integer" in invalid_res["error"]
+            # Invalid type for channel: string instead of int
+            invalid_res = self.registry.execute_tool("servo_set", {"channel": "invalid", "angle": 90}, confirmed=True)
+            assert invalid_res["success"] is False
+            assert "must be an integer" in invalid_res["error"]
+        finally:
+            robot.disarm()
 
     def test_robot_safety_and_disarmed_state(self):
         from tools.robotics.controller import robot
         robot.disarm()
 
-        # robot_move when disarmed should be blocked or return safe failure
-        res = self.registry.execute_tool("robot_move", {"direction": "forward", "speed": 50})
-        # If disarmed, hardware controller prevents movement
-        assert res["success"] is True  # executed successfully to enforce safety
-        assert res["result"]["armed"] is False
+        # Unconfirmed execution of physical actuation must be denied by permission manager
+        denied_res = self.registry.execute_tool("robot_move", {"direction": "forward", "speed": 50})
+        assert denied_res["success"] is False
+        assert "Permission denied" in denied_res["error"]
+
+        # Confirmed execution while disarmed is rejected by the armed/e-stop safety interlock
+        res = self.registry.execute_tool("robot_move", {"direction": "forward", "speed": 50}, confirmed=True)
+        assert res["success"] is False
+        assert "safety interlock" in res["error"]
 
     def test_system_status_tool_execution(self):
         res = self.registry.execute_tool("get_system_status", {})
         assert res["success"] is True
         assert "cpu_usage_pct" in res["result"] or "cpu" in str(res["result"]).lower()
         assert "ram_total_mb" in res["result"] or "memory" in str(res["result"]).lower()
+
+    def test_process_info_is_bounded_and_does_not_expose_command_lines(self):
+        res = self.registry.execute_tool("get_process_info", {"limit": 3})
+        assert res["success"] is True
+        assert 0 < res["result"]["count"] <= 3
+        for process in res["result"]["processes"]:
+            assert "pid" in process
+            assert "rss_mb" in process
+            assert "cmdline" not in process
 
     def test_sensor_tools_execution(self):
         res = self.registry.execute_tool("read_sensors", {})

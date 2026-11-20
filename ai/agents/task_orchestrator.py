@@ -7,7 +7,8 @@ import os
 import sys
 import logging
 import re
-from typing import Any, Dict, List, Optional, Tuple
+import time
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("JARVIS.CompoundTaskOrchestrator")
 
@@ -42,6 +43,15 @@ class CompoundTaskOrchestrator:
         if re.search(r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", text_clean, re.I):
             return False
 
+        # Explanatory, educational, or conceptual prompts should NOT be split into compound actions
+        if re.search(r'^(?:can\s+you\s+|could\s+you\s+|please\s+)?(?:explain|describe|clarify|elaborate|discuss)\b', text_clean, re.I):
+            if not re.search(r'\b(?:and\s+|then\s+)?(?:open\s+(?:chrome|youtube|browser|app|file|folder)|launch|start|play\s+(?:the|song|video)|calculate\s+\d+|set\s+volume)\b', text_clean, re.I):
+                return False
+
+        if re.search(r'\b(?:how\s+(?:does|do|can|could|to)\s+.*work|what\s+is\s+the\s+difference\s+between|why\s+(?:do|does|is|are))\b', text_clean, re.I):
+            if not re.search(r'\b(?:and\s+|then\s+)?(?:open\s+(?:chrome|youtube|browser|app|file|folder)|launch|start|play\s+(?:the|song|video)|calculate\s+\d+|set\s+volume)\b', text_clean, re.I):
+                return False
+
         parts = cls.split_subtasks(text_clean)
         if len(parts) < 2:
             return False
@@ -66,7 +76,9 @@ class CompoundTaskOrchestrator:
         cls,
         text: str,
         brain: Any,
-        session_id: Optional[str] = None
+        session_id: Optional[str] = None,
+        timeout: float = 60.0,
+        on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
         """
         Execute sub-tasks sequentially and combine into a coherent markdown report.
@@ -112,7 +124,31 @@ class CompoundTaskOrchestrator:
         except Exception as e:
             logger.debug(f"Error fetching session context: {e}")
 
+        deadline = time.monotonic() + timeout
+
         for idx, task in enumerate(subtasks, start=1):
+            if time.monotonic() > deadline:
+                logger.warning(f"Compound request timeout reached after {idx-1} subtasks")
+                sections.append(f"### {idx}. Timeout\n- Execution budget expired before completing this subtask.")
+                break
+
+            if brain and hasattr(brain, "is_cancelled") and (brain.is_cancelled(sid) or brain.is_cancelled(text)):
+                logger.info(f"Compound request cancelled for session {sid}")
+                sections.append(f"### {idx}. Cancelled\n- Request was cancelled by user.")
+                break
+
+            if on_progress:
+                try:
+                    on_progress({
+                        "type": "progress",
+                        "stage": "compound_subtask",
+                        "index": idx,
+                        "total": len(subtasks),
+                        "subtask": task,
+                        "detail": f"Executing subtask {idx}/{len(subtasks)}: {task[:50]}"
+                    })
+                except Exception as pe:
+                    logger.debug(f"Progress callback error: {pe}")
             task_lower = task.lower().strip()
 
             # Phase 3: Play YouTube video by index (e.g. "play the first video", "play the second result", "play the first horror movie in youtube", "play option 2")

@@ -54,6 +54,22 @@ ROLE_ALLOWED_TOOLS: Dict[str, Set[str]] = {
         "camera_describe",
         "detect_objects",
         "identify_user",
+        # Computer interaction (screen perception & synthetic input)
+        "desktop_screenshot",
+        "desktop_perception",
+        "desktop_list_windows",
+        "desktop_list_applications",
+        "computer_click",
+        "computer_double_click",
+        "computer_right_click",
+        "computer_type",
+        "computer_press_key",
+        "computer_press_hotkey",
+        "computer_scroll",
+        "computer_switch_window",
+        "computer_focus_window",
+        "computer_minimize_window",
+        "computer_maximize_window",
         # Desktop & Media
         "app_launcher",
         "file_search",
@@ -111,17 +127,37 @@ class PermissionManager:
     def set_active_user(self, user_dict: Optional[Dict[str, Any]]) -> None:
         """Set the currently identified user session."""
         self._current_user = user_dict
+        from apps.voice.session_manager import voice_session_mgr
+        if not user_dict:
+            voice_session_mgr.invalidate_session()
+        else:
+            voice_session_mgr.create_session(
+                user_id=user_dict.get('user_id', 'guest'),
+                display_name=user_dict.get('display_name', 'Guest'),
+                role=user_dict.get('role', 'GUEST'), source='identity_recognition',
+                is_authenticated=user_dict.get('role', 'GUEST') != 'GUEST',
+            )
 
     def get_active_user(self) -> Dict[str, Any]:
-        """Return the current active user or GUEST default."""
-        if self._current_user:
-            return self._current_user
-        # If no admin is enrolled yet, return initial setup state
+        """Return the current active user or a least-privilege default.
+
+        First-run enrollment is intentionally *not* an administrator session.
+        Enrollment is a separate, explicitly confirmed workflow; granting ADMIN
+        privileges merely because no account exists would let any local caller
+        bypass the identity boundary before enrollment.
+        """
+        from apps.voice.session_manager import voice_session_mgr
+        session = voice_session_mgr.get_active_session()
+        if session.is_authenticated:
+            return {'user_id': session.user_id, 'display_name': session.display_name,
+                    'role': session.authorization_role(), 'recognized_role': session.role,
+                    'expires_at': session.expires_at, 'is_setup': False}
+        # Preserve setup state for the dashboard, but it has no elevated role.
         if not self.user_mgr.is_admin_enrolled():
             return {
-                "user_id": "initial_setup",
-                "display_name": "Setup User",
-                "role": UserRole.ADMIN.value,
+                "user_id": "guest_session",
+                "display_name": "Setup required",
+                "role": UserRole.GUEST.value,
                 "is_setup": True,
             }
         return {

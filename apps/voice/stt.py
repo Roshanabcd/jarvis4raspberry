@@ -35,6 +35,8 @@ class SpeechToText:
         stt_config: Dict[str, Any] = config.get("stt", {})
         self.model_name = model_name or stt_config.get("model", "tiny")
         self.device = device or stt_config.get("device", "cpu")
+        self.language = stt_config.get("language", "en-US")
+        self.supported_languages = ["en-US", "hi-IN", "ne-NP"]
 
         if simulation_mode is not None:
             self.simulation_mode = simulation_mode
@@ -46,13 +48,21 @@ class SpeechToText:
                 self.simulation_mode = False
 
         self.model = None
-        self._init_model()
+        self.last_status = "idle"
+        # Loading even Whisper's tiny model can take tens of seconds and may
+        # download weights.  Keep API/server startup responsive and load it
+        # only after the lightweight STT provider is unavailable for a real
+        # transcription request.
+        self._model_load_attempted = False
 
-    def _init_model(self) -> None:
+    def _ensure_model(self) -> None:
         """Attempt to load the OpenAI Whisper model if available."""
-        if self.simulation_mode:
+        if self.simulation_mode or self._model_load_attempted:
             logger.info("Simulation mode active: Whisper model loading skipped.")
             return
+
+        self._model_load_attempted = True
+        self.last_status = "loading_model"
 
         try:
             import whisper  # type: ignore
@@ -69,7 +79,7 @@ class SpeechToText:
             self.model = None
         except Exception as exc:
             logger.error(
-                "Failed to load Whisper model '%s': %s. Falling back to simulation.",
+                "Failed to load Whisper model '%s': %s. Real transcription unavailable.",
                 self.model_name,
                 exc,
             )
@@ -84,6 +94,21 @@ class SpeechToText:
         logger.debug("Returning simulated transcription.")
         return "Simulated transcription"
 
+    def get_language(self) -> str:
+        """Return currently configured STT language code."""
+        return self.language
+
+    def set_language(self, lang_code: str) -> bool:
+        """Configure STT language code (e.g. en-US, hi-IN, ne-NP)."""
+        clean = lang_code.strip()
+        if clean in self.supported_languages:
+            self.language = clean
+            logger.info("STT language configured to %s", self.language)
+            return True
+        logger.warning("Language %s not in supported list %s; defaulting to en-US", clean, self.supported_languages)
+        self.language = "en-US"
+        return False
+
     def transcribe(self, audio_file_path: str) -> str:
         """Transcribe an audio file into text.
 
@@ -97,8 +122,10 @@ class SpeechToText:
             str: Transcribed text or simulated transcription.
         """
         if self.simulation_mode:
+            self.last_status = "simulated"
             return self.transcribe_simulated()
 
+        self.last_status = "no_audio"
         if not os.path.exists(audio_file_path):
             logger.warning(
                 "Audio file '%s' not found for transcription.",
@@ -121,42 +148,72 @@ class SpeechToText:
                     samples = struct.unpack(f"{n_frames * wf.getnchannels()}h", raw_bytes)
                     rms = math.sqrt(sum(s * s for s in samples) / max(1, len(samples)))
                     if rms < 8.0:
+                        self.last_status = "silence"
                         logger.debug("Audio file is near-silent (RMS: %.2f), skipping STT", rms)
                         return ""
         except Exception:
             pass
 
         # 1. Primary fast speech recognition via SpeechRecognition (Google Web Speech API)
+        # Import it independently so an optional dependency absence cannot
+        # cause an UnboundLocalError in an exception clause.
         try:
             import speech_recognition as sr
-            r = sr.Recognizer()
-            r.energy_threshold = 150
-            r.dynamic_energy_threshold = False
-            with sr.AudioFile(audio_file_path) as source:
-                audio_data = r.record(source)
-            text = r.recognize_google(audio_data, language="en-US")
-            if text and text.strip():
-                logger.info("SpeechRecognition transcribed: '%s'", text)
-                return text.strip()
-        except sr.UnknownValueError:
-            logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence)")
-            return ""
-        except sr.RequestError as req_err:
-            logger.warning("Google Speech Recognition service request failed: %s", req_err)
-        except Exception as exc:
-            logger.debug("SpeechRecognition recognize_google: %s", exc)
+        except ImportError:
+            sr = None
+            logger.debug("SpeechRecognition is not installed; trying local Whisper fallback.")
 
-        # 2. Whisper fallback if loaded
+        if sr is not None:
+            try:
+                self.last_status = "recognizing"
+                recognizer = sr.Recognizer()
+                # Cloud recognition must not leave the sole capture owner stuck
+                # indefinitely with a misleading standby heartbeat.
+                recognizer.operation_timeout = 8.0
+                recognizer.energy_threshold = 150
+                recognizer.dynamic_energy_threshold = False
+                with sr.AudioFile(audio_file_path) as source:
+                    audio_data = recognizer.record(source)
+                try:
+                    text = recognizer.recognize_google(audio_data, language=self.language)
+                except Exception:
+                    if self.language != "en-US":
+                        # Fallback to English if regional recognition fails
+                        text = recognizer.recognize_google(audio_data, language="en-US")
+                    else:
+                        raise
+                if text and text.strip():
+                    self.last_status = "recognized"
+                    logger.debug("SpeechRecognition produced a transcript")
+                    return text.strip()
+            except sr.UnknownValueError:
+                self.last_status = "unintelligible"
+                logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence)")
+                return ""
+            except sr.RequestError as req_err:
+                logger.warning("Google Speech Recognition service request failed: %s", req_err)
+            except Exception as exc:
+                logger.debug("SpeechRecognition recognize_google: %s", exc)
+
+        # 2. Local Whisper fallback. It is initialized only when it is needed,
+        # not while FastAPI is importing the voice routes.
+        self._ensure_model()
         if self.model is not None:
             try:
+                self.last_status = "recognizing"
                 logger.info("Transcribing audio file with Whisper: %s", audio_file_path)
                 result = self.model.transcribe(audio_file_path)
                 transcription = str(result.get("text", "")).strip()
                 if transcription:
-                    logger.info("Whisper result: '%s'", transcription)
+                    self.last_status = "recognized"
+                    logger.debug("Whisper produced a transcript")
                     return transcription
+                self.last_status = "unintelligible"
             except Exception as exc:
+                self.last_status = "failed"
                 logger.error("Whisper transcription failed: %s", exc)
+        else:
+            self.last_status = "unavailable"
 
         return ""
 
