@@ -12,6 +12,7 @@
     "playwright": "^1.65.1"
   },
   "dependencies": {
+    "openai": "^7.62.0",
     "windsurf-agent-cli": "^1.2.2"
   }
 }

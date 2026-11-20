@@ -179,10 +179,11 @@ class JARVISBrain:
         for name, url, default_model in (
             ("groq", "https://api.groq.com/openai/v1", os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant"),
             ("together", "https://api.together.xyz/v1", os.getenv("TOGETHER_MODEL") or "meta-llama/Llama-3.3-70B-Instruct-Turbo"),
+            ("cognitum", "https://api.cognitum.one/v1", os.getenv("COGNITUM_MODEL") or "cognitum-low"),
         ):
             extra_cfg = cfg.get(name, {}) or {}
             chosen_model = (
-                (os.getenv("GROQ_MODEL") if name == "groq" else os.getenv("TOGETHER_MODEL"))
+                os.getenv(f"{name.upper()}_MODEL")
                 or extra_cfg.get("model")
                 or default_model
             )
@@ -190,7 +191,10 @@ class JARVISBrain:
                                     model=chosen_model,
                                     enabled=extra_cfg.get("enabled", True))
             client.name = name
-            client.list_models = lambda client=client: [client.model]
+            if name == "cognitum":
+                client.list_models = lambda: ["cognitum-low", "cognitum-auto", "cognitum-mid", "cognitum-high", "cognitum-ultra"]
+            else:
+                client.list_models = lambda client=client: [client.model]
             self._providers.append(client)
 
         # 7. Generic OpenAI-Compatible

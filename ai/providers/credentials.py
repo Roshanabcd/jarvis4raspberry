@@ -12,6 +12,7 @@ except Exception:
 
 ENV_KEYS = {
     'openai': ('OPENAI_API_KEY',),
+    'cognitum': ('COGNITUM_API_KEY',),
     'gemini': ('GEMINI_API_KEY', 'GOOGLE_API_KEY'),
     'anthropic': ('ANTHROPIC_API_KEY',),
     'nvidia': ('NVIDIA_API_KEY', 'NIM_API_KEY'),
