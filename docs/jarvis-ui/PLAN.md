@@ -16,7 +16,7 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 8 | Tasks, memory, calendar, integrations | verified | f5ad7eb | docs/jarvis-ui/evidence/phase-8/ |
 | 9 | Devices and robot | verified | 6691e05 | docs/jarvis-ui/evidence/phase-9/ |
 | 10 | Responsive, accessibility, performance | verified | e53afaa | docs/jarvis-ui/evidence/phase-10/ |
-| 11 | Full verification and delivery | verified | pending-commit | docs/jarvis-ui/evidence/phase-11/ |
+| 11 | Full verification and delivery | verified | 07e92f7 | docs/jarvis-ui/evidence/phase-11/ |
 
 ## Phases
 
