@@ -571,3 +571,30 @@ Learnings:
 - Running local LLM CPU inference on Raspberry Pi 5 under heavy concurrent pytest execution requires adjusting token prediction limits (`num_predict: 48`) and socket timeouts (90s) to prevent transient timeouts while model weights cold-load into memory.
 - Dynamic agent registry discovery requires both `tools/agents/` (the core diagnostic and self-healing subsystem) and `tools/hybrid-jarvis-developer/` (the multi-agent git worktree orchestrator) to maintain unified ID parity (`antigravity`, `codex`, `copilot`) so dashboard clients receive consistent capability and status metadata across all endpoints.
 ==================================================
+
+=== ITERATION: VOICE SUBSYSTEM TRANSCRIPTION, ACCUMULATION & DASHBOARD ROUTING ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Speech Recognition Whisper Fallback (`apps/voice/stt.py`):
+  1. Removed premature `return ""` inside `except sr.UnknownValueError:` in `SpeechToText.transcribe`, enabling seamless fallback to local Whisper model when Google Web Speech fails on accents, low volume, or ambient acoustics.
+- Speech Utterance Accumulation (`apps/voice/wake_word_engine.py`):
+  1. Implemented continuous raw PCM audio frame buffering during `WakeState.LISTENING_SPEECH` into `accumulated_command.wav`.
+  2. In `WakeState.COMMAND_SUBMITTED`, added fallback to transcribe the full accumulated sentence when 1.5-second fragment streaming yields empty or broken transcripts, giving STT engines whole-sentence acoustic and linguistic context.
+  3. Implemented dual-chunk rolling buffer in `WakeState.STANDBY_LISTENING` so wake phrases ("Hey Jarvis") spanning 1.5-second capture boundaries are not clipped.
+  4. Calibrated VAD sensitivity presets to support conversational speech levels on Seeed ReSpeaker Lite USB microphone array.
+- Dashboard API & Futuristic Voice Controller (`apps/dashboard/futuristic/api.js` & `voice.js`):
+  1. Added `sendVoiceCommand(text)` method to `api.js` to route spoken text to `/api/voice/command` for AI brain reasoning.
+  2. Fixed `voice.js` to inspect `res.transcribed` and `res.response`, eliminating UI lockups on push-to-talk.
+  3. Replaced raw TTS parrot echo (`synthesizeSpeech(text)`) in `handleUserVoiceInput` with end-to-end AI command execution and assistant speech playback.
+- Verification & Test Execution:
+  1. Authored `test_unknown_value_error_falls_back_to_whisper` and `test_accumulated_speech_used_when_fragment_transcription_empty` in `tests/unit/test_voice_capture_reliability.py` (14/14 tests passing).
+  2. Verified core voice suites (91/91 tests passing).
+  3. Verified live `jarvis-voice.service` running active on PID 40396 in `STANDBY_LISTENING`.
+  4. Verified live `/api/voice/command` returning AI reasoning response with 145ms local TTS staging.
+  5. Committed to `feature/jarvis-ui` at commit `49c005b`.
+
+Learnings:
+- Cloud STT engines (like Google Web Speech) frequently reject sub-2-second chopped audio slices with `UnknownValueError`. Streaming VAD loops that slice audio into rolling chunks must maintain an accumulated utterance buffer across the active speech window and transcribe the complete concatenated WAV as a whole sentence upon silence detection.
+- In multi-process voice architectures with a dedicated hardware capture daemon, web push-to-talk cannot perform direct second-owner hardware captures without device contention. The dashboard must interact with the authoritative backend via `/api/voice/command` or signal the background daemon via cross-process control directives (`barge_in` / `push_to_talk`).
+==================================================
