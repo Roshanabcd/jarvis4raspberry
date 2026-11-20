@@ -218,6 +218,12 @@ test('Phase 2 Gate: Design System & Accessible Shell Verification', async (t) =>
           assert.ok(content.includes('Integrations & Connectors'), 'Integrations route must render Integrations');
         } else if (destId === 'apps') {
           assert.ok(content.includes('Connected Applications'), 'Apps route must render Connected Applications');
+        } else if (destId === 'devices') {
+          assert.ok(content.includes('Connected Devices'), 'Devices route must render Connected Devices');
+        } else if (destId === 'sensors') {
+          assert.ok(content.includes('Sensors Telemetry'), 'Sensors route must render Sensors Telemetry');
+        } else if (destId === 'robot') {
+          assert.ok(content.includes('Robotics & Physical Actuators'), 'Robot route must render Robotics');
         } else {
           assert.ok(
             content.includes('Not implemented yet'),

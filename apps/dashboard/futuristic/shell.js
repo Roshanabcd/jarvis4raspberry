@@ -107,6 +107,7 @@
   // --- Routing & Navigation ---
   function getRouteFromHash() {
     const hash = window.location.hash.replace('#', '').trim();
+    if (hash === 'sensors') return 'sensors';
     const match = DESTINATIONS.find((d) => d.id === hash);
     return match ? match.id : 'dashboard';
   }
@@ -209,6 +210,11 @@
       if (window.jarvisOperations) {
         mainContainer.innerHTML = '<div id="view-placeholder"></div>';
         window.jarvisOperations.renderDestination(routeId);
+      }
+    } else if (['devices', 'sensors', 'robot'].includes(routeId)) {
+      if (window.jarvisRobotDevices) {
+        mainContainer.innerHTML = '<div id="view-placeholder"></div>';
+        window.jarvisRobotDevices.renderDestination(routeId);
       }
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);

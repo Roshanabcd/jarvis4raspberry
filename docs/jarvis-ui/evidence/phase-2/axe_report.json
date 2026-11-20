@@ -13,7 +13,7 @@
     "orientationAngle": 0,
     "orientationType": "landscape-primary"
   },
-  "timestamp": "2026-11-20T06:32:57.384Z",
+  "timestamp": "2026-11-20T08:21:43.963Z",
   "url": "http://127.0.0.1:8012/",
   "toolOptions": {
     "runOnly": {
@@ -565,28 +565,6 @@
       "description": "Ensure summary elements have discernible text",
       "help": "Summary elements must have discernible text",
       "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/summary-name?application=axeAPI",
-      "nodes": []
-    },
-    {
-      "id": "svg-img-alt",
-      "impact": null,
-      "tags": [
-        "cat.text-alternatives",
-        "wcag2a",
-        "wcag111",
-        "section508",
-        "section508.22.a",
-        "TTv5",
-        "TT7.a",
-        "EN-301-549",
-        "EN-9.1.1.1",
-        "ACT",
-        "RGAAv4",
-        "RGAA-1.1.5"
-      ],
-      "description": "Ensure <svg> elements with an img, image, graphics-document or graphics-symbol role have accessible text",
-      "help": "<svg> elements with an img or image role must have alternative text",
-      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/svg-img-alt?application=axeAPI",
       "nodes": []
     },
     {
@@ -1705,6 +1683,126 @@
             }
           ],
           "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-allowed-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attributes are used correctly for the defined role"
+            },
+            {
+              "id": "aria-allowed-attr-elm",
+              "data": null,
+              "relatedNodes": [],
+              "message": "ARIA attributes are allowed for this element",
+              "impact": "critical"
+            },
+            {
+              "id": "aria-no-deprecated-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "No deprecated ARIA attributes are used"
+            }
+          ],
+          "none": [
+            {
+              "id": "aria-unsupported-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute is supported"
+            }
+          ],
+          "impact": null,
           "html": "<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
           "target": [
             "#toast-container"
@@ -2173,6 +2271,60 @@
           ],
           "none": [],
           "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-conditional-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "none": [],
+          "impact": null,
           "html": "<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
           "target": [
             "#toast-container"
@@ -2591,6 +2743,60 @@
           "target": [
             "#main-content"
           ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "deprecatedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "minor",
+              "message": "ARIA role is not deprecated"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "deprecatedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "minor",
+              "message": "ARIA role is not deprecated"
+            }
+          ],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "deprecatedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "minor",
+              "message": "ARIA role is not deprecated"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
         }
       ]
     },
@@ -2679,7 +2885,39 @@
           "impact": null,
           "html": "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">",
           "target": [
-            "svg[stroke-linecap=\"round\"]"
+            "svg[height=\"18\"][stroke-linejoin=\"round\"][aria-hidden=\"true\"]"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "focusable-modal-open",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "No focusable elements while a modal is open"
+            },
+            {
+              "id": "focusable-disabled",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "No focusable elements contained within element"
+            },
+            {
+              "id": "focusable-not-tabbable",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "No focusable elements contained within element"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-hud-bg\" aria-hidden=\"true\">",
+          "target": [
+            ".avatar-hud-bg"
           ]
         }
       ]
@@ -3145,6 +3383,60 @@
             }
           ],
           "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "aria-prohibited-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "ARIA attribute is allowed"
+            }
+          ],
+          "impact": null,
           "html": "<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
           "target": [
             "#toast-container"
@@ -3562,6 +3854,60 @@
           "html": "<main id=\"main-content\" class=\"app-main\" role=\"main\" tabindex=\"-1\">",
           "target": [
             "#main-content"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-required-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "All required ARIA attributes are present"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-required-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "All required ARIA attributes are present"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-required-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "All required ARIA attributes are present"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
           ]
         }
       ]
@@ -4663,6 +5009,102 @@
           "target": [
             "#main-content"
           ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "invalidrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is valid"
+            },
+            {
+              "id": "abstractrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Abstract roles are not used"
+            },
+            {
+              "id": "unsupportedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "invalidrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is valid"
+            },
+            {
+              "id": "abstractrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Abstract roles are not used"
+            },
+            {
+              "id": "unsupportedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [],
+          "none": [
+            {
+              "id": "invalidrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is valid"
+            },
+            {
+              "id": "abstractrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Abstract roles are not used"
+            },
+            {
+              "id": "unsupportedrole",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA role is supported"
+            }
+          ],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
         }
       ]
     },
@@ -5477,6 +5919,102 @@
           ],
           "none": [],
           "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
+        },
+        {
+          "any": [],
+          "all": [
+            {
+              "id": "aria-valid-attr-value",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute values are valid"
+            },
+            {
+              "id": "aria-errormessage",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-errormessage exists and references elements visible to screen readers that use a supported aria-errormessage technique"
+            },
+            {
+              "id": "aria-level",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "aria-level values are valid"
+            }
+          ],
+          "none": [],
+          "impact": null,
           "html": "<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
           "target": [
             "#toast-container"
@@ -5945,6 +6483,60 @@
           "all": [],
           "none": [],
           "impact": null,
+          "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+          "target": [
+            ".avatar-selector-toggle"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<div class=\"avatar-state-pills-row\" role=\"group\" aria-label=\"Avatar State Controls\">",
+          "target": [
+            ".avatar-state-pills-row"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "aria-valid-attr",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "ARIA attribute name is valid"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
           "html": "<div id=\"toast-container\" aria-live=\"polite\" aria-atomic=\"true\"></div>",
           "target": [
             "#toast-container"
@@ -6328,9 +6920,207 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button class=\"btn-futuristic\" onclick=\"window.showToast('Connecting AI subsystems…', 'info')\">\n              ⚡ Quick Sync\n            </button>",
+          "html": "<button class=\"btn-futuristic\" onclick=\"window.jarvisApi?.fetchAllTelemetry().then(()=&gt;window.showToast('Telemetry refreshed from live backend', 'success')).catch(()=&gt;window.showToast('Refresh failed: backend offline', 'danger'))\">\n              ↻ Refresh Telemetry\n            </button>",
           "target": [
             ".btn-futuristic:nth-child(2)"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button id=\"btn-avatar-aria\" class=\"avatar-toggle-btn active\" data-avatar=\"aria\">ARIA (Female)</button>",
+          "target": [
+            "#btn-avatar-aria"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button id=\"btn-avatar-atlas\" class=\"avatar-toggle-btn\" data-avatar=\"atlas\">ATLAS (Male)</button>",
+          "target": [
+            "#btn-avatar-atlas"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn active\" data-state=\"idle\">Idle</button>",
+          "target": [
+            "button[data-state=\"idle\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"listening\">Listening</button>",
+          "target": [
+            "button[data-state=\"listening\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"thinking\">Thinking</button>",
+          "target": [
+            "button[data-state=\"thinking\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"speaking\">Speaking</button>",
+          "target": [
+            "button[data-state=\"speaking\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"happy\">Happy</button>",
+          "target": [
+            "button[data-state=\"happy\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"concerned\">Concerned</button>",
+          "target": [
+            "button[data-state=\"concerned\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"error\">Error</button>",
+          "target": [
+            "button[data-state=\"error\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"offline\">Offline</button>",
+          "target": [
+            "button[data-state=\"offline\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "button-has-visible-text",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "critical",
+              "message": "Element has inner text that is visible to screen readers"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"muted\">Muted</button>",
+          "target": [
+            "button[data-state=\"muted\"]"
           ]
         }
       ]
@@ -6369,9 +7159,15 @@
               "data": null,
               "relatedNodes": [
                 {
-                  "html": "<h1 style=\"margin:0 0 8px 0; font-size:1.8rem; letter-spacing:0.5px;\">JARVIS Control Center</h1>",
+                  "html": "<h1 style=\"margin:0 0 6px 0; font-size:1.75rem; letter-spacing:0.5px;\">JARVIS Control Center</h1>",
                   "target": [
                     "h1"
+                  ]
+                },
+                {
+                  "html": "<h2 style=\"margin:0; font-size:1.3rem; letter-spacing:0.5px;\">JARVIS Neural Assistant</h2>",
+                  "target": [
+                    "h2"
                   ]
                 }
               ],
@@ -6495,6 +7291,31 @@
           "html": "<select id=\"accent-select\" aria-label=\"Select Accent\" style=\"background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:0.75rem; padding:4px 8px;\">",
           "target": [
             "#accent-select"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "fgColor": "#03081a",
+                "bgColor": "#00d9ff",
+                "contrastRatio": 11.74,
+                "fontSize": "9.4pt (12.48px)",
+                "fontWeight": "normal",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element has sufficient color contrast of 11.74"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button id=\"btn-avatar-aria\" class=\"avatar-toggle-btn active\" data-avatar=\"aria\">ARIA (Female)</button>",
+          "target": [
+            "#btn-avatar-aria"
           ]
         }
       ]
@@ -6924,7 +7745,7 @@
             }
           ],
           "impact": null,
-          "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Return to Classic UI\n            </a>",
+          "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Classic Dashboard\n            </a>",
           "target": [
             "a[href=\"/\"]"
           ]
@@ -7467,9 +8288,225 @@
           "all": [],
           "none": [],
           "impact": null,
-          "html": "<button class=\"btn-futuristic\" onclick=\"window.showToast('Connecting AI subsystems…', 'info')\">\n              ⚡ Quick Sync\n            </button>",
+          "html": "<button class=\"btn-futuristic\" onclick=\"window.jarvisApi?.fetchAllTelemetry().then(()=&gt;window.showToast('Telemetry refreshed from live backend', 'success')).catch(()=&gt;window.showToast('Refresh failed: backend offline', 'danger'))\">\n              ↻ Refresh Telemetry\n            </button>",
           "target": [
             ".btn-futuristic:nth-child(2)"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button id=\"btn-avatar-aria\" class=\"avatar-toggle-btn active\" data-avatar=\"aria\">ARIA (Female)</button>",
+          "target": [
+            "#btn-avatar-aria"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button id=\"btn-avatar-atlas\" class=\"avatar-toggle-btn\" data-avatar=\"atlas\">ATLAS (Male)</button>",
+          "target": [
+            "#btn-avatar-atlas"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn active\" data-state=\"idle\">Idle</button>",
+          "target": [
+            "button[data-state=\"idle\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"listening\">Listening</button>",
+          "target": [
+            "button[data-state=\"listening\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"thinking\">Thinking</button>",
+          "target": [
+            "button[data-state=\"thinking\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"speaking\">Speaking</button>",
+          "target": [
+            "button[data-state=\"speaking\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"happy\">Happy</button>",
+          "target": [
+            "button[data-state=\"happy\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"concerned\">Concerned</button>",
+          "target": [
+            "button[data-state=\"concerned\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"error\">Error</button>",
+          "target": [
+            "button[data-state=\"error\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"offline\">Offline</button>",
+          "target": [
+            "button[data-state=\"offline\"]"
+          ]
+        },
+        {
+          "any": [
+            {
+              "id": "no-focusable-content",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "Element does not have focusable descendants"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<button class=\"avatar-state-btn\" data-state=\"muted\">Muted</button>",
+          "target": [
+            "button[data-state=\"muted\"]"
           ]
         }
       ]
@@ -7616,6 +8653,47 @@
           ]
         }
       ]
+    },
+    {
+      "id": "svg-img-alt",
+      "impact": null,
+      "tags": [
+        "cat.text-alternatives",
+        "wcag2a",
+        "wcag111",
+        "section508",
+        "section508.22.a",
+        "TTv5",
+        "TT7.a",
+        "EN-301-549",
+        "EN-9.1.1.1",
+        "ACT",
+        "RGAAv4",
+        "RGAA-1.1.5"
+      ],
+      "description": "Ensure <svg> elements with an img, image, graphics-document or graphics-symbol role have accessible text",
+      "help": "<svg> elements with an img or image role must have alternative text",
+      "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/svg-img-alt?application=axeAPI",
+      "nodes": [
+        {
+          "any": [
+            {
+              "id": "aria-label",
+              "data": null,
+              "relatedNodes": [],
+              "impact": "serious",
+              "message": "aria-label attribute exists and is not empty"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": null,
+          "html": "<svg viewBox=\"0 0 300 300\" class=\"avatar-character-svg  jarvis-breathe\" role=\"img\" aria-label=\"ARIA Female AI Assistant\">",
+          "target": [
+            ".avatar-character-svg"
+          ]
+        }
+      ]
     }
   ],
   "incomplete": [
@@ -7672,7 +8750,7 @@
           "impact": "serious",
           "html": "<span style=\"font-size:1.25rem; font-weight:800; letter-spacing:1.5px; color:var(--accent); text-shadow:0 0 12px var(--accent-glow);\">JARVIS</span>",
           "target": [
-            "div:nth-child(2) > span:nth-child(1)"
+            "header > div:nth-child(1) > div:nth-child(2) > span:nth-child(1)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7691,7 +8769,7 @@
                 {
                   "html": "<span class=\"status-chip success\" style=\"font-size:0.65rem;\">OS v2.0</span>",
                   "target": [
-                    "div:nth-child(2) > .success.status-chip"
+                    "div:nth-child(1) > div:nth-child(2) > .success.status-chip"
                   ]
                 },
                 {
@@ -7716,7 +8794,7 @@
           "impact": "serious",
           "html": "<span class=\"status-chip success\" style=\"font-size:0.65rem;\">OS v2.0</span>",
           "target": [
-            "div:nth-child(2) > .success.status-chip"
+            "div:nth-child(1) > div:nth-child(2) > .success.status-chip"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7823,7 +8901,7 @@
                 {
                   "html": "<span class=\"status-chip\" title=\"Simulated hardware safety engaged\">\n          <span class=\"status-dot\"></span> Robot: Safe\n        </span>",
                   "target": [
-                    ".status-chip:nth-child(3)"
+                    ".hide-tablet > .status-chip:nth-child(3)"
                   ]
                 },
                 {
@@ -7848,7 +8926,7 @@
           "impact": "serious",
           "html": "<span class=\"status-chip\" title=\"Simulated hardware safety engaged\">\n          <span class=\"status-dot\"></span> Robot: Safe\n        </span>",
           "target": [
-            ".status-chip:nth-child(3)"
+            ".hide-tablet > .status-chip:nth-child(3)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -7884,7 +8962,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div id=\"shell-clock\" style=\"font-weight:700; color:var(--text-primary);\">06:32:56</div>",
+          "html": "<div id=\"shell-clock\" style=\"font-weight:700; color:var(--text-primary);\">08:21:42</div>",
           "target": [
             "#shell-clock"
           ],
@@ -8903,15 +9981,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<div class=\"status-chip success\" style=\"margin-bottom:8px;\">\n              <span class=\"status-dot\"></span> System Operational · Phase 2 Shell Active\n            </div>",
+                  "html": "<span id=\"core-status-chip\" class=\"status-chip danger\"><span class=\"status-dot\"></span> Core: RECONNECTING</span>",
                   "target": [
-                    ".glass-panel > div > div:nth-child(1) > .success.status-chip"
+                    "#core-status-chip"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-panel\" style=\"padding: 28px; margin-bottom: 24px;\">",
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-panel"
+                    ".glass-panel:nth-child(2)"
                   ]
                 },
                 {
@@ -8928,9 +10006,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div class=\"status-chip success\" style=\"margin-bottom:8px;\">\n              <span class=\"status-dot\"></span> System Operational · Phase 2 Shell Active\n            </div>",
+          "html": "<span id=\"core-status-chip\" class=\"status-chip danger\"><span class=\"status-dot\"></span> Core: RECONNECTING</span>",
           "target": [
-            ".glass-panel > div > div:nth-child(1) > .success.status-chip"
+            "#core-status-chip"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -8940,16 +10018,22 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "21.6pt (28.8px)",
-                "fontWeight": "bold",
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
                 "messageKey": "bgGradient",
-                "expectedContrastRatio": "3:1"
+                "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div class=\"glass-panel\" style=\"padding: 28px; margin-bottom: 24px;\">",
+                  "html": "<span class=\"status-chip success\">\n                <span class=\"status-dot\"></span> Real Data Layer Active\n              </span>",
                   "target": [
-                    ".glass-panel"
+                    "div > div:nth-child(1) > div > .success.status-chip"
+                  ]
+                },
+                {
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
+                  "target": [
+                    ".glass-panel:nth-child(2)"
                   ]
                 },
                 {
@@ -8966,7 +10050,45 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<h1 style=\"margin:0 0 8px 0; font-size:1.8rem; letter-spacing:0.5px;\">JARVIS Control Center</h1>",
+          "html": "<span class=\"status-chip success\">\n                <span class=\"status-dot\"></span> Real Data Layer Active\n              </span>",
+          "target": [
+            "div > div:nth-child(1) > div > .success.status-chip"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "21.0pt (28px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
+                  "target": [
+                    ".glass-panel:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<h1 style=\"margin:0 0 6px 0; font-size:1.75rem; letter-spacing:0.5px;\">JARVIS Control Center</h1>",
           "target": [
             "h1"
           ],
@@ -8978,16 +10100,16 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "11.0pt (14.72px)",
+                "fontSize": "10.8pt (14.4px)",
                 "fontWeight": "normal",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div class=\"glass-panel\" style=\"padding: 28px; margin-bottom: 24px;\">",
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-panel"
+                    ".glass-panel:nth-child(2)"
                   ]
                 },
                 {
@@ -9004,7 +10126,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<p style=\"margin:0; color:var(--text-secondary); font-size:0.92rem;\">\n              Futuristic AI Operating System &amp; Humanoid Digital Avatar\n            </p>",
+          "html": "<p style=\"margin:0; color:var(--text-secondary); font-size:0.9rem;\">\n              Futuristic AI Operating System &amp; Telemetry Hub\n            </p>",
           "target": [
             "p"
           ],
@@ -9023,15 +10145,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Return to Classic UI\n            </a>",
+                  "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Classic Dashboard\n            </a>",
                   "target": [
                     "a[href=\"/\"]"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-panel\" style=\"padding: 28px; margin-bottom: 24px;\">",
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-panel"
+                    ".glass-panel:nth-child(2)"
                   ]
                 },
                 {
@@ -9048,7 +10170,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Return to Classic UI\n            </a>",
+          "html": "<a href=\"/\" class=\"btn-futuristic btn-secondary\" title=\"View legacy 21-tab dashboard\">\n              ↩ Classic Dashboard\n            </a>",
           "target": [
             "a[href=\"/\"]"
           ],
@@ -9067,15 +10189,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<button class=\"btn-futuristic\" onclick=\"window.showToast('Connecting AI subsystems…', 'info')\">\n              ⚡ Quick Sync\n            </button>",
+                  "html": "<button class=\"btn-futuristic\" onclick=\"window.jarvisApi?.fetchAllTelemetry().then(()=&gt;window.showToast('Telemetry refreshed from live backend', 'success')).catch(()=&gt;window.showToast('Refresh failed: backend offline', 'danger'))\">\n              ↻ Refresh Telemetry\n            </button>",
                   "target": [
                     ".btn-futuristic:nth-child(2)"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-panel\" style=\"padding: 28px; margin-bottom: 24px;\">",
+                  "html": "<div class=\"glass-panel\" style=\"padding: 24px 28px; margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-panel"
+                    ".glass-panel:nth-child(2)"
                   ]
                 },
                 {
@@ -9092,7 +10214,7 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<button class=\"btn-futuristic\" onclick=\"window.showToast('Connecting AI subsystems…', 'info')\">\n              ⚡ Quick Sync\n            </button>",
+          "html": "<button class=\"btn-futuristic\" onclick=\"window.jarvisApi?.fetchAllTelemetry().then(()=&gt;window.showToast('Telemetry refreshed from live backend', 'success')).catch(()=&gt;window.showToast('Refresh failed: backend offline', 'danger'))\">\n              ↻ Refresh Telemetry\n            </button>",
           "target": [
             ".btn-futuristic:nth-child(2)"
           ],
@@ -9104,16 +10226,16 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div class=\"glass-card\">",
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-card:nth-child(1)"
+                    ".avatar-showcase-panel"
                   ]
                 },
                 {
@@ -9130,9 +10252,91 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span style=\"font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;\">Digital Avatar</span>",
+          "html": "<div style=\"font-size:0.75rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;\">Holographic Digital Human</div>",
           "target": [
-            ".glass-card:nth-child(1) > div:nth-child(1) > span:nth-child(1)"
+            ".avatar-showcase-panel > div:nth-child(1) > div:nth-child(1) > div"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "15.6pt (20.8px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<h2 style=\"margin:0; font-size:1.3rem; letter-spacing:0.5px;\">JARVIS Neural Assistant</h2>",
+          "target": [
+            "h2"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.4pt (12.48px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-selector-toggle\" role=\"group\" aria-label=\"Avatar Character Selector\">",
+                  "target": [
+                    ".avatar-selector-toggle"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button id=\"btn-avatar-atlas\" class=\"avatar-toggle-btn\" data-avatar=\"atlas\">ATLAS (Male)</button>",
+          "target": [
+            "#btn-avatar-atlas"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -9149,59 +10353,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<span class=\"status-chip success\">Ready</span>",
+                  "html": "<span id=\"avatar-active-state-chip\" class=\"status-chip success\"><span class=\"status-dot\"></span> State: IDLE</span>",
                   "target": [
-                    ".glass-card:nth-child(1) > div:nth-child(1) > .success.status-chip"
+                    "#avatar-active-state-chip"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-card\">",
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-card:nth-child(1)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"status-chip success\">Ready</span>",
-          "target": [
-            ".glass-card:nth-child(1) > div:nth-child(1) > .success.status-chip"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "14.4pt (19.2px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div style=\"width:48px; height:48px; border-radius:50%; background:var(--accent-bg); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:1.2rem;\">\n              ARIA\n            </div>",
-                  "target": [
-                    ".glass-card:nth-child(1) > div:nth-child(2) > div:nth-child(1)"
-                  ]
-                },
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(1)"
+                    ".avatar-showcase-panel"
                   ]
                 },
                 {
@@ -9218,123 +10378,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div style=\"width:48px; height:48px; border-radius:50%; background:var(--accent-bg); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:1.2rem;\">\n              ARIA\n            </div>",
+          "html": "<span id=\"avatar-active-state-chip\" class=\"status-chip success\"><span class=\"status-dot\"></span> State: IDLE</span>",
           "target": [
-            ".glass-card:nth-child(1) > div:nth-child(2) > div:nth-child(1)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "12.0pt (16px)",
-                "fontWeight": "bold",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(1)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<div style=\"font-weight:700; font-size:1rem;\">Female Assistant (ARIA)</div>",
-          "target": [
-            ".glass-card:nth-child(1) > div:nth-child(2) > div:nth-child(2) > div:nth-child(1)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(1)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<div style=\"font-size:0.8rem; color:var(--text-muted);\">Idle · Awaiting Phase 5 Avatar Renderer</div>",
-          "target": [
-            ".glass-card:nth-child(1) > div:nth-child(2) > div:nth-child(2) > div:nth-child(2)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(2)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span style=\"font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;\">Voice Pipeline</span>",
-          "target": [
-            ".glass-card:nth-child(2) > div:nth-child(1) > span:nth-child(1)"
+            "#avatar-active-state-chip"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -9351,53 +10397,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<span class=\"status-chip success\">Armed</span>",
+                  "html": "<button class=\"avatar-state-btn active\" data-state=\"idle\">Idle</button>",
                   "target": [
-                    ".glass-card:nth-child(2) > div:nth-child(1) > .success.status-chip"
+                    "button[data-state=\"idle\"]"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-card\">",
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-card:nth-child(2)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span class=\"status-chip success\">Armed</span>",
-          "target": [
-            ".glass-card:nth-child(2) > div:nth-child(1) > .success.status-chip"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "12.0pt (16px)",
-                "fontWeight": "bold",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(2)"
+                    ".avatar-showcase-panel"
                   ]
                 },
                 {
@@ -9414,85 +10422,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div style=\"font-weight:700; font-size:1rem; margin-bottom:4px;\">Audio-Reactive Subsystem</div>",
+          "html": "<button class=\"avatar-state-btn active\" data-state=\"idle\">Idle</button>",
           "target": [
-            ".glass-card:nth-child(2) > div:nth-child(2)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(2)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<div style=\"font-size:0.8rem; color:var(--text-muted);\">Single mic owner · Phase 6 Integration</div>",
-          "target": [
-            ".glass-card:nth-child(2) > div:nth-child(3)"
-          ],
-          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
-        },
-        {
-          "any": [
-            {
-              "id": "color-contrast",
-              "data": {
-                "contrastRatio": 0,
-                "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
-                "messageKey": "bgGradient",
-                "expectedContrastRatio": "4.5:1"
-              },
-              "relatedNodes": [
-                {
-                  "html": "<div class=\"glass-card\">",
-                  "target": [
-                    ".glass-card:nth-child(3)"
-                  ]
-                },
-                {
-                  "html": "<body>",
-                  "target": [
-                    "body"
-                  ]
-                }
-              ],
-              "impact": "serious",
-              "message": "Element's background color could not be determined due to a background gradient"
-            }
-          ],
-          "all": [],
-          "none": [],
-          "impact": "serious",
-          "html": "<span style=\"font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;\">Agent Hub</span>",
-          "target": [
-            ".glass-card:nth-child(3) > div:nth-child(1) > span:nth-child(1)"
+            "button[data-state=\"idle\"]"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -9509,15 +10441,15 @@
               },
               "relatedNodes": [
                 {
-                  "html": "<span class=\"status-chip\">Worktree Safe</span>",
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"listening\">Listening</button>",
                   "target": [
-                    ".glass-card:nth-child(3) > div:nth-child(1) > .status-chip"
+                    "button[data-state=\"listening\"]"
                   ]
                 },
                 {
-                  "html": "<div class=\"glass-card\">",
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
                   "target": [
-                    ".glass-card:nth-child(3)"
+                    ".avatar-showcase-panel"
                   ]
                 },
                 {
@@ -9534,9 +10466,9 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<span class=\"status-chip\">Worktree Safe</span>",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"listening\">Listening</button>",
           "target": [
-            ".glass-card:nth-child(3) > div:nth-child(1) > .status-chip"
+            "button[data-state=\"listening\"]"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -9546,16 +10478,22 @@
               "id": "color-contrast",
               "data": {
                 "contrastRatio": 0,
-                "fontSize": "12.0pt (16px)",
-                "fontWeight": "bold",
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
               "relatedNodes": [
                 {
-                  "html": "<div class=\"glass-card\">",
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"thinking\">Thinking</button>",
                   "target": [
-                    ".glass-card:nth-child(3)"
+                    "button[data-state=\"thinking\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
                   ]
                 },
                 {
@@ -9572,9 +10510,1033 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div style=\"font-weight:700; font-size:1rem; margin-bottom:4px;\">Multi-Agent Orchestrator</div>",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"thinking\">Thinking</button>",
           "target": [
-            ".glass-card:nth-child(3) > div:nth-child(2)"
+            "button[data-state=\"thinking\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"speaking\">Speaking</button>",
+                  "target": [
+                    "button[data-state=\"speaking\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"speaking\">Speaking</button>",
+          "target": [
+            "button[data-state=\"speaking\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"happy\">Happy</button>",
+                  "target": [
+                    "button[data-state=\"happy\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"happy\">Happy</button>",
+          "target": [
+            "button[data-state=\"happy\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"concerned\">Concerned</button>",
+                  "target": [
+                    "button[data-state=\"concerned\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"concerned\">Concerned</button>",
+          "target": [
+            "button[data-state=\"concerned\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"error\">Error</button>",
+                  "target": [
+                    "button[data-state=\"error\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"error\">Error</button>",
+          "target": [
+            "button[data-state=\"error\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"offline\">Offline</button>",
+                  "target": [
+                    "button[data-state=\"offline\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"offline\">Offline</button>",
+          "target": [
+            "button[data-state=\"offline\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<button class=\"avatar-state-btn\" data-state=\"muted\">Muted</button>",
+                  "target": [
+                    "button[data-state=\"muted\"]"
+                  ]
+                },
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<button class=\"avatar-state-btn\" data-state=\"muted\">Muted</button>",
+          "target": [
+            "button[data-state=\"muted\"]"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Renderer: <strong style=\"color:var(--text-primary)\">Svg2D (Vector Digital Human)</strong></span>",
+          "target": [
+            ".avatar-meta-bar > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<strong style=\"color:var(--text-primary)\">Svg2D (Vector Digital Human)</strong>",
+          "target": [
+            "strong"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "shortTextContent",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element content is too short to determine if it is actual text content"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>·</span>",
+          "target": [
+            ".avatar-meta-bar > span:nth-child(2)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Performance: <span id=\"avatar-fps-display\" class=\"avatar-fps-badge\">60 FPS</span></span>",
+          "target": [
+            ".avatar-meta-bar > span:nth-child(3)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"avatar-fps-display\" class=\"avatar-fps-badge\">60 FPS</span>",
+          "target": [
+            "#avatar-fps-display"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "shortTextContent",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element content is too short to determine if it is actual text content"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>·</span>",
+          "target": [
+            "span:nth-child(4)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element content is too short to determine if it is actual text content"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span>Fallback: <span style=\"color:var(--accent)\">Vrm3D ➔ Svg2D (Ready)</span></span>",
+          "target": [
+            "span:nth-child(5)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "8.6pt (11.52px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"avatar-showcase-panel glass-panel\" style=\"margin-bottom: 24px;\">",
+                  "target": [
+                    ".avatar-showcase-panel"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--accent)\">Vrm3D ➔ Svg2D (Ready)</span>",
+          "target": [
+            "span:nth-child(5) > span"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;\">CPU Utilization</div>",
+          "target": [
+            "div:nth-child(4) > .glass-card:nth-child(1) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "19.2pt (25.6px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-cpu\" style=\"font-size:1.6rem; font-weight:800; color:var(--accent); font-family:var(--font-mono);\">Unavailable</div>",
+          "target": [
+            "#metric-cpu"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-cpu-sub\" style=\"font-size:0.75rem; color:var(--text-muted); margin-top:4px;\">Unavailable cores · Unavailable MHz</div>",
+          "target": [
+            "#metric-cpu-sub"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;\">System Memory</div>",
+          "target": [
+            "div:nth-child(4) > .glass-card:nth-child(2) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "19.2pt (25.6px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-ram\" style=\"font-size:1.6rem; font-weight:800; color:var(--text-primary); font-family:var(--font-mono);\">Unavailable</div>",
+          "target": [
+            "#metric-ram"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-ram-sub\" style=\"font-size:0.75rem; color:var(--text-muted); margin-top:4px;\">Unavailable / Unavailable MB</div>",
+          "target": [
+            "#metric-ram-sub"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;\">Storage (NVMe/Disk)</div>",
+          "target": [
+            "div:nth-child(4) > .glass-card:nth-child(3) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "19.2pt (25.6px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-disk\" style=\"font-size:1.6rem; font-weight:800; color:var(--text-primary); font-family:var(--font-mono);\">Unavailable</div>",
+          "target": [
+            "#metric-disk"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-disk-sub\" style=\"font-size:0.75rem; color:var(--text-muted); margin-top:4px;\">Unavailable / Unavailable GB</div>",
+          "target": [
+            "#metric-disk-sub"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;\">SoC Temperature</div>",
+          "target": [
+            "div:nth-child(4) > .glass-card:nth-child(4) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "19.2pt (25.6px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "3:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div id=\"metric-temp\" style=\"font-size:1.6rem; font-weight:800; color:var(--accent-green); font-family:var(--font-mono);\">Unavailable</div>",
+          "target": [
+            "#metric-temp"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(4) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.75rem; color:var(--text-muted); margin-top:4px;\">Thermal Zone 0</div>",
+          "target": [
+            "div:nth-child(4) > .glass-card:nth-child(4) > div:nth-child(3)"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         },
@@ -9585,7 +11547,7 @@
               "data": {
                 "contrastRatio": 0,
                 "fontSize": "9.6pt (12.8px)",
-                "fontWeight": "normal",
+                "fontWeight": "bold",
                 "messageKey": "bgGradient",
                 "expectedContrastRatio": "4.5:1"
               },
@@ -9593,7 +11555,7 @@
                 {
                   "html": "<div class=\"glass-card\">",
                   "target": [
-                    ".glass-card:nth-child(3)"
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
                   ]
                 },
                 {
@@ -9610,9 +11572,895 @@
           "all": [],
           "none": [],
           "impact": "serious",
-          "html": "<div style=\"font-size:0.8rem; color:var(--text-muted);\">Antigravity + Copilot active · Codex paused</div>",
+          "html": "<div style=\"font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;\">Network &amp; Power</div>",
           "target": [
-            ".glass-card:nth-child(3) > div:nth-child(3)"
+            "div:nth-child(5) > .glass-card:nth-child(1) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Network I/O:</span>",
+          "target": [
+            ".glass-card:nth-child(1) > div:nth-child(2) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"metric-net\" style=\"font-family:var(--font-mono); font-weight:600; font-size:0.85rem;\">Unavailable</span>",
+          "target": [
+            "#metric-net"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Battery:</span>",
+          "target": [
+            ".glass-card:nth-child(1) > div:nth-child(3) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"metric-battery\" style=\"color:var(--text-muted); font-size:0.85rem;\">Unavailable</span>",
+          "target": [
+            "#metric-battery"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">GPU Acceleration:</span>",
+          "target": [
+            ".glass-card:nth-child(1) > div:nth-child(4) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(1)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"metric-gpu\" style=\"color:var(--text-muted); font-size:0.85rem;\">Unavailable</span>",
+          "target": [
+            "#metric-gpu"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.6pt (12.8px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;\">Host Architecture</div>",
+          "target": [
+            "div:nth-child(5) > .glass-card:nth-child(2) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Kernel &amp; OS:</span>",
+          "target": [
+            ".glass-card:nth-child(2) > div:nth-child(2) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.8pt (13.12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"host-kernel\" style=\"font-family:var(--font-mono); font-size:0.82rem; text-align:right; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;\">Unavailable</span>",
+          "target": [
+            "#host-kernel"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">System Uptime:</span>",
+          "target": [
+            ".glass-card:nth-child(2) > div:nth-child(3) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(2)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"host-uptime\" style=\"font-family:var(--font-mono); font-size:0.85rem;\">Unavailable</span>",
+          "target": [
+            "#host-uptime"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.6pt (12.8px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;\">AI Orchestrator &amp; Models</div>",
+          "target": [
+            "div:nth-child(5) > .glass-card:nth-child(3) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Active AI Provider:</span>",
+          "target": [
+            ".glass-card:nth-child(3) > div:nth-child(2) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<span id=\"ai-active-provider\" class=\"status-chip success\" style=\"font-size:0.75rem;\">Unavailable</span>",
+                  "target": [
+                    "#ai-active-provider"
+                  ]
+                },
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"ai-active-provider\" class=\"status-chip success\" style=\"font-size:0.75rem;\">Unavailable</span>",
+          "target": [
+            "#ai-active-provider"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Agent Isolation:</span>",
+          "target": [
+            ".glass-card:nth-child(3) > div:nth-child(3) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"orchestrator-worktrees\" style=\"font-size:0.85rem; font-weight:600;\">Unavailable active worktrees</span>",
+          "target": [
+            "#orchestrator-worktrees"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Registered Agents:</span>",
+          "target": [
+            ".glass-card:nth-child(3) > div:nth-child(4) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(3)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"orchestrator-agents\" style=\"font-size:0.85rem; color:var(--text-secondary);\">Unavailable registered agents</span>",
+          "target": [
+            "#orchestrator-agents"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.6pt (12.8px)",
+                "fontWeight": "bold",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<div style=\"font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;\">Robot Hardware Safety</div>",
+          "target": [
+            "div:nth-child(5) > .glass-card:nth-child(4) > div:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Motion State:</span>",
+          "target": [
+            ".glass-card:nth-child(4) > div:nth-child(2) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "9.0pt (12px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<span id=\"robot-state\" class=\"status-chip\" style=\"font-size:0.75rem;\">IDLE</span>",
+                  "target": [
+                    "#robot-state"
+                  ]
+                },
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"robot-state\" class=\"status-chip\" style=\"font-size:0.75rem;\">IDLE</span>",
+          "target": [
+            "#robot-state"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span style=\"color:var(--text-secondary); font-size:0.85rem;\">Safety Interlock:</span>",
+          "target": [
+            ".glass-card:nth-child(4) > div:nth-child(3) > span:nth-child(1)"
+          ],
+          "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
+        },
+        {
+          "any": [
+            {
+              "id": "color-contrast",
+              "data": {
+                "contrastRatio": 0,
+                "fontSize": "10.2pt (13.6px)",
+                "fontWeight": "normal",
+                "messageKey": "bgGradient",
+                "expectedContrastRatio": "4.5:1"
+              },
+              "relatedNodes": [
+                {
+                  "html": "<div class=\"glass-card\">",
+                  "target": [
+                    "div:nth-child(5) > .glass-card:nth-child(4)"
+                  ]
+                },
+                {
+                  "html": "<body>",
+                  "target": [
+                    "body"
+                  ]
+                }
+              ],
+              "impact": "serious",
+              "message": "Element's background color could not be determined due to a background gradient"
+            }
+          ],
+          "all": [],
+          "none": [],
+          "impact": "serious",
+          "html": "<span id=\"robot-safety\" style=\"font-size:0.85rem; color:var(--accent-green); font-weight:600;\">Safety Latch Engaged</span>",
+          "target": [
+            "#robot-safety"
           ],
           "failureSummary": "Fix any of the following:\n  Element's background color could not be determined due to a background gradient"
         }

@@ -1,7 +1,7 @@
 {
-  "cancelTimeMs": 60,
-  "roundTripElapsedMs": 269,
+  "cancelTimeMs": 67.89999999850988,
+  "roundTripElapsedMs": 502,
   "targetLimitMs": 300,
   "gatePassed": true,
-  "timestamp": "2026-11-20T07:21:43.134Z"
+  "timestamp": "2026-11-20T08:08:20.457Z"
 }

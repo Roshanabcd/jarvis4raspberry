@@ -2592,4 +2592,405 @@ input:checked + .slider-toggle::before {
   padding-top: 6px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Phase 9: Devices, Sensors & Robotics
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Devices */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.device-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.device-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.device-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 217, 255, 0.1);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.device-title {
+  margin: 0 0 2px 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.device-status-chip {
+  margin-left: auto;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}
+
+.device-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.metric-mini {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.metric-mini .lbl {
+  color: var(--text-muted);
+}
+
+.device-ports-box {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.port-tag code {
+  background: rgba(33, 139, 255, 0.15);
+  color: #218BFF;
+  border: 1px solid rgba(33, 139, 255, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.i2c-address-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.i2c-device-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 217, 255, 0.08);
+  border: 1px solid rgba(0, 217, 255, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+
+.i2c-device-chip code {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.i2c-empty-box {
+  padding: 12px;
+  background: rgba(255, 170, 0, 0.08);
+  border: 1px solid rgba(255, 170, 0, 0.25);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+
+/* Sensors */
+.sensors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.sensor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sensor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sensor-title {
+  margin: 0 0 2px 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sensor-status-chip {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+}
+
+.sensor-readout {
+  background: rgba(2, 6, 18, 0.8);
+  border: 1px solid rgba(0, 217, 255, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #A0D0FF;
+  line-height: 1.4;
+}
+
+.sensor-actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.simulation-banner {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: rgba(33, 139, 255, 0.15);
+  border: 1px solid rgba(33, 139, 255, 0.4);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #55AAFF;
+  letter-spacing: 0.06em;
+}
+
+/* Robot & Emergency Stop */
+.robot-estop-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: rgba(16, 30, 48, 0.78);
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  border-radius: var(--radius-lg);
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  transition: all 0.3s ease;
+}
+
+.banner-estop-active {
+  background: rgba(60, 10, 20, 0.9) !important;
+  border-color: #FF2255 !important;
+  box-shadow: 0 0 30px rgba(255, 34, 85, 0.5) !important;
+  animation: pulseNeon 1.5s infinite;
+}
+
+.estop-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.estop-status-icon {
+  font-size: 2rem;
+  color: #FF5577;
+}
+
+.estop-title {
+  margin: 0 0 4px 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.estop-desc {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.estop-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-estop {
+  background: #CC1133;
+  color: #FFFFFF;
+  border: 2px solid #FF3366;
+  border-radius: var(--radius-md);
+  padding: 12px 24px;
+  font-weight: 900;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+  transition: all 0.2s ease;
+}
+
+.btn-estop:hover {
+  background: #EE2244;
+  box-shadow: 0 0 30px rgba(255, 51, 102, 0.8);
+  transform: scale(1.03);
+}
+
+.btn-estop:active {
+  transform: scale(0.97);
+}
+
+.robot-grid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.robot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 280px;
+}
+
+.robot-state-chip {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--accent);
+}
+
+.robot-status-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+}
+
+.metric-row .lbl {
+  color: var(--text-muted);
+}
+
+.robot-arming-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+/* Robot D-Pad */
+.robot-dpad-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.dpad-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-dpad {
+  width: 52px;
+  height: 52px;
+  background: rgba(16, 30, 48, 0.9);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-dpad:hover:not(:disabled) {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.btn-dpad:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.btn-dpad-stop {
+  background: rgba(255, 51, 102, 0.15) !important;
+  color: #FF5577 !important;
+  border-color: rgba(255, 51, 102, 0.4) !important;
+}
+
+.speed-slider-box, .servo-control-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slider-futuristic {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.slider-futuristic::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: pointer;
+}
+
+.robot-log-container {
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: rgba(2, 6, 18, 0.85);
+  border: 1px solid rgba(0, 217, 255, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+}
+
+.log-entry {
+  color: #A0C0E0;
+  line-height: 1.4;
+}
+
 

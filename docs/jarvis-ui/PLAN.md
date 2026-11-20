@@ -14,7 +14,7 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 6 | Voice | verified | eef221f | docs/jarvis-ui/evidence/phase-6/ |
 | 7 | Agents and Developer Hub | verified | d79a22f | docs/jarvis-ui/evidence/phase-7/ |
 | 8 | Tasks, memory, calendar, integrations | verified | f5ad7eb | docs/jarvis-ui/evidence/phase-8/ |
-| 9 | Devices and robot | pending | | |
+| 9 | Devices and robot | verified | pending-commit | docs/jarvis-ui/evidence/phase-9/ |
 | 10 | Responsive, accessibility, performance | pending | | |
 | 11 | Full verification and delivery | pending | | |
 
@@ -132,6 +132,15 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Evidence recorded: 9/9 Playwright tests green in `tests/browser/phase8_tasks_memory_integrations.cjs`; 7 screenshots saved in `docs/jarvis-ui/evidence/phase-8/screenshots/`.
 - Next phase: Phase 9 (Devices and robot: `#devices`, `#robot`). Note: real hardware remains disarmed; all motor commands tested strictly in simulation mode.
 
+### Phase 9 Handoff
+- Built Connected Devices, Sensors Telemetry, and Safe Robotics Hub in `apps/dashboard/futuristic/robot_devices.js`, `api.js`, `shell.js`, and `components.css`.
+- `#devices`: Real status cards for Raspberry Pi 5 host, ESP32-S3 serial bus, camera IMX708, ReSpeaker Lite audio, and I2C bus scan.
+- `#sensors`: Telemetry cards for BME280, BH1750, VL53L0X, HC-SR04, and HC-SR501 with distinct visual state indicators (`READY`, `SIMULATED`, `DEGRADED`, `UNINITIALIZED`, `DISCONNECTED`).
+- `#robot`: Enforced strict safe default (`DISARMED`, motion controls disabled, simulation mode clearly badged); prominent Emergency Stop latch immediately halts actuators; Arming and E-stop reset protected by Admin PIN authorization; immediate Disarm available without authentication; kinematic velocity limit & 16-channel servo sliders; real-time safety audit log ledger.
+- Safe execution: AI agents never move physical hardware; all motor actions run in simulation mode. Created user-run hardware checklist in `docs/jarvis-ui/evidence/phase-9/HARDWARE_CHECKLIST.md`.
+- Evidence recorded: 7/7 Playwright tests green in `tests/browser/phase9_devices_robot.cjs`; 6 screenshots in `docs/jarvis-ui/evidence/phase-9/screenshots/`.
+- Next phase: Phase 10 (Responsive, accessibility, performance).
+
 ## Log
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
@@ -145,3 +154,4 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 6 Voice. Built `voice.js` connecting live audio pipeline without replacing existing backend services. Implemented live hardware device telemetry (microphone, speaker, TTS engine), audio-reactive mouth modulation, live subtitles bar (`👤 YOU` / `🤖 JARVIS`), push-to-talk, emergency barge-in (< 300ms cancel gate, measured 60.0ms), microphone privacy indicator, mute toggle, hardware diagnostic tests, and voice tuning controls. Verified 11/11 tests green in `tests/browser/phase6_voice.cjs` and full regressions. Phase 6 verified in commit `eef221f`.
 - 2026-11-20: Executed Phase 7 Agents and Developer Hub. Built `developer.js` implementing `#agents`, `#workspace`, and `#terminal`. Added agent roster with Class A/B/C classification and disabled Class C / Codex quota guards, multi-agent dispatch with isolated worktrees, real git repository status, diff viewer, and sandboxed terminal with mandatory confirmation modal for destructive commands. Verified 8/8 tests in `tests/browser/phase7_agents_developer.cjs`. Phase 7 verified.
 - 2026-11-20: Executed Phase 8 Tasks, memory, calendar, integrations. Built `operations.js` implementing `#tasks`, `#automation`, `#calendar`, `#memory`, `#knowledge`, `#integrations`, and `#apps`. Extended `api.js` with typed methods. Updated backend `memory_api.py` with `PUT` endpoint for memory editing and `task_scheduler.py` with timezone-aware scheduling. Verified 9/9 Playwright tests in `tests/browser/phase8_tasks_memory_integrations.cjs`. Phase 8 verified.
+- 2026-11-20: Executed Phase 9 Devices and robot. Built `robot_devices.js` implementing `#devices`, `#sensors`, and `#robot` with safe disarmed default, admin PIN protected arming, immediate emergency stop, simulation labeling, and real-time safety audit log. Verified 7/7 Playwright tests in `tests/browser/phase9_devices_robot.cjs` and full regressions. Phase 9 verified.

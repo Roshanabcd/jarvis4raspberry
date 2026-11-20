@@ -546,6 +546,92 @@
       });
     }
 
+    // --- Robotics & Actuators Control (Phase 9) ---
+    async getRobotState() {
+      return await this.request('/api/robot/state');
+    }
+
+    async emergencyStopRobot() {
+      return await this.request('/api/robot/estop', { method: 'POST' });
+    }
+
+    async stopRobot() {
+      return await this.request('/api/robot/stop', { method: 'POST' });
+    }
+
+    async disarmRobot() {
+      return await this.request('/api/robot/disarm', { method: 'POST' });
+    }
+
+    async armRobot(adminPin) {
+      return await this.request('/api/robot/arm', {
+        method: 'POST',
+        headers: {
+          'X-Jarvis-Admin-Pin': adminPin,
+          'X-Jarvis-Actuation-Confirmation': 'physical-motion',
+        },
+      });
+    }
+
+    async clearRobotEstop(adminPin) {
+      return await this.request('/api/robot/clear_estop', {
+        method: 'POST',
+        headers: {
+          'X-Jarvis-Admin-Pin': adminPin,
+          'X-Jarvis-Actuation-Confirmation': 'physical-motion',
+        },
+      });
+    }
+
+    async moveRobot(direction, speed = 50, adminPin = '') {
+      return await this.request(`/api/robot/${direction}?speed=${encodeURIComponent(speed)}`, {
+        method: 'POST',
+        headers: {
+          'X-Jarvis-Admin-Pin': adminPin,
+          'X-Jarvis-Actuation-Confirmation': 'physical-motion',
+        },
+      });
+    }
+
+    async setRobotServo(channel, angle, adminPin = '') {
+      return await this.request(`/api/robot/servo?channel=${encodeURIComponent(channel)}&angle=${encodeURIComponent(angle)}`, {
+        method: 'POST',
+        headers: {
+          'X-Jarvis-Admin-Pin': adminPin,
+          'X-Jarvis-Actuation-Confirmation': 'physical-motion',
+        },
+      });
+    }
+
+    // --- Hardware Sensors & Diagnostics (Phase 9) ---
+    async getSensorsOverview() {
+      return await this.request('/api/sensors/');
+    }
+
+    async readAllSensors() {
+      return await this.request('/api/sensors/all');
+    }
+
+    async getSensorsStatus() {
+      return await this.request('/api/sensors/status');
+    }
+
+    async calibrateSensor(sensorName) {
+      return await this.request(`/api/sensors/${encodeURIComponent(sensorName)}/calibrate`, { method: 'POST' });
+    }
+
+    async getDiagnostics() {
+      return await this.request('/api/diagnostics');
+    }
+
+    async getI2cHealth() {
+      return await this.request('/api/health/i2c');
+    }
+
+    async getSerialHealth() {
+      return await this.request('/api/health/serial');
+    }
+
     // Allowlisted Metric Extraction with strict truthfulness
     sanitizeTelemetry(rawSystem, rawHealth, rawDev) {
       const formatNumber = (val, decimals = 1) => {
