@@ -216,6 +216,63 @@
 
     // Start background polling
     window.jarvisApi.startPolling();
+
+    // Mount Digital Human Avatar (Phase 5)
+    setupDashboardAvatar();
+  }
+
+  function setupDashboardAvatar() {
+    const avatarContainer = document.getElementById('dashboard-avatar-container');
+    if (!avatarContainer || !window.jarvisAvatar) return;
+
+    window.jarvisAvatar.mount(avatarContainer);
+
+    // Gender toggle buttons
+    const ariaBtn = document.getElementById('btn-avatar-aria');
+    const atlasBtn = document.getElementById('btn-avatar-atlas');
+    const currentAvatar = window.jarvisAvatar.getAvatar();
+
+    if (ariaBtn && atlasBtn) {
+      ariaBtn.classList.toggle('active', currentAvatar === 'aria');
+      atlasBtn.classList.toggle('active', currentAvatar === 'atlas');
+
+      ariaBtn.addEventListener('click', () => {
+        window.jarvisAvatar.setAvatar('aria');
+        ariaBtn.classList.add('active');
+        atlasBtn.classList.remove('active');
+      });
+
+      atlasBtn.addEventListener('click', () => {
+        window.jarvisAvatar.setAvatar('atlas');
+        atlasBtn.classList.add('active');
+        ariaBtn.classList.remove('active');
+      });
+    }
+
+    // State pills
+    document.querySelectorAll('.avatar-state-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const targetState = btn.getAttribute('data-state');
+        if (targetState) {
+          window.jarvisAvatar.setState(targetState);
+          document.querySelectorAll('.avatar-state-btn').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+      });
+    });
+
+    // Update state chip & FPS meter
+    const stateChip = document.getElementById('avatar-active-state-chip');
+    const fpsDisplay = document.getElementById('avatar-fps-display');
+
+    window.jarvisAvatar.subscribe(({ state: avatarState, fps }) => {
+      if (stateChip) {
+        stateChip.innerHTML = `<span class="status-dot"></span> State: ${avatarState.toUpperCase()}`;
+      }
+      if (fpsDisplay) {
+        fpsDisplay.textContent = `${fps} FPS`;
+      }
+    });
   }
 
   function updateDashboardDom(t) {
@@ -322,6 +379,46 @@
               ↻ Refresh Telemetry
             </button>
           </div>
+        </div>
+      </div>
+
+      <!-- Digital Human AI Avatar Showcase (SPEC Section 4 & PLAN Phase 5) -->
+      <div class="avatar-showcase-panel glass-panel" style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+          <div>
+            <div style="font-size:0.75rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Holographic Digital Human</div>
+            <h2 style="margin:0; font-size:1.3rem; letter-spacing:0.5px;">JARVIS Neural Assistant</h2>
+          </div>
+          <div class="avatar-selector-toggle" role="group" aria-label="Avatar Character Selector">
+            <button id="btn-avatar-aria" class="avatar-toggle-btn active" data-avatar="aria">ARIA (Female)</button>
+            <button id="btn-avatar-atlas" class="avatar-toggle-btn" data-avatar="atlas">ATLAS (Male)</button>
+          </div>
+          <span id="avatar-active-state-chip" class="status-chip success">
+            <span class="status-dot"></span> State: IDLE
+          </span>
+        </div>
+
+        <div id="dashboard-avatar-container"></div>
+
+        <!-- 9 State Verification Controls -->
+        <div class="avatar-state-pills-row" role="group" aria-label="Avatar State Controls">
+          <button class="avatar-state-btn active" data-state="idle">Idle</button>
+          <button class="avatar-state-btn" data-state="listening">Listening</button>
+          <button class="avatar-state-btn" data-state="thinking">Thinking</button>
+          <button class="avatar-state-btn" data-state="speaking">Speaking</button>
+          <button class="avatar-state-btn" data-state="happy">Happy</button>
+          <button class="avatar-state-btn" data-state="concerned">Concerned</button>
+          <button class="avatar-state-btn" data-state="error">Error</button>
+          <button class="avatar-state-btn" data-state="offline">Offline</button>
+          <button class="avatar-state-btn" data-state="muted">Muted</button>
+        </div>
+
+        <div class="avatar-meta-bar">
+          <span>Renderer: <strong style="color:var(--text-primary)">Svg2D (Vector Digital Human)</strong></span>
+          <span>·</span>
+          <span>Performance: <span id="avatar-fps-display" class="avatar-fps-badge">60 FPS</span></span>
+          <span>·</span>
+          <span>Fallback: <span style="color:var(--accent)">Vrm3D ➔ Svg2D (Ready)</span></span>
         </div>
       </div>
 

@@ -1088,3 +1088,213 @@ input:checked + .slider-toggle::before {
   }
 }
 
+/* ============================================================================
+   DIGITAL HUMAN AVATAR (ARIA & ATLAS) — PHASE 5
+   ============================================================================ */
+
+.avatar-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  margin: 0 auto;
+}
+
+.avatar-stage.sm {
+  width: 160px;
+  height: 160px;
+}
+
+.avatar-stage.md {
+  width: 220px;
+  height: 220px;
+}
+
+.avatar-stage.lg {
+  width: 260px;
+  height: 260px;
+}
+
+.avatar-hud-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.avatar-character-svg {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6));
+  transition: all 0.4s ease-out;
+}
+
+.avatar-offline {
+  filter: grayscale(100%) opacity(0.45);
+}
+
+.avatar-head-group {
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Keyframe Animations */
+@keyframes jarvisSpinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jarvisSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes jarvisSpinFast {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jarvisBreathe {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-2.5px) scale(1.006); }
+}
+
+@keyframes jarvisPingPulse {
+  0% { transform: scale(0.96); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 0.15; }
+  100% { transform: scale(0.96); opacity: 0.6; }
+}
+
+.jarvis-spin-slow {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinSlow 28s linear infinite;
+}
+
+.jarvis-spin-reverse {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinReverse 18s linear infinite;
+}
+
+.jarvis-spin-fast {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinFast 4s linear infinite;
+}
+
+.jarvis-breathe {
+  animation: jarvisBreathe 4.5s ease-in-out infinite;
+}
+
+.jarvis-ping-pulse {
+  transform-origin: 150px 150px;
+  animation: jarvisPingPulse 2.4s ease-in-out infinite;
+}
+
+/* Reduced Motion Override */
+@media (prefers-reduced-motion: reduce) {
+  .jarvis-spin-slow,
+  .jarvis-spin-reverse,
+  .jarvis-spin-fast,
+  .jarvis-breathe,
+  .jarvis-ping-pulse {
+    animation: none !important;
+  }
+  .avatar-head-group {
+    transition: none !important;
+  }
+}
+
+/* Avatar Showcase Dashboard Panel */
+.avatar-showcase-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.avatar-selector-toggle {
+  display: inline-flex;
+  background: rgba(16, 30, 48, 0.85);
+  border: 1px solid var(--border-card);
+  border-radius: 20px;
+  padding: 3px;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.avatar-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.avatar-toggle-btn.active {
+  background: var(--accent);
+  color: #03081A;
+  box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.avatar-state-pills-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 14px;
+  max-width: 480px;
+}
+
+.avatar-state-btn {
+  background: rgba(16, 30, 48, 0.65);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.avatar-state-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.avatar-state-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: 0 0 8px var(--accent-glow);
+  font-weight: 600;
+}
+
+.avatar-meta-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+
+.avatar-fps-badge {
+  color: var(--accent-emerald);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+

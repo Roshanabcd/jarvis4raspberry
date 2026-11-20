@@ -10,8 +10,8 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 2 | Design system and shell | verified | 4fc6f59 | docs/jarvis-ui/evidence/phase-2/ |
 | 3 | Data layer and dashboard | verified | e596929 | docs/jarvis-ui/evidence/phase-3/ |
 | 4 | Conversation panel | verified | 244ebcf | docs/jarvis-ui/evidence/phase-4/ |
-| 5 | Avatar | awaiting-approval | | docs/jarvis-ui/ASSETS.md |
-| 6 | Voice | pending | | |
+| 5 | Avatar | verified | e090b0d | docs/jarvis-ui/evidence/phase-5/ |
+| 6 | Voice | in-progress | | |
 | 7 | Agents and Developer Hub | pending | | |
 | 8 | Tasks, memory, calendar, integrations | pending | | |
 | 9 | Devices and robot | pending | | |
@@ -96,6 +96,15 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Standalone usability: chat works independently of avatar.
 - Next phase: Phase 5 (Avatar: ARIA & ATLAS state machine, SVG digital human renderer, and VRM 3D interface). Note Stop Condition 2 regarding real avatar model files.
 
+### Phase 5 Handoff
+- Implemented `AvatarController` in `apps/dashboard/futuristic/avatar.js` with `Svg2DRenderer` and `Vrm3DRenderer` fallback interface.
+- ARIA (female) and ATLAS (male) render with full holographic HUD rings, periodic blinking, gaze tracking, breathing, and 5 mouth visemes.
+- All 9 visual states verified for both characters: `idle`, `listening`, `thinking`, `speaking`, `happy`, `concerned`, `error`, `offline`, `muted`.
+- Character selection persists in `localStorage` (`jarvis_avatar`).
+- Measured render frame rate >= 30 FPS baseline and resilient under 4x CPU throttle.
+- Fallback hierarchy verified and documented in `docs/jarvis-ui/ASSETS.md`.
+- Next phase: Phase 6 (Voice integration: STT/TTS services, microphone controls, audio-reactive mouth modulation, subtitles, volume/mute).
+
 ## Log
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
@@ -105,4 +114,4 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 2 Design system and shell. Built design tokens (`theme.css`), core glass components (`components.css`), responsive shell (`index.html`), and navigation controller (`shell.js`). All 18 destinations routed with honest unbuilt state. Verified via `tests/browser/phase2_design_shell.cjs`: axe accessibility audit 0 critical violations, keyboard navigation verified, and screenshots captured at 4 breakpoints in `docs/jarvis-ui/evidence/phase-2/screenshots/`. Phase 2 verified.
 - 2026-11-20: Executed Phase 3 Data layer and telemetry dashboard. Implemented typed API client in `api.js` with exponential backoff and honest fallback states. Added live dashboard metrics (CPU, RAM, disk, temp, network, host, backend, models, orchestrator, robot, voice) in `shell.js`. Verified zero mock data in production bundle via grep check. Verified telemetry against independent OS tools. Verified offline detection and auto-recovery via Playwright in `tests/browser/phase3_data_layer.cjs` (4/4 passed). Phase 3 verified in commit `e596929`.
 - 2026-11-20: Executed Phase 4 Conversation panel. Created `chat.js` with full streaming dialogue support, markdown parser, code block syntax highlighter with one-click copy, stop cancellation, retry/regenerate, message search filter, history clearance, and export (Markdown & JSON). Verified honest provider metadata from backend events. All 9 E2E Playwright tests passed in `tests/browser/phase4_conversation.cjs` (including live FastAPI validation on port 8000). Phase 4 verified in commit `244ebcf`.
-- 2026-11-20: Reached Phase 5 Avatar. Real 3D VRM model files are absent from repository. Created asset specification in `docs/jarvis-ui/ASSETS.md` defining dual-renderer architecture (Svg2D vector graphics ARIA/ATLAS vs Vrm3D Three.js loader). Paused at Stop Condition 2 awaiting operator direction.
+- 2026-11-20: Executed Phase 5 Avatar. Operator approved proceeding with dual-renderer architecture (Svg2D digital human vector graphics + Vrm3D fallback interface). Implemented `avatar.js` with full state machine (all 9 states), 5 mouth visemes, blinking, micro-gaze tracking, audio-reactive lip-sync driver, and live FPS meter. Featured prominently on dashboard with ARIA/ATLAS toggle. Verified 8/8 Playwright tests in `tests/browser/phase5_avatar.cjs` and full regressions. Phase 5 verified.

@@ -1,0 +1,17 @@
+▶ Phase 5 Gate: Digital Human Avatar Suite
+  ✔ 1. Avatar mounting on Dashboard & character toggle (ARIA vs ATLAS) (2479.232523ms)
+  ✔ 2. All 9 visual states render successfully for both avatars (3506.433469ms)
+  ✔ 3. Mouth viseme shapes (closed, smile, small, mid, wide) during speech (1474.655902ms)
+  ✔ 4. Blinking and head micro-motion verified (843.166319ms)
+  ✔ 5. Vrm3D fallback to Svg2D verified (574.508204ms)
+  ✔ 6. Frame rate measurement (60 FPS target & throttled check) (3583.890107ms)
+  ✔ 7. Live FastAPI server end-to-end dashboard integration (127.0.0.1:8000/futuristic/) (1302.909551ms)
+✔ Phase 5 Gate: Digital Human Avatar Suite (14476.540752ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15351.040836
