@@ -910,6 +910,7 @@
   <button role="tab" aria-selected="false" aria-controls="tab-agents" id="nav-agents" data-tab="agents" onclick="showTab('agents')">🤖 AI Agents</button>
   <button role="tab" aria-selected="false" aria-controls="tab-developer" id="nav-developer" data-tab="developer" onclick="showTab('developer')">⚡ Developer Hub</button>
   <button role="tab" aria-selected="false" aria-controls="tab-youtube" id="nav-youtube" data-tab="youtube" onclick="showTab('youtube')">🎬 YouTube AI</button>
+  <button role="tab" aria-selected="false" aria-controls="tab-documents" id="nav-documents" data-tab="documents" onclick="showTab('documents')">📄 Document AI</button>
   <button role="tab" aria-selected="false" aria-controls="tab-research" id="nav-research" data-tab="research" onclick="showTab('research')">🔬 Research Assistant</button>
   <button role="tab" aria-selected="false" aria-controls="tab-settings" id="nav-settings" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
 </nav>
@@ -2894,6 +2895,194 @@
       </div>
     </div>
   </div>
+
+  <!-- 22. DOCUMENT QUESTION ANSWERING & RAG ASSISTANT (Phase 10) -->
+  <div id="tab-documents" class="tab" role="tabpanel" aria-labelledby="nav-documents">
+    <!-- Hero / Phase 10 Banner -->
+    <div style="background: linear-gradient(135deg, rgba(16,185,129,0.12) 0%, rgba(0,210,255,0.08) 100%); border: 1px solid rgba(16,185,129,0.3); border-radius: 8px; padding: 18px 22px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:1.6rem">📄</span>
+          <h2 style="margin:0;font-size:1.35rem;color:var(--text);font-weight:700">JARVIS Document AI</h2>
+          <span id="doc-status-pill" class="status-pill live">PHASE 10 ACTIVE</span>
+        </div>
+        <p style="font-size:0.85rem;color:var(--muted);max-width:760px">
+          Grounded RAG architecture, multi-format extraction (PDF, DOCX, TXT, MD, CSV), sentence-aware chunking, hybrid BM25 + TF-IDF semantic search, verified citations, summarization, and prompt injection defense.
+        </p>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="doc-count-badge" class="badge" style="background:#1e293b;color:#10b981;padding:4px 10px;border-radius:4px;font-size:0.75rem">Docs: 0</span>
+        <span id="chunk-count-badge" class="badge" style="background:#1e293b;color:#38bdf8;padding:4px 10px;border-radius:4px;font-size:0.75rem">Chunks: 0</span>
+        <span id="doc-api-badge" class="badge" style="background:#1e293b;color:#a855f7;padding:4px 10px;border-radius:4px;font-size:0.75rem">API: Active</span>
+        <button class="btn dark" style="padding:6px 14px;font-size:0.8rem" onclick="refreshDocumentCenter()">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- Document AI Sub-Navigation -->
+    <div style="display:flex;gap:8px;margin-bottom:18px;border-bottom:1px solid var(--card-border);padding-bottom:10px;overflow-x:auto">
+      <button id="doc-subnav-library" class="btn active" style="font-size:0.85rem;padding:6px 14px" onclick="switchDocumentSubTab('library')">📚 Library & Ingestion</button>
+      <button id="doc-subnav-qa" class="btn dark" style="font-size:0.85rem;padding:6px 14px" onclick="switchDocumentSubTab('qa')">💬 Grounded Q&A</button>
+      <button id="doc-subnav-search" class="btn dark" style="font-size:0.85rem;padding:6px 14px" onclick="switchDocumentSubTab('search')">🔍 Hybrid Search</button>
+      <button id="doc-subnav-summarize" class="btn dark" style="font-size:0.85rem;padding:6px 14px" onclick="switchDocumentSubTab('summarize')">📝 Summarization</button>
+      <button id="doc-subnav-collections" class="btn dark" style="font-size:0.85rem;padding:6px 14px" onclick="switchDocumentSubTab('collections')">🗂️ Collections</button>
+    </div>
+
+    <!-- 1. LIBRARY & INGESTION -->
+    <div id="doc-sec-library" class="doc-sub-section">
+      <!-- Upload Panel -->
+      <div class="panel" style="margin-bottom:18px">
+        <h3>📤 Document Ingestion & Chunking</h3>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+          Upload PDF, DOCX, TXT, Markdown, or CSV files. Text is extracted, normalized, split into semantic sentence-boundary chunks with sliding overlap, and indexed.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 240px auto;gap:12px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="doc-file-input" accept=".pdf,.docx,.txt,.md,.csv" style="padding:8px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+          <input type="text" id="doc-collection-input" placeholder="Collection (e.g. Research, Tech)" style="padding:8px 12px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+          <button id="doc-upload-btn" class="btn primary" style="padding:8px 18px;font-weight:600" onclick="uploadDocument()">⚡ Ingest & Index</button>
+        </div>
+        <div id="doc-upload-status" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
+      </div>
+
+      <!-- Ingested Documents List -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0">📚 Ingested Knowledge Documents</h3>
+          <span id="doc-library-count" style="font-size:0.8rem;color:var(--muted)">0 documents loaded</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85rem;text-align:left">
+            <thead>
+              <tr style="border-bottom:1px solid var(--card-border);color:var(--muted)">
+                <th style="padding:8px 10px">Title / Filename</th>
+                <th style="padding:8px 10px">Type</th>
+                <th style="padding:8px 10px">Pages</th>
+                <th style="padding:8px 10px">Words</th>
+                <th style="padding:8px 10px">Chunks</th>
+                <th style="padding:8px 10px">Collection</th>
+                <th style="padding:8px 10px">Ingested</th>
+                <th style="padding:8px 10px;text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="doc-table-body">
+              <tr>
+                <td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">No documents ingested yet. Upload one above!</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. GROUNDED Q&A -->
+    <div id="doc-sec-qa" class="doc-sub-section" style="display:none">
+      <div class="panel" style="margin-bottom:18px">
+        <h3>💬 Ask Grounded Document Questions</h3>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+          Strictly grounded retrieval answering. Prompts are quarantined against prompt injections; answers include exact source citations; returns truthful fallback if evidence is not in your documents.
+        </p>
+        <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="doc-qa-target" style="flex:1;min-width:220px;padding:8px 12px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+            <option value="">All Ingested Documents</option>
+          </select>
+          <input type="number" id="doc-qa-topk" value="5" min="1" max="15" title="Top K Chunks" style="width:70px;padding:8px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem;text-align:center">
+        </div>
+        <div style="display:flex;gap:10px">
+          <textarea id="doc-qa-question" rows="2" placeholder="e.g. What are the key architecture components and safety controls described in the document?" style="flex:1;padding:10px 14px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.9rem;resize:vertical"></textarea>
+          <button id="doc-qa-submit-btn" class="btn primary" style="padding:10px 24px;font-weight:600" onclick="askDocumentQuestion()">⚡ Ask JARVIS</button>
+        </div>
+      </div>
+
+      <!-- QA Response Panel -->
+      <div id="doc-qa-result-panel" class="panel" style="display:none;margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h4 style="margin:0;color:var(--accent);font-size:1.05rem">🧠 Grounded AI Answer</h4>
+          <div style="display:flex;gap:8px">
+            <span id="doc-qa-confidence" class="badge" style="background:#0f172a;border:1px solid #10b981;color:#10b981;padding:2px 8px;border-radius:4px;font-size:0.75rem">High Confidence</span>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="readDocAnswerAloud()">🔊 Speak</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="copyDocAnswer()">📋 Copy</button>
+          </div>
+        </div>
+        <div id="doc-qa-answer-text" style="line-height:1.6;font-size:0.92rem;color:var(--text);white-space:pre-wrap;background:#060814;padding:14px;border-radius:6px;border:1px solid var(--card-border)"></div>
+
+        <!-- Citations List -->
+        <div style="margin-top:14px">
+          <div style="font-size:0.8rem;color:var(--muted);font-weight:600;margin-bottom:6px">VERIFIED CITATIONS:</div>
+          <div id="doc-qa-citations" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. HYBRID SEARCH & CHUNKS -->
+    <div id="doc-sec-search" class="doc-sub-section" style="display:none">
+      <div class="panel" style="margin-bottom:18px">
+        <h3>🔍 Semantic & Lexical Hybrid Search</h3>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+          Sub-millisecond hybrid retrieval combining BM25 keyword matching (35%) and TF-IDF cosine vector similarity (65%).
+        </p>
+        <div style="display:flex;gap:10px">
+          <input type="text" id="doc-search-query" placeholder="Enter keywords or natural language query..." style="flex:1;padding:9px 14px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.88rem" onkeydown="if(event.key==='Enter') searchDocuments()">
+          <button class="btn primary" style="padding:9px 20px;font-weight:600" onclick="searchDocuments()">🔍 Search Chunks</button>
+        </div>
+      </div>
+
+      <div id="doc-search-results-panel" class="panel" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h4 style="margin:0;font-size:1rem;color:var(--accent)">Retrieved Chunks & Relevance Scores</h4>
+          <span id="doc-search-count" style="font-size:0.75rem;color:var(--muted)">0 chunks retrieved</span>
+        </div>
+        <div id="doc-search-results-list" style="display:flex;flex-direction:column;gap:10px"></div>
+      </div>
+    </div>
+
+    <!-- 4. SUMMARIZATION STUDIO -->
+    <div id="doc-sec-summarize" class="doc-sub-section" style="display:none">
+      <div class="panel" style="margin-bottom:18px">
+        <h3>📝 Document Summarization Studio</h3>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+          Synthesize large documents into structured representations with AI brain or deterministic local semantic fallback.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 200px auto;gap:12px;align-items:center;margin-bottom:12px">
+          <select id="doc-sum-target" style="padding:8px 12px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+            <option value="">Select a document to summarize...</option>
+          </select>
+          <select id="doc-sum-type" style="padding:8px 12px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.85rem">
+            <option value="executive">Executive Summary</option>
+            <option value="key_takeaways">Key Takeaways</option>
+            <option value="comprehensive" selected>Comprehensive Analysis</option>
+            <option value="structured_outline">Structured Outline</option>
+          </select>
+          <button id="doc-sum-btn" class="btn primary" style="padding:8px 20px;font-weight:600" onclick="generateDocumentSummary()">⚡ Summarize</button>
+        </div>
+      </div>
+
+      <div id="doc-sum-result-panel" class="panel" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <h4 id="doc-sum-title" style="margin:0;color:var(--accent);font-size:1.05rem">Document Summary</h4>
+            <span id="doc-sum-meta" style="font-size:0.75rem;color:var(--muted)"></span>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="readDocSummaryAloud()">🔊 Speak</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="copyDocSummary()">📋 Copy</button>
+          </div>
+        </div>
+        <div id="doc-sum-content" style="line-height:1.6;font-size:0.92rem;color:var(--text);white-space:pre-wrap;background:#060814;padding:14px;border-radius:6px;border:1px solid var(--card-border)"></div>
+      </div>
+    </div>
+
+    <!-- 5. COLLECTIONS -->
+    <div id="doc-sec-collections" class="doc-sub-section" style="display:none">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="margin:0">🗂️ Knowledge Collections</h3>
+          <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="refreshDocumentCenter()">↺ Refresh</button>
+        </div>
+        <div id="doc-collections-grid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:14px">
+          <div style="color:var(--muted);font-size:0.85rem;padding:20px;text-align:center;grid-column:1/-1">No collections established yet. Add collection tags during document upload!</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -2989,6 +3178,7 @@ function showTab(name) {
   if (name === 'apps') { loadAppsCenter(); }
   if (name === 'developer') { loadDeveloperCenter(); }
   if (name === 'youtube') { loadYouTubeCenter(); }
+  if (name === 'documents') { refreshDocumentCenter(); }
 }
 
 function initTabKeyboardNavigation() {
@@ -7874,11 +8064,416 @@ async function saveResearchSettings() {
   }
 }
 
+// ─── Phase 10: Document AI Controller ────────────────────────
+let docActiveSubTab = 'library';
+let cachedDocuments = [];
+
+function switchDocumentSubTab(subTab) {
+  docActiveSubTab = subTab;
+  const sections = ['library', 'qa', 'search', 'summarize', 'collections'];
+  sections.forEach(s => {
+    const el = document.getElementById(`doc-sec-${s}`);
+    const btn = document.getElementById(`doc-subnav-${s}`);
+    if (el) el.style.display = (s === subTab) ? 'block' : 'none';
+    if (btn) {
+      if (s === subTab) {
+        btn.classList.add('active');
+        btn.classList.remove('dark');
+      } else {
+        btn.classList.remove('active');
+        btn.classList.add('dark');
+      }
+    }
+  });
+}
+
+async function refreshDocumentCenter() {
+  await Promise.allSettled([
+    loadDocumentStats(),
+    loadDocumentsList(),
+    loadDocumentCollections()
+  ]);
+}
+
+async function loadDocumentStats() {
+  try {
+    const res = await fetch('/api/document-qa/status');
+    if (!res.ok) return;
+    const data = await res.json();
+    const docBadge = document.getElementById('doc-count-badge');
+    const chunkBadge = document.getElementById('chunk-count-badge');
+    if (docBadge) docBadge.textContent = `Docs: ${data.total_documents || 0}`;
+    if (chunkBadge) chunkBadge.textContent = `Chunks: ${data.total_chunks || 0}`;
+  } catch (e) {
+    console.warn('Failed to load doc stats:', e);
+  }
+}
+
+async function loadDocumentsList() {
+  try {
+    const res = await fetch('/api/document-qa/documents');
+    if (!res.ok) return;
+    const data = await res.json();
+    cachedDocuments = data.documents || [];
+
+    const countEl = document.getElementById('doc-library-count');
+    if (countEl) countEl.textContent = `${cachedDocuments.length} documents loaded`;
+
+    const tbody = document.getElementById('doc-table-body');
+    if (tbody) {
+      if (!cachedDocuments.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted)">No documents ingested yet. Upload one above!</td></tr>`;
+      } else {
+        tbody.innerHTML = cachedDocuments.map(doc => {
+          const dt = new Date((doc.created_at || Date.now() / 1000) * 1000).toLocaleDateString();
+          return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+              <td style="padding:10px;font-weight:600;color:var(--text)">${escapeHtml(doc.filename)}</td>
+              <td style="padding:10px"><span class="badge" style="background:#1e293b;color:#38bdf8;padding:2px 6px;border-radius:4px;font-size:0.75rem">${escapeHtml(doc.doc_type || 'TXT').toUpperCase()}</span></td>
+              <td style="padding:10px;color:var(--muted)">${doc.page_count || 1}</td>
+              <td style="padding:10px;color:var(--muted)">${(doc.word_count || 0).toLocaleString()}</td>
+              <td style="padding:10px;color:var(--muted)">${doc.chunk_count || 0}</td>
+              <td style="padding:10px"><span class="badge" style="background:#0f172a;color:#10b981;padding:2px 6px;border-radius:4px;font-size:0.75rem">${escapeHtml(doc.collection || 'General')}</span></td>
+              <td style="padding:10px;color:var(--muted);font-size:0.8rem">${dt}</td>
+              <td style="padding:10px;text-align:right">
+                <button class="btn dark" style="padding:3px 8px;font-size:0.75rem;margin-right:4px" onclick="quickSelectDocForQA('${doc.id}')">Ask</button>
+                <button class="btn dark" style="padding:3px 8px;font-size:0.75rem;margin-right:4px" onclick="quickSelectDocForSummary('${doc.id}')">Summarize</button>
+                <button class="btn dark" style="padding:3px 8px;font-size:0.75rem;color:var(--err)" onclick="deleteDocItem('${doc.id}')">🗑️</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    populateDocSelectors();
+  } catch (e) {
+    console.error('Failed to load documents list:', e);
+  }
+}
+
+function populateDocSelectors() {
+  const qaSelect = document.getElementById('doc-qa-target');
+  const sumSelect = document.getElementById('doc-sum-target');
+  
+  if (qaSelect) {
+    const curVal = qaSelect.value;
+    qaSelect.innerHTML = `<option value="">All Ingested Documents (${cachedDocuments.length})</option>` +
+      cachedDocuments.map(d => `<option value="${d.id}">${escapeHtml(d.filename)} (${d.chunk_count} chunks)</option>`).join('');
+    if (curVal) qaSelect.value = curVal;
+  }
+
+  if (sumSelect) {
+    const curVal = sumSelect.value;
+    sumSelect.innerHTML = `<option value="">Select a document to summarize...</option>` +
+      cachedDocuments.map(d => `<option value="${d.id}">${escapeHtml(d.filename)}</option>`).join('');
+    if (curVal) sumSelect.value = curVal;
+  }
+}
+
+function quickSelectDocForQA(docId) {
+  switchDocumentSubTab('qa');
+  const qaSelect = document.getElementById('doc-qa-target');
+  if (qaSelect) qaSelect.value = docId;
+  const qInput = document.getElementById('doc-qa-question');
+  if (qInput) qInput.focus();
+}
+
+function quickSelectDocForSummary(docId) {
+  switchDocumentSubTab('summarize');
+  const sumSelect = document.getElementById('doc-sum-target');
+  if (sumSelect) sumSelect.value = docId;
+}
+
+async function uploadDocument() {
+  const fileInput = document.getElementById('doc-file-input');
+  const collInput = document.getElementById('doc-collection-input');
+  const statusEl = document.getElementById('doc-upload-status');
+  const btn = document.getElementById('doc-upload-btn');
+
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    if (statusEl) statusEl.textContent = '⚠️ Please select a file (.pdf, .docx, .txt, .md, .csv) to upload.';
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const collection = collInput ? collInput.value.trim() : '';
+
+  const formData = new FormData();
+  formData.append('file', file);
+  if (collection) {
+    formData.append('collection', collection);
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Ingesting & Chunking...';
+  if (statusEl) statusEl.textContent = `Uploading "${file.name}" and generating index chunks...`;
+
+  try {
+    const res = await fetch('/api/document-qa/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.detail || `Upload failed with status ${res.status}`);
+    }
+
+    const doc = await res.json();
+    if (statusEl) {
+      statusEl.innerHTML = `✅ Successfully ingested <strong>${escapeHtml(doc.filename)}</strong> (${doc.page_count} pages, ${doc.word_count} words, ${doc.chunk_count} chunks indexed).`;
+    }
+    showUiFeedback(`Document ingested: ${doc.filename}`, { tone: 'ok' });
+    fileInput.value = '';
+    await refreshDocumentCenter();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `❌ ${err.message}`;
+    showUiFeedback(`Ingestion error: ${err.message}`, { tone: 'error' });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Ingest & Index';
+  }
+}
+
+async function deleteDocItem(docId) {
+  if (!confirm('Are you sure you want to delete this document and remove all its indexed chunks?')) return;
+  try {
+    const res = await fetch(`/api/document-qa/documents/${docId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete document');
+    showUiFeedback('Document deleted successfully', { tone: 'ok' });
+    await refreshDocumentCenter();
+  } catch (err) {
+    showUiFeedback(`Delete failed: ${err.message}`, { tone: 'error' });
+  }
+}
+
+async function askDocumentQuestion() {
+  const qInput = document.getElementById('doc-qa-question');
+  const qaSelect = document.getElementById('doc-qa-target');
+  const topkInput = document.getElementById('doc-qa-topk');
+  const btn = document.getElementById('doc-qa-submit-btn');
+  const resultPanel = document.getElementById('doc-qa-result-panel');
+  const answerEl = document.getElementById('doc-qa-answer-text');
+  const citationsEl = document.getElementById('doc-qa-citations');
+  const confBadge = document.getElementById('doc-qa-confidence');
+
+  const query = qInput ? qInput.value.trim() : '';
+  if (!query) {
+    showUiFeedback('Please enter a question to ask.', { tone: 'warn' });
+    return;
+  }
+
+  const docId = qaSelect ? qaSelect.value : null;
+  const topK = topkInput ? parseInt(topkInput.value, 10) || 5 : 5;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Grounding...';
+
+  try {
+    const res = await fetch('/api/document-qa/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, document_id: docId || null, top_k: topK })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to get answer');
+    }
+
+    const data = await res.json();
+    resultPanel.style.display = 'block';
+    answerEl.textContent = data.answer;
+
+    if (confBadge) {
+      confBadge.textContent = data.confidence ? `${(data.confidence * 100).toFixed(0)}% Confidence` : `${data.chunks_retrieved} Chunks`;
+      confBadge.style.color = (data.confidence && data.confidence > 0.6) ? '#10b981' : '#f59e0b';
+    }
+
+    if (citationsEl) {
+      if (!data.citations || !data.citations.length) {
+        citationsEl.innerHTML = '<span style="color:var(--muted);font-size:0.8rem">No citations available for this response.</span>';
+      } else {
+        citationsEl.innerHTML = data.citations.map(c => `
+          <span class="badge" title="${escapeHtml(c.quote || '')}" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;padding:4px 8px;border-radius:4px;font-size:0.75rem;cursor:help">
+            📖 ${escapeHtml(c.source_title || 'Document')}${c.page ? ` (p. ${c.page})` : ''}
+          </span>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    showUiFeedback(`Q&A error: ${err.message}`, { tone: 'error' });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Ask JARVIS';
+  }
+}
+
+async function searchDocuments() {
+  const queryInput = document.getElementById('doc-search-query');
+  const resultsPanel = document.getElementById('doc-search-results-panel');
+  const listEl = document.getElementById('doc-search-results-list');
+  const countEl = document.getElementById('doc-search-count');
+
+  const query = queryInput ? queryInput.value.trim() : '';
+  if (!query) return;
+
+  try {
+    const res = await fetch('/api/document-qa/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, top_k: 8 })
+    });
+
+    if (!res.ok) throw new Error('Search request failed');
+    const data = await res.json();
+    const results = data.results || [];
+
+    resultsPanel.style.display = 'block';
+    if (countEl) countEl.textContent = `${results.length} chunks retrieved`;
+
+    if (!results.length) {
+      listEl.innerHTML = '<div style="padding:14px;color:var(--muted);font-size:0.85rem">No matching chunks found in the index.</div>';
+    } else {
+      listEl.innerHTML = results.map(r => `
+        <div style="background:#060814;border:1px solid var(--card-border);border-radius:6px;padding:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-weight:600;font-size:0.85rem;color:#38bdf8">
+              📄 ${escapeHtml(r.document_title || 'Document')} ${r.page_number ? `· Page ${r.page_number}` : ''} ${r.section_header ? `· ${escapeHtml(r.section_header)}` : ''}
+            </span>
+            <span class="badge" style="background:#1e293b;color:#10b981;padding:2px 6px;border-radius:4px;font-size:0.72rem">
+              Score: ${(r.hybrid_score || 0).toFixed(3)} (vec: ${(r.vector_score || 0).toFixed(2)}, kw: ${(r.bm25_score || 0).toFixed(2)})
+            </span>
+          </div>
+          <div style="font-size:0.82rem;line-height:1.5;color:var(--text);white-space:pre-wrap">${escapeHtml(r.text)}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    showUiFeedback(`Search error: ${err.message}`, { tone: 'error' });
+  }
+}
+
+async function generateDocumentSummary() {
+  const docSelect = document.getElementById('doc-sum-target');
+  const typeSelect = document.getElementById('doc-sum-type');
+  const btn = document.getElementById('doc-sum-btn');
+  const panel = document.getElementById('doc-sum-result-panel');
+  const contentEl = document.getElementById('doc-sum-content');
+  const metaEl = document.getElementById('doc-sum-meta');
+
+  const docId = docSelect ? docSelect.value : '';
+  if (!docId) {
+    showUiFeedback('Please select a document to summarize.', { tone: 'warn' });
+    return;
+  }
+
+  const sumType = typeSelect ? typeSelect.value : 'comprehensive';
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Summarizing...';
+
+  try {
+    const res = await fetch('/api/document-qa/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document_id: docId, summary_type: sumType })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Summarization failed');
+    }
+
+    const data = await res.json();
+    panel.style.display = 'block';
+    contentEl.textContent = data.summary;
+    if (metaEl) {
+      metaEl.textContent = `Format: ${data.summary_type} · Chunks Analyzed: ${data.chunks_used} · Generated in ${data.generation_time_ms ? data.generation_time_ms.toFixed(0) : '—'} ms`;
+    }
+    showUiFeedback('Summary generated successfully.', { tone: 'ok' });
+  } catch (err) {
+    showUiFeedback(`Summary error: ${err.message}`, { tone: 'error' });
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ Summarize';
+  }
+}
+
+function readDocAnswerAloud() {
+  const el = document.getElementById('doc-qa-answer-text');
+  if (!el || !el.textContent.trim()) return;
+  fetch('/api/voice/speak', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: el.textContent.trim().substring(0, 600) })
+  }).then(r => {
+    if (r.ok) showUiFeedback('Reading answer aloud...', { tone: 'ok' });
+  }).catch(e => console.warn('Speak failed:', e));
+}
+
+function copyDocAnswer() {
+  const el = document.getElementById('doc-qa-answer-text');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    showUiFeedback('Answer copied to clipboard!', { tone: 'ok' });
+  });
+}
+
+function readDocSummaryAloud() {
+  const el = document.getElementById('doc-sum-content');
+  if (!el || !el.textContent.trim()) return;
+  fetch('/api/voice/speak', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: el.textContent.trim().substring(0, 600) })
+  }).then(r => {
+    if (r.ok) showUiFeedback('Reading summary aloud...', { tone: 'ok' });
+  }).catch(e => console.warn('Speak failed:', e));
+}
+
+function copyDocSummary() {
+  const el = document.getElementById('doc-sum-content');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent.trim()).then(() => {
+    showUiFeedback('Summary copied to clipboard!', { tone: 'ok' });
+  });
+}
+
+async function loadDocumentCollections() {
+  try {
+    const res = await fetch('/api/document-qa/collections');
+    if (!res.ok) return;
+    const data = await res.json();
+    const collections = data.collections || [];
+
+    const grid = document.getElementById('doc-collections-grid');
+    if (!grid) return;
+
+    if (!collections.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;padding:20px;text-align:center;grid-column:1/-1">No collections established yet. Add collection tags during document upload!</div>';
+      return;
+    }
+
+    grid.innerHTML = collections.map(c => `
+      <div style="background:#060814;border:1px solid var(--card-border);border-radius:6px;padding:14px">
+        <h4 style="margin:0 0 6px 0;color:var(--accent);font-size:0.95rem">🗂️ ${escapeHtml(c.collection)}</h4>
+        <div style="font-size:0.8rem;color:var(--muted)">Documents: <strong style="color:#fff">${c.document_count}</strong></div>
+        <div style="font-size:0.8rem;color:var(--muted)">Total Chunks: <strong style="color:#fff">${c.total_chunks}</strong></div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('Failed to load collections:', e);
+  }
+}
+
 // Initialize Research data when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   refreshTasksList();
   loadSavedReports();
   loadResearchSettings();
+  refreshDocumentCenter();
 });
 
 setInterval(updateStatusCenter, 3000);

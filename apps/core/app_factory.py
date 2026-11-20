@@ -56,6 +56,7 @@ DEFAULT_ROUTER_SPECS: Tuple[RouterSpec, ...] = (
     ("apps.api.hybrid_developer_api", "developer_router", "/api", ("developer",)),
     ("apps.api.youtube_api", "youtube_router", "/api", ("youtube",)),
     ("apps.api.research_api", "research_router", "/api", ("research",)),
+    ("apps.api.document_qa_api", "document_qa_router", "/api", ("document_qa",)),
     ("apps.api.computer_api", "router", "", ("computer",)),
     ("apps.api.websocket_api", "ws_router", "", ("ws",)),
 )

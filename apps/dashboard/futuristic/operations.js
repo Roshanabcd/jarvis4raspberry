@@ -51,6 +51,9 @@
         case 'knowledge':
           this.renderKnowledge(container);
           break;
+        case 'documents':
+          this.renderDocuments(container);
+          break;
         case 'integrations':
           this.renderIntegrations(container);
           break;
@@ -1146,6 +1149,187 @@
         `).join('');
       } catch (err) {
         listEl.innerHTML = `<div class="ops-error">Error loading knowledge: ${this.escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Destination: Document AI (#documents - Phase 10)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    async renderDocuments(container) {
+      container.innerHTML = `
+        <div class="ops-header">
+          <div>
+            <h2 class="ops-title">Document AI & RAG Assistant</h2>
+            <p class="ops-subtitle">Grounded retrieval-augmented generation, multi-format parsing & verified citations</p>
+          </div>
+          <div class="ops-header-actions">
+            <button class="btn-futuristic btn-secondary" id="doc-refresh-btn">Refresh</button>
+            <button class="btn-futuristic btn-primary" id="doc-upload-trigger-btn">+ Ingest Document</button>
+          </div>
+        </div>
+
+        <!-- Ingest Document Drawer -->
+        <div class="glass-panel ops-create-panel hidden" id="doc-ingest-drawer">
+          <h3 class="card-title">Ingest Document (PDF, DOCX, TXT, MD, CSV)</h3>
+          <form id="doc-upload-form" class="ops-form">
+            <div class="form-group">
+              <label for="doc-file-select">Select Document File *</label>
+              <input type="file" id="doc-file-select" class="input-futuristic" accept=".pdf,.docx,.txt,.md,.csv" required />
+            </div>
+            <div class="form-group">
+              <label for="doc-coll-tag">Collection Tag (Optional)</label>
+              <input type="text" id="doc-coll-tag" class="input-futuristic" placeholder="e.g. Robotics, Architecture, Research" />
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-futuristic btn-secondary" id="doc-cancel-btn">Cancel</button>
+              <button type="submit" class="btn-futuristic btn-primary" id="doc-submit-upload-btn">Upload & Index</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Grounded Q&A Quick Bar -->
+        <div class="glass-panel" style="margin-bottom: 20px; padding: 16px;">
+          <h3 class="card-title" style="margin-bottom: 8px;">Ask Grounded Document Question</h3>
+          <div style="display:flex; gap:10px;">
+            <input type="text" id="doc-qa-input" class="input-futuristic flex-1" placeholder="Ask questions grounded strictly in your uploaded documents..." />
+            <button class="btn-futuristic btn-primary" id="doc-qa-btn">Ask AI</button>
+          </div>
+          <div id="doc-qa-response-box" class="hidden" style="margin-top: 14px; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px;">
+            <div id="doc-qa-answer" style="white-space: pre-wrap; line-height: 1.6; font-size: 0.9rem;"></div>
+            <div id="doc-qa-sources" style="margin-top: 10px; font-size: 0.8rem; color: var(--accent-cyan);"></div>
+          </div>
+        </div>
+
+        <!-- Documents List -->
+        <div class="ops-list-container" id="documents-list">
+          <div class="ops-loading">Loading ingested documents...</div>
+        </div>
+      `;
+
+      const drawer = container.querySelector('#doc-ingest-drawer');
+      container.querySelector('#doc-upload-trigger-btn').addEventListener('click', () => drawer.classList.toggle('hidden'));
+      container.querySelector('#doc-cancel-btn').addEventListener('click', () => drawer.classList.add('hidden'));
+      container.querySelector('#doc-refresh-btn').addEventListener('click', () => this.loadDocuments(container));
+
+      // Handle upload form
+      const uploadForm = container.querySelector('#doc-upload-form');
+      uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = container.querySelector('#doc-file-select');
+        const collInput = container.querySelector('#doc-coll-tag');
+        const submitBtn = container.querySelector('#doc-submit-upload-btn');
+
+        if (!fileInput.files.length) return;
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        if (collInput.value.trim()) formData.append('collection', collInput.value.trim());
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Indexing...';
+
+        try {
+          const res = await fetch('/api/document-qa/upload', {
+            method: 'POST',
+            body: formData,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Upload failed');
+          }
+          if (window.jarvisShell) window.jarvisShell.showToast('Document ingested successfully!', 'success');
+          uploadForm.reset();
+          drawer.classList.add('hidden');
+          await this.loadDocuments(container);
+        } catch (err) {
+          if (window.jarvisShell) window.jarvisShell.showToast(`Upload failed: ${err.message}`, 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Upload & Index';
+        }
+      });
+
+      // Handle Q&A
+      const qaInput = container.querySelector('#doc-qa-input');
+      const qaBtn = container.querySelector('#doc-qa-btn');
+      const qaBox = container.querySelector('#doc-qa-response-box');
+      const qaAnswer = container.querySelector('#doc-qa-answer');
+      const qaSources = container.querySelector('#doc-qa-sources');
+
+      qaBtn.addEventListener('click', async () => {
+        const query = qaInput.value.trim();
+        if (!query) return;
+        qaBtn.disabled = true;
+        qaBtn.textContent = 'Thinking...';
+        try {
+          const res = await window.jarvisApi.askDocumentQuestion(query);
+          qaBox.classList.remove('hidden');
+          qaAnswer.textContent = res.answer;
+          if (res.citations && res.citations.length) {
+            qaSources.innerHTML = '<strong>Verified Sources:</strong> ' + res.citations.map(c => `${c.source_title}${c.page ? ` (p. ${c.page})` : ''}`).join(', ');
+          } else {
+            qaSources.textContent = '';
+          }
+        } catch (err) {
+          if (window.jarvisShell) window.jarvisShell.showToast(`Q&A error: ${err.message}`, 'error');
+        } finally {
+          qaBtn.disabled = false;
+          qaBtn.textContent = 'Ask AI';
+        }
+      });
+
+      await this.loadDocuments(container);
+    }
+
+    async loadDocuments(container) {
+      const listEl = container.querySelector('#documents-list');
+      if (!listEl) return;
+
+      try {
+        const data = await window.jarvisApi.getDocumentList();
+        const docs = data.documents || [];
+
+        if (docs.length === 0) {
+          listEl.innerHTML = `
+            <div class="glass-panel text-center p-8">
+              <p class="ops-empty-text">No documents indexed in Document AI yet. Upload your first document above!</p>
+            </div>
+          `;
+          return;
+        }
+
+        listEl.innerHTML = docs.map(d => `
+          <div class="glass-panel knowledge-card">
+            <div class="knowledge-header">
+              <span class="memory-cat-badge">${this.escapeHtml(d.doc_type ? d.doc_type.toUpperCase() : 'DOC')}</span>
+              <span class="text-sm text-muted">${d.page_count} pages · ${d.chunk_count} chunks · ${d.word_count || 0} words</span>
+            </div>
+            <div class="knowledge-body">
+              <strong>${this.escapeHtml(d.filename)}</strong>
+              ${d.collection ? `<span class="badge" style="margin-left: 8px; font-size: 0.75rem;">${this.escapeHtml(d.collection)}</span>` : ''}
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:10px;">
+              <button class="btn-futuristic btn-secondary btn-sm doc-delete-btn" data-doc-id="${d.id}">Delete</button>
+            </div>
+          </div>
+        `).join('');
+
+        // Bind delete buttons
+        listEl.querySelectorAll('.doc-delete-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const docId = btn.getAttribute('data-doc-id');
+            if (!confirm('Are you sure you want to delete this document?')) return;
+            try {
+              await window.jarvisApi.deleteDocument(docId);
+              if (window.jarvisShell) window.jarvisShell.showToast('Document deleted.', 'success');
+              await this.loadDocuments(container);
+            } catch (e) {
+              if (window.jarvisShell) window.jarvisShell.showToast(`Delete failed: ${e.message}`, 'error');
+            }
+          });
+        });
+      } catch (err) {
+        listEl.innerHTML = `<div class="ops-error">Error loading documents: ${this.escapeHtml(err.message)}</div>`;
       }
     }
 

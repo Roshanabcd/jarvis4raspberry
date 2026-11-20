@@ -227,6 +227,21 @@ class LocalIntelligenceEngine:
             target = m_res_inv.group(1).strip()
             return "research_investigate", {"topic": target, "text": text}
 
+        # 2c-iv. Phase 10: Document Question Answering (Document AI) Intents
+        if re.search(r'\b(?:open|launch|show)\s+(?:the\s+)?(?:document\s+(?:ai|assistant|qa)|documents\s+tab|documents\s+app)\b', text_lower):
+            return "document_open", {"text": text}
+
+        if re.search(r'\b(?:list|show|what\s+are)\s+(?:my\s+)?documents\b', text_lower):
+            return "document_list", {"text": text}
+
+        m_doc_sum = re.search(r'\bsummarize\s+(?:the\s+)?document\s+(.+)', text_lower)
+        if m_doc_sum:
+            return "document_summarize", {"title": m_doc_sum.group(1).strip(), "text": text}
+
+        m_doc_ask = re.search(r'\b(?:ask\s+(?:my\s+)?documents?|search\s+(?:my\s+)?documents?\s+for)\s+(.+)', text_lower)
+        if m_doc_ask:
+            return "document_ask", {"question": m_doc_ask.group(1).strip(), "text": text}
+
         # YouTube Unified Search ("Open a horror video in YouTube", "Search YouTube for a horror movie", "Find ... on YouTube")
         m_yt_search = (
             re.search(r'\b(?:search|find|open|look\s+up)\s+(?:a\s+|for\s+)?(.+?)\s+(?:in|on)\s+youtube\b', text_lower)
@@ -630,6 +645,16 @@ class LocalIntelligenceEngine:
                 return self._respond_research_read_summary(ctx)
             elif intent == "research_sources":
                 return self._respond_research_sources(ctx)
+
+            # Phase 10 Document AI Dispatches
+            elif intent == "document_open":
+                return self._respond_document_open(ctx)
+            elif intent == "document_list":
+                return self._respond_document_list(ctx)
+            elif intent == "document_summarize":
+                return self._respond_document_summarize(ctx)
+            elif intent == "document_ask":
+                return self._respond_document_ask(ctx)
 
             elif intent == "stream_volume_control":
                 return self._respond_stream_volume_control(ctx)
@@ -1810,6 +1835,75 @@ if __name__ == "__main__":
             "response": f"🔬 Verified sources for **{tasks[0]['topic']}** ({len(sources)} total):\n" + "\n".join(summary_lines),
             "tools_used": ["research_sources"],
             "count": len(sources),
+        }
+
+    # ── Phase 10 Document AI Voice Handlers ───────────────────────────
+
+    def _respond_document_open(self, ctx: Dict) -> Dict:
+        return {
+            "response": "📄 Opening Document AI in the JARVIS Dashboard.",
+            "tools_used": ["open_app"],
+            "action": "open_tab",
+            "target_tab": "documents",
+        }
+
+    def _respond_document_list(self, ctx: Dict) -> Dict:
+        from apps.document_qa.database import db as doc_db
+        docs = doc_db.list_documents(user_id="default_user")
+        if not docs:
+            return {
+                "response": "📄 You have no documents uploaded. You can upload PDFs, Word documents, text, or CSV files in the Document AI tab.",
+                "tools_used": ["document_list"],
+            }
+        lines = [f"{i}. **{d.filename}** ({d.file_type.value.upper()}, {d.page_count} pages, {d.word_count} words)" for i, d in enumerate(docs[:5], 1)]
+        return {
+            "response": f"📄 You have {len(docs)} document(s) uploaded:\n" + "\n".join(lines),
+            "tools_used": ["document_list"],
+            "count": len(docs),
+        }
+
+    def _respond_document_ask(self, ctx: Dict) -> Dict:
+        question = ctx.get("question", "").strip()
+        if not question:
+            return {
+                "response": "📄 Please state the question you would like me to ask your documents.",
+                "tools_used": ["document_ask"],
+            }
+        from apps.document_qa.qa import DocumentQAAssistant
+        assistant = DocumentQAAssistant()
+        ans = assistant.ask(question=question, user_id="default_user")
+        return {
+            "response": f"📄 **Document AI Answer:**\n\n{ans.answer}",
+            "tools_used": ["document_ask"],
+            "grounded": ans.grounded,
+            "confidence": ans.confidence,
+        }
+
+    def _respond_document_summarize(self, ctx: Dict) -> Dict:
+        title = ctx.get("title", "").strip()
+        from apps.document_qa.database import db as doc_db
+        from apps.document_qa.summarizer import DocumentSummarizer
+        docs = doc_db.list_documents(user_id="default_user")
+        if not docs:
+            return {
+                "response": "📄 No documents are currently uploaded to summarize.",
+                "tools_used": ["document_summarize"],
+            }
+        target_doc = None
+        if title:
+            for d in docs:
+                if title.lower() in d.filename.lower():
+                    target_doc = d
+                    break
+        if not target_doc:
+            target_doc = docs[0]
+
+        summarizer = DocumentSummarizer()
+        summary = summarizer.summarize(target_doc.doc_id, user_id="default_user")
+        return {
+            "response": f"📄 **Summary for {target_doc.filename}:**\n\n{summary.summary_text}",
+            "tools_used": ["document_summarize"],
+            "doc_id": target_doc.doc_id,
         }
 
     def _respond_youtube_summarize(self, ctx: Dict) -> Dict:

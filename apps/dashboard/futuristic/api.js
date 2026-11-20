@@ -429,6 +429,52 @@
       return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/verify${reviewerId ? '?reviewer_id=' + encodeURIComponent(reviewerId) : ''}`, { method: 'POST' });
     }
 
+    // --- Document AI & RAG Assistant (Phase 10) ---
+    async getDocumentList(collection = null) {
+      const q = collection ? `?collection=${encodeURIComponent(collection)}` : '';
+      return await this.request(`/api/document-qa/documents${q}`);
+    }
+
+    async getDocumentDetails(documentId) {
+      return await this.request(`/api/document-qa/documents/${encodeURIComponent(documentId)}`);
+    }
+
+    async deleteDocument(documentId) {
+      return await this.request(`/api/document-qa/documents/${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+    }
+
+    async searchDocumentChunks(query, documentId = null, topK = 5) {
+      return await this.request('/api/document-qa/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, document_id: documentId, top_k: topK }),
+      });
+    }
+
+    async askDocumentQuestion(query, documentId = null, topK = 5) {
+      return await this.request('/api/document-qa/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, document_id: documentId, top_k: topK }),
+      });
+    }
+
+    async summarizeDocument(documentId, summaryType = 'comprehensive') {
+      return await this.request('/api/document-qa/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document_id: documentId, summary_type: summaryType }),
+      });
+    }
+
+    async getDocumentCollections() {
+      return await this.request('/api/document-qa/collections');
+    }
+
+    async getDocumentSystemStatus() {
+      return await this.request('/api/document-qa/status');
+    }
+
     async proposeDeveloperTask(taskId, targetBranch = 'feature/jarvis-ui') {
       return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/propose`, {
         method: 'POST',

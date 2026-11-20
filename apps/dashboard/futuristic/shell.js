@@ -19,6 +19,7 @@
     { id: 'calendar', label: 'Calendar', group: 'Productivity', icon: 'calendar', phase: 8 },
     { id: 'memory', label: 'Memory', group: 'Knowledge', icon: 'brain', phase: 8 },
     { id: 'knowledge', label: 'Knowledge', group: 'Knowledge', icon: 'book-open', phase: 8 },
+    { id: 'documents', label: 'Document AI', group: 'Knowledge', icon: 'file-text', phase: 10 },
     { id: 'devices', label: 'Devices & Sensors', group: 'Hardware', icon: 'activity', phase: 9 },
     { id: 'robot', label: 'Robot Control', group: 'Hardware', icon: 'bot', phase: 9 },
     { id: 'integrations', label: 'Integrations', group: 'System', icon: 'plug', phase: 8 },
@@ -272,7 +273,7 @@
       if (window.jarvisDevHub) {
         window.jarvisDevHub.renderTerminal(mainContainer);
       }
-    } else if (['tasks', 'automation', 'calendar', 'memory', 'knowledge', 'integrations', 'apps'].includes(routeId)) {
+    } else if (['tasks', 'automation', 'calendar', 'memory', 'knowledge', 'documents', 'integrations', 'apps'].includes(routeId)) {
       if (window.jarvisOperations) {
         mainContainer.innerHTML = '<div id="view-placeholder"></div>';
         window.jarvisOperations.renderDestination(routeId);

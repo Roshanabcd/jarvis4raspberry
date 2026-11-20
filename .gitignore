@@ -43,6 +43,7 @@ data/screenshots/*.png
 data/screenshots/*.jpg
 data/identity/
 data/audit/
+data/documents/
 .jarvis/diagnostics/
 # AG Kit
 .windsurf
