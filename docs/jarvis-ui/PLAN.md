@@ -12,7 +12,7 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 4 | Conversation panel | verified | 244ebcf | docs/jarvis-ui/evidence/phase-4/ |
 | 5 | Avatar | verified | e090b0d | docs/jarvis-ui/evidence/phase-5/ |
 | 6 | Voice | verified | eef221f | docs/jarvis-ui/evidence/phase-6/ |
-| 7 | Agents and Developer Hub | verified | pending-commit | docs/jarvis-ui/evidence/phase-7/ |
+| 7 | Agents and Developer Hub | verified | d79a22f | docs/jarvis-ui/evidence/phase-7/ |
 | 8 | Tasks, memory, calendar, integrations | pending | | |
 | 9 | Devices and robot | pending | | |
 | 10 | Responsive, accessibility, performance | pending | | |
