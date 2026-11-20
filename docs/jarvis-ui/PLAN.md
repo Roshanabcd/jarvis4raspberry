@@ -14,7 +14,7 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 6 | Voice | verified | eef221f | docs/jarvis-ui/evidence/phase-6/ |
 | 7 | Agents and Developer Hub | verified | d79a22f | docs/jarvis-ui/evidence/phase-7/ |
 | 8 | Tasks, memory, calendar, integrations | verified | f5ad7eb | docs/jarvis-ui/evidence/phase-8/ |
-| 9 | Devices and robot | verified | pending-commit | docs/jarvis-ui/evidence/phase-9/ |
+| 9 | Devices and robot | verified | 6691e05 | docs/jarvis-ui/evidence/phase-9/ |
 | 10 | Responsive, accessibility, performance | pending | | |
 | 11 | Full verification and delivery | pending | | |
 
