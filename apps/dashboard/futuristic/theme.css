@@ -52,6 +52,11 @@
   --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 /* Theme: Midnight Blue */
 [data-theme="midnight"] {
   --bg-primary: #03081A;
@@ -100,11 +105,82 @@
   --accent-bg: rgba(37, 230, 162, 0.12);
 }
 
+/* Visible Focus Rings for Keyboard Accessibility (WCAG 2.4.7 / 2.4.11) */
+:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 12px var(--accent-glow) !important;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+
+/* Low-Power Mode Tokens & Overrides (Phase 10) */
+.low-power-mode,
+[data-power-mode="low"] {
+  --border-glow: none !important;
+  --accent-glow: none !important;
+  --text-glow: none !important;
+}
+
+.low-power-mode *,
+[data-power-mode="low"] * {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.low-power-mode .glass-panel,
+.low-power-mode .glass-card,
+[data-power-mode="low"] .glass-panel,
+[data-power-mode="low"] .glass-card {
+  background: var(--bg-card-solid) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.low-power-mode .avatar-hud-ring,
+.low-power-mode .pulse-glow,
+.low-power-mode .avatar-ring-spin,
+.low-power-mode .jarvis-spin-slow,
+.low-power-mode .jarvis-spin-reverse,
+.low-power-mode .jarvis-spin-fast,
+.low-power-mode .jarvis-ping-pulse,
+[data-power-mode="low"] .avatar-hud-ring,
+[data-power-mode="low"] .pulse-glow,
+[data-power-mode="low"] .avatar-ring-spin,
+[data-power-mode="low"] .jarvis-spin-slow,
+[data-power-mode="low"] .jarvis-spin-reverse,
+[data-power-mode="low"] .jarvis-spin-fast,
+[data-power-mode="low"] .jarvis-ping-pulse {
+  animation: none !important;
+}
+
+/* Manual Reduced Motion Mode */
+[data-reduced-motion="true"],
+[data-reduced-motion="true"] *,
+[data-reduced-motion="true"] *::before,
+[data-reduced-motion="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
 /* Reduced Motion Mode */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 }

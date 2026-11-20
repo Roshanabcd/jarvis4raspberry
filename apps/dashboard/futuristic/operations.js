@@ -118,13 +118,13 @@
         </div>
 
         <!-- Task Status Filter Tabs -->
-        <div class="ops-tabs" role="tablist" id="task-status-tabs">
-          <button class="ops-tab active" data-filter="all">All Tasks</button>
-          <button class="ops-tab" data-filter="pending">Pending</button>
-          <button class="ops-tab" data-filter="running">Running</button>
-          <button class="ops-tab" data-filter="succeeded">Succeeded</button>
-          <button class="ops-tab" data-filter="failed">Failed</button>
-          <button class="ops-tab" data-filter="cancelled">Cancelled</button>
+        <div class="ops-tabs" role="tablist" aria-label="Task Status Filters" id="task-status-tabs">
+          <button class="ops-tab active" data-filter="all" role="tab" aria-selected="true">All Tasks</button>
+          <button class="ops-tab" data-filter="pending" role="tab" aria-selected="false">Pending</button>
+          <button class="ops-tab" data-filter="running" role="tab" aria-selected="false">Running</button>
+          <button class="ops-tab" data-filter="succeeded" role="tab" aria-selected="false">Succeeded</button>
+          <button class="ops-tab" data-filter="failed" role="tab" aria-selected="false">Failed</button>
+          <button class="ops-tab" data-filter="cancelled" role="tab" aria-selected="false">Cancelled</button>
         </div>
 
         <!-- Task List Container -->
@@ -159,8 +159,12 @@
       // Filter tabs
       container.querySelectorAll('#task-status-tabs .ops-tab').forEach(tab => {
         tab.addEventListener('click', () => {
-          container.querySelectorAll('#task-status-tabs .ops-tab').forEach(t => t.classList.remove('active'));
+          container.querySelectorAll('#task-status-tabs .ops-tab').forEach(t => {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+          });
           tab.classList.add('active');
+          tab.setAttribute('aria-selected', 'true');
           this.currentFilter = tab.getAttribute('data-filter');
           this.renderFilteredTasks(container);
         });

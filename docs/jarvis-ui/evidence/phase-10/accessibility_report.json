@@ -1,0 +1,69 @@
+{
+  "targetScore": 90,
+  "achievedScore": 100,
+  "totalCriticalAndSeriousViolations": 0,
+  "routeResults": {
+    "dashboard": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 27
+    },
+    "chat": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 29
+    },
+    "voice": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 27
+    },
+    "agents": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 28
+    },
+    "workspace": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "terminal": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "tasks": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "automation": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "calendar": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "memory": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "devices": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    },
+    "robot": {
+      "totalViolations": 0,
+      "criticalAndSerious": 0,
+      "passes": 26
+    }
+  },
+  "wcagCompliance": "WCAG 2.1 Level AA (0 critical, 0 serious)",
+  "timestamp": "2026-11-20T08:50:10.975Z"
+}

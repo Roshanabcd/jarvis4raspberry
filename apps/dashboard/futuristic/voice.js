@@ -935,28 +935,28 @@
                 <!-- Speech Speed Slider -->
                 <div class="voice-tuning-group">
                   <div class="voice-tuning-header">
-                    <span class="voice-stat-label">Speech Speed</span>
+                    <label for="voice-tuning-speed" class="voice-stat-label">Speech Speed</label>
                     <span class="voice-stat-val" id="voice-speed-val">${this.tuning.speed.toFixed(2)}x</span>
                   </div>
-                  <input type="range" id="voice-tuning-speed" class="voice-tuning-slider" min="0.5" max="2.0" step="0.05" value="${this.tuning.speed}">
+                  <input type="range" id="voice-tuning-speed" aria-label="Speech Speed" class="voice-tuning-slider" min="0.5" max="2.0" step="0.05" value="${this.tuning.speed}">
                 </div>
 
                 <!-- Diffusion Steps Slider -->
                 <div class="voice-tuning-group">
                   <div class="voice-tuning-header">
-                    <span class="voice-stat-label">Diffusion Steps</span>
+                    <label for="voice-tuning-steps" class="voice-stat-label">Diffusion Steps</label>
                     <span class="voice-stat-val" id="voice-steps-val">${this.tuning.num_steps}</span>
                   </div>
-                  <input type="range" id="voice-tuning-steps" class="voice-tuning-slider" min="8" max="64" step="4" value="${this.tuning.num_steps}">
+                  <input type="range" id="voice-tuning-steps" aria-label="Diffusion Steps" class="voice-tuning-slider" min="8" max="64" step="4" value="${this.tuning.num_steps}">
                 </div>
 
                 <!-- Playback Volume Slider -->
                 <div class="voice-tuning-group">
                   <div class="voice-tuning-header">
-                    <span class="voice-stat-label">Output Volume</span>
+                    <label for="voice-tuning-volume" class="voice-stat-label">Output Volume</label>
                     <span class="voice-stat-val" id="voice-volume-val">${Math.round(this.volume * 100)}%</span>
                   </div>
-                  <input type="range" id="voice-tuning-volume" class="voice-tuning-slider" min="0" max="1" step="0.05" value="${this.volume}">
+                  <input type="range" id="voice-tuning-volume" aria-label="Output Volume" class="voice-tuning-slider" min="0" max="1" step="0.05" value="${this.volume}">
                 </div>
 
                 <button id="voice-save-tuning-btn" class="voice-action-btn" style="justify-content:center; margin-top:6px;">

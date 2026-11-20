@@ -35,6 +35,8 @@
     accent: localStorage.getItem('jarvis_accent') || 'cyan',
     sidebarCollapsed: localStorage.getItem('jarvis_sidebar_collapsed') === 'true',
     avatar: localStorage.getItem('jarvis_avatar') || 'aria',
+    lowPower: localStorage.getItem('jarvis_low_power_mode') === 'true',
+    reducedMotion: localStorage.getItem('jarvis_reduced_motion') === 'true',
   };
 
   function init() {
@@ -45,6 +47,8 @@
     setupRouting();
     setupKeyboardNavigation();
     setupThemeControls();
+    applyLowPower(state.lowPower, false);
+    applyReducedMotion(state.reducedMotion, false);
     renderContent(getRouteFromHash());
   }
 
@@ -74,6 +78,56 @@
     localStorage.setItem('jarvis_accent', accent);
   }
 
+  function applyLowPower(enabled, notify = false) {
+    state.lowPower = enabled;
+    localStorage.setItem('jarvis_low_power_mode', enabled ? 'true' : 'false');
+    const lowPowerBtn = document.getElementById('low-power-toggle');
+    if (enabled) {
+      document.documentElement.setAttribute('data-power-mode', 'low');
+      document.body.classList.add('low-power-mode');
+      if (lowPowerBtn) {
+        lowPowerBtn.classList.add('active');
+        lowPowerBtn.setAttribute('aria-pressed', 'true');
+      }
+      window.jarvisAvatar?.setLowPowerMode(true);
+      window.jarvisApi?.setPollInterval(10000);
+      if (notify) window.showToast('Eco Low-Power Mode Enabled (animations & polling reduced)', 'info');
+    } else {
+      document.documentElement.removeAttribute('data-power-mode');
+      document.body.classList.remove('low-power-mode');
+      if (lowPowerBtn) {
+        lowPowerBtn.classList.remove('active');
+        lowPowerBtn.setAttribute('aria-pressed', 'false');
+      }
+      window.jarvisAvatar?.setLowPowerMode(false);
+      window.jarvisApi?.setPollInterval(3000);
+      if (notify) window.showToast('Normal Power Mode Restored', 'success');
+    }
+  }
+
+  function applyReducedMotion(enabled, notify = false) {
+    state.reducedMotion = enabled;
+    localStorage.setItem('jarvis_reduced_motion', enabled ? 'true' : 'false');
+    const motionBtn = document.getElementById('reduced-motion-toggle');
+    if (enabled) {
+      document.documentElement.setAttribute('data-reduced-motion', 'true');
+      if (motionBtn) {
+        motionBtn.classList.add('active');
+        motionBtn.setAttribute('aria-pressed', 'true');
+      }
+      window.jarvisAvatar?.setReducedMotion(true);
+      if (notify) window.showToast('Reduced Motion Mode Activated', 'info');
+    } else {
+      document.documentElement.removeAttribute('data-reduced-motion');
+      if (motionBtn) {
+        motionBtn.classList.remove('active');
+        motionBtn.setAttribute('aria-pressed', 'false');
+      }
+      window.jarvisAvatar?.setReducedMotion(false);
+      if (notify) window.showToast('Full Motion Animations Restored', 'info');
+    }
+  }
+
   function setupThemeControls() {
     const themeSelect = document.getElementById('theme-select');
     if (themeSelect) {
@@ -84,6 +138,18 @@
     if (accentSelect) {
       accentSelect.value = state.accent;
       accentSelect.addEventListener('change', (e) => applyAccent(e.target.value));
+    }
+    const lowPowerBtn = document.getElementById('low-power-toggle');
+    if (lowPowerBtn) {
+      lowPowerBtn.addEventListener('click', () => {
+        applyLowPower(!state.lowPower, true);
+      });
+    }
+    const motionBtn = document.getElementById('reduced-motion-toggle');
+    if (motionBtn) {
+      motionBtn.addEventListener('click', () => {
+        applyReducedMotion(!state.reducedMotion, true);
+      });
     }
   }
 
@@ -409,6 +475,22 @@
         </div>
       </div>
 
+      <!-- Voice-First Assistant Action Banner (Mobile & Quick Interaction - SPEC Section 16 & PLAN Phase 10) -->
+      <div class="mobile-voice-hero glass-panel" style="padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; border-left: 3px solid var(--accent);">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:42px; height:42px; border-radius:50%; background:var(--accent-bg); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent);" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </div>
+          <div>
+            <div style="font-size:0.75rem; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px;">Voice-First Interface</div>
+            <div style="font-size:1.0rem; font-weight:700; color:var(--text-primary);">Natural Voice Dialogue Active</div>
+          </div>
+        </div>
+        <a href="#voice" class="btn-futuristic" id="dashboard-voice-launch-btn" style="text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+          🎙️ Open Voice Assistant
+        </a>
+      </div>
+
       <!-- Digital Human AI Avatar Showcase (SPEC Section 4 & PLAN Phase 5) -->
       <div class="avatar-showcase-panel glass-panel" style="margin-bottom: 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
@@ -592,12 +674,24 @@
   };
 
   // Expose global controller
-  window.JARVIS_SHELL = {
+  const shellController = {
     state,
     navigateTo,
     applyTheme,
     applyAccent,
+    applyLowPower,
+    toggleLowPowerMode: () => applyLowPower(!state.lowPower, true),
+    setLowPowerMode: (val) => applyLowPower(!!val, false),
+    isLowPowerMode: () => state.lowPower,
+    applyReducedMotion,
+    toggleReducedMotion: () => applyReducedMotion(!state.reducedMotion, true),
+    setReducedMotion: (val) => applyReducedMotion(!!val, false),
+    isReducedMotion: () => state.reducedMotion,
+    getCurrentRoute: () => state.currentRoute,
   };
+
+  window.JARVIS_SHELL = shellController;
+  window.jarvisShell = shellController;
 
   // Boot on DOM ready
   if (document.readyState === 'loading') {

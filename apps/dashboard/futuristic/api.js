@@ -758,6 +758,15 @@
         this.pollTimer = null;
       }
     }
+
+    setPollInterval(ms) {
+      this.pollInterval = ms;
+      if (this.pollTimer) {
+        clearTimeout(this.pollTimer);
+        this.pollTimer = null;
+        this.startPolling();
+      }
+    }
   }
 
   // Export singleton client

@@ -15,7 +15,7 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 7 | Agents and Developer Hub | verified | d79a22f | docs/jarvis-ui/evidence/phase-7/ |
 | 8 | Tasks, memory, calendar, integrations | verified | f5ad7eb | docs/jarvis-ui/evidence/phase-8/ |
 | 9 | Devices and robot | verified | 6691e05 | docs/jarvis-ui/evidence/phase-9/ |
-| 10 | Responsive, accessibility, performance | pending | | |
+| 10 | Responsive, accessibility, performance | verified | pending-commit | docs/jarvis-ui/evidence/phase-10/ |
 | 11 | Full verification and delivery | pending | | |
 
 ## Phases
@@ -141,6 +141,16 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Evidence recorded: 7/7 Playwright tests green in `tests/browser/phase9_devices_robot.cjs`; 6 screenshots in `docs/jarvis-ui/evidence/phase-9/screenshots/`.
 - Next phase: Phase 10 (Responsive, accessibility, performance).
 
+### Phase 10 Handoff
+- Responsive layouts: Desktop (1920x1080 3-column), Laptop (1366x768 compact docked avatar), Tablet (768x1024 collapsed icon-only sidebar), Mobile (375x667 voice-first layout with bottom navigation, center mic, compact avatar, zero horizontal overflow).
+- Low-Power Eco Mode (`#low-power-toggle`): disables glow/shadows/blur, halts decorative ring animations, throttles avatar FPS loop, relaxes background polling from 3000ms to 10000ms, and persists in localStorage.
+- Reduced-Motion Mode (`#reduced-motion-toggle`): suppresses CSS transitions/animations, halts blinking/viseme micro-gaze wandering in `avatar.js`.
+- Keyboard accessibility: 2px solid cyan focus ring (`:focus-visible`) across all interactive buttons, inputs, links, tabs. Minimum 44x44px touch targets.
+- Accessibility audit: 0 critical and 0 serious violations via Axe-core across all 12 interactive routes. Target 90+ achieved (100% clean).
+- Bundle analysis: 80.9 KB total gzip across 11 files (budget: 250 KB gzip); zero mock data.
+- Evidence recorded: 10/10 tests green in `tests/browser/phase10_responsive_accessibility.cjs`; 6 screenshots saved in `docs/jarvis-ui/evidence/phase-10/screenshots/`.
+- Next phase: Phase 11 (Full verification and delivery).
+
 ## Log
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
@@ -155,3 +165,4 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 7 Agents and Developer Hub. Built `developer.js` implementing `#agents`, `#workspace`, and `#terminal`. Added agent roster with Class A/B/C classification and disabled Class C / Codex quota guards, multi-agent dispatch with isolated worktrees, real git repository status, diff viewer, and sandboxed terminal with mandatory confirmation modal for destructive commands. Verified 8/8 tests in `tests/browser/phase7_agents_developer.cjs`. Phase 7 verified.
 - 2026-11-20: Executed Phase 8 Tasks, memory, calendar, integrations. Built `operations.js` implementing `#tasks`, `#automation`, `#calendar`, `#memory`, `#knowledge`, `#integrations`, and `#apps`. Extended `api.js` with typed methods. Updated backend `memory_api.py` with `PUT` endpoint for memory editing and `task_scheduler.py` with timezone-aware scheduling. Verified 9/9 Playwright tests in `tests/browser/phase8_tasks_memory_integrations.cjs`. Phase 8 verified.
 - 2026-11-20: Executed Phase 9 Devices and robot. Built `robot_devices.js` implementing `#devices`, `#sensors`, and `#robot` with safe disarmed default, admin PIN protected arming, immediate emergency stop, simulation labeling, and real-time safety audit log. Verified 7/7 Playwright tests in `tests/browser/phase9_devices_robot.cjs` and full regressions. Phase 9 verified.
+- 2026-11-20: Executed Phase 10 Responsive, accessibility, performance. Implemented 4 responsive layouts (desktop, laptop, tablet, mobile voice-first), low-power mode, reduced-motion mode, keyboard focus rings, touch targets >= 44px. Verified 0 critical and 0 serious Axe violations across 12 destinations. Total bundle size 80.9 KB gzip (< 250 KB limit). Verified 10/10 tests in `tests/browser/phase10_responsive_accessibility.cjs`. Phase 10 verified.

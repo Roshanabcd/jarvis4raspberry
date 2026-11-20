@@ -915,8 +915,14 @@
       // 6. Blockquotes
       esc = esc.replace(/^\> (.*$)/gim, '<blockquote class="chat-blockquote">$1</blockquote>');
 
-      // 7. Unordered Lists
-      esc = esc.replace(/^\s*[-*]\s+(.*$)/gim, '<li class="chat-li">$1</li>');
+      // 7. Unordered Lists (wrap in valid semantic <ul> tags to satisfy WCAG listitem rules)
+      esc = esc.replace(/(?:^\s*[-*]\s+.*(?:\r?\n|$))+/gm, (match) => {
+        const items = match.trim().split(/\r?\n/).map(line => {
+          const itemText = line.replace(/^\s*[-*]\s+/, '');
+          return `<li class="chat-li">${itemText}</li>`;
+        }).join('');
+        return `<ul class="chat-ul">${items}</ul>`;
+      });
 
       // 8. Line breaks (preserve newlines not already wrapped)
       esc = esc.replace(/\n/g, '<br>');

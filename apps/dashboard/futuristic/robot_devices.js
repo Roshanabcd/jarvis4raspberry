@@ -67,9 +67,9 @@
           </div>
         </div>
 
-        <div class="ops-tabs" role="tablist" style="margin-bottom:18px;">
-          <button class="ops-tab active" id="tab-sub-devices">Connected Devices</button>
-          <button class="ops-tab" id="tab-sub-sensors">Sensors Telemetry</button>
+        <div class="ops-tabs" role="tablist" aria-label="Hardware Destination Tabs" style="margin-bottom:18px;">
+          <button class="ops-tab active" id="tab-sub-devices" role="tab" aria-selected="true">Connected Devices</button>
+          <button class="ops-tab" id="tab-sub-sensors" role="tab" aria-selected="false">Sensors Telemetry</button>
         </div>
 
         <div class="devices-grid">
@@ -240,9 +240,9 @@
           </div>
         </div>
 
-        <div class="ops-tabs" role="tablist" style="margin-bottom:18px;">
-          <button class="ops-tab" id="tab-sub-devices-from-sensors">Connected Devices</button>
-          <button class="ops-tab active" id="tab-sub-sensors-active">Sensors Telemetry</button>
+        <div class="ops-tabs" role="tablist" aria-label="Sensors Destination Tabs" style="margin-bottom:18px;">
+          <button class="ops-tab" id="tab-sub-devices-from-sensors" role="tab" aria-selected="false">Connected Devices</button>
+          <button class="ops-tab active" id="tab-sub-sensors-active" role="tab" aria-selected="true">Sensors Telemetry</button>
         </div>
 
         <div class="sensors-grid" id="sensors-cards-container">

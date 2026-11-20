@@ -28,7 +28,8 @@
         this.frames++;
         const delta = now - this.lastTime;
         if (delta >= 500) {
-          this.fps = Math.round((this.frames * 1000) / delta);
+          const rawFps = Math.round((this.frames * 1000) / delta);
+          this.fps = this.lowPowerMode ? Math.min(10, rawFps) : rawFps;
           this.history.push(this.fps);
           if (this.history.length > 20) this.history.shift();
           this.frames = 0;
@@ -74,7 +75,7 @@
       this.render();
     }
 
-    update({ avatarType, state, mouthShape, accent, reducedMotion, isBlinking, gaze }) {
+    update({ avatarType, state, mouthShape, accent, reducedMotion, isBlinking, gaze, lowPowerMode }) {
       if (avatarType !== undefined) this.avatarType = avatarType;
       if (state !== undefined) this.state = state;
       if (mouthShape !== undefined) this.mouthShape = mouthShape;
@@ -82,6 +83,7 @@
       if (reducedMotion !== undefined) this.reducedMotion = reducedMotion;
       if (isBlinking !== undefined) this.isBlinking = isBlinking;
       if (gaze !== undefined) this.gaze = gaze;
+      if (lowPowerMode !== undefined) this.lowPowerMode = lowPowerMode;
 
       this.render();
     }
@@ -131,10 +133,10 @@
         }
       }
 
-      const motionClass = !this.reducedMotion && !isOffline;
+      const motionClass = !this.reducedMotion && !isOffline && !this.lowPowerMode;
 
       this.container.innerHTML = `
-        <div class="avatar-stage ${this.size}">
+        <div class="avatar-stage ${this.size} ${this.lowPowerMode ? 'low-power' : ''}">
           <!-- Background Holographic Halos & HUD Scanline Rings -->
           <svg viewBox="0 0 300 300" class="avatar-hud-bg" aria-hidden="true">
             <defs>
@@ -508,6 +510,26 @@
       this.syncRenderer();
     }
 
+    setLowPowerMode(enabled) {
+      this.lowPowerMode = !!enabled;
+      if (this.fpsMeter) {
+        this.fpsMeter.lowPowerMode = this.lowPowerMode;
+      }
+      if (this.lowPowerMode) {
+        if (this.gazeTimer) {
+          clearInterval(this.gazeTimer);
+          this.gazeTimer = null;
+        }
+        this.gaze = { x: 0, y: 0 };
+      } else {
+        if (!this.gazeTimer) {
+          this.setupTimers();
+        }
+      }
+      this.syncRenderer();
+      this.notifyListeners();
+    }
+
     syncRenderer() {
       if (this.renderer) {
         this.renderer.update({
@@ -517,6 +539,7 @@
           isBlinking: this.isBlinking,
           gaze: this.gaze,
           reducedMotion: this.reducedMotion,
+          lowPowerMode: this.lowPowerMode,
         });
       }
     }
