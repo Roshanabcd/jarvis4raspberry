@@ -689,6 +689,7 @@
     setReducedMotion: (val) => applyReducedMotion(!!val, false),
     isReducedMotion: () => state.reducedMotion,
     getCurrentRoute: () => state.currentRoute,
+    showToast: (msg, type) => window.showToast(msg, type),
   };
 
   window.JARVIS_SHELL = shellController;

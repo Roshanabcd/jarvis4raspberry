@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Unified Feature Suite</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --border: #173b3a;
+      --accent: #00f5d4;
+      --accent-2: #10b981;
+      --muted: #8aa4bf;
+      --text: #e6f1ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: radial-gradient(circle at top right, #0b1d2e 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 19, 32, 0.94);
+    }
+    header h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.6px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(0, 245, 212, 0.1);
+      color: var(--accent);
+    }
+    main { max-width: 1260px; margin: 24px auto; padding: 0 20px 40px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .card h3 { margin: 0 0 4px; font-size: 16px; color: var(--text); }
+    .cat { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .desc { font-size: 13px; color: var(--muted); margin: 12px 0 16px; line-height: 1.45; }
+    .pill-avail {
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.16);
+      color: var(--accent-2);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+    }
+    .pill-miss {
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(138, 164, 191, 0.12);
+      color: var(--muted);
+      border: 1px solid rgba(138, 164, 191, 0.35);
+    }
+    .open-btn {
+      display: inline-block;
+      text-decoration: none;
+      text-align: center;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #031318;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .disabled-btn {
+      display: inline-block;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>JARVIS OS // Unified Feature Suite Launchpad</h1>
+    <div id="suiteStatus" class="badge">Loading modules...</div>
+  </header>
+  <main>
+    <div id="featureGrid" class="grid"></div>
+  </main>
+  <script>
+    async function loadSuite() {
+      const res = await fetch("/api/suite/health");
+      const data = await res.json();
+      document.getElementById("suiteStatus").textContent =
+        `${data.mounted_count} / ${data.total_registered} MODULES AVAILABLE`;
+      document.getElementById("featureGrid").innerHTML = data.features.map(f => {
+        const avail = f.status === "available";
+        return `
+          <div class="card">
+            <div>
+              <div class="card-top">
+                <div>
+                  <h3>${f.name}</h3>
+                  <div class="cat">${f.category} · ${f.tier}</div>
+                </div>
+                <span class="${avail ? "pill-avail" : "pill-miss"}">${f.status.toUpperCase()}</span>
+              </div>
+              <p class="desc">${f.description}</p>
+            </div>
+            <div>
+              ${avail
+                ? `<a class="open-btn" href="${f.ui_path}">Open Module</a>`
+                : `<span class="disabled-btn">Unzip ${f.package}.zip to enable</span>`
+              }
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+    loadSuite();
+  </script>
+</body>
+</html>

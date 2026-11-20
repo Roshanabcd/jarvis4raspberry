@@ -14,6 +14,7 @@
       this.stateListeners = new Set();
       this.telemetryListeners = new Set();
       this.pollTimer = null;
+      this.isPolling = false;
       this.pollInterval = options.pollInterval || 3000;
       this.failureCount = 0;
       this.maxBackoff = 15000;
@@ -782,7 +783,9 @@
         }
 
         this.failureCount = 0;
-        this.setState('online');
+        if (this.isPolling || this.state !== 'offline') {
+          this.setState('online');
+        }
 
         const sanitized = this.sanitizeTelemetry(rawSystem, rawHealth, rawDev);
         this.lastTelemetry = sanitized;
@@ -800,14 +803,20 @@
     }
 
     startPolling() {
-      if (this.pollTimer) clearInterval(this.pollTimer);
+      this.isPolling = true;
+      if (this.pollTimer) {
+        clearTimeout(this.pollTimer);
+        this.pollTimer = null;
+      }
 
       const loop = async () => {
+        if (!this.isPolling) return;
         try {
           await this.fetchAllTelemetry();
         } catch (e) {
           // Failure handled in fetchAllTelemetry
         }
+        if (!this.isPolling) return;
 
         const nextDelay = this.state === 'offline' 
           ? Math.min(this.pollInterval * Math.pow(1.5, Math.min(this.failureCount, 5)), this.maxBackoff)
@@ -820,6 +829,7 @@
     }
 
     stopPolling() {
+      this.isPolling = false;
       if (this.pollTimer) {
         clearTimeout(this.pollTimer);
         this.pollTimer = null;

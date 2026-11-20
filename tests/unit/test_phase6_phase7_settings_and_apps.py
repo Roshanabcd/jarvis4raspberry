@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apps.core.main import app
+from apps.api.admin_action_policy import require_admin_action
 from config.config_manager import config
 
 
@@ -44,44 +45,72 @@ class TestPhase6Phase7SettingsCenter:
     def test_update_category_settings_persistence(self, tmp_path):
         client = TestClient(app)
 
-        # Update category_c (Voice & Wake Word)
-        res = client.post("/api/settings/category_c", json={
+        # Unauthenticated / unconfirmed request rejected with 428 Precondition Required
+        unauth_res = client.post("/api/settings/category_c", json={
             "settings": {"wake_word": "jarvis"}
         })
-        assert res.status_code == 200
-        assert res.json()["status"] == "ok"
-        assert res.json()["saved_config"] is True
-        assert config.get("wake_word") == "jarvis"
+        assert unauth_res.status_code == 428
 
-        # Update category_g (Robot speed)
-        res_g = client.post("/api/settings/category_g", json={
-            "settings": {"robot": {"default_speed": 55, "max_speed": 100}}
-        })
-        assert res_g.status_code == 200
-        assert config.get("robot", {}).get("default_speed") == 55
+        # With admin action authorized
+        try:
+            app.dependency_overrides[require_admin_action] = lambda: None
+            # Update category_c (Voice & Wake Word)
+            res = client.post("/api/settings/category_c", json={
+                "settings": {"wake_word": "jarvis"}
+            })
+            assert res.status_code == 200
+            assert res.json()["status"] == "ok"
+            assert res.json()["saved_config"] is True
+            assert config.get("wake_word") == "jarvis"
+
+            # Update category_g (Robot speed)
+            res_g = client.post("/api/settings/category_g", json={
+                "settings": {"robot": {"default_speed": 55, "max_speed": 100}}
+            })
+            assert res_g.status_code == 200
+            assert config.get("robot", {}).get("default_speed") == 55
+        finally:
+            app.dependency_overrides.pop(require_admin_action, None)
 
     def test_component_diagnostics(self):
         client = TestClient(app)
 
-        # Test speaker synthesis test
-        res_spk = client.post("/api/settings/test/speaker")
-        assert res_spk.status_code == 200
-        assert res_spk.json()["status"] == "ok"
+        # Unauthenticated rejected
+        unauth_spk = client.post("/api/settings/test/speaker")
+        assert unauth_spk.status_code == 428
 
-        # Test camera diagnostics test
-        res_cam = client.post("/api/settings/test/camera")
-        assert res_cam.status_code == 200
-        assert res_cam.json()["status"] == "ok"
+        try:
+            app.dependency_overrides[require_admin_action] = lambda: None
+            # Test speaker synthesis test
+            res_spk = client.post("/api/settings/test/speaker")
+            assert res_spk.status_code == 200
+            assert res_spk.json()["status"] == "ok"
 
-        # Test robot diagnostics test
-        res_rob = client.post("/api/settings/test/robot")
-        assert res_rob.status_code == 200
-        assert res_rob.json()["status"] == "ok"
+            # Test camera diagnostics test
+            res_cam = client.post("/api/settings/test/camera")
+            assert res_cam.status_code == 200
+            assert res_cam.json()["status"] == "ok"
+
+            # Test robot diagnostics test
+            res_rob = client.post("/api/settings/test/robot")
+            assert res_rob.status_code == 200
+            assert res_rob.json()["status"] == "ok"
+        finally:
+            app.dependency_overrides.pop(require_admin_action, None)
 
     def test_export_backup_endpoint(self):
         client = TestClient(app)
-        res = client.get("/api/settings/export/backup")
-        assert res.status_code == 200
-        data = res.json()
-        assert "config" in data
-        assert "timestamp" in data
+
+        # Unauthenticated rejected
+        unauth = client.get("/api/settings/export/backup")
+        assert unauth.status_code == 428
+
+        try:
+            app.dependency_overrides[require_admin_action] = lambda: None
+            res = client.get("/api/settings/export/backup")
+            assert res.status_code == 200
+            data = res.json()
+            assert "config" in data
+            assert "timestamp" in data
+        finally:
+            app.dependency_overrides.pop(require_admin_action, None)

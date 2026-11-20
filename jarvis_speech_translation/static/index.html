@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Real-Time Speech Translation</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f1b2d;
+      --border: #173b3a;
+      --accent: #00f5d4;
+      --accent-2: #10b981;
+      --danger: #ef4444;
+      --text: #e6f1ff;
+      --muted: #8aa4bf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: radial-gradient(circle at top right, #0b1d2e 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 19, 32, 0.92);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.5px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(0, 245, 212, 0.1);
+      color: var(--accent);
+    }
+    main { max-width: 1180px; margin: 22px auto; padding: 0 20px 40px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 18px;
+    }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #031318;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button.danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .status { font-size: 13px; color: var(--accent); margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS OS // Real-Time Speech Translation</h1>
+      <span class="badge">WEBSOCKET · SPEECH RECOGNITION · VOICE PLAYBACK</span>
+    </div>
+    <div id="healthBadge" class="badge">Loading...</div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="grid">
+        <div>
+          <label>Source Language</label>
+          <select id="srcLang">
+            <option value="auto" selected>Auto Detect</option>
+            <option value="en">English (en)</option>
+            <option value="ne">Nepali (ne)</option>
+            <option value="hi">Hindi (hi)</option>
+            <option value="es">Spanish (es)</option>
+            <option value="fr">French (fr)</option>
+            <option value="de">German (de)</option>
+            <option value="ja">Japanese (ja)</option>
+          </select>
+        </div>
+        <div>
+          <label>Target Language</label>
+          <select id="tgtLang">
+            <option value="ne" selected>Nepali (ne)</option>
+            <option value="en">English (en)</option>
+            <option value="hi">Hindi (hi)</option>
+            <option value="es">Spanish (es)</option>
+            <option value="fr">French (fr)</option>
+            <option value="de">German (de)</option>
+            <option value="ja">Japanese (ja)</option>
+          </select>
+        </div>
+        <div>
+          <label>Auto Voice Playback (TTS)</label>
+          <select id="autoSpeak">
+            <option value="on" selected>Enabled (Browser SpeechSynthesis)</option>
+            <option value="off">Muted</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="primary" onclick="startLiveSession()">Start Live Mic &amp; WebSocket</button>
+      <button class="danger" onclick="stopLiveSession()">Stop Listening</button>
+      <div id="liveStatus" class="status">Idle — click Start Live Mic or type below.</div>
+
+      <div style="margin-top:16px;">
+        <label>Manual Utterance Input</label>
+        <textarea id="manualText" rows="2" placeholder="Say or type a phrase (e.g. Good morning, system ready)..."></textarea>
+        <button class="primary" onclick="translateManual()">Translate &amp; Speak</button>
+      </div>
+
+      <div id="transcriptBox"></div>
+    </section>
+
+    <section class="panel">
+      <h3 style="margin-top:0;color:#00f5d4;">Custom Terminology Glossary</h3>
+      <div class="grid">
+        <div>
+          <label>Source Term</label>
+          <input id="gSrcTerm" placeholder="e.g. JARVIS" />
+        </div>
+        <div>
+          <label>Target Term</label>
+          <input id="gTgtTerm" placeholder="e.g. जार्विस" />
+        </div>
+      </div>
+      <button class="primary" onclick="saveGlossary()">Save Glossary Override</button>
+      <div id="glossStatus" class="status"></div>
+    </section>
+  </main>
+
+  <script>
+    let sessionId = null;
+    let ws = null;
+    let recognition = null;
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/speech-translation/health");
+        const d = await res.json();
+        document.getElementById("healthBadge").textContent =
+          `OK | ${d.total_sessions} sessions | ${d.total_utterances} utterances`;
+      } catch (e) {
+        document.getElementById("healthBadge").textContent = "Backend unreachable";
+      }
+    }
+
+    function speakText(text, bcp47) {
+      if (document.getElementById("autoSpeak").value !== "on") return;
+      if (!("speechSynthesis" in window)) return;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = bcp47 || "en-US";
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+
+    function renderUtterance(d) {
+      const box = document.getElementById("transcriptBox");
+      box.innerHTML = `
+        <div class="card">
+          <div style="font-size:12px;color:#8aa4bf;">${d.source_lang.toUpperCase()} -> ${d.target_lang.toUpperCase()} | ${d.provider} | ${d.latency_ms} ms</div>
+          <div style="margin-top:6px;"><strong>Original:</strong> ${d.source_text}</div>
+          <div style="margin-top:4px;color:#00f5d4;"><strong>Translated:</strong> ${d.translated_text}</div>
+        </div>
+      ` + box.innerHTML;
+      speakText(d.translated_text, d.tts_bcp47);
+    }
+
+    async function ensureSession() {
+      if (sessionId) return sessionId;
+      const res = await fetch("/api/speech-translation/sessions", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          title: "JARVIS Live Translation",
+          lang_a: document.getElementById("srcLang").value === "auto" ? "en" : document.getElementById("srcLang").value,
+          lang_b: document.getElementById("tgtLang").value,
+        }),
+      });
+      const d = await res.json();
+      sessionId = d.session_id;
+      return sessionId;
+    }
+
+    async function startLiveSession() {
+      const sid = await ensureSession();
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/api/speech-translation/ws/${sid}`);
+      ws.onmessage = (ev) => {
+        const data = JSON.parse(ev.data);
+        if (data.translated_text) {
+          renderUtterance(data);
+          refreshHealth();
+        }
+      };
+
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) {
+        document.getElementById("liveStatus").textContent =
+          `WebSocket connected (${sid}), but browser SpeechRecognition API is unavailable — use Manual Input.`;
+        return;
+      }
+      recognition = new SpeechRec();
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const text = event.results[event.results.length - 1][0].transcript.trim();
+        if (text && ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            text,
+            source_lang: document.getElementById("srcLang").value,
+            target_lang: document.getElementById("tgtLang").value,
+          }));
+        }
+      };
+      recognition.start();
+      document.getElementById("liveStatus").textContent = `Listening continuously on session ${sid}...`;
+    }
+
+    function stopLiveSession() {
+      if (recognition) { recognition.stop(); recognition = null; }
+      if (ws) { ws.close(); ws = null; }
+      document.getElementById("liveStatus").textContent = "Stopped listening.";
+    }
+
+    async function translateManual() {
+      const text = document.getElementById("manualText").value.trim();
+      if (!text) return;
+      const sid = await ensureSession();
+      const res = await fetch("/api/speech-translation/translate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          text,
+          source_lang: document.getElementById("srcLang").value,
+          target_lang: document.getElementById("tgtLang").value,
+          session_id: sid,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        renderUtterance(d);
+        refreshHealth();
+      }
+    }
+
+    async function saveGlossary() {
+      const src = document.getElementById("srcLang").value === "auto" ? "en" : document.getElementById("srcLang").value;
+      const tgt = document.getElementById("tgtLang").value;
+      const res = await fetch("/api/speech-translation/glossary", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          source_lang: src,
+          target_lang: tgt,
+          source_term: document.getElementById("gSrcTerm").value.trim(),
+          target_term: document.getElementById("gTgtTerm").value.trim(),
+        }),
+      });
+      const d = await res.json();
+      document.getElementById("glossStatus").textContent = res.ok
+        ? `Saved glossary: ${d.source_term} -> ${d.target_term} (${d.source_lang}->${d.target_lang}).`
+        : `Error: ${d.detail || res.statusText}`;
+    }
+
+    refreshHealth();
+  </script>
+</body>
+</html>

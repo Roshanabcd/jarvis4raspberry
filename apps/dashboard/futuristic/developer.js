@@ -264,7 +264,7 @@
       const classMap = {
         antigravity: { classTier: 'B', classLabel: 'Class B: Headless CLI (agy)', isClassC: false },
         codex: { classTier: 'B', classLabel: 'Class B: Headless CLI (Codex)', isClassC: false },
-        copilot: { classTier: 'B', classLabel: 'Class B: Headless CLI (Copilot)', isClassC: false },
+        copilot: { classTier: 'C', classLabel: 'Class C: IDE-Only', isClassC: true },
         claude: { classTier: 'B', classLabel: 'Class B: Headless CLI (Manual Handoff)', isClassC: false },
         ollama: { classTier: 'B', classLabel: 'Class B: Local Engine', isClassC: false },
         opencode: { classTier: 'B', classLabel: 'Class B: Headless CLI', isClassC: false },

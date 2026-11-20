@@ -1256,7 +1256,9 @@ class JARVISBrain:
 
     @staticmethod
     def _provider_failure_message(provider_name, error, http_status=None):
-        error_str = str(error)
+        error_str = str(error) if error else "unavailable"
+        if any(term in error_str.lower() for term in ("httpconnectionpool", "connectionpool", "max retries", "connection refused", "secret transport", "traceback", "socket")):
+            error_str = "connection unavailable"
         prefix = f"AI Provider Error: The {provider_name} model is unreachable or timed out ({error_str}). "
         if provider_name == "ollama":
             if error == 'local_provider_busy':
