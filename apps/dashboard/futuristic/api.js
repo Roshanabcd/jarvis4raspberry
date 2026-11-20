@@ -65,6 +65,136 @@
       }
     }
 
+    // --- Conversational AI & Streaming Chat Methods (Phase 4) ---
+    async getChatProviders() {
+      return await this.request('/api/chat/providers');
+    }
+
+    async switchChatModel(provider, model) {
+      return await this.request('/api/chat/model', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, model }),
+      });
+    }
+
+    async getChatHistory(sessionId = 'default') {
+      return await this.request(`/api/chat/history?session_id=${encodeURIComponent(sessionId)}`);
+    }
+
+    async clearChatHistory(sessionId = 'default') {
+      return await this.request(`/api/chat/history?session_id=${encodeURIComponent(sessionId)}`, {
+        method: 'DELETE',
+      });
+    }
+
+    async cancelChat(requestId) {
+      if (!requestId) return { status: 'no_id' };
+      try {
+        return await this.request('/api/chat/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ request_id: requestId }),
+          keepalive: true,
+        });
+      } catch (err) {
+        console.warn('Cancel chat error:', err);
+        return { status: 'error', error: err.message };
+      }
+    }
+
+    /**
+     * Stream conversation from POST /api/chat/stream using Server-Sent Events (SSE).
+     */
+    async streamChat(params) {
+      const {
+        message,
+        provider,
+        model,
+        useTools = true,
+        speak = false,
+        audioOutput = 'browser',
+        sessionId = 'default',
+        signal,
+        onEvent,
+        onAccepted,
+        onStart,
+        onProgress,
+        onToken,
+        onToolCall,
+        onToolOutput,
+        onDone,
+        onAudio,
+        onError,
+      } = params;
+
+      const url = `${this.baseUrl}/api/chat/stream`;
+      const body = {
+        message,
+        session_id: sessionId,
+        use_tools: useTools,
+        speak,
+        audio_output: audioOutput,
+      };
+      if (provider) body.provider = provider;
+      if (model) body.model = model;
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+      }
+
+      if (!res.body) {
+        throw new Error('Server returned empty response stream');
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep partial trailing line
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data: ')) continue;
+            const jsonStr = trimmed.slice(6).trim();
+            if (!jsonStr) continue;
+
+            try {
+              const event = JSON.parse(jsonStr);
+              if (onEvent) onEvent(event);
+
+              if (event.type === 'accepted' && onAccepted) onAccepted(event);
+              else if (event.type === 'start' && onStart) onStart(event);
+              else if (event.type === 'progress' && onProgress) onProgress(event);
+              else if (event.type === 'token' && onToken) onToken(event.content || '', event);
+              else if (event.type === 'tool_call' && onToolCall) onToolCall(event);
+              else if (event.type === 'tool_output' && onToolOutput) onToolOutput(event);
+              else if (event.type === 'done' && onDone) onDone(event);
+              else if (event.type === 'audio' && onAudio) onAudio(event);
+              else if ((event.type === 'error' || event.type === 'audio_error') && onError) onError(event);
+            } catch (jsonErr) {
+              console.warn('Failed to parse SSE JSON payload:', jsonStr, jsonErr);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    }
+
     // Allowlisted Metric Extraction with strict truthfulness
     sanitizeTelemetry(rawSystem, rawHealth, rawDev) {
       const formatNumber = (val, decimals = 1) => {

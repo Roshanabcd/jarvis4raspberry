@@ -8,9 +8,9 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 0 | Audit (read-only) | verified | 8f386b4 | docs/jarvis-ui/evidence/phase-0/ |
 | 1 | Regression harness and safe delivery path | verified | c10f6af | docs/jarvis-ui/evidence/phase-1/ |
 | 2 | Design system and shell | verified | 4fc6f59 | docs/jarvis-ui/evidence/phase-2/ |
-| 3 | Data layer and dashboard | verified | (pending commit) | docs/jarvis-ui/evidence/phase-3/ |
-| 4 | Conversation panel | in-progress | | |
-| 5 | Avatar | pending | | |
+| 3 | Data layer and dashboard | verified | e596929 | docs/jarvis-ui/evidence/phase-3/ |
+| 4 | Conversation panel | verified | aa8140b | docs/jarvis-ui/evidence/phase-4/ |
+| 5 | Avatar | in-progress | | |
 | 6 | Voice | pending | | |
 | 7 | Agents and Developer Hub | pending | | |
 | 8 | Tasks, memory, calendar, integrations | pending | | |
@@ -89,6 +89,13 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - When backend disconnects, header shows offline badge and warning banner; automatically reconnects when backend recovers.
 - Next phase: Phase 4 (Conversation panel). Stream chat messages via `/api/chat/stream` or `/api/chat`, markdown & code formatting, stop/regenerate, error recovery.
 
+### Phase 4 Handoff
+- Neural chat panel complete in `apps/dashboard/futuristic/chat.js` and `api.js`.
+- Features verified: live SSE streaming with cursor animation, markdown formatting, syntax-highlighted code blocks with copy-to-clipboard, stop generation reaching `/api/chat/cancel`, prompt regenerate/retry, real-time message search filtering, conversation history loading and deletion (`/api/chat/history`), and Markdown/JSON export.
+- Truthfulness guaranteed: provider/model labels (`edge_fastpath:local_conversation` and `ollama:llama3.2:1b`) are strictly sourced from backend SSE metadata; zero mock replies in production code; unsupported attachments render an honest explanation.
+- Standalone usability: chat works independently of avatar.
+- Next phase: Phase 5 (Avatar: ARIA & ATLAS state machine, SVG digital human renderer, and VRM 3D interface). Note Stop Condition 2 regarding real avatar model files.
+
 ## Log
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
@@ -96,4 +103,5 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 0 Read-Only Audit. Discovered stack, versions, routes, audio pipeline, providers, storage, robot safety, and test baseline. Generated `docs/jarvis-ui/AUDIT.md` and `docs/jarvis-ui/FEATURES.md`. Operator approved with "continue". Phase 0 verified in commit `8f386b4`.
 - 2026-11-20: Executed Phase 1 Regression harness and safe delivery path. Mounted `/futuristic/` parallel route in `apps/core/app_factory.py`. Root `/` remains identical to baseline. Authored Playwright regression smoke suite `tests/browser/phase1_smoke_suite.cjs` covering all 21 FEATURES.md destinations (26/26 passed). Captured baseline screenshots at 4 viewports in `docs/jarvis-ui/evidence/phase-1/screenshots/`. Verified ASGI mounting via `tests/unit/test_phase1_safe_delivery.py` (2/2 passed). Phase 1 verified in commit `c10f6af`.
 - 2026-11-20: Executed Phase 2 Design system and shell. Built design tokens (`theme.css`), core glass components (`components.css`), responsive shell (`index.html`), and navigation controller (`shell.js`). All 18 destinations routed with honest unbuilt state. Verified via `tests/browser/phase2_design_shell.cjs`: axe accessibility audit 0 critical violations, keyboard navigation verified, and screenshots captured at 4 breakpoints in `docs/jarvis-ui/evidence/phase-2/screenshots/`. Phase 2 verified.
-- 2026-11-20: Executed Phase 3 Data layer and telemetry dashboard. Implemented typed API client in `api.js` with exponential backoff and honest fallback states. Added live dashboard metrics (CPU, RAM, disk, temp, network, host, backend, models, orchestrator, robot, voice) in `shell.js`. Verified zero mock data in production bundle via grep check. Verified telemetry against independent OS tools. Verified offline detection and auto-recovery via Playwright in `tests/browser/phase3_data_layer.cjs` (4/4 passed). Phase 3 verified.
+- 2026-11-20: Executed Phase 3 Data layer and telemetry dashboard. Implemented typed API client in `api.js` with exponential backoff and honest fallback states. Added live dashboard metrics (CPU, RAM, disk, temp, network, host, backend, models, orchestrator, robot, voice) in `shell.js`. Verified zero mock data in production bundle via grep check. Verified telemetry against independent OS tools. Verified offline detection and auto-recovery via Playwright in `tests/browser/phase3_data_layer.cjs` (4/4 passed). Phase 3 verified in commit `e596929`.
+- 2026-11-20: Executed Phase 4 Conversation panel. Created `chat.js` with full streaming dialogue support, markdown parser, code block syntax highlighter with one-click copy, stop cancellation, retry/regenerate, message search filter, history clearance, and export (Markdown & JSON). Verified honest provider metadata from backend events. All 9 E2E Playwright tests passed in `tests/browser/phase4_conversation.cjs` (including live FastAPI validation on port 8000). Phase 4 verified.

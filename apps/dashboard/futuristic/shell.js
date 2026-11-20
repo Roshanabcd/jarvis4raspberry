@@ -185,6 +185,10 @@
     if (routeId === 'dashboard') {
       mainContainer.innerHTML = renderDashboardPlaceholder(window.jarvisApi?.lastTelemetry);
       bindDashboardTelemetry();
+    } else if (routeId === 'chat') {
+      if (window.jarvisChat) {
+        window.jarvisChat.render(mainContainer);
+      }
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);
     }
