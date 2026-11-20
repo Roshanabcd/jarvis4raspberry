@@ -444,7 +444,7 @@
 
     return `
       <!-- Live Offline Alert Banner -->
-      <div id="offline-alert-banner" style="display:none; margin-bottom:16px; padding:12px 18px; border-radius:var(--radius-md); background:rgba(255,59,48,0.18); border:1px solid var(--accent-danger); color:#FFA49E; font-size:0.88rem; font-weight:600;">
+      <div id="offline-alert-banner" style="display:${window.jarvisApi?.state === 'offline' ? 'block' : 'none'}; margin-bottom:16px; padding:12px 18px; border-radius:var(--radius-md); background:rgba(255,59,48,0.18); border:1px solid var(--accent-danger); color:#FFA49E; font-size:0.88rem; font-weight:600;">
         ⚠️ Backend Connection Offline — Telemetry paused. Attempting automatic reconnection...
       </div>
 

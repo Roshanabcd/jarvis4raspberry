@@ -193,7 +193,11 @@
         // I2C Map
         const i2cBox = container.querySelector('#dev-i2c-map');
         if (i2cBox) {
-          const devices = (i2cRes && i2cRes.devices) || [];
+          const rawDevices = (i2cRes && i2cRes.devices);
+          const deviceList = Array.isArray(rawDevices)
+            ? rawDevices
+            : (rawDevices && typeof rawDevices === 'object' ? Object.values(rawDevices).flat() : []);
+          const devices = [...new Set(deviceList.filter(addr => addr && addr !== '0xUU'))];
           const knownMap = {
             '0x40': 'PCA9685 16-Channel PWM Servo Controller',
             '0x76': 'BME280 Temperature/Humidity/Pressure Sensor',

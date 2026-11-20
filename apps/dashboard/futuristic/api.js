@@ -34,11 +34,9 @@
     }
 
     setState(newState) {
-      if (this.state !== newState) {
-        this.state = newState;
-        for (const cb of this.stateListeners) {
-          try { cb(this.state, this.lastTelemetry); } catch (e) { console.error(e); }
-        }
+      this.state = newState;
+      for (const cb of this.stateListeners) {
+        try { cb(this.state, this.lastTelemetry); } catch (e) { console.error(e); }
       }
     }
 
@@ -46,6 +44,7 @@
       const url = `${this.baseUrl}${path}`;
       const headers = {
         'Accept': 'application/json',
+        'x-jarvis-client': 'dashboard',
         ...(options.headers || {}),
       };
 
