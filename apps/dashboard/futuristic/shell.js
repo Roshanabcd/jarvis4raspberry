@@ -205,6 +205,11 @@
       if (window.jarvisDevHub) {
         window.jarvisDevHub.renderTerminal(mainContainer);
       }
+    } else if (['tasks', 'automation', 'calendar', 'memory', 'knowledge', 'integrations', 'apps'].includes(routeId)) {
+      if (window.jarvisOperations) {
+        mainContainer.innerHTML = '<div id="view-placeholder"></div>';
+        window.jarvisOperations.renderDestination(routeId);
+      }
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);
     }

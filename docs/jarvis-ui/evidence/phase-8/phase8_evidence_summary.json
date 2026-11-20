@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-11-20T08:11:46.301Z",
+  "tests_passed": 8,
+  "tests_total": 8,
+  "screenshots": [
+    "01_tasks_center_lifecycle.png",
+    "02_automations_timezone_scheduler.png",
+    "03_calendar_reminders_agenda.png",
+    "04_memory_explorer_crud.png",
+    "05_knowledge_base_documents.png",
+    "06_integrations_connectors_grid.png",
+    "07_connected_apps_catalog.png"
+  ],
+  "gate_requirements": {
+    "task_lifecycle_real": true,
+    "scheduler_two_timezones": true,
+    "memory_edit_and_delete": true,
+    "truthful_integrations_no_fake_scores": true,
+    "apps_catalog_and_roadmap": true
+  }
+}

@@ -393,6 +393,159 @@
       return await this.request(`/api/terminal/processes/${encodeURIComponent(jobId)}/stop`, { method: 'POST' });
     }
 
+    // --- Tasks & Background Jobs (Phase 8) ---
+    async getBackgroundJobs() {
+      return await this.request('/api/task-jobs');
+    }
+
+    async submitBackgroundJob(transcript, idempotencyKey = null) {
+      const key = idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'key-' + Date.now());
+      return await this.request('/api/task-jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': key,
+        },
+        body: JSON.stringify({ transcript }),
+      });
+    }
+
+    async cancelBackgroundJob(jobId) {
+      return await this.request(`/api/task-jobs/${encodeURIComponent(jobId)}/cancel`, { method: 'POST' });
+    }
+
+    async resumeDeveloperTask(taskId) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/resume`, { method: 'POST' });
+    }
+
+    async verifyDeveloperTask(taskId, reviewerId = null) {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/verify${reviewerId ? '?reviewer_id=' + encodeURIComponent(reviewerId) : ''}`, { method: 'POST' });
+    }
+
+    async proposeDeveloperTask(taskId, targetBranch = 'feature/jarvis-ui') {
+      return await this.request(`/api/developer/tasks/${encodeURIComponent(taskId)}/propose`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_branch: targetBranch }),
+      });
+    }
+
+    // --- Automations & Scheduler (Phase 8) ---
+    async getAutomations() {
+      return await this.request('/api/automations/tasks');
+    }
+
+    async createAutomation(name, schedule, command, args = [], description = '') {
+      return await this.request('/api/automations/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, schedule, command, args, description }),
+      });
+    }
+
+    async toggleAutomation(taskId, enable = true) {
+      return await this.request(`/api/automations/tasks/${encodeURIComponent(taskId)}/toggle?enable=${Boolean(enable)}`, {
+        method: 'POST',
+      });
+    }
+
+    async deleteAutomation(taskId) {
+      return await this.request(`/api/automations/tasks/${encodeURIComponent(taskId)}`, {
+        method: 'DELETE',
+      });
+    }
+
+    async triggerDueAutomations() {
+      return await this.request('/api/automations/tasks/run_due', { method: 'POST' });
+    }
+
+    // --- Memory & Knowledge Store (Phase 8) ---
+    async searchMemory(query = '', category = null, limit = 50) {
+      let url = `/api/memory/search?query=${encodeURIComponent(query)}&limit=${limit}`;
+      if (category) url += `&category=${encodeURIComponent(category)}`;
+      return await this.request(url);
+    }
+
+    async storeMemory(category, content, importance = 5) {
+      return await this.request('/api/memory/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, content, importance }),
+      });
+    }
+
+    async updateMemory(memoryId, content, importance = null) {
+      const payload = { content };
+      if (importance !== null) payload.importance = importance;
+      return await this.request(`/api/memory/${encodeURIComponent(memoryId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    }
+
+    async deleteMemory(memoryId) {
+      return await this.request(`/api/memory/${encodeURIComponent(memoryId)}`, {
+        method: 'DELETE',
+      });
+    }
+
+    async getMemoryCategories() {
+      return await this.request('/api/memory/categories');
+    }
+
+    async getMemoryStats() {
+      return await this.request('/api/memory/stats');
+    }
+
+    // --- Connected Apps & Apps Center (Phase 8) ---
+    async getAppsCatalog(query = null, category = null, status = null, capability = null) {
+      const params = new URLSearchParams();
+      if (query) params.set('query', query);
+      if (category) params.set('category', category);
+      if (status) params.set('status', status);
+      if (capability) params.set('capability', capability);
+      const qs = params.toString();
+      return await this.request(`/api/apps/catalog${qs ? '?' + qs : ''}`);
+    }
+
+    async getAppCategories() {
+      return await this.request('/api/apps/categories');
+    }
+
+    async getAppDetails(appId) {
+      return await this.request(`/api/apps/app/${encodeURIComponent(appId)}`);
+    }
+
+    async launchApp(appId) {
+      return await this.request(`/api/apps/launch/${encodeURIComponent(appId)}`, { method: 'POST' });
+    }
+
+    async toggleAppFavorite(appId) {
+      return await this.request(`/api/apps/favorite/${encodeURIComponent(appId)}`, { method: 'POST' });
+    }
+
+    async getRecentApps(limit = 6) {
+      return await this.request(`/api/apps/recent?limit=${encodeURIComponent(limit)}`);
+    }
+
+    // --- Integrations & Connectors (Phase 8) ---
+    async getSettings() {
+      return await this.request('/api/settings');
+    }
+
+    async saveIntegrations(settingsDict, adminPin) {
+      return await this.request('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Jarvis-Admin-Pin': adminPin,
+          'X-Jarvis-Admin-Confirmation': 'privileged-settings-action',
+        },
+        body: JSON.stringify({ settings: settingsDict }),
+      });
+    }
+
     // Allowlisted Metric Extraction with strict truthfulness
     sanitizeTelemetry(rawSystem, rawHealth, rawDev) {
       const formatNumber = (val, decimals = 1) => {
