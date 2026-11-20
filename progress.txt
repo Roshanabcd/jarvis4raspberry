@@ -549,3 +549,25 @@ Learnings:
 - Cooldown timers on local edge models running on CPU must be short (≤5s) and cleanly resettable; lengthy cooldowns cause cascading failures across independent test cases and real-world turns.
 - Multi-turn mock authorization checks require evaluation at every phase boundary (entry, pre-inference, pre-dispatch) to maintain state alignment and prevent unintended tool execution upon permission revocation.
 ==================================================
+
+=== ITERATION: MULTI-AGENT DEVELOPMENT ORCHESTRATOR & COPILOT SYNCHRONIZATION ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Added `CopilotAdapter` (`tools/agents/adapters/copilot_adapter.py`) wrapping `/home/roshan/.local/bin/copilot` (v1.0.112), supporting non-secret auth detection, granular sandboxed tools (`--allow-tool=write`, `--allow-tool=shell(git:*)`, `--add-dir`), and timeout recovery.
+- Updated `tools/agents/models.py` to include `AgentId.COPILOT = "copilot"`.
+- Exported and registered `CopilotAdapter` in `tools/agents/adapters/__init__.py` and `tools/agents/registry.py`.
+- Synchronized `tools/agents/orchestrator.py` priority routing to include `antigravity`, `codex`, and `copilot` in ranking heuristics.
+- Tuned local Ollama adapter CPU budget (`num_predict: 48`, `timeout=90`) in `tools/agents/adapters/ollama_adapter.py` for Raspberry Pi 5 ARM64 stability.
+- Updated futuristic Developer Hub dashboard (`apps/dashboard/futuristic/developer.js`):
+  1. Updated `classMap` promoting `codex` and `copilot` to active `Class B: Headless CLI` agents.
+  2. Updated `agents-task-agent-select` dispatch dropdown to include Google Antigravity (`agy`), OpenAI Codex (ChatGPT Plus), and GitHub Copilot (Copilot Fusion).
+- Authored comprehensive test suite `tests/unit/test_copilot_adapter.py` (5/5 tests passing).
+- Verified `tests/unit/test_copilot_adapter.py`, `tests/unit/test_multi_agent_worktree_orchestrator.py`, `tests/unit/test_hybrid_developer_api.py`, `tests/unit/test_hybrid_jarvis_developer.py`, and `tests/unit/test_phase5_multi_agent_orchestrator.py` (50/50 passing).
+- Verified `tests/unit/test_core_ai_reliability.py` (15/15 passing).
+- Committed to branch `feature/jarvis-ui` at commit `bfb105d`.
+
+Learnings:
+- Running local LLM CPU inference on Raspberry Pi 5 under heavy concurrent pytest execution requires adjusting token prediction limits (`num_predict: 48`) and socket timeouts (90s) to prevent transient timeouts while model weights cold-load into memory.
+- Dynamic agent registry discovery requires both `tools/agents/` (the core diagnostic and self-healing subsystem) and `tools/hybrid-jarvis-developer/` (the multi-agent git worktree orchestrator) to maintain unified ID parity (`antigravity`, `codex`, `copilot`) so dashboard clients receive consistent capability and status metadata across all endpoints.
+==================================================
