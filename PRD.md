@@ -55,13 +55,13 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
   - [ ] App 13: Logs & Diagnostics
   - [ ] App 14: Settings Center
 
-- [ ] **PHASE 7: Interactive Settings Center (Categories A–P)**
-  - [ ] Complete UI & API endpoints for Categories A through P
-  - [ ] Persistent storage in `config/config.yaml` and `.env` with atomic writes & schema validation
+- [x] **PHASE 7: Interactive Settings Center (Categories A–P)**
+  - [x] Complete UI & API endpoints for Categories A through P
+  - [x] Persistent storage in `config/config.yaml` and `.env` with atomic writes & schema validation
 
-- [ ] **PHASE 8: Backend API & Database Hardening**
-  - [ ] Full REST & WebSocket API coverage
-  - [ ] SQLite WAL database optimizations & schema migrations
+- [x] **PHASE 8: Backend API & Database Hardening**
+  - [x] Full REST & WebSocket API coverage
+  - [x] SQLite WAL database optimizations & schema migrations
 
 - [ ] **PHASE 9: Futuristic Responsive Frontend Redesign**
   - [ ] Dark navy & neon cyan aesthetic, responsive grid, zero UI lockups
@@ -125,8 +125,8 @@ Transform JARVIS OS into a robust, high-performance, edge-first AI operating env
 - [ ] **PHASE 12: Automated Test Suite & Regression Testing**
   - [ ] Pytest verification across all units, APIs, and pipelines (target: 100% pass)
 
-- [ ] **PHASE 13: Systemd Service & Auto-Recovery Setup**
-  - [ ] Production systemd daemon configuration, health monitoring
+- [x] **PHASE 13: Systemd Service & Auto-Recovery Setup**
+  - [x] Production systemd daemon configuration, health monitoring (`jarvis-backend.service`, `jarvis-voice.service`, `jarvis-camera.service`)
 
 - [ ] **PHASE 14: Final End-to-End Acceptance Verification**
   - [ ] Verification of Tests A through F

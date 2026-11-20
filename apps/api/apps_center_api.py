@@ -33,7 +33,7 @@ apps_center_router = APIRouter(prefix="/apps", tags=["apps_center"])
 class AppLaunchRequest(BaseModel):
     """Reserved for future launch options; identity is always server-owned."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
 
 class AppSettingsRequest(BaseModel):

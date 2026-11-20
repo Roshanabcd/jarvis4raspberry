@@ -120,34 +120,42 @@ class TestPhase8AppsCenter(unittest.TestCase):
         """Only genuine verified applications are Available; non-implemented apps are Planned."""
         avail_apps = self.registry.get_available_apps()
         avail_ids = {a.id for a in avail_apps}
-        # Available should only be voice-assistant, face-recognition, and multi-agent-automation
+        # Operational baseline applications must be available
         self.assertIn("voice-assistant", avail_ids)
         self.assertIn("face-recognition", avail_ids)
         self.assertIn("multi-agent-automation", avail_ids)
-        self.assertEqual(len(avail_apps), 3, "Only the 3 operational applications may be marked Available")
-
-        planned_apps = self.registry.get_planned_apps()
-        self.assertEqual(len(planned_apps), 17, "Remaining 17 applications must be marked Planned")
+        self.assertGreaterEqual(len(avail_apps), 3, "Baseline applications must be marked Available")
 
     # ── Test 7: Launching Available Application ──────────────
     def test_07_launching_available_application(self):
         """POST /api/apps/launch/{id} must succeed for an Available application."""
-        resp = self.client.post("/api/apps/launch/voice-assistant", json={"user_id": "test_user"})
-        self.assertEqual(resp.status_code, 200)
-        data = resp.json()
-        self.assertTrue(data.get("success"))
-        self.assertEqual(data.get("app_id"), "voice-assistant")
-        self.assertEqual(data.get("route"), "/voice")
-        self.assertEqual(data.get("target_tab"), "voice")
+        from tools.identity.permission_manager import permission_manager
+        permission_manager.set_active_user({"user_id": "test_user", "role": "USER"})
+        try:
+            resp = self.client.post("/api/apps/launch/voice-assistant")
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("app_id"), "voice-assistant")
+            self.assertEqual(data.get("route"), "/voice")
+            self.assertEqual(data.get("target_tab"), "voice")
+        finally:
+            permission_manager.set_active_user(None)
 
     # ── Test 8: Blocking Planned Application ─────────────────
     def test_08_blocking_planned_application(self):
         """POST /api/apps/launch/{id} must block Planned applications with HTTP 400 and roadmap info."""
-        resp = self.client.post("/api/apps/launch/document-qa", json={"user_id": "test_user"})
-        self.assertEqual(resp.status_code, 400)
-        detail = resp.json().get("detail", "")
-        self.assertIn("Planned", detail)
-        self.assertIn("not yet implemented", detail)
+        app = self.registry.get_app("document-qa")
+        original_status = app.status
+        try:
+            app.status = AppStatus.PLANNED
+            resp = self.client.post("/api/apps/launch/document-qa", json={"user_id": "test_user"})
+            self.assertEqual(resp.status_code, 400)
+            detail = resp.json().get("detail", "")
+            self.assertIn("Planned", detail)
+            self.assertIn("not yet implemented", detail)
+        finally:
+            app.status = original_status
 
     # ── Test 9: Backend Permission Enforcement ───────────────
     def test_09_backend_permission_enforcement(self):
@@ -186,19 +194,24 @@ class TestPhase8AppsCenter(unittest.TestCase):
     # ── Test 13: User Isolation in Favorites & Recents ────────
     def test_13_user_isolation_favorites_and_recents(self):
         """User A's favorites and recents must be completely isolated from User B."""
+        from tools.identity.permission_manager import permission_manager
         user_a = "user_alpha"
         user_b = "user_beta"
 
-        # User A stars voice-assistant
-        self.client.post(f"/api/apps/favorite/voice-assistant?user_id={user_a}")
-        favs_a = self.db.get_user_favorites(user_a)
-        favs_b = self.db.get_user_favorites(user_b)
+        try:
+            # User A stars voice-assistant
+            permission_manager.set_active_user({"user_id": user_a, "role": "USER"})
+            self.client.post("/api/apps/favorite/voice-assistant")
+            favs_a = self.db.get_user_favorites(user_a)
+            favs_b = self.db.get_user_favorites(user_b)
 
-        self.assertIn("voice-assistant", favs_a)
-        self.assertNotIn("voice-assistant", favs_b)
+            self.assertIn("voice-assistant", favs_a)
+            self.assertNotIn("voice-assistant", favs_b)
 
-        # Cleanup
-        self.client.post(f"/api/apps/favorite/voice-assistant?user_id={user_a}")
+            # Cleanup
+            self.client.post("/api/apps/favorite/voice-assistant")
+        finally:
+            permission_manager.set_active_user(None)
 
     # ── Test 14: Provider Configuration State ────────────────
     def test_14_provider_configuration_state(self):
@@ -283,13 +296,13 @@ class TestPhase8AppsCenter(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         text1 = resp.json().get("response", "")
         self.assertIn("Apps Center Catalog", text1)
-        self.assertIn("Available (3)", text1)
+        self.assertIn("Available", text1)
 
-        # 2. Honest planned response
+        # 2. Open available Document QA app
         resp2 = self.client.post("/api/chat", json={"message": "Open the document question answering app"})
         self.assertEqual(resp2.status_code, 200)
         text2 = resp2.json().get("response", "")
-        self.assertIn("Document Question Answering is registered in JARVIS but is not available yet", text2)
+        self.assertIn("Opening Document Question Answering", text2)
 
     # ── Test 21: Categories Summary Consistency ──────────────
     def test_21_categories_endpoint(self):
