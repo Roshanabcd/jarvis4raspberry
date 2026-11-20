@@ -24,6 +24,9 @@
       this.isMuted = false;
       this.pollTimer = null;
       this.lastCancelTimeMs = 0;
+      this.requestGeneration = 0;
+      this.activeJobId = null;
+      this.captureRequested = false;
 
       // Web Audio & Visualizer State
       this.audioContext = null;
@@ -44,14 +47,14 @@
       // Subtitles History
       this.currentSubtitles = {
         speaker: 'jarvis',
-        text: 'Voice engine online and ready. Say "jarvis" or click the microphone to speak.',
+        text: 'Checking the existing voice service. No microphone capture has been started by this page.',
         status: 'Standby',
       };
     }
 
     init() {
       this.setupAudioElement();
-      this.setupWebSpeechFallback();
+      // Capture stays with the existing backend/daemon owner.
       this.fetchInitialStatus();
       this.startPolling();
     }
@@ -218,6 +221,15 @@
         try {
           const status = await window.jarvisApi.getVoiceStatus();
           this.voiceStatus = status;
+          if (this.captureRequested) {
+            const wake = await window.jarvisApi.getWakeStatus();
+            this.wakeStatus = wake;
+            if (['LISTENING_SPEECH', 'STREAMING_TRANSCRIPTION', 'SILENCE_COUNTDOWN'].includes(wake.state)) this.setState('listening');
+            else if (['STANDBY_LISTENING', 'FOLLOW_UP_STANDBY', 'MUTED'].includes(wake.state)) {
+              this.captureRequested = false;
+              this.setState(wake.state === 'MUTED' ? 'muted' : 'idle');
+            }
+          }
           this.isMuted = Boolean(status.muted);
           if (this.isMuted && this.state !== 'speaking' && this.state !== 'listening') {
             this.state = 'muted';
@@ -367,109 +379,91 @@
     }
 
     async startListening() {
-      this.ensureAudioContext();
-
-      // If muted, prompt unmute
-      if (this.isMuted) {
-        await this.unmute();
-      }
-
-      // If currently speaking, barge-in first
-      if (this.state === 'speaking') {
-        await this.interrupt();
-      }
-
+      if (this.captureRequested) return;
+      if (this.isMuted) await this.unmute();
+      if (this.isMuted) return;
       this.hideErrorBanner();
-      this.setState('listening');
-      this.updateSubtitles('user', 'Listening... Speak now', 'Listening');
-
-      if (window.jarvisAvatar) {
-        window.jarvisAvatar.setState('listening');
-      }
-
-      // Request browser microphone stream for live waveform
+      const generation = ++this.requestGeneration;
+      this.captureRequested = true;
+      this.setState('processing');
+      this.updateSubtitles('user', 'Requesting the existing microphone owner…', 'Capture requested');
       try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          this.micStream = stream;
-          if (this.audioContext && this.analyser) {
-            this.micSourceNode = this.audioContext.createMediaStreamSource(stream);
-            this.micSourceNode.connect(this.analyser);
-          }
-        }
-      } catch (err) {
-        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-          this.handlePermissionDenied();
+        const result = await window.jarvisApi.pushToTalk();
+        if (generation !== this.requestGeneration) {
+          if (this.isMuted) await window.jarvisApi.muteVoice();
           return;
         }
-        console.warn('Microphone stream access warning:', err);
-      }
-
-      // Trigger Web Speech recognition or push-to-talk backend
-      if (this.speechRecognition) {
-        try {
-          this.isBrowserListening = true;
-          this.speechRecognition.start();
-        } catch (err) {
-          console.warn('Could not start browser speech recognition:', err);
-        }
-      } else if (window.jarvisApi) {
-        // Fallback to backend push-to-talk /api/voice/listen_once
-        this.runBackendListenOnce();
+        if (result?.status !== 'accepted') throw new Error('Capture request was not accepted');
+        this.updateSubtitles('user', 'Capture requested. Listening state will update when the owner confirms it.', 'Waiting for microphone');
+      } catch (_) {
+        if (generation !== this.requestGeneration) return;
+        this.captureRequested = false;
+        this.setState('error');
+        this.updateSubtitles('user', 'Not available: the existing microphone owner could not accept capture. Check Voice service status.', 'Capture unavailable');
       }
     }
 
     async runBackendListenOnce() {
+      const generation = ++this.requestGeneration;
       try {
-        this.updateSubtitles('user', 'Capturing voice audio from microphone...', 'Listening');
-        const res = await window.jarvisApi.listenOnce(4);
-        this.stopMicStream();
-        const text = res ? (res.transcribed || res.text) : null;
-        if (text && text.trim()) {
-          this.updateSubtitles('user', text, 'Transcribed');
-          if (res.response) {
-            this.updateSubtitles('jarvis', res.response, 'Speaking');
-            if (res.audio_url) {
-              this.playAudioUrl(res.audio_url, res.response);
-            } else {
-              const synthRes = await window.jarvisApi.synthesizeSpeech(res.response, {
-                speed: this.tuning.speed,
-                numSteps: this.tuning.num_steps,
-              });
-              if (synthRes && synthRes.audio_url) {
-                this.playAudioUrl(synthRes.audio_url, res.response);
-              } else {
-                this.setState(this.isMuted ? 'muted' : 'idle');
-                if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
-              }
-            }
-          } else {
-            await this.handleUserVoiceInput(text);
-          }
-        } else if (res && res.status === 'error' && res.message && res.message.includes('daemon owns the microphone')) {
-          this.updateSubtitles('user', 'Voice daemon is active. Say "Hey Jarvis" or speak command.', 'Daemon Active');
-          this.setState(this.isMuted ? 'muted' : 'idle');
-          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
-        } else {
-          this.updateSubtitles('user', res?.message || 'No speech detected or transcription idle', 'Idle');
-          this.setState(this.isMuted ? 'muted' : 'idle');
-          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
+        const result = await window.jarvisApi.listenOnce(4);
+        if (generation !== this.requestGeneration) {
+          if (result?.job_id) await window.jarvisApi.cancelVoiceJob(result.job_id);
+          return;
         }
-      } catch (err) {
-        console.warn('Backend listen_once error:', err);
-        this.stopMicStream();
-        const msg = err.message || 'error';
-        if (msg.includes('daemon owns the microphone')) {
-          this.updateSubtitles('user', 'Voice daemon is active. Say "Hey Jarvis" or speak command.', 'Daemon Active');
-        } else {
-          this.updateSubtitles('user', 'Voice transcription unavailable: ' + msg, 'STT Unavailable');
+        if (result?.status !== 'ok' || !result.response) {
+          this.setState(this.isMuted ? 'muted' : 'idle');
+          this.updateSubtitles('user', result?.message || 'No reply was confirmed.', 'Capture unavailable');
+          return;
         }
-        this.setState(this.isMuted ? 'muted' : 'idle');
-        if (window.jarvisAvatar) window.jarvisAvatar.setState('concerned');
+        await this.followSystemReply(result, generation);
+      } catch (_) {
+        if (generation !== this.requestGeneration) return;
+        this.setState('error');
+        this.updateSubtitles('user', 'Capture outcome could not be confirmed. The command was not retried.', 'Unavailable');
+      }
+    }
+
+    async followSystemReply(result, generation) {
+      if (generation !== this.requestGeneration || this.isMuted) {
+        if (result?.job_id) await window.jarvisApi.cancelVoiceJob(result.job_id);
+        return;
+      }
+      if (result?.status !== 'ok' || typeof result.response !== 'string' || !result.response.trim()) {
+        throw new Error('No confirmed reply');
+      }
+      // These endpoints already schedule physical playback. Never synthesize or
+      // play the returned audio URL a second time in this browser.
+      this.updateSubtitles('jarvis', result.response, result.job_id ? 'Speech queued' : 'Speech unavailable');
+      if (!result.job_id) { this.setState('error'); return; }
+      this.activeJobId = result.job_id;
+      const deadline = performance.now() + 120000;
+      while (generation === this.requestGeneration && !this.isMuted) {
+        const data = await window.jarvisApi.getVoiceJob(result.job_id);
+        if (generation !== this.requestGeneration) return;
+        const status = data?.job?.status;
+        if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+          this.activeJobId = null;
+          this.setState(status === 'failed' ? 'error' : 'idle');
+          this.updateSubtitles('jarvis', result.response, status === 'completed' ? 'System playback completed' : status === 'cancelled' ? 'Speech cancelled' : 'Speech delivery failed');
+          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
+          return;
+        }
+        if (!['queued', 'synthesizing', 'playing'].includes(status)) throw new Error('Unknown delivery status');
+        this.setState(status === 'playing' ? 'speaking' : 'processing');
+        this.updateSubtitles('jarvis', result.response, status === 'playing' ? 'System speaker playing · audio waveform unavailable' : 'Preparing speech');
+        if (performance.now() >= deadline) throw new Error('Delivery status timed out');
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
     stopListening() {
+      this.requestGeneration++;
+      if (this.captureRequested) {
+        this.captureRequested = false;
+        this.isMuted = true;
+        window.jarvisApi?.muteVoice().catch(() => this.updateSubtitles('user', 'Microphone stop could not be confirmed.', 'Check voice service'));
+      }
       this.stopBrowserListening();
       this.stopMicStream();
       this.setState(this.isMuted ? 'muted' : 'idle');
@@ -513,41 +507,18 @@
 
     // --- Command Handling & AI Speech Synthesis ---
     async handleUserVoiceInput(text) {
-      if (!text || !text.trim()) return;
+      if (!text?.trim() || this.isMuted) return;
+      const generation = ++this.requestGeneration;
       this.setState('processing');
-      this.updateSubtitles('jarvis', 'Thinking...', 'Processing');
-      if (window.jarvisAvatar) {
-        window.jarvisAvatar.setState('thinking');
-      }
-
+      this.updateSubtitles('jarvis', 'Thinking…', 'Processing');
       try {
-        if (!window.jarvisApi) throw new Error('API client not available');
-
-        // Execute inference through AI brain and get command reply
-        const cmdRes = await window.jarvisApi.sendVoiceCommand(text);
-        const replyText = cmdRes?.response || cmdRes?.text || 'Command processed.';
-        this.updateSubtitles('jarvis', replyText, 'Playing');
-
-        let audioUrl = cmdRes?.audio_url;
-        if (!audioUrl) {
-          const synthRes = await window.jarvisApi.synthesizeSpeech(replyText, {
-            speed: this.tuning.speed,
-            numSteps: this.tuning.num_steps,
-          });
-          if (synthRes && synthRes.success && synthRes.audio_url) {
-            audioUrl = synthRes.audio_url;
-          }
-        }
-
-        if (audioUrl) {
-          this.playAudioUrl(audioUrl, replyText);
-        } else {
-          this.setState(this.isMuted ? 'muted' : 'idle');
-          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
-        }
-      } catch (err) {
-        console.warn('Voice command processing error:', err);
-        this.handleTtsFailure(err.message, text);
+        const result = await window.jarvisApi.sendVoiceCommand(text);
+        await this.followSystemReply(result, generation);
+      } catch (_) {
+        if (generation !== this.requestGeneration) return;
+        this.setState('error');
+        this.updateSubtitles('jarvis', 'Reply or delivery could not be confirmed. The task was not repeated.', 'Outcome unconfirmed');
+        if (window.jarvisAvatar) window.jarvisAvatar.setState('concerned');
       }
     }
 
@@ -561,7 +532,7 @@
       });
 
       // Browser speech synthesis fallback if present
-      if (window.speechSynthesis && fallbackText) {
+      if (!this.isMuted && window.speechSynthesis && fallbackText) {
         try {
           const utterance = new SpeechSynthesisUtterance(fallbackText);
           utterance.rate = this.tuning.speed || 1.0;
@@ -583,6 +554,7 @@
     }
 
     playAudioUrl(url, speechText) {
+      if (this.isMuted) return;
       this.ensureAudioContext();
       if (!this.audioElement) this.setupAudioElement();
 
@@ -616,6 +588,11 @@
 
     // --- Barge-In / Speech Interruption ---
     async interrupt() {
+      this.requestGeneration++;
+      if (this.activeJobId) {
+        window.jarvisApi?.cancelVoiceJob(this.activeJobId).catch(() => {});
+        this.activeJobId = null;
+      }
       const t0 = performance.now();
 
       // 1. Halt HTML5 Audio playback immediately
@@ -665,6 +642,8 @@
 
     async mute() {
       this.isMuted = true;
+      this.captureRequested = false;
+      await this.interrupt();
       if (this.state === 'listening') {
         this.stopListening();
       }
@@ -680,11 +659,11 @@
     }
 
     async unmute() {
-      this.isMuted = false;
-      this.setState('idle');
       if (window.jarvisApi) {
         try {
           await window.jarvisApi.unmuteVoice();
+          this.isMuted = false;
+          this.setState('idle');
         } catch (err) {
           console.warn('Backend unmute error:', err);
         }

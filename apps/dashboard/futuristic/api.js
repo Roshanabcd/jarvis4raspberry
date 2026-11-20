@@ -244,7 +244,20 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ duration_secs: durationSecs }),
+        signal: AbortSignal.timeout(90000),
       });
+    }
+
+    async pushToTalk() {
+      return this.request('/api/voice/push-to-talk', {method:'POST'});
+    }
+
+    async getVoiceJob(jobId) {
+      return this.request('/api/voice/jobs/' + encodeURIComponent(jobId));
+    }
+
+    async cancelVoiceJob(jobId) {
+      return this.request('/api/voice/jobs/' + encodeURIComponent(jobId) + '/cancel', {method:'POST'});
     }
 
     async sendVoiceCommand(text) {
@@ -252,6 +265,7 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
+        signal: AbortSignal.timeout(90000),
       });
     }
 

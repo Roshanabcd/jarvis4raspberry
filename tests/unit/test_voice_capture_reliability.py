@@ -206,7 +206,7 @@ def test_accumulated_speech_used_when_fragment_transcription_empty(monkeypatch, 
     monkeypatch.setattr(engine, '_calculate_audio_rms', mock_rms)
 
     def fake_transcribe(wav_path):
-        if 'accumulated_command.wav' in wav_path:
+        if __import__('pathlib').Path(wav_path).name.startswith('accumulated_command_'):
             return 'turn on the lights'
         return ''  # isolated fragments return empty
 
@@ -221,4 +221,71 @@ def test_accumulated_speech_used_when_fragment_transcription_empty(monkeypatch, 
     engine._run_loop()
 
     assert executed_cmds == ['turn on the lights']
+    assert not list(tmp_path.glob('accumulated_command_*.wav'))
 
+
+
+def test_stale_recording_never_replaces_current_one_word_command(monkeypatch, tmp_path, caplog):
+    engine = WakeWordEngine(temp_dir=str(tmp_path))
+    engine._is_running = True
+    engine.set_state(WakeState.LISTENING_SPEECH)
+    engine._current_transcript = 'private-stop-sentinel'
+    engine.silence_timeout_s = 0
+    stale = tmp_path / 'accumulated_command.wav'
+    stale.write_bytes(b'old recording' * 200)
+    monkeypatch.setattr(engine, '_check_daemon_commands', lambda: None)
+    monkeypatch.setattr(engine, '_is_tts_playing', lambda: False)
+    monkeypatch.setattr(engine, '_record_audio_chunk', lambda *a, **kw: True)
+    monkeypatch.setattr(engine, '_calculate_audio_rms', lambda _: 0)
+    recognize = MagicMock(return_value='old command must never execute')
+    monkeypatch.setattr(engine, '_transcribe', recognize)
+    commands = []
+    def execute(text):
+        commands.append(text)
+        engine.stop()
+    monkeypatch.setattr(engine, '_execute_command_and_respond', execute)
+    with caplog.at_level('DEBUG'):
+        engine._run_loop()
+    assert commands == ['private-stop-sentinel']
+    recognize.assert_not_called()
+    assert 'private-stop-sentinel' not in caplog.text
+    assert stale.exists()  # Existing user recordings were not removed.
+
+
+def test_push_to_talk_dispatches_only_to_existing_owner(monkeypatch):
+    from apps.api import voice_api as api
+    from fastapi import HTTPException
+    sender = MagicMock()
+    monkeypatch.setattr(api, '_send_daemon_command_or_raise', sender)
+    monkeypatch.setattr(api, '_daemon_snapshot', lambda: (True, {}))
+    assert api.push_to_talk() == {'status': 'accepted', 'target': 'daemon'}
+    sender.assert_called_once_with('push_to_talk')
+    from apps.voice.wake_word_engine import wake_word_engine
+    monkeypatch.setattr(api, '_daemon_snapshot', lambda: (False, None))
+    monkeypatch.setattr(wake_word_engine, '_is_running', False)
+    trigger = MagicMock()
+    monkeypatch.setattr(wake_word_engine, 'trigger_push_to_talk', trigger)
+    with pytest.raises(HTTPException) as caught:
+        api.push_to_talk()
+    assert caught.value.status_code == 409
+    trigger.assert_not_called()
+    monkeypatch.setattr(wake_word_engine, '_is_running', True)
+    assert api.push_to_talk()['target'] == 'backend'
+    trigger.assert_called_once()
+
+
+def test_push_to_talk_requires_local_dashboard_without_socket_or_capture(monkeypatch):
+    from apps.api import voice_api as api
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    sender = MagicMock()
+    monkeypatch.setattr(api, '_send_daemon_command_or_raise', sender)
+    monkeypatch.setattr(api, '_daemon_snapshot', lambda: (True, {}))
+    app = FastAPI()
+    app.include_router(api.voice_router, prefix='/api')
+    with TestClient(app, base_url='http://127.0.0.1', client=('127.0.0.1', 1000)) as client:
+        assert client.post('/api/voice/push-to-talk').status_code == 403
+        assert client.post('/api/voice/push-to-talk', headers={'X-Jarvis-Client':'dashboard', 'Origin':'https://untrusted.invalid'}).status_code == 403
+        sender.assert_not_called()
+        assert client.post('/api/voice/push-to-talk', headers={'X-Jarvis-Client':'dashboard'}).json()['status'] == 'accepted'
+    sender.assert_called_once()

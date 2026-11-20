@@ -10,13 +10,13 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 | 2 | Design system and shell | verified | 4fc6f59 | docs/jarvis-ui/evidence/phase-2/ |
 | 3 | Data layer and dashboard | verified | e596929 | docs/jarvis-ui/evidence/phase-3/ |
 | 4 | Conversation panel | verified | 244ebcf | docs/jarvis-ui/evidence/phase-4/ |
-| 5 | Avatar | verified | e090b0d | docs/jarvis-ui/evidence/phase-5/ |
-| 6 | Voice | verified | eef221f | docs/jarvis-ui/evidence/phase-6/ |
+| 5 | Avatar | blocked | e090b0d | docs/jarvis-ui/evidence/phase-5/ |
+| 6 | Voice | in-progress | eef221f | docs/jarvis-ui/evidence/phase-6/ |
 | 7 | Agents and Developer Hub | verified | d79a22f | docs/jarvis-ui/evidence/phase-7/ |
 | 8 | Tasks, memory, calendar, integrations | verified | f5ad7eb | docs/jarvis-ui/evidence/phase-8/ |
 | 9 | Devices and robot | verified | 6691e05 | docs/jarvis-ui/evidence/phase-9/ |
 | 10 | Responsive, accessibility, performance | verified | e53afaa | docs/jarvis-ui/evidence/phase-10/ |
-| 11 | Full verification and delivery | verified | 07e92f7 | docs/jarvis-ui/evidence/phase-11/ |
+| 11 | Full verification and delivery | blocked | 07e92f7 | docs/jarvis-ui/evidence/phase-11/ |
 
 ## Phases
 
@@ -177,3 +177,23 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 9 Devices and robot. Built `robot_devices.js` implementing `#devices`, `#sensors`, and `#robot` with safe disarmed default, admin PIN protected arming, immediate emergency stop, simulation labeling, and real-time safety audit log. Verified 7/7 Playwright tests in `tests/browser/phase9_devices_robot.cjs` and full regressions. Phase 9 verified.
 - 2026-11-20: Executed Phase 10 Responsive, accessibility, performance. Implemented 4 responsive layouts (desktop, laptop, tablet, mobile voice-first), low-power mode, reduced-motion mode, keyboard focus rings, touch targets >= 44px. Verified 0 critical and 0 serious Axe violations across 12 destinations. Total bundle size 80.9 KB gzip (< 250 KB limit). Verified 10/10 tests in `tests/browser/phase10_responsive_accessibility.cjs`. Phase 10 verified.
 - 2026-11-20: Executed Phase 11 Full verification and delivery. Ran full test sweep (170/170 tests passing), 18-route console error sweep (0 errors), offline/reconnect transitions, bundle secret scan (0 secrets), dependency license audit, and authored comprehensive OPERATIONS.md and DELIVERY.md covering all 12 SPEC Section 21 items. Phase 11 verified.
+
+## Approved corrective work — 20 November 2026
+- User approved correcting the plan, deferring unavailable real 3D avatars, and repairing microphone ownership, duplicate playback and transcript privacy. This explicitly defers blocked Phase 5 while Phase 6 is repaired; the older verified labels are not current acceptance.
+- Concurrent edits/commits were observed in the main checkout. Managed worktree creation failed twice with directory reservation errors. Reused the clean existing `jarvis-os-phase05-b` worktree detached from `feature/jarvis-ui` at `5a65caa`; its original branch remains intact. Copied five affected source snapshots, preserving their uncommitted edits. No shared checkout files were changed.
+- Review found browser capture competing with the daemon, command replies synthesized again after server queueing, stale accumulated WAV reuse, and raw transcript logging. The pending repair uses existing-owner push-to-talk, job-status polling, one playback owner, bounded per-turn private temporary audio and sanitized logs.
+- No dependency added. No live API, network, physical-device test or service restart performed for this corrective work. Full phase gate and integration remain pending.
+
+- Corrective verification commands: `node --test tests/frontend/futuristic-voice-ownership.test.cjs` (7 passed); project Python with isolated `PYTHONPATH` running capture/daemon/job-delivery tests (74 passed); `node --test tests/frontend/*.test.cjs` (72 passed); two JS syntax checks and `git diff --check` passed. Outputs saved under `evidence/phase-6/corrective/`.
+- Stop Condition 5: asked for approval to run the localhost-only browser gate with synthetic audio/mocked providers. No cloud or hardware checks proposed. Awaiting response; Phase 6 remains in-progress and Phase 11 blocked.
+
+### Phase 6 corrective handoff
+- Worktree: `/home/roshan/.gemini/antigravity/scratch/jarvis-os-phase05-b`; original voice branch preserved.
+- Main checkout remains untouched and may still have other active writers.
+- New `/api/voice/push-to-talk` delegates to an existing owner and rejects absent ownership.
+- Frontend follows `/api/voice/jobs/{id}`; it does not synthesize server replies again.
+- Interrupted or muted requests cannot start a late reply; no automatic task replay.
+- Bounded private per-turn accumulated audio replaces stale shared fallback files.
+- Evidence: 74 Python and 72 frontend regressions passed; no hardware verification.
+- Next: approved localhost browser gate, then conflict-aware integration into `feature/jarvis-ui`.
+- Keep Phase 5 blocked until real 3D assets/renderer meet its gate; do not claim full delivery.

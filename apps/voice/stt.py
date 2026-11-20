@@ -57,8 +57,10 @@ class SpeechToText:
 
     def _ensure_model(self) -> None:
         """Attempt to load the OpenAI Whisper model if available."""
-        if self.simulation_mode or self._model_load_attempted:
+        if self.simulation_mode:
             logger.info("Simulation mode active: Whisper model loading skipped.")
+            return
+        if self._model_load_attempted:
             return
 
         self._model_load_attempted = True
@@ -109,7 +111,7 @@ class SpeechToText:
         self.language = "en-US"
         return False
 
-    def transcribe(self, audio_file_path: str) -> str:
+    def transcribe(self, audio_file_path: str, fallback_to_whisper: bool = True) -> str:
         """Transcribe an audio file into text.
 
         Uses speech_recognition (Google Web Speech API) as primary fast engine,
@@ -117,6 +119,8 @@ class SpeechToText:
 
         Args:
             audio_file_path: Absolute or relative path to the audio file.
+            fallback_to_whisper: Whether to fall back to local Whisper model when
+                cloud STT reports unintelligible speech or silence.
 
         Returns:
             str: Transcribed text or simulated transcription.
@@ -188,6 +192,9 @@ class SpeechToText:
                     return text.strip()
             except sr.UnknownValueError:
                 self.last_status = "unintelligible"
+                if not fallback_to_whisper:
+                    logger.debug("Google Speech Recognition returned unintelligible; fast mode skipping Whisper.")
+                    return ""
                 logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence); attempting local Whisper fallback.")
             except sr.RequestError as req_err:
                 logger.warning("Google Speech Recognition service request failed: %s", req_err)
@@ -196,6 +203,9 @@ class SpeechToText:
 
         # 2. Local Whisper fallback. It is initialized only when it is needed,
         # not while FastAPI is importing the voice routes.
+        if not fallback_to_whisper and sr is not None:
+            return ""
+
         self._ensure_model()
         if self.model is not None:
             try:

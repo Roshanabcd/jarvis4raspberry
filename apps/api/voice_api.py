@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from apps.voice.service import voice_service
 from apps.voice.remote_control_policy import require_external_voice_control
+from apps.api.active_desktop_api import require_local_dashboard
 
 logger = logging.getLogger("JARVIS.API.Voice")
 voice_router = APIRouter(prefix="/voice", tags=["voice"])
@@ -197,6 +198,20 @@ def listen_once(req: ListenOnceRequest = ListenOnceRequest()):
     """Push-to-talk: capture audio for N seconds from ReSpeaker Lite, transcribe and process."""
     result = voice_service.listen_once(duration_secs=req.duration_secs or 4)
     return result
+
+
+@voice_router.post("/push-to-talk", dependencies=[Depends(require_local_dashboard)])
+def push_to_talk():
+    """Request capture from an existing owner, never create another recorder."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("push_to_talk")
+        return {"status": "accepted", "target": "daemon"}
+    from apps.voice.wake_word_engine import wake_word_engine
+    if not wake_word_engine._is_running:
+        raise HTTPException(409, "Not available: no active microphone owner")
+    wake_word_engine.trigger_push_to_talk()
+    return {"status": "accepted", "target": "backend"}
 
 
 @voice_router.get("/jobs")

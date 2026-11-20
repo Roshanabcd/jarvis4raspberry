@@ -16,6 +16,7 @@ import struct
 import subprocess
 import sys
 import threading
+import tempfile
 import time
 import wave
 from enum import Enum
@@ -103,10 +104,10 @@ class WakeWordEngine:
         os.makedirs(self.temp_dir, exist_ok=True)
 
         # Dynamic / Adaptive noise floor parameters
-        self.ambient_noise_floor: float = 40.0
+        self.ambient_noise_floor: float = float(v_cfg.get("ambient_noise_floor", 40.0))
         self.adaptive_threshold: float = float(v_cfg.get("energy_threshold", energy_threshold))
         self.min_energy_threshold: float = float(v_cfg.get("min_energy_threshold", 90.0))
-        self.max_energy_threshold: float = float(v_cfg.get("max_energy_threshold", 350.0))
+        self.max_energy_threshold: float = float(v_cfg.get("max_energy_threshold", 5000.0))
         self.wake_word_enabled: bool = True
         self._prev_standby_frames: Optional[bytes] = None
         self._device_consecutive_errors: int = 0
@@ -310,14 +311,15 @@ class WakeWordEngine:
         with self._state_lock:
             lvl = level.lower().strip()
             if lvl == "high":
-                self.min_energy_threshold = 25.0
-                self.adaptive_threshold = max(25.0, self.ambient_noise_floor * 1.5)
+                self.min_energy_threshold = 100.0
+                self.adaptive_threshold = max(100.0, self.ambient_noise_floor * 1.4)
             elif lvl == "low":
-                self.min_energy_threshold = 70.0
-                self.adaptive_threshold = max(70.0, self.ambient_noise_floor * 2.5)
+                self.min_energy_threshold = 300.0
+                self.adaptive_threshold = max(300.0, self.ambient_noise_floor * 2.5)
             else:  # medium / default
-                self.min_energy_threshold = 35.0
-                self.adaptive_threshold = max(35.0, self.ambient_noise_floor * 1.8)
+                self.min_energy_threshold = 150.0
+                self.adaptive_threshold = max(150.0, self.ambient_noise_floor * 1.8)
+            self.adaptive_threshold = min(self.adaptive_threshold, self.max_energy_threshold)
             logger.info("VAD sensitivity configured to %s (threshold: %.1f)", lvl, self.adaptive_threshold)
 
     def barge_in(self) -> None:
@@ -441,11 +443,14 @@ class WakeWordEngine:
                 proc.wait()
             return False
 
-    def _transcribe(self, wav_path: str) -> str:
+    def _transcribe(self, wav_path: str, fallback_to_whisper: Optional[bool] = None) -> str:
         """Transcribe an audio chunk using real speech recognition without mock data."""
         try:
             if self.stt:
-                text = self.stt.transcribe(wav_path)
+                if fallback_to_whisper is None:
+                    # In standby listening, skip slow CPU Whisper if cloud STT reports unintelligible speech
+                    fallback_to_whisper = (self.state != WakeState.STANDBY_LISTENING)
+                text = self.stt.transcribe(wav_path, fallback_to_whisper=fallback_to_whisper)
                 return text.strip() if text else ""
             return ""
         except Exception as e:
@@ -508,13 +513,16 @@ class WakeWordEngine:
         except Exception as exc:
             logger.debug("Error checking daemon commands: %s", exc)
 
-    def _update_adaptive_threshold(self, rms: float) -> None:
+    def _update_adaptive_threshold(self, rms: float, is_speech: bool = False) -> None:
         """Smoothly calibrate noise floor and compute dynamic energy threshold."""
-        if rms < self.adaptive_threshold:
-            # Smoothly update ambient noise floor
-            self.ambient_noise_floor = (self.ambient_noise_floor * 0.85) + (rms * 0.15)
-            # Threshold is at least 2.0x noise floor, clamped between min and max
-            computed = max(self.ambient_noise_floor * 2.0, self.min_energy_threshold)
+        if not is_speech and rms > 0:
+            # Smoothly update ambient noise floor towards non-speech energy level
+            if self.ambient_noise_floor <= 0:
+                self.ambient_noise_floor = rms
+            else:
+                self.ambient_noise_floor = (self.ambient_noise_floor * 0.85) + (rms * 0.15)
+            # Speech trigger threshold is at least 1.8x ambient noise floor, clamped between min and max
+            computed = max(self.ambient_noise_floor * 1.8, self.min_energy_threshold)
             self.adaptive_threshold = min(computed, self.max_energy_threshold)
 
     def _run_loop(self) -> None:
@@ -553,11 +561,11 @@ class WakeWordEngine:
                 # 2. Check energy against adaptive threshold
                 rms = self._calculate_audio_rms(standby_chunk)
                 if rms > self.adaptive_threshold:
-                    # Potential speech detected, transcribe
+                    # Potential speech detected, transcribe with fast standby path
                     text = self._transcribe(standby_chunk)
                     matched = False
                     if text:
-                        logger.debug("Speech detected in standby (RMS: %.1f, threshold: %.1f): %s", rms, self.adaptive_threshold, text)
+                        logger.debug("Speech detected in standby (RMS: %.1f, threshold: %.1f)", rms, self.adaptive_threshold)
                         if self._matches_wake_phrase(text):
                             logger.info(">>> WAKE PHRASE DETECTED! <<<")
                             self._current_transcript = self._command_after_wake_phrase(text)
@@ -586,15 +594,21 @@ class WakeWordEngine:
                         except Exception as ex:
                             logger.debug("Error checking rolling wake chunk: %s", ex)
 
-                    # Save current frames for possible boundary overlap
-                    try:
-                        with wave.open(standby_chunk, "rb") as wf:
-                            self._prev_standby_frames = wf.readframes(wf.getnframes())
-                    except Exception:
+                    if not matched:
+                        # Non-speech / ambient noise chunk (or speech not matching wake phrase)
+                        # Adapt noise floor so engine does not get stuck in a false-trigger loop!
                         self._prev_standby_frames = None
+                        self._update_adaptive_threshold(rms, is_speech=False)
+                    else:
+                        # Save current frames for possible boundary overlap
+                        try:
+                            with wave.open(standby_chunk, "rb") as wf:
+                                self._prev_standby_frames = wf.readframes(wf.getnframes())
+                        except Exception:
+                            self._prev_standby_frames = None
                 else:
                     self._prev_standby_frames = None
-                    self._update_adaptive_threshold(rms)
+                    self._update_adaptive_threshold(rms, is_speech=False)
 
                 self._stop_event.wait(0.05)
 
@@ -613,12 +627,12 @@ class WakeWordEngine:
                     if rms > self.adaptive_threshold:
                         text = self._transcribe(standby_chunk)
                         if text and len(text.split()) >= 1:
-                            logger.info("Direct follow-up speech detected")
+                            logger.debug("Direct follow-up speech detected")
                             self._current_transcript = text
                             self.set_state(WakeState.LISTENING_SPEECH)
                             continue
                     else:
-                        self._update_adaptive_threshold(rms)
+                        self._update_adaptive_threshold(rms, is_speech=False)
                 self._stop_event.wait(0.05)
 
             elif curr == WakeState.WAKE_DETECTED:
@@ -640,12 +654,12 @@ class WakeWordEngine:
                 # Capture rolling speech chunks until 3.0s continuous silence
                 cmd_parts: List[str] = []
                 accumulated_frames: List[bytes] = []
+                accumulated_bytes = 0
                 audio_params = None
                 if self._current_transcript:
                     cmd_parts.append(self._current_transcript)
 
                 speech_chunk = os.path.join(self.temp_dir, "speech_chunk.wav")
-                accumulated_cmd_file = os.path.join(self.temp_dir, "accumulated_command.wav")
                 self._last_speech_time = time.time()
                 has_heard_speech = bool(cmd_parts)
 
@@ -671,6 +685,12 @@ class WakeWordEngine:
                             audio_params = wf.getparams()
                             frames = wf.readframes(wf.getnframes())
                             if rms > self.adaptive_threshold or has_heard_speech:
+                                accumulated_bytes += len(frames)
+                                if accumulated_bytes > 1_920_000:
+                                    self._current_transcript = ""
+                                    self._last_error = "Voice request exceeded the capture limit; no command was submitted."
+                                    self.set_state(WakeState.STANDBY_LISTENING)
+                                    break
                                 accumulated_frames.append(frames)
                     except Exception as ex:
                         logger.debug("Error reading speech chunk frames: %s", ex)
@@ -687,7 +707,7 @@ class WakeWordEngine:
                         if text_chunk:
                             cmd_parts.append(text_chunk)
                             self._current_transcript = " ".join(cmd_parts)
-                            logger.debug("Speech chunk transcribed: %s", text_chunk)
+                            logger.debug("Speech chunk transcribed")
 
                         self.set_state(WakeState.LISTENING_SPEECH)
                     else:
@@ -698,13 +718,6 @@ class WakeWordEngine:
                             logger.info("Silence countdown: %.1fs / %.1fs", elapsed_silence, self.silence_timeout_s)
                             if elapsed_silence >= self.silence_timeout_s:
                                 logger.info("3.0s continuous silence reached! Finalizing command.")
-                                if accumulated_frames and audio_params:
-                                    try:
-                                        with wave.open(accumulated_cmd_file, "wb") as wf:
-                                            wf.setparams(audio_params)
-                                            wf.writeframes(b"".join(accumulated_frames))
-                                    except Exception as ex:
-                                        logger.debug("Error writing accumulated speech: %s", ex)
                                 self.set_state(WakeState.COMMAND_SUBMITTED)
                                 break
                         elif elapsed_silence >= (self.silence_timeout_s * 2):
@@ -715,22 +728,24 @@ class WakeWordEngine:
 
                 if self.state == WakeState.COMMAND_SUBMITTED:
                     final_cmd = self._current_transcript.strip()
-                    # If chunk-by-chunk transcription missed the command, transcribe the whole accumulated audio file
-                    accumulated_cmd_file = os.path.join(self.temp_dir, "accumulated_command.wav")
-                    if (not final_cmd or len(final_cmd.split()) <= 1) and os.path.isfile(accumulated_cmd_file):
+                    # Use only this turn's audio; old recordings can never supply
+                    # a command after a capture failure or interruption.
+                    if not final_cmd and accumulated_frames and audio_params:
                         try:
-                            if os.path.getsize(accumulated_cmd_file) > 1000:
-                                logger.info("Transcribing full accumulated speech utterance (%s)...", accumulated_cmd_file)
-                                full_transcript = self._transcribe(accumulated_cmd_file)
+                            with tempfile.NamedTemporaryFile(prefix="accumulated_command_", suffix=".wav", dir=self.temp_dir) as captured:
+                                with wave.open(captured.name, "wb") as wf:
+                                    wf.setparams(audio_params)
+                                    wf.writeframes(b"".join(accumulated_frames))
+                                full_transcript = self._transcribe(captured.name)
                                 if full_transcript and full_transcript.strip():
                                     final_cmd = full_transcript.strip()
                                     self._current_transcript = final_cmd
                         except Exception as e:
-                            logger.debug("Error transcribing accumulated utterance: %s", e)
+                            logger.debug("Accumulated transcription unavailable (%s)", type(e).__name__)
 
                     self._last_command = final_cmd
                     if final_cmd:
-                        logger.info("Submitting recognized voice command: %s", final_cmd)
+                        logger.info("Submitting recognized voice command")
                         self.set_state(WakeState.PROCESSING_AGENT)
                         self._execute_command_and_respond(final_cmd)
                     else:
