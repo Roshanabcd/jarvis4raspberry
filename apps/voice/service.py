@@ -276,8 +276,17 @@ class VoiceService:
             return {"status": "error", "message": "Microphone is muted"}
 
         from apps.voice.wake_word_engine import is_voice_service_daemon_running
-        if is_voice_service_daemon_running():
-            return {"status": "error", "message": "The dedicated voice daemon owns the microphone. Use its wake word; a second capture was not started."}
+        daemon_active = False
+        try:
+            daemon_active = is_voice_service_daemon_running()
+        except Exception:
+            daemon_active = False
+
+        if daemon_active:
+            return {
+                "status": "error",
+                "message": "The dedicated voice daemon owns the microphone; no second capture started.",
+            }
 
         was_running = False
         try:
@@ -462,14 +471,18 @@ class VoiceService:
         return response
 
     def speak_response(self, response: str, *, broadcast: bool = True) -> Dict[str, Any]:
-        """Queue a reply separately from command inference."""
+        """Synthesize and stage a reply for browser and system delivery."""
         self._last_staged = {}
         try:
-            job = self.enqueue_response(response, broadcast=broadcast)
-            current = self._job_manager.get_job(job.job_id) or job
-            self._last_staged = {"status": current.status, "job_id": job.job_id,
-                                 "audio_id": current.audio_id, "audio_url": current.audio_url,
-                                 "provider": current.provider, "error": current.error}
+            from apps.voice.speech_manager import speech_manager
+            staged = speech_manager.synthesize_and_stage(response)
+            self._last_staged = staged or {}
+            if broadcast:
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(role="assistant", text=response)
+                except Exception:
+                    pass
             return dict(self._last_staged)
         except Exception as exc:
             logger.error("Voice output error: %s", exc)

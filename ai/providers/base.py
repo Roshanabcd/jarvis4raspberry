@@ -78,6 +78,11 @@ JARVIS_TOOLS: List[Dict] = [
         "parameters": {"type": "object", "properties": {}}
     },
     {
+        "name": "screen_capture",
+        "description": "Capture the current desktop screen or window and analyze its visual content, code, or displayed error messages.",
+        "parameters": {"type": "object", "properties": {}}
+    },
+    {
         "name": "memory_store",
         "description": "Store a fact or piece of information in long-term memory.",
         "parameters": {

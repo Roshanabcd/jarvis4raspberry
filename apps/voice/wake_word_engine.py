@@ -509,6 +509,12 @@ class WakeWordEngine:
             elif cmd == "push_to_talk":
                 logger.info("Executing cross-process push_to_talk command.")
                 self.trigger_push_to_talk()
+            elif cmd == "wake_enable":
+                logger.info("Executing cross-process wake_enable command.")
+                self.set_wake_word_enabled(True)
+            elif cmd == "wake_disable":
+                logger.info("Executing cross-process wake_disable command.")
+                self.set_wake_word_enabled(False)
         except Exception as exc:
             logger.debug("Error checking daemon commands: %s", exc)
 

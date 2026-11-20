@@ -15,13 +15,15 @@ voice:
   num_steps: 32
   cloning_enabled: true
   remote_voice_enabled: false
-  cloud_tts_enabled: false
+  cloud_tts_enabled: true
   colab_autorun: false
   omnivoice_monitor_enabled: false
   colab_manual_control_enabled: false
   simulation_mode: false
   routing_policy: both
-  fallback_voice: en-GB-RyanNeural
+  fallback_voice: en-US-AriaNeural
+  neural_voice: en-US-AriaNeural
+  character: aria
   auto_speak: true
   silence_threshold_s: 3.0
   energy_threshold: 120.0

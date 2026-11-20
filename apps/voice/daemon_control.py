@@ -15,7 +15,7 @@ from typing import Optional
 
 logger = logging.getLogger("JARVIS.Voice.DaemonControl")
 
-ALLOWED_ACTIONS = frozenset({"mute", "unmute", "stop", "barge_in", "push_to_talk"})
+ALLOWED_ACTIONS = frozenset({"mute", "unmute", "stop", "barge_in", "push_to_talk", "wake_enable", "wake_disable"})
 
 
 def default_control_path() -> Path:
