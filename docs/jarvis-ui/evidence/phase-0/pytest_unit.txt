@@ -1,0 +1,610 @@
+.....................................F.................................. [ 11%]
+.......F.....F.F...................................................FF..F [ 22%]
+........F............................................................... [ 34%]
+..................................F.....F.F..F.......................... [ 45%]
+.........FF.......F...........F....................F..F.......F......... [ 57%]
+...FFF...FFF........................FFF....F......F.....FFFF............ [ 68%]
+........................................................................ [ 80%]
+........................................................................ [ 91%]
+......................................................                   [100%]
+=================================== FAILURES ===================================
+______________________ test_ollama_provider_availability _______________________
+
+mock_get = <MagicMock name='get' id='547072944384'>
+
+    @patch("requests.get")
+    def test_ollama_provider_availability(mock_get):
+        provider = OllamaProvider(base_url="http://localhost:11434")
+    
+        # Available case
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get.return_value = mock_resp
+>       assert provider.is_available() is True
+E       assert False is True
+E        +  where False = is_available()
+E        +    where is_available = <ai.providers.base.OllamaProvider object at 0x7f60bda190>.is_available
+
+tests/unit/test_ai_system.py:59: AssertionError
+______________________ TestJARVISBrain.test_system_status ______________________
+
+self = <tests.unit.test_brain.TestJARVISBrain object at 0x7f72ccb790>
+brain = <ai.brain.JARVISBrain object at 0x7f512481b0>
+
+    def test_system_status(self, brain):
+        result = brain.chat("What is the system status and CPU temperature?")
+        assert result is not None
+        assert "CPU" in result["response"]
+>       assert any(t["tool"] == "get_system_status" for t in result["tools_used"])
+E       assert False
+E        +  where False = any(<generator object TestJARVISBrain.test_system_status.<locals>.<genexpr> at 0x7f60b53100>)
+
+tests/unit/test_brain.py:63: AssertionError
+______________ TestLocalIntelligenceEngine.test_classify_intents _______________
+
+self = <tests.unit.test_brain.TestLocalIntelligenceEngine object at 0x7f72d3e490>
+engine = <ai.local_engine.LocalIntelligenceEngine object at 0x7f60bbf020>
+
+    def test_classify_intents(self, engine):
+        intent, _ = engine.classify_intent("drive forward at full speed")
+        assert intent == "robot_forward"
+    
+        intent, _ = engine.classify_intent("e-stop immediately")
+        assert intent == "robot_estop"
+    
+        intent, _ = engine.classify_intent("read sensor data")
+        assert intent == "read_sensors"
+    
+        intent, _ = engine.classify_intent("what is the cpu temperature")
+>       assert intent == "system_status"
+E       AssertionError: assert 'general' == 'system_status'
+E         
+E         - system_status
+E         + general
+
+tests/unit/test_brain.py:109: AssertionError
+___________________ TestToolExecutor.test_execute_robot_move ___________________
+
+self = <tests.unit.test_brain.TestToolExecutor object at 0x7f72d3e710>
+
+    def test_execute_robot_move(self):
+        executor = ToolExecutor()
+        raw = executor.execute("robot_move", {"direction": "forward", "speed": 40})
+>       assert "direction" in raw or "status" in raw
+E       assert ('direction' in '{"error": "Permission denied for tool \'robot_move\' (risk=3, confirmed=False)", "tool": "robot_move"}' or 'status' in '{"error": "Permission denied for tool \'robot_move\' (risk=3, confirmed=False)", "tool": "robot_move"}')
+
+tests/unit/test_brain.py:124: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS-PERMISSIONS:permission_manager.py:121 Tool 'robot_move' (effective risk=3) denied without confirmation.
+INFO     JARVIS_AUDIT_547816115232:audit_logger.py:123 {"timestamp": "2026-11-20T06:14:27.956157+00:00", "service": "tool_registry", "event": "permission_check_failed", "tool": "robot_move", "status": "permission_denied", "risk_level": 3, "duration_ms": 0.387, "error": "Permission denied for tool 'robot_move' (risk=3, confirmed=False)", "user_request": "{'direction': 'forward', 'speed': 40}"}
+___________________________ TestAPI.test_robot_estop ___________________________
+
+self = <tests.unit.test_core.TestAPI object at 0x7f72d1be10>
+client = <starlette.testclient.TestClient object at 0x7f51068af0>
+
+    def test_robot_estop(self, client):
+        resp = client.post("/api/robot/estop")
+        assert resp.status_code == 200
+        assert resp.json()["status"] in ("emergency_stop_activated", "emergency_stop")
+        # Verify forward is blocked while estop is active
+        fwd_resp = client.post("/api/robot/forward?speed=50")
+>       assert fwd_resp.status_code == 400
+E       assert 403 == 400
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_core.py:162: AssertionError
+------------------------------ Captured log call -------------------------------
+CRITICAL JARVIS-ROBOTICS:controller.py:144 !!! EMERGENCY STOP ACTIVATED !!!
+__________________________ TestAPI.test_robot_forward __________________________
+
+self = <tests.unit.test_core.TestAPI object at 0x7f72d5a690>
+client = <starlette.testclient.TestClient object at 0x7f51068af0>
+
+    def test_robot_forward(self, client):
+        # Clear estop and arm robot
+        client.post("/api/robot/clear_estop")
+        arm_resp = client.post("/api/robot/arm")
+>       assert arm_resp.status_code == 200
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_core.py:168: AssertionError
+_________________________ TestAPI.test_vision_capture __________________________
+
+self = <tests.unit.test_core.TestAPI object at 0x7f71105150>
+client = <starlette.testclient.TestClient object at 0x7f51068af0>
+
+    def test_vision_capture(self, client):
+        resp = client.get("/api/vision/capture")
+>       assert resp.status_code == 200
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_core.py:189: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS.API.Vision:vision_api.py:34 Vision access denied for camera_capture: Access denied: Tool 'camera_capture' requires elevated privileges beyond 'GUEST'.
+__________________ TestPCA9685Simulation.test_init_simulation __________________
+
+self = <tests.unit.test_core.TestPCA9685Simulation object at 0x7f711807d0>
+
+    def test_init_simulation(self):
+        from hardware.pca9685.driver import PCA9685
+        pca = PCA9685()
+        # Should not raise — defaults to simulation if hardware absent
+>       assert pca.simulated is True
+E       assert False is True
+E        +  where False = <hardware.pca9685.driver.PCA9685 object at 0x7f51117390>.simulated
+
+tests/unit/test_core.py:256: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    JARVIS-PCA9685:driver.py:51 PCA9685 reset error: [Errno 121] Remote I/O error
+ERROR    JARVIS-PCA9685:driver.py:73 PCA9685 set_pwm_freq error: [Errno 121] Remote I/O error
+_________________ test_case_3_uptime_and_memory_python_script __________________
+
+brain = <ai.brain.JARVISBrain object at 0x7f50e66210>
+
+    def test_case_3_uptime_and_memory_python_script(brain):
+        """Test 3: Programming request with 'uptime' and 'memory' generates Python code, not telemetry."""
+        session_id = "test_p1_case3"
+        res = brain.chat("Write a Python script to display system uptime and memory.", session_id=session_id)
+        text = res.get("response", "")
+>       assert res.get("provider") == "ollama" or res.get("provider") in ("gemini", "openai")
+E       AssertionError: assert ('nvidia' == 'ollama'
+E         
+E         - ollama
+E         + nvidia or 'nvidia' in ('gemini', 'openai'))
+E        +  where 'nvidia' = <built-in method get of dict object at 0x7f50afe680>('provider')
+E        +    where <built-in method get of dict object at 0x7f50afe680> = {'response': 'As JARVIS, I can provide you with a precise and functional Python script to display system uptime and me...es (like `cron`) if authorized.', 'provider': 'nvidia', 'model': 'nvidia/nemotron-3.5-bolt-e4b', 'tools_used': [], ...}.get
+
+tests/unit/test_phase1_real_ai.py:69: AssertionError
+__________________ test_case_9_provider_failure_honest_error ___________________
+
+    def test_case_9_provider_failure_honest_error():
+        """Test 9: Simulated provider failure returns honest error without fake fallback text."""
+        from ai.providers.base import OllamaProvider
+        test_brain = JARVISBrain()
+        for p in test_brain._providers:
+            if isinstance(p, OllamaProvider):
+                p.base_url = "http://127.0.0.1:9999"  # unreachable port
+    
+        res = test_brain.chat("Tell me a fact about space.", session_id="test_p1_case9")
+        text = res.get("response", "")
+>       assert res.get("provider") == "error"
+E       AssertionError: assert 'nvidia' == 'error'
+E         
+E         - error
+E         + nvidia
+
+tests/unit/test_phase1_real_ai.py:146: AssertionError
+___________________ test_case_11_streaming_and_cancellation ____________________
+
+brain = <ai.brain.JARVISBrain object at 0x7f50e66210>
+
+    def test_case_11_streaming_and_cancellation(brain):
+        """Test 11: SSE stream yields tokens progressively and cancels cleanly on client abort."""
+        session_id = "test_p1_case11"
+        stream_gen = brain.stream_chat("Write a short poem about Linux.", session_id=session_id)
+        tokens_received = []
+        for ev in stream_gen:
+            if ev.get("type") == "token":
+                tokens_received.append(ev.get("content"))
+                if len(tokens_received) >= 2:
+                    break
+        stream_gen.close()
+>       assert len(tokens_received) >= 2
+E       AssertionError: assert 1 >= 2
+E        +  where 1 = len(['In terminals bright, a logic resides,\nWith open source spirit, where freedom presides.\nFrom tiny Pi to servers so ...uns strong across every land.\nA command line grace, a power untold,\nA system of freedom, worth more than pure gold.'])
+
+tests/unit/test_phase1_real_ai.py:172: AssertionError
+_________ TestPhase2ToolRegistry.test_schema_validation_type_checking __________
+
+self = <tests.unit.test_phase2_agent_tools.TestPhase2ToolRegistry object at 0x7f618be350>
+
+    def test_schema_validation_type_checking(self):
+        from tools.robotics.controller import robot
+        robot.arm()
+        try:
+            # servo_set requires channel (int) and angle (int)
+            valid_res = self.registry.execute_tool("servo_set", {"channel": 2, "angle": 90}, confirmed=True)
+>           assert valid_res["success"] is True
+E           assert False is True
+
+tests/unit/test_phase2_agent_tools.py:66: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS-ROBOTICS:controller.py:52 Cannot arm robot: EMERGENCY STOP is active. Clear e-stop first.
+WARNING  JARVIS-ROBOTICS:controller.py:169 Servo command rejected: EMERGENCY STOP active.
+ERROR    JARVIS-TOOL-REGISTRY:registry.py:347 Execution error in 'servo_set': Servo motion rejected by the armed/e-stop safety interlock
+Traceback (most recent call last):
+  File "/home/roshan/.gemini/antigravity/scratch/jarvis-os/tools/registry.py", line 342, in execute
+    result = exec_fn(**call_kwargs)
+  File "/home/roshan/.gemini/antigravity/scratch/jarvis-os/tools/registry.py", line 969, in _fn_servo_set
+    raise PermissionError("Servo motion rejected by the armed/e-stop safety interlock")
+PermissionError: Servo motion rejected by the armed/e-stop safety interlock
+INFO     JARVIS_AUDIT_547816115232:audit_logger.py:123 {"timestamp": "2026-11-20T06:15:40.147010+00:00", "service": "tool_registry", "event": "tool_execution_failed", "tool": "servo_set", "status": "error", "risk_level": 3, "duration_ms": 1.689, "error": "Execution error in 'servo_set': Servo motion rejected by the armed/e-stop safety interlock", "user_request": "{'channel': 2, 'angle': 90}"}
+__________ TestPhase3VoicePipeline.test_voice_service_state_and_mute ___________
+
+self = <tests.unit.test_phase3_voice_pipeline.TestPhase3VoicePipeline object at 0x7f618476f0>
+
+    def test_voice_service_state_and_mute(self):
+        service = VoiceService(simulation_mode=True)
+        state = service.get_state()
+>       assert state["state"] in ("STANDBY", "LISTENING", "MUTED")
+E       AssertionError: assert 'DISABLED' in ('STANDBY', 'LISTENING', 'MUTED')
+
+tests/unit/test_phase3_voice_pipeline.py:53: AssertionError
+__________ TestPhase3VoicePipeline.test_voice_api_status_and_devices ___________
+
+self = <tests.unit.test_phase3_voice_pipeline.TestPhase3VoicePipeline object at 0x7f6180fe30>
+
+    def test_voice_api_status_and_devices(self):
+        client = TestClient(app)
+        res = client.get("/api/voice/status")
+        assert res.status_code == 200
+        data = res.json()
+        assert "state" in data
+        assert "listening" in data
+        assert "device" in data
+        assert "wake_word" in data
+    
+        res_dev = client.get("/api/voice/devices")
+>       assert res_dev.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/unit/test_phase3_voice_pipeline.py:77: AssertionError
+_____ TestPhase4ComputerUse.test_01_screen_capture_dimensions_and_validity _____
+
+self = <tests.unit.test_phase4_computer_use.TestPhase4ComputerUse object at 0x7f618bfb10>
+
+    def test_01_screen_capture_dimensions_and_validity(self):
+        """Test 1: Capture current desktop and verify resolution, format, and non-empty file."""
+        snap = desktop_perception.capture_fullscreen()
+        assert snap["status"] == "ok"
+>       assert snap["width"] == 1360
+E       assert 1024 == 1360
+
+tests/unit/test_phase4_computer_use.py:30: AssertionError
+______ TestPhase4ComputerUse.test_13_phase_1_to_3_regression_preservation ______
+
+self = <tests.unit.test_phase4_computer_use.TestPhase4ComputerUse object at 0x7f617feb30>
+
+    def test_13_phase_1_to_3_regression_preservation(self):
+        """Test 13: Verify Phase 1-3 core features (intents, audio isolation, terminal) remain intact."""
+        eng = LocalIntelligenceEngine()
+    
+        # Phase 1 math check
+        res_math = eng.respond("What is 100 * 5?")
+        assert "500" in res_math.get("response", "")
+    
+        # Phase 2 terminal execution check
+        res_term = eng.respond("Run echo JARVIS_REGRESSION in terminal")
+        assert "jarvis_regression" in res_term.get("response", "").lower()
+    
+        # Phase 3 Audio Stream isolation check
+        from tools.media.audio_stream_manager import audio_stream_manager
+        sink = audio_stream_manager.get_master_sink_volume()
+>       assert sink.get("volume_pct") == 65  # Master sink 119 strictly preserved at 65%
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: assert 96 == 65
+E        +  where 96 = <built-in method get of dict object at 0x7f52216900>('volume_pct')
+E        +    where <built-in method get of dict object at 0x7f52216900> = {'volume': 0.96, 'volume_pct': 96, 'muted': False}.get
+
+tests/unit/test_phase4_computer_use.py:189: AssertionError
+_____________ test_3_background_voice_service_and_single_ownership _____________
+
+    def test_3_background_voice_service_and_single_ownership():
+        """Verify systemd jarvis-voice.service is active and single microphone ownership is preserved."""
+        active = is_voice_service_daemon_running()
+>       assert active is True, "systemctl --user jarvis-voice.service must be active and running"
+E       AssertionError: systemctl --user jarvis-voice.service must be active and running
+E       assert False is True
+
+tests/unit/test_phase6_1_desktop_and_security.py:69: AssertionError
+________________ test_6_speaker_output_and_volume_preservation _________________
+
+    def test_6_speaker_output_and_volume_preservation():
+        """Verify physical speaker default sink discovery and strict 65% volume preservation."""
+        res = subprocess.run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"], capture_output=True, text=True, check=True)
+        vol_str = res.stdout.strip()
+>       assert "0.65" in vol_str, f"Master volume must remain preserved at 0.65 (65%), got: {vol_str}"
+E       AssertionError: Master volume must remain preserved at 0.65 (65%), got: Volume: 0.96
+E       assert '0.65' in 'Volume: 0.96'
+
+tests/unit/test_phase6_1_desktop_and_security.py:116: AssertionError
+________________ test_6_omnivoice_reference_audio_and_fallback _________________
+
+    def test_6_omnivoice_reference_audio_and_fallback():
+        """Verify user reference audio profile and transparent fallback identification."""
+        status = gradio_cloner.get_provider_status()
+        assert "has_reference_audio" in status
+        assert status["has_reference_audio"] is True, "Reference audio sample must be detected"
+    
+        ref_info = gradio_cloner.get_reference_audio_info()
+        assert ref_info.get("exists") is True
+        assert ref_info.get("sample_rate") == 24000, "Reference sample must be 24 kHz WAV"
+        assert ref_info.get("channels") == 1, "Reference sample must be mono"
+    
+        # Check TTS synthesis and verify honest provider labelling
+        res = speech_manager.synthesize_and_stage("Testing speech synthesis pipeline.", play_system=False)
+        assert res.get("success") is True
+        assert res.get("audio_url") is not None
+        assert res.get("provider") is not None
+        # If OmniVoice is offline, provider must be honest fallback
+        if not status.get("online"):
+>           assert "fallback" in res.get("provider_label", "").lower() or "edge" in res.get("provider", "").lower()
+E           AssertionError: assert ('fallback' in 'cached speech' or 'edge' in 'cache')
+E            +  where 'cached speech' = <built-in method lower of str object at 0x7f61721770>()
+E            +    where <built-in method lower of str object at 0x7f61721770> = 'Cached speech'.lower
+E            +      where 'Cached speech' = <built-in method get of dict object at 0x7f5203f0c0>('provider_label', '')
+E            +        where <built-in method get of dict object at 0x7f5203f0c0> = {'status': 'ok', 'audio_id': 'audio_c287139c843d', 'audio_url': '/api/voice/audio/audio_c287139c843d', 'provider': 'cache', ...}.get
+E            +  and   'cache' = <built-in method lower of str object at 0x7f90c86490>()
+E            +    where <built-in method lower of str object at 0x7f90c86490> = 'cache'.lower
+E            +      where 'cache' = <built-in method get of dict object at 0x7f5203f0c0>('provider', '')
+E            +        where <built-in method get of dict object at 0x7f5203f0c0> = {'status': 'ok', 'audio_id': 'audio_c287139c843d', 'audio_url': '/api/voice/audio/audio_c287139c843d', 'provider': 'cache', ...}.get
+
+tests/unit/test_phase6_desktop_and_voice.py:150: AssertionError
+___ TestPhase6Phase7SettingsCenter.test_update_category_settings_persistence ___
+
+self = <tests.unit.test_phase6_phase7_settings_and_apps.TestPhase6Phase7SettingsCenter object at 0x7f61755cd0>
+tmp_path = PosixPath('/tmp/pytest-of-roshan/pytest-5/test_update_category_settings_0')
+
+    def test_update_category_settings_persistence(self, tmp_path):
+        client = TestClient(app)
+    
+        # Update category_c (Voice & Wake Word)
+        res = client.post("/api/settings/category_c", json={
+            "settings": {"wake_word": "jarvis"}
+        })
+>       assert res.status_code == 200
+E       assert 428 == 200
+E        +  where 428 = <Response [428 Precondition Required]>.status_code
+
+tests/unit/test_phase6_phase7_settings_and_apps.py:51: AssertionError
+__________ TestPhase6Phase7SettingsCenter.test_component_diagnostics ___________
+
+self = <tests.unit.test_phase6_phase7_settings_and_apps.TestPhase6Phase7SettingsCenter object at 0x7f61755940>
+
+    def test_component_diagnostics(self):
+        client = TestClient(app)
+    
+        # Test speaker synthesis test
+        res_spk = client.post("/api/settings/test/speaker")
+>       assert res_spk.status_code == 200
+E       assert 428 == 200
+E        +  where 428 = <Response [428 Precondition Required]>.status_code
+
+tests/unit/test_phase6_phase7_settings_and_apps.py:68: AssertionError
+__________ TestPhase6Phase7SettingsCenter.test_export_backup_endpoint __________
+
+self = <tests.unit.test_phase6_phase7_settings_and_apps.TestPhase6Phase7SettingsCenter object at 0x7f6172cdd0>
+
+    def test_export_backup_endpoint(self):
+        client = TestClient(app)
+        res = client.get("/api/settings/export/backup")
+>       assert res.status_code == 200
+E       assert 428 == 200
+E        +  where 428 = <Response [428 Precondition Required]>.status_code
+
+tests/unit/test_phase6_phase7_settings_and_apps.py:84: AssertionError
+___ TestPhase71CameraIntegration.test_04_jarvis_api_vision_capture_endpoint ____
+
+self = <tests.unit.test_phase7_1_camera_integration.TestPhase71CameraIntegration testMethod=test_04_jarvis_api_vision_capture_endpoint>
+
+    def test_04_jarvis_api_vision_capture_endpoint(self):
+        """POST /api/vision/capture must return simulated=False and a valid image_url."""
+        resp = self.client.post("/api/vision/capture")
+>       self.assertEqual(resp.status_code, 200)
+E       AssertionError: 403 != 200
+
+tests/unit/test_phase7_1_camera_integration.py:83: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS.API.Vision:vision_api.py:34 Vision access denied for camera_capture: Access denied: Tool 'camera_capture' requires elevated privileges beyond 'GUEST'.
+_ TestPhase71CameraIntegration.test_05_api_image_serving_and_traversal_security _
+
+self = <tests.unit.test_phase7_1_camera_integration.TestPhase71CameraIntegration testMethod=test_05_api_image_serving_and_traversal_security>
+
+    def test_05_api_image_serving_and_traversal_security(self):
+        """GET /api/vision/image/{filename} must serve saved pictures and block path traversal."""
+        # 1. Capture an image to get a known valid filename
+        cap_resp = self.client.post("/api/vision/capture")
+>       self.assertEqual(cap_resp.status_code, 200)
+E       AssertionError: 403 != 200
+
+tests/unit/test_phase7_1_camera_integration.py:96: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS.API.Vision:vision_api.py:34 Vision access denied for camera_capture: Access denied: Tool 'camera_capture' requires elevated privileges beyond 'GUEST'.
+_ TestPhase71CameraIntegration.test_06_optical_distance_labeling_and_disclaimer _
+
+self = <tests.unit.test_phase7_1_camera_integration.TestPhase71CameraIntegration testMethod=test_06_optical_distance_labeling_and_disclaimer>
+
+    def test_06_optical_distance_labeling_and_disclaimer(self):
+        """Object detection results must label distance as optical monocular estimate with disclaimer."""
+        resp = self.client.post("/api/vision/detect", json={})
+>       self.assertEqual(resp.status_code, 200)
+E       AssertionError: 403 != 200
+
+tests/unit/test_phase7_1_camera_integration.py:134: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  JARVIS.API.Vision:vision_api.py:34 Vision access denied for detect_objects: Access denied: Tool 'detect_objects' requires elevated privileges beyond 'GUEST'.
+______________ TestPhase8AppsCenter.test_06_truthful_status_rules ______________
+
+self = <tests.unit.test_phase8_apps_center.TestPhase8AppsCenter testMethod=test_06_truthful_status_rules>
+
+    def test_06_truthful_status_rules(self):
+        """Only genuine verified applications are Available; non-implemented apps are Planned."""
+        avail_apps = self.registry.get_available_apps()
+        avail_ids = {a.id for a in avail_apps}
+        # Available should only be voice-assistant, face-recognition, and multi-agent-automation
+        self.assertIn("voice-assistant", avail_ids)
+        self.assertIn("face-recognition", avail_ids)
+        self.assertIn("multi-agent-automation", avail_ids)
+>       self.assertEqual(len(avail_apps), 3, "Only the 3 operational applications may be marked Available")
+E       AssertionError: 5 != 3 : Only the 3 operational applications may be marked Available
+
+tests/unit/test_phase8_apps_center.py:127: AssertionError
+_________ TestPhase8AppsCenter.test_07_launching_available_application _________
+
+self = <tests.unit.test_phase8_apps_center.TestPhase8AppsCenter testMethod=test_07_launching_available_application>
+
+    def test_07_launching_available_application(self):
+        """POST /api/apps/launch/{id} must succeed for an Available application."""
+        resp = self.client.post("/api/apps/launch/voice-assistant", json={"user_id": "test_user"})
+>       self.assertEqual(resp.status_code, 200)
+E       AssertionError: 422 != 200
+
+tests/unit/test_phase8_apps_center.py:136: AssertionError
+__________ TestPhase8AppsCenter.test_08_blocking_planned_application ___________
+
+self = <tests.unit.test_phase8_apps_center.TestPhase8AppsCenter testMethod=test_08_blocking_planned_application>
+
+    def test_08_blocking_planned_application(self):
+        """POST /api/apps/launch/{id} must block Planned applications with HTTP 400 and roadmap info."""
+        resp = self.client.post("/api/apps/launch/document-qa", json={"user_id": "test_user"})
+>       self.assertEqual(resp.status_code, 400)
+E       AssertionError: 422 != 400
+
+tests/unit/test_phase8_apps_center.py:147: AssertionError
+______ TestPhase8AppsCenter.test_13_user_isolation_favorites_and_recents _______
+
+self = <tests.unit.test_phase8_apps_center.TestPhase8AppsCenter testMethod=test_13_user_isolation_favorites_and_recents>
+
+    def test_13_user_isolation_favorites_and_recents(self):
+        """User A's favorites and recents must be completely isolated from User B."""
+        user_a = "user_alpha"
+        user_b = "user_beta"
+    
+        # User A stars voice-assistant
+        self.client.post(f"/api/apps/favorite/voice-assistant?user_id={user_a}")
+        favs_a = self.db.get_user_favorites(user_a)
+        favs_b = self.db.get_user_favorites(user_b)
+    
+>       self.assertIn("voice-assistant", favs_a)
+E       AssertionError: 'voice-assistant' not found in []
+
+tests/unit/test_phase8_apps_center.py:197: AssertionError
+_______ TestPhase8AppsCenter.test_20_voice_assistant_apps_intent_routing _______
+
+self = <tests.unit.test_phase8_apps_center.TestPhase8AppsCenter testMethod=test_20_voice_assistant_apps_intent_routing>
+
+    def test_20_voice_assistant_apps_intent_routing(self):
+        """Chat API must route 'Show all applications' and 'Open document question answering app'."""
+        # 1. List applications
+        resp = self.client.post("/api/chat", json={"message": "Show all applications"})
+        self.assertEqual(resp.status_code, 200)
+        text1 = resp.json().get("response", "")
+        self.assertIn("Apps Center Catalog", text1)
+>       self.assertIn("Available (3)", text1)
+E       AssertionError: 'Available (3)' not found in '**JARVIS Apps Center Catalog (20 Applications):**\n\n✅ **Available (5):** AI Research Assistant, Multi-Agent Task Automation, Real-Time Face Recognition, Voice Assistant, YouTube Video Summarizer\n\n⏳ **In Roadmap / Planned (15):** AI Coding Assistant, AI Content Creation Pipeline, AI Interview Bot, AI Social Media Automation, AI Study Planner, Autonomous Trading Bot and 9 more.\n\nYou can view and manage all applications in the **Apps Center** tab.'
+
+tests/unit/test_phase8_apps_center.py:286: AssertionError
+______ TestPhase8to11HardeningAndSafety.test_actuator_disarmed_by_default ______
+
+self = <tests.unit.test_phase8_phase11_hardening_and_safety.TestPhase8to11HardeningAndSafety object at 0x7f61671e50>
+
+    def test_actuator_disarmed_by_default(self):
+        """Actuators must be disarmed and reject motion commands until explicitly armed."""
+        res_state = client.get("/api/robot/state")
+        assert res_state.status_code == 200
+        data = res_state.json()
+        assert data["armed"] is False
+    
+        # Attempt motion while disarmed
+        res_move = client.post("/api/robot/forward?speed=50")
+>       assert res_move.status_code == 400
+E       assert 403 == 400
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_phase8_phase11_hardening_and_safety.py:36: AssertionError
+_______ TestPhase8to11HardeningAndSafety.test_actuator_arming_and_motion _______
+
+self = <tests.unit.test_phase8_phase11_hardening_and_safety.TestPhase8to11HardeningAndSafety object at 0x7f61672350>
+
+    def test_actuator_arming_and_motion(self):
+        """Arming allows motion; disarming immediately disables it."""
+        res_arm = client.post("/api/robot/arm")
+>       assert res_arm.status_code == 200
+E       assert 403 == 200
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_phase8_phase11_hardening_and_safety.py:42: AssertionError
+_____ TestPhase8to11HardeningAndSafety.test_emergency_stop_latches_motion ______
+
+self = <tests.unit.test_phase8_phase11_hardening_and_safety.TestPhase8to11HardeningAndSafety object at 0x7f61757950>
+
+    def test_emergency_stop_latches_motion(self):
+        """E-Stop immediately latches and blocks motion even if armed."""
+        client.post("/api/robot/arm")
+        res_estop = client.post("/api/robot/estop")
+        assert res_estop.status_code == 200
+    
+        # Verify state is latched
+        res_state = client.get("/api/robot/state")
+        assert res_state.json()["emergency_stopped"] is True
+        assert res_state.json()["armed"] is False
+    
+        # Attempt motion
+        res_move = client.post("/api/robot/forward?speed=50")
+>       assert res_move.status_code == 400
+E       assert 403 == 400
+E        +  where 403 = <Response [403 Forbidden]>.status_code
+
+tests/unit/test_phase8_phase11_hardening_and_safety.py:71: AssertionError
+------------------------------ Captured log call -------------------------------
+CRITICAL JARVIS-ROBOTICS:controller.py:144 !!! EMERGENCY STOP ACTIVATED !!!
+________ TestPhase8to11HardeningAndSafety.test_security_api_key_masking ________
+
+self = <tests.unit.test_phase8_phase11_hardening_and_safety.TestPhase8to11HardeningAndSafety object at 0x7f61757a80>
+
+    def test_security_api_key_masking(self):
+        """API keys must never be returned in plaintext via settings."""
+        os.environ["GEMINI_API_KEY"] = "AIzaSySecretTestKey12345678"
+        res = client.get("/api/settings/integrations")
+        assert res.status_code == 200
+        settings = res.json()["settings"]
+        masked = settings.get("gemini_api_key", "")
+>       assert "AIza" in masked
+E       AssertionError: assert 'AIza' in '********'
+
+tests/unit/test_phase8_phase11_hardening_and_safety.py:88: AssertionError
+=============================== warnings summary ===============================
+tests/unit/test_phase6_desktop_and_voice.py::test_12_rest_api_voice_endpoints
+  /home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/lib/python3.14/site-packages/speech_recognition/__init__.py:7: DeprecationWarning: aifc was removed in Python 3.13. Please be aware that you are currently NOT using standard 'aifc', but instead a separately installed 'standard-aifc'.
+    import aifc
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/unit/test_ai_system.py::test_ollama_provider_availability - asse...
+FAILED tests/unit/test_brain.py::TestJARVISBrain::test_system_status - assert...
+FAILED tests/unit/test_brain.py::TestLocalIntelligenceEngine::test_classify_intents
+FAILED tests/unit/test_brain.py::TestToolExecutor::test_execute_robot_move - ...
+FAILED tests/unit/test_core.py::TestAPI::test_robot_estop - assert 403 == 400
+FAILED tests/unit/test_core.py::TestAPI::test_robot_forward - assert 403 == 200
+FAILED tests/unit/test_core.py::TestAPI::test_vision_capture - assert 403 == 200
+FAILED tests/unit/test_core.py::TestPCA9685Simulation::test_init_simulation
+FAILED tests/unit/test_phase1_real_ai.py::test_case_3_uptime_and_memory_python_script
+FAILED tests/unit/test_phase1_real_ai.py::test_case_9_provider_failure_honest_error
+FAILED tests/unit/test_phase1_real_ai.py::test_case_11_streaming_and_cancellation
+FAILED tests/unit/test_phase2_agent_tools.py::TestPhase2ToolRegistry::test_schema_validation_type_checking
+FAILED tests/unit/test_phase3_voice_pipeline.py::TestPhase3VoicePipeline::test_voice_service_state_and_mute
+FAILED tests/unit/test_phase3_voice_pipeline.py::TestPhase3VoicePipeline::test_voice_api_status_and_devices
+FAILED tests/unit/test_phase4_computer_use.py::TestPhase4ComputerUse::test_01_screen_capture_dimensions_and_validity
+FAILED tests/unit/test_phase4_computer_use.py::TestPhase4ComputerUse::test_13_phase_1_to_3_regression_preservation
+FAILED tests/unit/test_phase6_1_desktop_and_security.py::test_3_background_voice_service_and_single_ownership
+FAILED tests/unit/test_phase6_1_desktop_and_security.py::test_6_speaker_output_and_volume_preservation
+FAILED tests/unit/test_phase6_desktop_and_voice.py::test_6_omnivoice_reference_audio_and_fallback
+FAILED tests/unit/test_phase6_phase7_settings_and_apps.py::TestPhase6Phase7SettingsCenter::test_update_category_settings_persistence
+FAILED tests/unit/test_phase6_phase7_settings_and_apps.py::TestPhase6Phase7SettingsCenter::test_component_diagnostics
+FAILED tests/unit/test_phase6_phase7_settings_and_apps.py::TestPhase6Phase7SettingsCenter::test_export_backup_endpoint
+FAILED tests/unit/test_phase7_1_camera_integration.py::TestPhase71CameraIntegration::test_04_jarvis_api_vision_capture_endpoint
+FAILED tests/unit/test_phase7_1_camera_integration.py::TestPhase71CameraIntegration::test_05_api_image_serving_and_traversal_security
+FAILED tests/unit/test_phase7_1_camera_integration.py::TestPhase71CameraIntegration::test_06_optical_distance_labeling_and_disclaimer
+FAILED tests/unit/test_phase8_apps_center.py::TestPhase8AppsCenter::test_06_truthful_status_rules
+FAILED tests/unit/test_phase8_apps_center.py::TestPhase8AppsCenter::test_07_launching_available_application
+FAILED tests/unit/test_phase8_apps_center.py::TestPhase8AppsCenter::test_08_blocking_planned_application
+FAILED tests/unit/test_phase8_apps_center.py::TestPhase8AppsCenter::test_13_user_isolation_favorites_and_recents
+FAILED tests/unit/test_phase8_apps_center.py::TestPhase8AppsCenter::test_20_voice_assistant_apps_intent_routing
+FAILED tests/unit/test_phase8_phase11_hardening_and_safety.py::TestPhase8to11HardeningAndSafety::test_actuator_disarmed_by_default
+FAILED tests/unit/test_phase8_phase11_hardening_and_safety.py::TestPhase8to11HardeningAndSafety::test_actuator_arming_and_motion
+FAILED tests/unit/test_phase8_phase11_hardening_and_safety.py::TestPhase8to11HardeningAndSafety::test_emergency_stop_latches_motion
+FAILED tests/unit/test_phase8_phase11_hardening_and_safety.py::TestPhase8to11HardeningAndSafety::test_security_api_key_masking
+34 failed, 596 passed, 1 warning in 326.62s (0:05:26)

@@ -1,0 +1,4 @@
+jarvis-os-dashboard@ /home/roshan/.gemini/antigravity/scratch/jarvis-os
+├── playwright@1.65.1
+└── windsurf-agent-cli@1.2.2
+
