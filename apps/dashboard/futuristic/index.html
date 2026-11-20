@@ -1,19 +1,213 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-accent="cyan">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JARVIS OS Futuristic Interface</title>
-  <link rel="stylesheet" href="style.css">
+  <meta name="description" content="JARVIS OS — Futuristic AI Dashboard & Speaking Digital Human Avatar">
+  <title>JARVIS OS — Control Center</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="components.css">
 </head>
-<body style="background:#050B16;color:#F0F8FF;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
-  <div style="text-align:center;padding:32px;background:rgba(16,30,48,0.78);border:1px solid rgba(0,217,255,0.25);border-radius:12px;backdrop-filter:blur(12px);box-shadow:0 0 30px rgba(0,217,255,0.15);max-width:560px;">
-    <h1 style="color:#00D9FF;margin-top:0;font-size:1.8rem;letter-spacing:1px;">JARVIS OS</h1>
-    <p style="color:#97AEC7;font-size:0.95rem;">Futuristic AI Dashboard &amp; Digital Avatar</p>
-    <div style="margin:20px 0;padding:12px;background:#0B1525;border-radius:8px;font-size:0.85rem;color:#25E6A2;border:1px solid rgba(37,230,162,0.3);">
-      ✓ Safe delivery parallel route active (/futuristic/)
+<body>
+  <!-- Accessible Skip Link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header" role="banner">
+    <div style="display:flex; align-items:center; gap:16px;">
+      <button id="sidebar-toggle" class="btn-futuristic btn-secondary btn-icon" aria-label="Toggle Navigation Sidebar" aria-expanded="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span style="font-size:1.25rem; font-weight:800; letter-spacing:1.5px; color:var(--accent); text-shadow:0 0 12px var(--accent-glow);">JARVIS</span>
+        <span class="status-chip success" style="font-size:0.65rem;">OS v2.0</span>
+      </div>
+
+      <!-- Search Input Shortcut -->
+      <div style="position:relative; margin-left:16px;" class="hide-mobile">
+        <input type="text" id="global-search" placeholder="Quick search... (Ctrl+K)" aria-label="Quick command search"
+               style="background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-primary); padding:6px 12px; font-size:0.82rem; width:220px; transition:border-color var(--transition-fast);">
+      </div>
     </div>
-    <p style="font-size:0.85rem;color:#97AEC7;">Phase 1: Regression harness verified. Original dashboard remains available at <a href="/" style="color:#00D9FF;text-decoration:none;">/</a>.</p>
+
+    <!-- Header Actions, Status & Customization -->
+    <div style="display:flex; align-items:center; gap:14px;">
+      <!-- System Heartbeat Chips -->
+      <div style="display:flex; gap:8px;" class="hide-tablet">
+        <span class="status-chip success" title="FastAPI 127.0.0.1:8000">
+          <span class="status-dot"></span> Core
+        </span>
+        <span class="status-chip success" title="jarvis-voice.service active">
+          <span class="status-dot"></span> Voice
+        </span>
+        <span class="status-chip" title="Simulated hardware safety engaged">
+          <span class="status-dot"></span> Robot: Safe
+        </span>
+      </div>
+
+      <!-- Live Clock -->
+      <div style="text-align:right; font-family:var(--font-mono); font-size:0.75rem; color:var(--text-secondary);" class="hide-mobile">
+        <div id="shell-clock" style="font-weight:700; color:var(--text-primary);">--:--:--</div>
+        <div id="shell-date" style="font-size:0.68rem; color:var(--text-muted);">---</div>
+      </div>
+
+      <!-- Theme Controls -->
+      <label for="theme-select" class="sr-only" style="position:absolute; width:1px; height:1px; overflow:hidden;">Select Theme</label>
+      <select id="theme-select" aria-label="Select Theme" style="background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:0.75rem; padding:4px 8px;">
+        <option value="dark">Dark</option>
+        <option value="midnight">Midnight</option>
+        <option value="purple">Purple</option>
+      </select>
+
+      <label for="accent-select" class="sr-only" style="position:absolute; width:1px; height:1px; overflow:hidden;">Select Accent</label>
+      <select id="accent-select" aria-label="Select Accent" style="background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-secondary); font-size:0.75rem; padding:4px 8px;">
+        <option value="cyan">Cyan</option>
+        <option value="blue">Blue</option>
+        <option value="purple">Purple</option>
+        <option value="emerald">Emerald</option>
+      </select>
+
+      <!-- User Role Pill -->
+      <a href="/#tab-vision" class="status-chip" style="text-decoration:none; color:var(--text-primary); cursor:pointer;" title="User Identity Profile">
+        👤 Operator
+      </a>
+    </div>
+  </header>
+
+  <!-- App Body Layout -->
+  <div class="app-body">
+    <!-- Left Navigation Sidebar -->
+    <aside id="app-sidebar" class="app-sidebar" role="navigation" aria-label="Main Navigation">
+      <div role="tablist" aria-label="Control Center Destinations" style="display:flex; flex-direction:column; width:100%;">
+        <!-- CORE -->
+        <div class="nav-group-title">Core</div>
+        <button class="nav-item active" data-route="dashboard" role="tab" aria-selected="true" id="tab-nav-dashboard">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          <span class="nav-label">Dashboard</span>
+        </button>
+        <button class="nav-item" data-route="chat" role="tab" aria-selected="false" id="tab-nav-chat">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          <span class="nav-label">AI Chat</span>
+        </button>
+        <button class="nav-item" data-route="voice" role="tab" aria-selected="false" id="tab-nav-voice">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          <span class="nav-label">Voice Assistant</span>
+        </button>
+
+        <!-- ORCHESTRATION -->
+        <div class="nav-group-title">Orchestration</div>
+        <button class="nav-item" data-route="agents" role="tab" aria-selected="false" id="tab-nav-agents">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+          <span class="nav-label">AI Agents</span>
+        </button>
+        <button class="nav-item" data-route="tasks" role="tab" aria-selected="false" id="tab-nav-tasks">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+          <span class="nav-label">Tasks</span>
+        </button>
+        <button class="nav-item" data-route="automation" role="tab" aria-selected="false" id="tab-nav-automation">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="6" height="6" rx="1"></rect><rect x="15" y="15" width="6" height="6" rx="1"></rect><path d="M6 9v3a3 3 0 0 0 3 3h6"></path></svg>
+          <span class="nav-label">Automation</span>
+        </button>
+
+        <!-- ENGINEERING -->
+        <div class="nav-group-title">Engineering</div>
+        <button class="nav-item" data-route="workspace" role="tab" aria-selected="false" id="tab-nav-workspace">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span class="nav-label">Developer Hub</span>
+        </button>
+        <button class="nav-item" data-route="terminal" role="tab" aria-selected="false" id="tab-nav-terminal">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          <span class="nav-label">Terminal</span>
+        </button>
+
+        <!-- PRODUCTIVITY & KNOWLEDGE -->
+        <div class="nav-group-title">Knowledge</div>
+        <button class="nav-item" data-route="calendar" role="tab" aria-selected="false" id="tab-nav-calendar">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span class="nav-label">Calendar</span>
+        </button>
+        <button class="nav-item" data-route="memory" role="tab" aria-selected="false" id="tab-nav-memory">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"></path></svg>
+          <span class="nav-label">Memory</span>
+        </button>
+        <button class="nav-item" data-route="knowledge" role="tab" aria-selected="false" id="tab-nav-knowledge">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+          <span class="nav-label">Knowledge</span>
+        </button>
+
+        <!-- HARDWARE & ROBOT -->
+        <div class="nav-group-title">Hardware</div>
+        <button class="nav-item" data-route="devices" role="tab" aria-selected="false" id="tab-nav-devices">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          <span class="nav-label">Devices &amp; Sensors</span>
+        </button>
+        <button class="nav-item" data-route="robot" role="tab" aria-selected="false" id="tab-nav-robot">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="10" rx="2"></rect><circle cx="12" cy="5" r="2"></circle><path d="M12 7v4"></path><line x1="8" y1="16" x2="8" y2="16"></line><line x1="16" y1="16" x2="16" y2="16"></line></svg>
+          <span class="nav-label">Robot Control</span>
+        </button>
+
+        <!-- SYSTEM -->
+        <div class="nav-group-title">System</div>
+        <button class="nav-item" data-route="integrations" role="tab" aria-selected="false" id="tab-nav-integrations">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          <span class="nav-label">Integrations</span>
+        </button>
+        <button class="nav-item" data-route="apps" role="tab" aria-selected="false" id="tab-nav-apps">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          <span class="nav-label">Apps Center</span>
+        </button>
+        <button class="nav-item" data-route="youtube" role="tab" aria-selected="false" id="tab-nav-youtube">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
+          <span class="nav-label">YouTube AI</span>
+        </button>
+        <button class="nav-item" data-route="research" role="tab" aria-selected="false" id="tab-nav-research">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span class="nav-label">Research Assistant</span>
+        </button>
+        <button class="nav-item" data-route="settings" role="tab" aria-selected="false" id="tab-nav-settings">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span class="nav-label">Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel Area -->
+    <main id="main-content" class="app-main" role="main" tabindex="-1">
+      <!-- Injected by shell.js renderContent -->
+    </main>
   </div>
+
+  <!-- Mobile Bottom Navigation -->
+  <nav class="mobile-nav" role="navigation" aria-label="Mobile Bottom Navigation">
+    <button class="mobile-nav-item active" data-route="dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span>Home</span>
+    </button>
+    <button class="mobile-nav-item" data-route="chat">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+      <span>Chat</span>
+    </button>
+    <button class="mobile-mic-btn" data-route="voice" aria-label="Voice Interaction Assistant">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+    </button>
+    <button class="mobile-nav-item" data-route="agents">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect></svg>
+      <span>Agents</span>
+    </button>
+    <button class="mobile-nav-item" data-route="settings">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      <span>Settings</span>
+    </button>
+  </nav>
+
+  <!-- Live Toast Alert Container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="shell.js"></script>
 </body>
 </html>

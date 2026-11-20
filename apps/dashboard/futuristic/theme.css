@@ -1,0 +1,110 @@
+/**
+ * JARVIS OS Futuristic Design System Tokens
+ * Master Requirements: SPEC.md Section 3
+ */
+
+:root {
+  /* Color Palette - Default Futuristic Dark */
+  --bg-primary: #050B16;
+  --bg-secondary: #0B1525;
+  --bg-card: rgba(16, 30, 48, 0.78);
+  --bg-card-solid: #101E30;
+  --border-card: rgba(0, 217, 255, 0.16);
+  --border-card-hover: rgba(0, 217, 255, 0.38);
+  --border-glow: 0 0 15px rgba(0, 217, 255, 0.15);
+
+  /* Accents */
+  --accent-cyan: #00D9FF;
+  --accent-blue: #218BFF;
+  --accent-purple: #9868FF;
+  --accent-green: #25E6A2;
+  --accent-amber: #FFB300;
+  --accent-danger: #FF3B30;
+
+  /* Current Active Accent (Default Cyan) */
+  --accent: var(--accent-cyan);
+  --accent-glow: rgba(0, 217, 255, 0.35);
+  --accent-bg: rgba(0, 217, 255, 0.12);
+
+  /* Typography Colors */
+  --text-primary: #F0F8FF;
+  --text-secondary: #97AEC7;
+  --text-muted: #5C7799;
+  --text-glow: 0 0 10px rgba(240, 248, 255, 0.3);
+
+  /* Typography Families */
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Sizing & Spacing */
+  --header-height: 60px;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 68px;
+  --mobile-nav-height: 64px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Theme: Midnight Blue */
+[data-theme="midnight"] {
+  --bg-primary: #03081A;
+  --bg-secondary: #071330;
+  --bg-card: rgba(12, 26, 58, 0.78);
+  --bg-card-solid: #0C1A3A;
+  --border-card: rgba(33, 139, 255, 0.22);
+  --border-card-hover: rgba(33, 139, 255, 0.45);
+  --border-glow: 0 0 15px rgba(33, 139, 255, 0.2);
+  --text-primary: #EEF6FF;
+  --text-secondary: #8EAAD0;
+}
+
+/* Theme: Holo Purple */
+[data-theme="purple"] {
+  --bg-primary: #090517;
+  --bg-secondary: #130B29;
+  --bg-card: rgba(26, 16, 52, 0.78);
+  --bg-card-solid: #1A1034;
+  --border-card: rgba(152, 104, 255, 0.24);
+  --border-card-hover: rgba(152, 104, 255, 0.48);
+  --border-glow: 0 0 15px rgba(152, 104, 255, 0.2);
+  --text-primary: #F6F0FF;
+  --text-secondary: #B29ED4;
+}
+
+/* Accent Overrides */
+[data-accent="cyan"] {
+  --accent: var(--accent-cyan);
+  --accent-glow: rgba(0, 217, 255, 0.35);
+  --accent-bg: rgba(0, 217, 255, 0.12);
+}
+[data-accent="blue"] {
+  --accent: var(--accent-blue);
+  --accent-glow: rgba(33, 139, 255, 0.35);
+  --accent-bg: rgba(33, 139, 255, 0.12);
+}
+[data-accent="purple"] {
+  --accent: var(--accent-purple);
+  --accent-glow: rgba(152, 104, 255, 0.35);
+  --accent-bg: rgba(152, 104, 255, 0.12);
+}
+[data-accent="emerald"] {
+  --accent: var(--accent-green);
+  --accent-glow: rgba(37, 230, 162, 0.35);
+  --accent-bg: rgba(37, 230, 162, 0.12);
+}
+
+/* Reduced Motion Mode */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
