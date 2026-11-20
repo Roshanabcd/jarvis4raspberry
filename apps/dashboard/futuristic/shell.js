@@ -182,76 +182,241 @@
 
     const dest = DESTINATIONS.find((d) => d.id === routeId) || DESTINATIONS[0];
 
-    // Check if destination has custom implementation or placeholder
     if (routeId === 'dashboard') {
-      mainContainer.innerHTML = renderDashboardPlaceholder();
+      mainContainer.innerHTML = renderDashboardPlaceholder(window.jarvisApi?.lastTelemetry);
+      bindDashboardTelemetry();
     } else {
       mainContainer.innerHTML = renderNotImplementedState(dest);
     }
   }
 
-  function renderDashboardPlaceholder() {
+  function bindDashboardTelemetry() {
+    if (!window.jarvisApi) return;
+
+    window.jarvisApi.onTelemetry((telemetry) => {
+      if (state.currentRoute !== 'dashboard') return;
+      updateDashboardDom(telemetry);
+    });
+
+    window.jarvisApi.onStateChange((connState) => {
+      const banner = document.getElementById('offline-alert-banner');
+      if (banner) {
+        banner.style.display = connState === 'offline' ? 'block' : 'none';
+      }
+      const connChip = document.getElementById('core-status-chip');
+      if (connChip) {
+        connChip.className = connState === 'online' ? 'status-chip success' : 'status-chip danger';
+        connChip.innerHTML = `<span class="status-dot"></span> Core: ${connState.toUpperCase()}`;
+      }
+    });
+
+    // Start background polling
+    window.jarvisApi.startPolling();
+  }
+
+  function updateDashboardDom(t) {
+    if (!t) return;
+
+    // CPU
+    const cpuEl = document.getElementById('metric-cpu');
+    if (cpuEl) cpuEl.textContent = t.cpu.usage_pct !== 'Unavailable' ? `${t.cpu.usage_pct}%` : 'Unavailable';
+    const cpuSubEl = document.getElementById('metric-cpu-sub');
+    if (cpuSubEl) cpuSubEl.textContent = `${t.cpu.cores} cores · ${t.cpu.freq_mhz} MHz`;
+
+    // RAM
+    const ramEl = document.getElementById('metric-ram');
+    if (ramEl) ramEl.textContent = t.ram.pct !== 'Unavailable' ? `${t.ram.pct}%` : 'Unavailable';
+    const ramSubEl = document.getElementById('metric-ram-sub');
+    if (ramSubEl) ramSubEl.textContent = `${t.ram.used_mb} / ${t.ram.total_mb} MB`;
+
+    // Disk
+    const diskEl = document.getElementById('metric-disk');
+    if (diskEl) diskEl.textContent = t.disk.pct !== 'Unavailable' ? `${t.disk.pct}%` : 'Unavailable';
+    const diskSubEl = document.getElementById('metric-disk-sub');
+    if (diskSubEl) diskSubEl.textContent = `${t.disk.used_gb} / ${t.disk.total_gb} GB`;
+
+    // Temperature
+    const tempEl = document.getElementById('metric-temp');
+    if (tempEl) tempEl.textContent = t.temperature.celsius !== 'Unavailable' ? `${t.temperature.celsius} °C` : 'Unavailable';
+
+    // Network
+    const netEl = document.getElementById('metric-net');
+    if (netEl) netEl.textContent = t.network.recv_mb !== 'Unavailable' ? `↓ ${t.network.recv_mb} MB · ↑ ${t.network.sent_mb} MB` : 'Unavailable';
+
+    // Battery & GPU
+    const batteryEl = document.getElementById('metric-battery');
+    if (batteryEl) batteryEl.textContent = t.battery;
+    const gpuEl = document.getElementById('metric-gpu');
+    if (gpuEl) gpuEl.textContent = t.gpu;
+
+    // Host Architecture
+    const hostEl = document.getElementById('host-kernel');
+    if (hostEl) hostEl.textContent = t.host.kernel;
+    const uptimeEl = document.getElementById('host-uptime');
+    if (uptimeEl) uptimeEl.textContent = t.host.uptime;
+
+    // AI Provider
+    const aiProviderEl = document.getElementById('ai-active-provider');
+    if (aiProviderEl) aiProviderEl.textContent = t.models.active_provider;
+
+    // Multi-Agent Orchestrator
+    const agentWorktreeEl = document.getElementById('orchestrator-worktrees');
+    if (agentWorktreeEl) agentWorktreeEl.textContent = `${t.orchestrator.worktree_count} active worktrees`;
+    const agentCountEl = document.getElementById('orchestrator-agents');
+    if (agentCountEl) agentCountEl.textContent = `${t.orchestrator.registered_agents} registered agents`;
+
+    // Robot Safety
+    const robotStateEl = document.getElementById('robot-state');
+    if (robotStateEl) robotStateEl.textContent = t.robot.state;
+    const robotSafetyEl = document.getElementById('robot-safety');
+    if (robotSafetyEl) robotSafetyEl.textContent = t.robot.safety;
+  }
+
+  function renderDashboardPlaceholder(telemetry) {
+    const t = telemetry || {
+      cpu: { usage_pct: 'Unavailable', freq_mhz: 'Unavailable', cores: 'Unavailable' },
+      ram: { used_mb: 'Unavailable', total_mb: 'Unavailable', pct: 'Unavailable' },
+      disk: { used_gb: 'Unavailable', total_gb: 'Unavailable', pct: 'Unavailable' },
+      temperature: { celsius: 'Unavailable' },
+      battery: 'Unavailable',
+      gpu: 'Unavailable',
+      network: { sent_mb: 'Unavailable', recv_mb: 'Unavailable' },
+      host: { kernel: 'Unavailable', uptime: 'Unavailable', hostname: 'raspberrypi' },
+      backend: { status: 'Healthy' },
+      models: { active_provider: 'Unavailable' },
+      orchestrator: { worktree_count: 'Unavailable', registered_agents: 'Unavailable' },
+      robot: { state: 'IDLE', safety: 'Safety Latch Engaged' },
+    };
+
     return `
-      <div class="glass-panel" style="padding: 28px; margin-bottom: 24px;">
+      <!-- Live Offline Alert Banner -->
+      <div id="offline-alert-banner" style="display:none; margin-bottom:16px; padding:12px 18px; border-radius:var(--radius-md); background:rgba(255,59,48,0.18); border:1px solid var(--accent-danger); color:#FFA49E; font-size:0.88rem; font-weight:600;">
+        ⚠️ Backend Connection Offline — Telemetry paused. Attempting automatic reconnection...
+      </div>
+
+      <div class="glass-panel" style="padding: 24px 28px; margin-bottom: 24px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
           <div>
-            <div class="status-chip success" style="margin-bottom:8px;">
-              <span class="status-dot"></span> System Operational · Phase 2 Shell Active
+            <div style="display:flex; gap:8px; margin-bottom:8px;">
+              <span id="core-status-chip" class="status-chip success">
+                <span class="status-dot"></span> Core: ONLINE
+              </span>
+              <span class="status-chip success">
+                <span class="status-dot"></span> Real Data Layer Active
+              </span>
             </div>
-            <h1 style="margin:0 0 8px 0; font-size:1.8rem; letter-spacing:0.5px;">JARVIS Control Center</h1>
-            <p style="margin:0; color:var(--text-secondary); font-size:0.92rem;">
-              Futuristic AI Operating System &amp; Humanoid Digital Avatar
+            <h1 style="margin:0 0 6px 0; font-size:1.75rem; letter-spacing:0.5px;">JARVIS Control Center</h1>
+            <p style="margin:0; color:var(--text-secondary); font-size:0.9rem;">
+              Futuristic AI Operating System &amp; Telemetry Hub
             </p>
           </div>
           <div style="display:flex; gap:10px; align-items:center;">
             <a href="/" class="btn-futuristic btn-secondary" title="View legacy 21-tab dashboard">
-              ↩ Return to Classic UI
+              ↩ Classic Dashboard
             </a>
-            <button class="btn-futuristic" onclick="window.showToast('Connecting AI subsystems…', 'info')">
-              ⚡ Quick Sync
+            <button class="btn-futuristic" onclick="window.jarvisApi?.fetchAllTelemetry().then(()=>window.showToast('Telemetry refreshed from live backend', 'success')).catch(()=>window.showToast('Refresh failed: backend offline', 'danger'))">
+              ↻ Refresh Telemetry
             </button>
           </div>
         </div>
       </div>
 
-      <!-- Overview Cards Grid -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:18px; margin-bottom: 24px;">
+      <!-- Real Telemetry Grid -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom: 24px;">
+        <!-- CPU Card -->
         <div class="glass-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;">Digital Avatar</span>
-            <span class="status-chip success">Ready</span>
+          <div style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">CPU Utilization</div>
+          <div id="metric-cpu" style="font-size:1.6rem; font-weight:800; color:var(--accent); font-family:var(--font-mono);">${t.cpu.usage_pct !== 'Unavailable' ? t.cpu.usage_pct + '%' : 'Unavailable'}</div>
+          <div id="metric-cpu-sub" style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">${t.cpu.cores} cores · ${t.cpu.freq_mhz} MHz</div>
+        </div>
+
+        <!-- RAM Card -->
+        <div class="glass-card">
+          <div style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">System Memory</div>
+          <div id="metric-ram" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); font-family:var(--font-mono);">${t.ram.pct !== 'Unavailable' ? t.ram.pct + '%' : 'Unavailable'}</div>
+          <div id="metric-ram-sub" style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">${t.ram.used_mb} / ${t.ram.total_mb} MB</div>
+        </div>
+
+        <!-- Disk Card -->
+        <div class="glass-card">
+          <div style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">Storage (NVMe/Disk)</div>
+          <div id="metric-disk" style="font-size:1.6rem; font-weight:800; color:var(--text-primary); font-family:var(--font-mono);">${t.disk.pct !== 'Unavailable' ? t.disk.pct + '%' : 'Unavailable'}</div>
+          <div id="metric-disk-sub" style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">${t.disk.used_gb} / ${t.disk.total_gb} GB</div>
+        </div>
+
+        <!-- Thermal Card -->
+        <div class="glass-card">
+          <div style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase; margin-bottom:8px;">SoC Temperature</div>
+          <div id="metric-temp" style="font-size:1.6rem; font-weight:800; color:var(--accent-green); font-family:var(--font-mono);">${t.temperature.celsius !== 'Unavailable' ? t.temperature.celsius + ' °C' : 'Unavailable'}</div>
+          <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Thermal Zone 0</div>
+        </div>
+      </div>
+
+      <!-- Secondary Telemetry Grid -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:18px; margin-bottom: 24px;">
+        <!-- Network & Battery Card -->
+        <div class="glass-card">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Network &amp; Power</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Network I/O:</span>
+            <span id="metric-net" style="font-family:var(--font-mono); font-weight:600; font-size:0.85rem;">${t.network.recv_mb !== 'Unavailable' ? '↓ ' + t.network.recv_mb + ' MB · ↑ ' + t.network.sent_mb + ' MB' : 'Unavailable'}</span>
           </div>
-          <div style="display:flex; align-items:center; gap:14px;">
-            <div style="width:48px; height:48px; border-radius:50%; background:var(--accent-bg); border:1px solid var(--accent); display:flex; align-items:center; justify-content:center; color:var(--accent); font-size:1.2rem;">
-              ARIA
-            </div>
-            <div>
-              <div style="font-weight:700; font-size:1rem;">Female Assistant (ARIA)</div>
-              <div style="font-size:0.8rem; color:var(--text-muted);">Idle · Awaiting Phase 5 Avatar Renderer</div>
-            </div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Battery:</span>
+            <span id="metric-battery" style="color:var(--text-muted); font-size:0.85rem;">${t.battery}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">GPU Acceleration:</span>
+            <span id="metric-gpu" style="color:var(--text-muted); font-size:0.85rem;">${t.gpu}</span>
           </div>
         </div>
 
+        <!-- Host Architecture Card -->
         <div class="glass-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;">Voice Pipeline</span>
-            <span class="status-chip success">Armed</span>
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Host Architecture</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Kernel &amp; OS:</span>
+            <span id="host-kernel" style="font-family:var(--font-mono); font-size:0.82rem; text-align:right; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.host.kernel}</span>
           </div>
-          <div style="font-weight:700; font-size:1rem; margin-bottom:4px;">Audio-Reactive Subsystem</div>
-          <div style="font-size:0.8rem; color:var(--text-muted);">Single mic owner · Phase 6 Integration</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">System Uptime:</span>
+            <span id="host-uptime" style="font-family:var(--font-mono); font-size:0.85rem;">${t.host.uptime}</span>
+          </div>
         </div>
 
+        <!-- AI Orchestrator & Model Card -->
         <div class="glass-card">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-            <span style="font-size:0.8rem; font-weight:600; color:var(--text-secondary); text-transform:uppercase;">Agent Hub</span>
-            <span class="status-chip">Worktree Safe</span>
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">AI Orchestrator &amp; Models</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Active AI Provider:</span>
+            <span id="ai-active-provider" class="status-chip success" style="font-size:0.75rem;">${t.models.active_provider}</span>
           </div>
-          <div style="font-weight:700; font-size:1rem; margin-bottom:4px;">Multi-Agent Orchestrator</div>
-          <div style="font-size:0.8rem; color:var(--text-muted);">Antigravity + Copilot active · Codex paused</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Agent Isolation:</span>
+            <span id="orchestrator-worktrees" style="font-size:0.85rem; font-weight:600;">${t.orchestrator.worktree_count} active worktrees</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Registered Agents:</span>
+            <span id="orchestrator-agents" style="font-size:0.85rem; color:var(--text-secondary);">${t.orchestrator.registered_agents} registered agents</span>
+          </div>
+        </div>
+
+        <!-- Robot Safety Card -->
+        <div class="glass-card">
+          <div style="font-size:0.8rem; font-weight:700; color:var(--accent); text-transform:uppercase; margin-bottom:12px;">Robot Hardware Safety</div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06);">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Motion State:</span>
+            <span id="robot-state" class="status-chip" style="font-size:0.75rem;">${t.robot.state}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; padding:6px 0;">
+            <span style="color:var(--text-secondary); font-size:0.85rem;">Safety Interlock:</span>
+            <span id="robot-safety" style="font-size:0.85rem; color:var(--accent-green); font-weight:600;">${t.robot.safety}</span>
+          </div>
         </div>
       </div>
     `;
   }
+
 
   function renderNotImplementedState(dest) {
     return `

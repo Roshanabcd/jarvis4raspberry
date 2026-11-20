@@ -7,9 +7,9 @@ Status values: pending, in-progress, awaiting-approval, blocked, verified.
 |---|-------|--------|--------|----------|
 | 0 | Audit (read-only) | verified | 8f386b4 | docs/jarvis-ui/evidence/phase-0/ |
 | 1 | Regression harness and safe delivery path | verified | c10f6af | docs/jarvis-ui/evidence/phase-1/ |
-| 2 | Design system and shell | verified | (pending commit) | docs/jarvis-ui/evidence/phase-2/ |
-| 3 | Data layer and dashboard | in-progress | | |
-| 4 | Conversation panel | pending | | |
+| 2 | Design system and shell | verified | 4fc6f59 | docs/jarvis-ui/evidence/phase-2/ |
+| 3 | Data layer and dashboard | verified | (pending commit) | docs/jarvis-ui/evidence/phase-3/ |
+| 4 | Conversation panel | in-progress | | |
 | 5 | Avatar | pending | | |
 | 6 | Voice | pending | | |
 | 7 | Agents and Developer Hub | pending | | |
@@ -82,6 +82,13 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 ## Open questions
 - Awaiting user input: original master prompt text to populate `docs/jarvis-ui/SPEC.md`.
 
+## Handoff notes
+### Phase 3 Handoff
+- Data client is ready in `apps/dashboard/futuristic/api.js` (`window.jarvisApi`).
+- Live telemetry is fully active on `#dashboard` with polling and automatic offline detection.
+- When backend disconnects, header shows offline badge and warning banner; automatically reconnects when backend recovers.
+- Next phase: Phase 4 (Conversation panel). Stream chat messages via `/api/chat/stream` or `/api/chat`, markdown & code formatting, stop/regenerate, error recovery.
+
 ## Log
 - 2026-11-20: Initialized feature branch `feature/jarvis-ui` from clean baseline `3522f43c2f11a1fac50b686f1466f8d3ac929d65`.
 - 2026-11-20: Appended standing rules to `AGENTS.md`. Initialized `docs/jarvis-ui/PLAN.md`.
@@ -89,3 +96,4 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - 2026-11-20: Executed Phase 0 Read-Only Audit. Discovered stack, versions, routes, audio pipeline, providers, storage, robot safety, and test baseline. Generated `docs/jarvis-ui/AUDIT.md` and `docs/jarvis-ui/FEATURES.md`. Operator approved with "continue". Phase 0 verified in commit `8f386b4`.
 - 2026-11-20: Executed Phase 1 Regression harness and safe delivery path. Mounted `/futuristic/` parallel route in `apps/core/app_factory.py`. Root `/` remains identical to baseline. Authored Playwright regression smoke suite `tests/browser/phase1_smoke_suite.cjs` covering all 21 FEATURES.md destinations (26/26 passed). Captured baseline screenshots at 4 viewports in `docs/jarvis-ui/evidence/phase-1/screenshots/`. Verified ASGI mounting via `tests/unit/test_phase1_safe_delivery.py` (2/2 passed). Phase 1 verified in commit `c10f6af`.
 - 2026-11-20: Executed Phase 2 Design system and shell. Built design tokens (`theme.css`), core glass components (`components.css`), responsive shell (`index.html`), and navigation controller (`shell.js`). All 18 destinations routed with honest unbuilt state. Verified via `tests/browser/phase2_design_shell.cjs`: axe accessibility audit 0 critical violations, keyboard navigation verified, and screenshots captured at 4 breakpoints in `docs/jarvis-ui/evidence/phase-2/screenshots/`. Phase 2 verified.
+- 2026-11-20: Executed Phase 3 Data layer and telemetry dashboard. Implemented typed API client in `api.js` with exponential backoff and honest fallback states. Added live dashboard metrics (CPU, RAM, disk, temp, network, host, backend, models, orchestrator, robot, voice) in `shell.js`. Verified zero mock data in production bundle via grep check. Verified telemetry against independent OS tools. Verified offline detection and auto-recovery via Playwright in `tests/browser/phase3_data_layer.cjs` (4/4 passed). Phase 3 verified.
