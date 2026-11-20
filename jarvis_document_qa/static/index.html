@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Document Question Answering</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f1b2d;
+      --border: #173b3a;
+      --accent: #00f5d4;
+      --accent-2: #10b981;
+      --text: #e6f1ff;
+      --muted: #8aa4bf;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: radial-gradient(circle at top right, #0b1d2e 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 19, 32, 0.92);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.5px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(0, 245, 212, 0.1);
+      color: var(--accent);
+    }
+    main { max-width: 1180px; margin: 22px auto; padding: 0 20px 40px; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background: rgba(0, 245, 212, 0.14);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .panel.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #031318;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .pill {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-2);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+    }
+    .status { font-size: 13px; color: var(--accent); margin-top: 10px; }
+    .answer-box {
+      background: rgba(0, 245, 212, 0.06);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 16px;
+      margin-top: 14px;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS OS // Document Question Answering</h1>
+      <span class="badge">PDF · MARKDOWN · TEXT · HYBRID RAG</span>
+    </div>
+    <div id="healthBadge" class="badge">Loading...</div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('ask', this)">Ask Documents</button>
+      <button class="tab-btn" onclick="showTab('upload', this)">Upload &amp; Index</button>
+      <button class="tab-btn" onclick="showTab('search', this)">Semantic Search</button>
+      <button class="tab-btn" onclick="showTab('library', this)">Indexed Library</button>
+    </div>
+
+    <section id="tab-ask" class="panel active">
+      <label>Question</label>
+      <textarea id="askQuestion" rows="2" placeholder="Ask a question grounded in your indexed documents..."></textarea>
+      <div class="grid">
+        <div>
+          <label>Scope to Document ID (optional)</label>
+          <input id="askDocId" placeholder="Leave blank to search all documents" />
+        </div>
+        <div>
+          <label>Top Chunks</label>
+          <input id="askTopK" type="number" value="4" min="1" max="15" />
+        </div>
+      </div>
+      <button class="primary" onclick="askDocs()">Ask Question</button>
+      <div id="askStatus" class="status"></div>
+      <div id="askOutput"></div>
+    </section>
+
+    <section id="tab-upload" class="panel">
+      <div class="grid">
+        <div>
+          <label>Select PDF, Markdown, or Text File</label>
+          <input id="fileInput" type="file" accept=".pdf,.md,.markdown,.txt" />
+        </div>
+        <div>
+          <label>Document Title (optional)</label>
+          <input id="docTitle" placeholder="Defaults to filename" />
+        </div>
+        <div>
+          <label>Tags (comma-separated)</label>
+          <input id="docTags" placeholder="architecture, robotics, notes" />
+        </div>
+      </div>
+      <label>Or Paste Markdown / Text Directly</label>
+      <textarea id="docText" rows="6" placeholder="# Section Heading&#10;Paste document content here..."></textarea>
+      <button class="primary" onclick="ingestDocument()">Index Document</button>
+      <div id="uploadStatus" class="status"></div>
+    </section>
+
+    <section id="tab-search" class="panel">
+      <div class="grid">
+        <div>
+          <label>Semantic / Keyword Query</label>
+          <input id="searchQuery" placeholder="e.g. SQLite WAL mode configuration" />
+        </div>
+        <div>
+          <label>Top K</label>
+          <input id="searchTopK" type="number" value="5" min="1" max="30" />
+        </div>
+      </div>
+      <button class="primary" onclick="searchDocs()">Search Chunks</button>
+      <div id="searchStatus" class="status"></div>
+      <div id="searchResults"></div>
+    </section>
+
+    <section id="tab-library" class="panel">
+      <button class="primary" onclick="loadLibrary()">Refresh Library</button>
+      <div id="libraryList"></div>
+    </section>
+  </main>
+
+  <script>
+    function showTab(name, btn) {
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.add("active");
+      btn.classList.add("active");
+      if (name === "library") loadLibrary();
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/doc-qa/health");
+        const d = await res.json();
+        document.getElementById("healthBadge").textContent =
+          `OK | ${d.total_documents} docs | ${d.total_chunks} chunks | ${d.embedding_dim}D`;
+      } catch (e) {
+        document.getElementById("healthBadge").textContent = "Backend unreachable";
+      }
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function ingestDocument() {
+      const fileEl = document.getElementById("fileInput");
+      const pasted = document.getElementById("docText").value.trim();
+      const title = document.getElementById("docTitle").value.trim() || null;
+      const tags = document.getElementById("docTags").value.split(",").map(s => s.trim()).filter(Boolean);
+
+      let payload = { title, tags, filename: "pasted_notes.md", content_text: pasted || null, content_base64: null };
+      if (fileEl.files && fileEl.files.length > 0) {
+        const file = fileEl.files[0];
+        payload.filename = file.name;
+        payload.content_text = null;
+        payload.content_base64 = await readFileAsBase64(file);
+      }
+
+      const res = await fetch("/api/doc-qa/documents", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      document.getElementById("uploadStatus").textContent = res.ok
+        ? `Indexed '${data.title}' (${data.doc_type}, ${data.chunk_count} chunks, id=${data.doc_id}).`
+        : `Error: ${data.detail || res.statusText}`;
+      refreshHealth();
+    }
+
+    async function loadLibrary() {
+      const res = await fetch("/api/doc-qa/documents");
+      const data = await res.json();
+      document.getElementById("libraryList").innerHTML = data.documents.map(d => `
+        <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <strong>${d.title}</strong> <span class="pill">${d.doc_type}</span>
+            <div style="font-size:12px;color:#8aa4bf;margin-top:4px;">
+              ID: ${d.doc_id} | File: ${d.filename} | ${d.chunk_count} chunks | ${d.char_count} chars
+            </div>
+          </div>
+          <button class="danger" onclick="deleteDoc('${d.doc_id}')">Delete</button>
+        </div>
+      `).join("") || `<div class="card">No documents indexed yet.</div>`;
+    }
+
+    async function deleteDoc(docId) {
+      await fetch(`/api/doc-qa/documents/${encodeURIComponent(docId)}`, { method: "DELETE" });
+      refreshHealth();
+      loadLibrary();
+    }
+
+    async function searchDocs() {
+      const res = await fetch("/api/doc-qa/search", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          query: document.getElementById("searchQuery").value.trim(),
+          top_k: Number(document.getElementById("searchTopK").value) || 5,
+        }),
+      });
+      const data = await res.json();
+      document.getElementById("searchStatus").textContent = `Found ${data.total_matches} matching chunks.`;
+      document.getElementById("searchResults").innerHTML = (data.results || []).map(r => `
+        <div class="card">
+          <strong>${r.doc_title}</strong> <span class="pill">#${r.chunk_index} · ${r.section}</span>
+          <div style="font-size:12px;color:#8aa4bf;margin-top:4px;">
+            Hybrid: ${r.score} | Semantic: ${r.semantic_score} | Lexical BM25: ${r.lexical_score}
+          </div>
+          <div style="margin-top:8px;font-size:13px;white-space:pre-wrap;">${r.content}</div>
+        </div>
+      `).join("");
+    }
+
+    async function askDocs() {
+      const docId = document.getElementById("askDocId").value.trim() || null;
+      const res = await fetch("/api/doc-qa/ask", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          question: document.getElementById("askQuestion").value.trim(),
+          top_k: Number(document.getElementById("askTopK").value) || 4,
+          doc_id: docId,
+        }),
+      });
+      const data = await res.json();
+      document.getElementById("askStatus").textContent = `Mode: ${data.mode} | Confidence: ${data.confidence}`;
+      const cites = (data.citations || []).map(c => `
+        <div class="card">
+          <strong>${c.doc_title}</strong> <span class="pill">#${c.chunk_index} · ${c.section} · score ${c.score}</span>
+          <div style="margin-top:6px;font-size:13px;color:#8aa4bf;">${c.excerpt}</div>
+        </div>
+      `).join("");
+      document.getElementById("askOutput").innerHTML = `<div class="answer-box">${data.answer}</div>${cites}`;
+    }
+
+    refreshHealth();
+  </script>
+</body>
+</html>

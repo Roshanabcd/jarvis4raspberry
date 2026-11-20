@@ -45,6 +45,8 @@ data/identity/
 data/audit/
 data/documents/
 .jarvis/diagnostics/
+.jarvis_*/
+*.bak
 # AG Kit
 .windsurf
 .aider*

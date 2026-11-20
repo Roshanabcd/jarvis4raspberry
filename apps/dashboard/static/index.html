@@ -913,6 +913,7 @@
   <button role="tab" aria-selected="false" aria-controls="tab-documents" id="nav-documents" data-tab="documents" onclick="showTab('documents')">📄 Document AI</button>
   <button role="tab" aria-selected="false" aria-controls="tab-research" id="nav-research" data-tab="research" onclick="showTab('research')">🔬 Research Assistant</button>
   <button role="tab" aria-selected="false" aria-controls="tab-settings" id="nav-settings" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
+  <a href="/suite" id="nav-suite" style="color: #00d2ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: 0.8rem; font-weight: 600; border-radius: 6px; transition: all 0.2s; border: 1px solid rgba(0, 210, 255, 0.35); background: rgba(0, 210, 255, 0.08); margin-left: 4px;" title="Open All-in-One AI Feature Suite (17 Modules)">⚡ AI Feature Suite</a>
 </nav>
 
 <main id="main-content">
@@ -1951,6 +1952,10 @@
         <p id="apps-identity-label" style="font-size:0.74rem;color:var(--muted);margin-top:6px">
           Loading local operator identity…
         </p>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <a href="/suite" target="_blank" class="btn primary" style="padding:6px 14px;font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">⚡ Open Unified Feature Suite (/suite)</a>
+          <span style="font-size:0.75rem;color:var(--muted)">All 17 modular AI feature engines active &amp; mounted on Raspberry Pi 5</span>
+        </div>
       </div>
       <div class="apps-stats-pills">
         <div class="app-stat-box">
@@ -1958,16 +1963,16 @@
           <div class="lbl">Total Apps</div>
         </div>
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-available" style="color:var(--green)">3</div>
+          <div class="num" id="apps-stat-available" style="color:var(--green)">20</div>
           <div class="lbl">Available</div>
         </div>
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-planned" style="color:#94a3b8">17</div>
+          <div class="num" id="apps-stat-planned" style="color:#94a3b8">0</div>
           <div class="lbl">Roadmap</div>
         </div>
         <div class="app-stat-box">
           <div class="num" id="apps-stat-resource" style="font-size:0.95rem;color:var(--accent)">Pi 5 Ready</div>
-          <div class="lbl" id="apps-stat-res-sub">Telemetry</div>
+          <div class="lbl" id="apps-stat-res-sub">100% Online</div>
         </div>
       </div>
     </div>
@@ -3388,7 +3393,11 @@ async function launchApp(appId) {
     if (data.target_tab) {
       showTab(data.target_tab);
     } else if (data.route) {
-      window.location.hash = data.route;
+      if (data.route.startsWith('/apps/') || data.route.startsWith('#')) {
+        window.location.hash = data.route.replace('/apps/', '');
+      } else {
+        window.open(data.route, '_blank');
+      }
     }
     loadRecentApps();
   } catch (err) {

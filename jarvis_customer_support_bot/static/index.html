@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Customer Support Bot</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --blue: #38bdf8;
+      --danger: #ef4444;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.med { border-color: var(--blue); color: #7dd3fc; }
+    .pill.esc { border-color: var(--danger); color: #fca5a5; }
+
+    main { padding: 18px 22px; max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 180px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--sans); font-size: 0.86rem;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .reply-box {
+      background: #071322; border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; white-space: pre-wrap; line-height: 1.5; font-size: 0.88rem;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #182a40; text-align: left; }
+    th { color: var(--accent); }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — CUSTOMER SUPPORT BOT</div>
+      <div class="brand-sub">Business &amp; Support • Domain Answering, Ticket Triage, Sentiment &amp; Escalation</div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend OK</span>
+      <span class="pill med" id="provider-pill">AI: ...</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('console', this)">Live Inquiry Console</button>
+      <button class="tab-btn" onclick="switchTab('tickets', this)">Ticket Triage Queue</button>
+      <button class="tab-btn" onclick="switchTab('kb', this)">Domain Knowledge Base</button>
+    </div>
+
+    <!-- TAB 1: CONSOLE -->
+    <section id="tab-console" class="card">
+      <strong style="color:var(--accent);">Test Customer Inquiry &amp; Auto-Triage</strong>
+      <div class="row">
+        <div class="field"><label>Customer Name</label><input id="c-name" value="Alex" /></div>
+        <div class="field" style="flex:2;"><label>Subject</label><input id="c-subj" placeholder="e.g., Charged twice for monthly subscription" /></div>
+      </div>
+      <div>
+        <label>Customer Message</label>
+        <textarea id="c-msg" placeholder="Enter a customer support inquiry to classify sentiment, match KB articles, and draft a reply..."></textarea>
+      </div>
+      <div class="row"><button class="btn" onclick="sendInquiry()">Analyze, Triage &amp; Reply</button></div>
+      <div id="triage-badges" class="pills"></div>
+      <div id="reply-box" class="reply-box hidden"></div>
+    </section>
+
+    <!-- TAB 2: TICKETS -->
+    <section id="tab-tickets" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Triaged Tickets &amp; Escalations</strong>
+        <button class="btn secondary" onclick="loadTickets()">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Customer</th><th>Subject</th><th>Category</th><th>Priority</th><th>Sentiment</th><th>Team</th><th>Status</th></tr></thead>
+        <tbody id="t-tbody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 3: KB -->
+    <section id="tab-kb" class="card hidden">
+      <strong style="color:var(--accent);">Add Domain Knowledge Base Article</strong>
+      <div class="row">
+        <div class="field" style="flex:2;"><label>Article Title</label><input id="kb-title" placeholder="e.g., Refund & Duplicate Billing Policy" /></div>
+        <div class="field"><label>Category</label><input id="kb-cat" value="billing" /></div>
+      </div>
+      <div><label>Content</label><textarea id="kb-content" placeholder="Write clear policy or troubleshooting steps..."></textarea></div>
+      <div class="row"><button class="btn" onclick="addKB()">Save KB Article</button></div>
+      <div id="kb-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/support-bot";
+
+    function switchTab(name, btn) {
+      ["console", "tickets", "kb"].forEach(t => document.getElementById("tab-" + t).classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+      if (name === "tickets") loadTickets();
+      if (name === "kb") loadKB();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...options });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function loadHealth() {
+      const h = await apiFetch("/health");
+      document.getElementById("health-pill").textContent = `KB: ${h.kb_articles} • Open: ${h.open_tickets}`;
+      document.getElementById("provider-pill").textContent = "AI: " + h.provider;
+    }
+
+    async function sendInquiry() {
+      const data = await apiFetch("/inquire", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_name: document.getElementById("c-name").value,
+          subject: document.getElementById("c-subj").value,
+          message: document.getElementById("c-msg").value
+        })
+      });
+      const t = data.triage;
+      document.getElementById("triage-badges").innerHTML = `
+        <span class="pill med">Ticket #${data.ticket_id}</span>
+        <span class="pill med">${t.category}</span>
+        <span class="pill ${t.escalate ? 'esc' : 'ok'}">${t.priority}</span>
+        <span class="pill ${t.escalate ? 'esc' : 'ok'}">${t.sentiment} (${t.sentiment_score})</span>
+        <span class="pill ${t.escalate ? 'esc' : 'ok'}">Route: ${t.escalation_team}</span>
+      `;
+      const box = document.getElementById("reply-box");
+      box.classList.remove("hidden");
+      box.textContent = data.reply_text;
+      loadHealth();
+    }
+
+    async function loadTickets() {
+      const data = await apiFetch("/tickets");
+      document.getElementById("t-tbody").innerHTML = data.tickets.map(t => `
+        <tr>
+          <td>#${t.id}</td><td>${t.customer_name}</td><td>${t.subject}</td><td>${t.category}</td>
+          <td>${t.priority}</td><td>${t.sentiment}</td><td>${t.escalation_team}</td>
+          <td>
+            <select style="width:auto;" onchange="setTicket(${t.id}, this.value)">
+              <option value="open" ${t.status === 'open' ? 'selected' : ''}>open</option>
+              <option value="escalated" ${t.status === 'escalated' ? 'selected' : ''}>escalated</option>
+              <option value="resolved" ${t.status === 'resolved' ? 'selected' : ''}>resolved</option>
+            </select>
+          </td>
+        </tr>
+      `).join("") || "<tr><td colspan='8' class='small-muted'>No tickets yet.</td></tr>";
+    }
+
+    async function setTicket(id, status) {
+      await apiFetch(`/tickets/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+      loadHealth();
+    }
+
+    async function addKB() {
+      await apiFetch("/kb", {
+        method: "POST",
+        body: JSON.stringify({
+          title: document.getElementById("kb-title").value,
+          category: document.getElementById("kb-cat").value,
+          content: document.getElementById("kb-content").value,
+          tags: []
+        })
+      });
+      document.getElementById("kb-title").value = "";
+      document.getElementById("kb-content").value = "";
+      loadKB();
+      loadHealth();
+    }
+
+    async function loadKB() {
+      const data = await apiFetch("/kb");
+      document.getElementById("kb-list").innerHTML = data.articles.map(a =>
+        `<div class="reply-box"><strong>${a.title}</strong> (${a.category})\n${a.content}</div>`
+      ).join("") || "<div class='small-muted'>No KB articles yet.</div>";
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>

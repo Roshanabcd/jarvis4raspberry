@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — AI Coding Assistant</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --border-glow: #00e5c0;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --danger: #ef4444;
+      --blue: #38bdf8;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-title {
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      font-size: 1.05rem;
+    }
+    .brand-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .pill {
+      font-size: 0.74rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.heavy { border-color: var(--amber); color: #fcd34d; }
+    .pill.info { border-color: var(--blue); color: #7dd3fc; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 270px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+    aside {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      max-height: calc(100vh - 68px);
+    }
+    .side-title {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .file-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .file-item {
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 0.76rem;
+      color: var(--muted);
+      cursor: pointer;
+      border: 1px solid transparent;
+      word-break: break-all;
+    }
+    .file-item:hover, .file-item.active {
+      background: var(--panel-2);
+      color: var(--text);
+      border-color: var(--border);
+    }
+    main {
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 9px 15px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: rgba(0, 245, 212, 0.12);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 4px;
+    }
+    input[type="text"], select, textarea {
+      width: 100%;
+      background: #060d18;
+      color: var(--text);
+      border: 1px solid #1e324a;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 0.84rem;
+    }
+    textarea { min-height: 150px; resize: vertical; }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981);
+      color: #031214;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .btn.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn.danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid var(--danger);
+    }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
+    pre {
+      margin: 0;
+      background: #04080f;
+      border: 1px solid #182a40;
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hidden { display: none !important; }
+    .finding {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #1f3349;
+      background: #07101d;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.83rem;
+    }
+    .sev-CRITICAL { border-left: 4px solid #ef4444; }
+    .sev-HIGH { border-left: 4px solid #f97316; }
+    .sev-MEDIUM { border-left: 4px solid #f59e0b; }
+    .sev-LOW { border-left: 4px solid #38bdf8; }
+    .score-banner {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 12px;
+      border-radius: 10px;
+      background: #071322;
+      border: 1px solid var(--border);
+    }
+    .score-num {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--accent);
+    }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div>
+        <div class="brand-title">JARVIS OS — AI CODING ASSISTANT</div>
+        <div class="brand-sub">Developer Tools • Raspberry Pi 5 Workspace Engine</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend: Checking...</span>
+      <span class="pill info" id="provider-pill">Provider: ...</span>
+      <span class="pill heavy">HEAVY</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="side-title">
+        <span>Workspace Files</span>
+        <button class="btn secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="loadFiles()">Refresh</button>
+      </div>
+      <div class="small-muted" id="workspace-root-label">Loading workspace...</div>
+      <ul class="file-list" id="file-list"></ul>
+
+      <div class="side-title" style="margin-top:8px;">
+        <span>Recent History</span>
+        <button class="btn secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="loadHistory()">Reload</button>
+      </div>
+      <div id="history-list" class="small-muted">No sessions yet.</div>
+    </aside>
+
+    <main>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('generate', this)">Code Generation</button>
+        <button class="tab-btn" onclick="switchTab('refactor', this)">Refactor &amp; Diff</button>
+        <button class="tab-btn" onclick="switchTab('analyze', this)">Security Static Analysis</button>
+        <button class="tab-btn" onclick="switchTab('tests', this)">Automated Test Synthesis</button>
+      </div>
+
+      <!-- TAB 1: GENERATE -->
+      <section id="tab-generate" class="card">
+        <div class="row">
+          <div style="flex:1;min-width:160px;">
+            <label for="gen-lang">Language</label>
+            <select id="gen-lang">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="bash">Bash</option>
+              <option value="cpp">C++ / ESP32</option>
+            </select>
+          </div>
+          <div style="flex:2;min-width:220px;">
+            <label for="gen-context">Optional Context File (click from sidebar)</label>
+            <input type="text" id="gen-context" placeholder="e.g., backend/main.py" />
+          </div>
+        </div>
+        <div>
+          <label for="gen-prompt">Describe the code or JARVIS module you want to build</label>
+          <textarea id="gen-prompt" placeholder="Example: Create an async FastAPI endpoint that reads Raspberry Pi 5 CPU temperature and memory usage safely."></textarea>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runGenerate(this)">Generate Code</button>
+          <span class="small-muted" id="gen-meta"></span>
+        </div>
+        <pre id="gen-output">// Generated code will appear here</pre>
+      </section>
+
+      <!-- TAB 2: REFACTOR -->
+      <section id="tab-refactor" class="card hidden">
+        <div class="row">
+          <div style="flex:1;min-width:160px;">
+            <label for="ref-file">Workspace File Path (optional)</label>
+            <input type="text" id="ref-file" placeholder="Click a file in sidebar or paste code below" />
+          </div>
+          <div style="flex:2;min-width:220px;">
+            <label for="ref-goal">Refactoring Goal</label>
+            <input type="text" id="ref-goal" value="Improve security, add type hints, and clean up error handling" />
+          </div>
+        </div>
+        <div>
+          <label for="ref-code">Source Code</label>
+          <textarea id="ref-code" placeholder="Paste code to refactor or select a file from the workspace sidebar..."></textarea>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runRefactor(this)">Refactor &amp; Preview Diff</button>
+          <button class="btn secondary" onclick="applyRefactored(true)">Dry-Run Patch</button>
+          <button class="btn danger" onclick="applyRefactored(false)">Apply Patch (Creates .bak)</button>
+          <span class="small-muted" id="ref-meta"></span>
+        </div>
+        <label>Unified Diff</label>
+        <pre id="ref-diff">// Unified diff preview</pre>
+        <label>Refactored Code</label>
+        <pre id="ref-output">// Refactored code</pre>
+      </section>
+
+      <!-- TAB 3: STATIC ANALYSIS -->
+      <section id="tab-analyze" class="card hidden">
+        <div class="row">
+          <div style="flex:2;min-width:200px;">
+            <label for="ana-file">Workspace File Path (optional)</label>
+            <input type="text" id="ana-file" placeholder="Click a file in sidebar or paste code below" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label for="ana-lang">Language</label>
+            <select id="ana-lang">
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript / TS</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="ana-code">Source Code to Audit</label>
+          <textarea id="ana-code" placeholder="Paste code to scan for security vulnerabilities, SQL injection, hardcoded secrets, and complexity..."></textarea>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runAnalyze(this)">Run Security &amp; Static Analysis</button>
+        </div>
+        <div id="ana-score" class="score-banner hidden"></div>
+        <div id="ana-findings" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </section>
+
+      <!-- TAB 4: TEST SYNTHESIS -->
+      <section id="tab-tests" class="card hidden">
+        <div class="row">
+          <div style="flex:2;min-width:200px;">
+            <label for="tst-file">Workspace File Path (optional)</label>
+            <input type="text" id="tst-file" placeholder="Click a file in sidebar or paste Python code below" />
+          </div>
+          <div style="flex:1;min-width:140px;">
+            <label for="tst-fw">Framework</label>
+            <select id="tst-fw">
+              <option value="pytest">pytest</option>
+              <option value="unittest">unittest</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="tst-code">Target Source Code</label>
+          <textarea id="tst-code" placeholder="Paste Python functions or classes to synthesize automated unit tests..."></textarea>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runTestSynthesis(this)">Synthesize Unit Tests</button>
+          <span class="small-muted" id="tst-meta"></span>
+        </div>
+        <pre id="tst-output">// Synthesized unit tests will appear here</pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = "/api/coding-assistant";
+    let lastRefactoredCode = "";
+
+    function switchTab(name, btn) {
+      document.querySelectorAll("main > section").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function loadHealth() {
+      try {
+        const h = await apiFetch("/health");
+        document.getElementById("health-pill").textContent = "Backend OK";
+        document.getElementById("provider-pill").textContent = "AI: " + h.provider;
+        document.getElementById("workspace-root-label").textContent = h.workspace_root;
+      } catch (err) {
+        document.getElementById("health-pill").textContent = "Backend Error";
+      }
+    }
+
+    async function loadFiles() {
+      const listEl = document.getElementById("file-list");
+      listEl.innerHTML = "<li class='small-muted'>Scanning...</li>";
+      try {
+        const data = await apiFetch("/workspace/files");
+        listEl.innerHTML = "";
+        if (!data.files.length) {
+          listEl.innerHTML = "<li class='small-muted'>No readable files found.</li>";
+          return;
+        }
+        data.files.forEach(f => {
+          const li = document.createElement("li");
+          li.className = "file-item";
+          li.textContent = f.path;
+          li.title = `${f.language} • ${f.size_bytes} bytes`;
+          li.onclick = () => selectWorkspaceFile(f.path, li);
+          listEl.appendChild(li);
+        });
+      } catch (err) {
+        listEl.innerHTML = `<li class='small-muted'>Error: ${err.message}</li>`;
+      }
+    }
+
+    async function selectWorkspaceFile(path, liEl) {
+      document.querySelectorAll(".file-item").forEach(el => el.classList.remove("active"));
+      liEl.classList.add("active");
+      document.getElementById("gen-context").value = path;
+      document.getElementById("ref-file").value = path;
+      document.getElementById("ana-file").value = path;
+      document.getElementById("tst-file").value = path;
+      try {
+        const file = await apiFetch("/workspace/file?path=" + encodeURIComponent(path));
+        document.getElementById("ref-code").value = file.content;
+        document.getElementById("ana-code").value = file.content;
+        document.getElementById("tst-code").value = file.content;
+      } catch (err) {
+        alert("Could not load file: " + err.message);
+      }
+    }
+
+    async function loadHistory() {
+      const el = document.getElementById("history-list");
+      try {
+        const data = await apiFetch("/history?limit=10");
+        if (!data.records.length) {
+          el.textContent = "No sessions yet.";
+          return;
+        }
+        el.innerHTML = data.records.map(r =>
+          `<div style="padding:5px 0;border-bottom:1px solid #16263a;">
+            <strong style="color:#00f5d4;">#${r.id} ${r.action}</strong>
+            <div>${r.summary}</div>
+          </div>`
+        ).join("");
+      } catch (err) {
+        el.textContent = "History unavailable.";
+      }
+    }
+
+    async function runGenerate(btn) {
+      btn.disabled = true;
+      try {
+        const ctx = document.getElementById("gen-context").value.trim();
+        const data = await apiFetch("/generate", {
+          method: "POST",
+          body: JSON.stringify({
+            prompt: document.getElementById("gen-prompt").value,
+            language: document.getElementById("gen-lang").value,
+            context_files: ctx ? [ctx] : []
+          })
+        });
+        document.getElementById("gen-output").textContent = data.code;
+        document.getElementById("gen-meta").textContent =
+          `Provider: ${data.provider_used} • Static warnings: ${data.static_warnings_count}`;
+        loadHistory();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function runRefactor(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/refactor", {
+          method: "POST",
+          body: JSON.stringify({
+            code: document.getElementById("ref-code").value || null,
+            file_path: document.getElementById("ref-file").value.trim() || null,
+            goal: document.getElementById("ref-goal").value
+          })
+        });
+        lastRefactoredCode = data.refactored_code;
+        document.getElementById("ref-diff").textContent = data.unified_diff || "(No diff changes)";
+        document.getElementById("ref-output").textContent = data.refactored_code;
+        document.getElementById("ref-meta").textContent =
+          `Provider: ${data.provider_used} • ${data.changes_summary.join(" ")}`;
+        loadHistory();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function applyRefactored(dryRun) {
+      const path = document.getElementById("ref-file").value.trim();
+      if (!path || !lastRefactoredCode) {
+        alert("Select a workspace file and run Refactor first.");
+        return;
+      }
+      try {
+        const data = await apiFetch("/workspace/apply", {
+          method: "POST",
+          body: JSON.stringify({
+            file_path: path,
+            new_content: lastRefactoredCode,
+            dry_run: dryRun,
+            create_backup: true
+          })
+        });
+        document.getElementById("ref-diff").textContent = data.unified_diff || "(No changes)";
+        alert(dryRun
+          ? `Dry-run OK for ${data.file_path}. No files were modified.`
+          : `Applied patch to ${data.file_path} (${data.bytes_written} bytes). Backup: ${data.backup_path || "none"}`
+        );
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function runAnalyze(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/analyze", {
+          method: "POST",
+          body: JSON.stringify({
+            code: document.getElementById("ana-code").value || null,
+            file_path: document.getElementById("ana-file").value.trim() || null,
+            language: document.getElementById("ana-lang").value
+          })
+        });
+        const banner = document.getElementById("ana-score");
+        banner.classList.remove("hidden");
+        banner.innerHTML = `
+          <div class="score-num">${data.score}/100 (${data.grade})</div>
+          <div class="small-muted">
+            Lines: ${data.line_count} • CRITICAL: ${data.summary.CRITICAL} • HIGH: ${data.summary.HIGH}
+            • MEDIUM: ${data.summary.MEDIUM} • LOW: ${data.summary.LOW}
+          </div>`;
+
+        const box = document.getElementById("ana-findings");
+        if (!data.findings.length) {
+          box.innerHTML = `<div class="finding">No security or quality issues detected.</div>`;
+        } else {
+          box.innerHTML = data.findings.map(f => `
+            <div class="finding sev-${f.severity}">
+              <div><strong>[${f.severity}] ${f.rule_id}</strong> (line ${f.line}) — ${f.message}</div>
+              <div class="small-muted">Snippet: <code>${f.snippet}</code></div>
+              <div style="color:#6ee7b7;">Fix: ${f.remediation}</div>
+            </div>
+          `).join("");
+        }
+        loadHistory();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function runTestSynthesis(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/tests/synthesize", {
+          method: "POST",
+          body: JSON.stringify({
+            code: document.getElementById("tst-code").value || null,
+            file_path: document.getElementById("tst-file").value.trim() || null,
+            framework: document.getElementById("tst-fw").value
+          })
+        });
+        document.getElementById("tst-output").textContent = data.test_code;
+        document.getElementById("tst-meta").textContent =
+          `Provider: ${data.provider_used} • Symbols: ${data.discovered_symbols.join(", ") || "none"}`;
+        loadHistory();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    loadHealth();
+    loadFiles();
+    loadHistory();
+  </script>
+</body>
+</html>

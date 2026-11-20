@@ -1559,6 +1559,7 @@
             <p class="ops-subtitle">Central registry catalog, user favorites & sandboxed app lifecycle</p>
           </div>
           <div class="ops-header-actions">
+            <a href="/suite" target="_blank" class="btn-futuristic btn-primary" style="text-decoration:none;">⚡ Unified Suite</a>
             <button class="btn-futuristic btn-secondary" id="apps-refresh-btn">Refresh Catalog</button>
           </div>
         </div>

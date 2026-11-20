@@ -215,6 +215,14 @@ def create_app(
     for spec in router_specs:
         _include_router(app, spec)
 
+    try:
+        from jarvis_feature_suite_loader import mount_jarvis_feature_suite
+
+        mount_jarvis_feature_suite(app)
+        logger.info("✓ JARVIS Unified Feature Suite mounted at /suite")
+    except Exception as exc:
+        logger.warning("JARVIS Unified Feature Suite skipped: %s", exc)
+
     if include_dashboard:
         futuristic_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "futuristic")
         if os.path.isdir(futuristic_dir):

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — AI Content Creation Pipeline</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --blue: #38bdf8;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.med { border-color: var(--blue); color: #7dd3fc; }
+
+    .layout { display: grid; grid-template-columns: 270px 1fr; flex: 1; min-height: 0; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    aside {
+      background: var(--panel); border-right: 1px solid var(--border);
+      padding: 14px; display: flex; flex-direction: column; gap: 10px;
+      overflow-y: auto; max-height: calc(100vh - 68px);
+    }
+    .side-title {
+      font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--accent); display: flex; justify-content: space-between; align-items: center;
+    }
+    .lib-item {
+      padding: 8px 10px; border-radius: 8px; border: 1px solid #17273b;
+      background: #07101c; cursor: pointer; font-size: 0.78rem;
+    }
+    .lib-item:hover { border-color: var(--accent); }
+    .lib-type { font-size: 0.68rem; color: var(--accent); text-transform: uppercase; font-weight: 700; }
+
+    main { padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; overflow-y: auto; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 180px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--sans); font-size: 0.86rem;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
+    pre {
+      margin: 0; background: #04080f; border: 1px solid #182a40; border-radius: 8px;
+      padding: 14px; overflow-x: auto; font-family: var(--mono); font-size: 0.8rem;
+      line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — AI CONTENT CREATION PIPELINE</div>
+      <div class="brand-sub">Media &amp; Content • Blogs, Short-Video Scripts, Hooks, Captions &amp; Carousels</div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend: Checking...</span>
+      <span class="pill med" id="provider-pill">Provider: ...</span>
+      <span class="pill med">MEDIUM</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside>
+      <div class="side-title">
+        <span>Saved Library</span>
+        <button class="btn secondary" style="padding:4px 8px;font-size:0.72rem;" onclick="loadLibrary()">Refresh</button>
+      </div>
+      <div id="library-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </aside>
+
+    <main>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('campaign', this)">Full Campaign Bundle</button>
+        <button class="tab-btn" onclick="switchTab('blog', this)">Technical Blog</button>
+        <button class="tab-btn" onclick="switchTab('video', this)">Short-Video Script</button>
+        <button class="tab-btn" onclick="switchTab('hooks', this)">Hooks &amp; Captions</button>
+        <button class="tab-btn" onclick="switchTab('carousel', this)">Carousel Outline</button>
+      </div>
+
+      <!-- TAB 1: FULL CAMPAIGN -->
+      <section id="tab-campaign" class="card">
+        <div class="row">
+          <div class="field" style="flex:2;">
+            <label>Campaign Topic</label>
+            <input id="camp-topic" placeholder="e.g., Running a Local AI Assistant on Raspberry Pi 5" />
+          </div>
+          <div class="field">
+            <label>Target Audience</label>
+            <input id="camp-aud" value="developers and robotics makers" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Video Length (sec)</label>
+            <select id="camp-dur"><option value="30">30s</option><option value="45">45s</option><option value="60" selected>60s</option><option value="90">90s</option></select>
+          </div>
+          <div class="field">
+            <label>Carousel Slides</label>
+            <select id="camp-slides"><option value="5">5 slides</option><option value="7" selected>7 slides</option><option value="9">9 slides</option></select>
+          </div>
+          <div class="field" style="flex:2;">
+            <label>Call to Action</label>
+            <input id="camp-cta" value="Follow along as we build JARVIS OS step by step" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runCampaign(this)">Generate Full Campaign (All 4 Formats)</button>
+        </div>
+      </section>
+
+      <!-- TAB 2: BLOG -->
+      <section id="tab-blog" class="card hidden">
+        <div class="row">
+          <div class="field" style="flex:2;">
+            <label>Blog Topic</label>
+            <input id="blog-topic" placeholder="e.g., Designing Safe FastAPI Plugin Routers for Edge AI" />
+          </div>
+          <div class="field">
+            <label>Target Words</label>
+            <input id="blog-words" type="number" value="800" min="250" max="3000" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Audience</label>
+            <input id="blog-aud" value="Python engineers and makers" />
+          </div>
+          <div class="field">
+            <label>Key Points (comma-separated, optional)</label>
+            <input id="blog-points" placeholder="Additive architecture, SQLite WAL, Automated tests" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runBlog(this)">Generate Technical Blog</button>
+        </div>
+      </section>
+
+      <!-- TAB 3: VIDEO -->
+      <section id="tab-video" class="card hidden">
+        <div class="row">
+          <div class="field" style="flex:2;">
+            <label>Video Topic</label>
+            <input id="vid-topic" placeholder="e.g., How My Raspberry Pi 5 JARVIS Scans Code for Security Bugs" />
+          </div>
+          <div class="field">
+            <label>Platform</label>
+            <select id="vid-plat"><option>YouTube Shorts</option><option>Instagram Reels</option><option>TikTok</option></select>
+          </div>
+          <div class="field">
+            <label>Duration (sec)</label>
+            <select id="vid-dur"><option value="30">30s</option><option value="45">45s</option><option value="60" selected>60s</option><option value="90">90s</option></select>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runVideo(this)">Generate Timestamped Script</button>
+        </div>
+      </section>
+
+      <!-- TAB 4: HOOKS & CAPTIONS -->
+      <section id="tab-hooks" class="card hidden">
+        <div class="row">
+          <div class="field" style="flex:2;">
+            <label>Topic</label>
+            <input id="hk-topic" placeholder="e.g., Building 15 Modular AI Apps Inside JARVIS OS" />
+          </div>
+          <div class="field">
+            <label>Hooks Count</label>
+            <input id="hk-count" type="number" value="5" min="3" max="10" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runHooks(this)">Generate Hooks &amp; Captions</button>
+        </div>
+      </section>
+
+      <!-- TAB 5: CAROUSEL -->
+      <section id="tab-carousel" class="card hidden">
+        <div class="row">
+          <div class="field" style="flex:2;">
+            <label>Carousel Topic</label>
+            <input id="car-topic" placeholder="e.g., 7 Rules for Reliable Edge AI Systems on Raspberry Pi 5" />
+          </div>
+          <div class="field">
+            <label>Slides</label>
+            <input id="car-slides" type="number" value="7" min="4" max="12" />
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" onclick="runCarousel(this)">Generate Carousel Outline</button>
+        </div>
+      </section>
+
+      <!-- SHARED OUTPUT PANEL -->
+      <section class="card">
+        <div class="row" style="justify-content:space-between;">
+          <strong id="out-title" style="color:var(--accent);">Generated Output</strong>
+          <div class="row">
+            <span class="small-muted" id="out-meta"></span>
+            <button class="btn secondary" onclick="copyOutput()">Copy Markdown</button>
+            <button class="btn secondary" id="export-btn" onclick="downloadCurrent()" disabled>Download .md</button>
+          </div>
+        </div>
+        <pre id="out-md">// Your generated technical blog, script, hooks, carousel, or full campaign will appear here.</pre>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = "/api/content-pipeline";
+    let currentItemId = null;
+
+    function switchTab(name, btn) {
+      ["campaign", "blog", "video", "hooks", "carousel"].forEach(t => {
+        document.getElementById("tab-" + t).classList.add("hidden");
+      });
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    function showResult(id, title, provider, markdown) {
+      currentItemId = id;
+      document.getElementById("out-title").textContent = title;
+      document.getElementById("out-meta").textContent = `Item #${id} • ${provider}`;
+      document.getElementById("out-md").textContent = markdown;
+      document.getElementById("export-btn").disabled = false;
+      loadLibrary();
+    }
+
+    async function loadHealth() {
+      try {
+        const h = await apiFetch("/health");
+        document.getElementById("health-pill").textContent = "Backend OK";
+        document.getElementById("provider-pill").textContent = "AI: " + h.provider;
+      } catch {
+        document.getElementById("health-pill").textContent = "Backend Error";
+      }
+    }
+
+    async function loadLibrary() {
+      const el = document.getElementById("library-list");
+      try {
+        const data = await apiFetch("/history?limit=25");
+        if (!data.items.length) {
+          el.innerHTML = "<div class='small-muted'>No saved items yet.</div>";
+          return;
+        }
+        el.innerHTML = data.items.map(it => `
+          <div class="lib-item" onclick="openItem(${it.id})">
+            <div class="lib-type">${it.content_type} • #${it.id}</div>
+            <div style="margin-top:3px;">${it.title}</div>
+          </div>
+        `).join("");
+      } catch {
+        el.innerHTML = "<div class='small-muted'>Library unavailable.</div>";
+      }
+    }
+
+    async function openItem(id) {
+      try {
+        const it = await apiFetch("/item/" + id);
+        showResult(it.id, it.title, it.provider, it.markdown);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function runCampaign(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/campaign", {
+          method: "POST",
+          body: JSON.stringify({
+            topic: document.getElementById("camp-topic").value,
+            audience: document.getElementById("camp-aud").value,
+            video_duration_seconds: Number(document.getElementById("camp-dur").value),
+            carousel_slides: Number(document.getElementById("camp-slides").value),
+            call_to_action: document.getElementById("camp-cta").value
+          })
+        });
+        showResult(data.campaign_id, "Full Campaign: " + data.topic, data.blog.provider_used, data.combined_markdown);
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function runBlog(btn) {
+      btn.disabled = true;
+      try {
+        const rawPts = document.getElementById("blog-points").value.trim();
+        const pts = rawPts ? rawPts.split(",").map(s => s.trim()).filter(Boolean) : [];
+        const data = await apiFetch("/blog", {
+          method: "POST",
+          body: JSON.stringify({
+            topic: document.getElementById("blog-topic").value,
+            target_words: Number(document.getElementById("blog-words").value),
+            audience: document.getElementById("blog-aud").value,
+            key_points: pts
+          })
+        });
+        showResult(data.item_id, data.title, data.provider_used, data.markdown);
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function runVideo(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/video-script", {
+          method: "POST",
+          body: JSON.stringify({
+            topic: document.getElementById("vid-topic").value,
+            platform: document.getElementById("vid-plat").value,
+            duration_seconds: Number(document.getElementById("vid-dur").value)
+          })
+        });
+        showResult(data.item_id, data.title, data.provider_used, data.full_script_markdown);
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function runHooks(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/hooks-captions", {
+          method: "POST",
+          body: JSON.stringify({
+            topic: document.getElementById("hk-topic").value,
+            hook_count: Number(document.getElementById("hk-count").value)
+          })
+        });
+        showResult(data.item_id, "Hooks & Captions: " + data.topic, data.provider_used, data.markdown);
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function runCarousel(btn) {
+      btn.disabled = true;
+      try {
+        const data = await apiFetch("/carousel", {
+          method: "POST",
+          body: JSON.stringify({
+            topic: document.getElementById("car-topic").value,
+            slide_count: Number(document.getElementById("car-slides").value)
+          })
+        });
+        showResult(data.item_id, "Carousel: " + data.topic, data.provider_used, data.markdown);
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    function copyOutput() {
+      navigator.clipboard.writeText(document.getElementById("out-md").textContent);
+    }
+
+    function downloadCurrent() {
+      if (currentItemId) window.location.href = `${API}/item/${currentItemId}/export`;
+    }
+
+    loadHealth();
+    loadLibrary();
+  </script>
+</body>
+</html>
