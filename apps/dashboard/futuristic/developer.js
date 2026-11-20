@@ -84,8 +84,10 @@
                        style="background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-primary); padding:8px 12px; font-size:0.85rem;">
                 <div style="display:flex; gap:10px;">
                   <select id="agents-task-agent-select" style="background:#081120; border:1px solid var(--border-card); border-radius:var(--radius-sm); color:var(--text-secondary); padding:6px 10px; font-size:0.8rem;">
-                    <option value="antigravity">Google Antigravity (Default)</option>
-                    <option value="claude">Anthropic Claude Code</option>
+                    <option value="antigravity">Google Antigravity (agy)</option>
+                    <option value="codex">OpenAI Codex (ChatGPT Plus)</option>
+                    <option value="copilot">GitHub Copilot (Copilot Fusion)</option>
+                    <option value="claude">Anthropic Claude Code (Manual Handoff)</option>
                     <option value="ollama">Local Ollama AI</option>
                     <option value="simulated">Simulated Agent (Throwaway)</option>
                   </select>
@@ -260,26 +262,18 @@
       // Class B: Headless CLI adapter
       // Class C: IDE-only with no programmatic control
       const classMap = {
-        antigravity: { classTier: 'B', classLabel: 'Class B: Headless CLI', isClassC: false },
-        claude: { classTier: 'B', classLabel: 'Class B: Headless CLI', isClassC: false },
+        antigravity: { classTier: 'B', classLabel: 'Class B: Headless CLI (agy)', isClassC: false },
+        codex: { classTier: 'B', classLabel: 'Class B: Headless CLI (Codex)', isClassC: false },
+        copilot: { classTier: 'B', classLabel: 'Class B: Headless CLI (Copilot)', isClassC: false },
+        claude: { classTier: 'B', classLabel: 'Class B: Headless CLI (Manual Handoff)', isClassC: false },
         ollama: { classTier: 'B', classLabel: 'Class B: Local Engine', isClassC: false },
         opencode: { classTier: 'B', classLabel: 'Class B: Headless CLI', isClassC: false },
-        codex: { classTier: 'B', classLabel: 'Class B: CLI (Quota Exhausted)', isClassC: false, quotaNotice: 'OpenAI Codex quota exhausted per user instructions' },
-        copilot: { classTier: 'C', classLabel: 'Class C: IDE-Only', isClassC: true },
         cline: { classTier: 'C', classLabel: 'Class C: IDE-Only', isClassC: true },
         gemini: { classTier: 'A', classLabel: 'Class A: Full API', isClassC: false },
       };
 
       // Ensure Class C tools appear explicitly per PLAN requirements
       const displayAgents = [...this.agents];
-      if (!displayAgents.some((a) => a.id === 'copilot')) {
-        displayAgents.push({
-          id: 'copilot',
-          display_name: 'GitHub Copilot',
-          status: 'IDE_ONLY',
-          capabilities: { models: ['gpt-4o', 'claude-3.5-sonnet'] },
-        });
-      }
       if (!displayAgents.some((a) => a.id === 'cline')) {
         displayAgents.push({
           id: 'cline',

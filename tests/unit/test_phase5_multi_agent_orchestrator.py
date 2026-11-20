@@ -40,12 +40,13 @@ from tools.agents.stuck_watchdog import stuck_watchdog
 
 # ─── Test 1: Agent Discovery ─────────────────────────────────
 def test_agent_discovery():
-    """Verify registry discovers all 5 configured agents on the system."""
+    """Verify registry discovers all configured agents on the system."""
     agents = agent_registry.discover_all(force_refresh=True)
-    assert len(agents) >= 5
+    assert len(agents) >= 6
     agent_ids = [a.id for a in agents]
     assert "antigravity" in agent_ids
     assert "codex" in agent_ids
+    assert "copilot" in agent_ids
     assert "claude" in agent_ids
     assert "opencode" in agent_ids
     assert "ollama" in agent_ids
@@ -54,7 +55,7 @@ def test_agent_discovery():
 # ─── Test 2: Authentication Detection Without Secrets ────────
 def test_authentication_detection_without_secrets():
     """Verify auth detection verifies credentials without exposing keys or tokens."""
-    for agent_id in ["antigravity", "codex", "claude", "opencode", "ollama"]:
+    for agent_id in ["antigravity", "codex", "copilot", "claude", "opencode", "ollama"]:
         meta = agent_registry.get_metadata(agent_id)
         assert meta is not None
         # Metadata must not leak any secrets
@@ -90,7 +91,7 @@ def test_local_ollama_debugging():
 
 # ─── Test 4: Coding Agent Invocation ─────────────────────────
 def test_coding_agent_invocation():
-    """Verify installed coding agent adapter (antigravity/codex) formats commands properly."""
+    """Verify installed coding agent adapters (antigravity/codex/copilot) format commands properly."""
     adapter = agent_registry.get_adapter("antigravity")
     assert adapter is not None
     assert adapter.cli_path == "/home/roshan/.local/bin/agy"
@@ -100,6 +101,11 @@ def test_coding_agent_invocation():
     assert codex is not None
     assert codex.cli_path == "/home/roshan/.local/bin/codex"
     assert os.path.exists(codex.cli_path)
+
+    copilot = agent_registry.get_adapter("copilot")
+    assert copilot is not None
+    assert copilot.cli_path == "/home/roshan/.local/bin/copilot"
+    assert os.path.exists(copilot.cli_path)
 
 
 # ─── Test 5: Permission Manager Profiles ─────────────────────

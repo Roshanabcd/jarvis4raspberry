@@ -90,7 +90,7 @@ class OllamaAdapter(BaseAgentAdapter):
                 "model": model,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.2, "num_predict": 80},
+                "options": {"temperature": 0.2, "num_predict": 48},
             }).encode("utf-8")
 
             req = urllib.request.Request(
@@ -98,7 +98,7 @@ class OllamaAdapter(BaseAgentAdapter):
                 data=req_data,
                 headers={"Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            with urllib.request.urlopen(req, timeout=90) as resp:
                 res_json = json.loads(resp.read().decode("utf-8"))
                 analysis_text = res_json.get("response", "")
 
