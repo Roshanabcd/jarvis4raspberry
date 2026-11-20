@@ -247,6 +247,14 @@
       });
     }
 
+    async sendVoiceCommand(text) {
+      return await this.request('/api/voice/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+    }
+
     async synthesizeSpeech(text, options = {}) {
       return await this.request('/api/voice/speak', {
         method: 'POST',

@@ -424,18 +424,46 @@
         this.updateSubtitles('user', 'Capturing voice audio from microphone...', 'Listening');
         const res = await window.jarvisApi.listenOnce(4);
         this.stopMicStream();
-        if (res && res.text) {
-          this.updateSubtitles('user', res.text, 'Transcribed');
-          await this.handleUserVoiceInput(res.text);
+        const text = res ? (res.transcribed || res.text) : null;
+        if (text && text.trim()) {
+          this.updateSubtitles('user', text, 'Transcribed');
+          if (res.response) {
+            this.updateSubtitles('jarvis', res.response, 'Speaking');
+            if (res.audio_url) {
+              this.playAudioUrl(res.audio_url, res.response);
+            } else {
+              const synthRes = await window.jarvisApi.synthesizeSpeech(res.response, {
+                speed: this.tuning.speed,
+                numSteps: this.tuning.num_steps,
+              });
+              if (synthRes && synthRes.audio_url) {
+                this.playAudioUrl(synthRes.audio_url, res.response);
+              } else {
+                this.setState(this.isMuted ? 'muted' : 'idle');
+                if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
+              }
+            }
+          } else {
+            await this.handleUserVoiceInput(text);
+          }
+        } else if (res && res.status === 'error' && res.message && res.message.includes('daemon owns the microphone')) {
+          this.updateSubtitles('user', 'Voice daemon is active. Say "Hey Jarvis" or speak command.', 'Daemon Active');
+          this.setState(this.isMuted ? 'muted' : 'idle');
+          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
         } else {
-          this.updateSubtitles('user', 'No speech detected or transcription idle', 'Idle');
+          this.updateSubtitles('user', res?.message || 'No speech detected or transcription idle', 'Idle');
           this.setState(this.isMuted ? 'muted' : 'idle');
           if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
         }
       } catch (err) {
         console.warn('Backend listen_once error:', err);
         this.stopMicStream();
-        this.updateSubtitles('user', 'Voice transcription unavailable: ' + (err.message || 'error'), 'STT Unavailable');
+        const msg = err.message || 'error';
+        if (msg.includes('daemon owns the microphone')) {
+          this.updateSubtitles('user', 'Voice daemon is active. Say "Hey Jarvis" or speak command.', 'Daemon Active');
+        } else {
+          this.updateSubtitles('user', 'Voice transcription unavailable: ' + msg, 'STT Unavailable');
+        }
         this.setState(this.isMuted ? 'muted' : 'idle');
         if (window.jarvisAvatar) window.jarvisAvatar.setState('concerned');
       }
@@ -495,20 +523,27 @@
       try {
         if (!window.jarvisApi) throw new Error('API client not available');
 
-        // Execute inference and synthesize speech via backend
-        const synthRes = await window.jarvisApi.synthesizeSpeech(text, {
-          speed: this.tuning.speed,
-          numSteps: this.tuning.num_steps,
-        });
+        // Execute inference through AI brain and get command reply
+        const cmdRes = await window.jarvisApi.sendVoiceCommand(text);
+        const replyText = cmdRes?.response || cmdRes?.text || 'Command processed.';
+        this.updateSubtitles('jarvis', replyText, 'Playing');
 
-        if (synthRes && synthRes.success && synthRes.audio_url) {
-          const replyText = synthRes.text || text;
-          this.updateSubtitles('jarvis', replyText, 'Playing');
-          this.playAudioUrl(synthRes.audio_url, replyText);
+        let audioUrl = cmdRes?.audio_url;
+        if (!audioUrl) {
+          const synthRes = await window.jarvisApi.synthesizeSpeech(replyText, {
+            speed: this.tuning.speed,
+            numSteps: this.tuning.num_steps,
+          });
+          if (synthRes && synthRes.success && synthRes.audio_url) {
+            audioUrl = synthRes.audio_url;
+          }
+        }
+
+        if (audioUrl) {
+          this.playAudioUrl(audioUrl, replyText);
         } else {
-          // If backend TTS fails or reports error
-          const errDetail = synthRes?.error || 'Speech synthesis failed';
-          this.handleTtsFailure(errDetail, text);
+          this.setState(this.isMuted ? 'muted' : 'idle');
+          if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
         }
       } catch (err) {
         console.warn('Voice command processing error:', err);

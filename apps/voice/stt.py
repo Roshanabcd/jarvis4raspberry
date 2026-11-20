@@ -188,8 +188,7 @@ class SpeechToText:
                     return text.strip()
             except sr.UnknownValueError:
                 self.last_status = "unintelligible"
-                logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence)")
-                return ""
+                logger.debug("Google Speech Recognition could not understand audio (unintelligible or silence); attempting local Whisper fallback.")
             except sr.RequestError as req_err:
                 logger.warning("Google Speech Recognition service request failed: %s", req_err)
             except Exception as exc:

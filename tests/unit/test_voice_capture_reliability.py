@@ -143,3 +143,82 @@ def test_expected_pipewire_signal_exit_requires_valid_complete_audio(monkeypatch
     engine = WakeWordEngine(temp_dir=str(tmp_path))
     assert engine._record_audio_chunk(str(output), duration_s=0.1) is expected
     assert engine.get_capture_diagnostics()['capture_status'] == ('ok' if expected else 'failed')
+
+
+def test_unknown_value_error_falls_back_to_whisper(monkeypatch, tmp_path):
+    audio = tmp_path / 'synthetic.wav'
+    with wave.open(str(audio), 'wb') as stream:
+        stream.setnchannels(1)
+        stream.setsampwidth(2)
+        stream.setframerate(16000)
+        stream.writeframes(struct.pack('<h', 100) * 1000)
+
+    unknown_error_cls = type('UnknownValueError', (Exception,), {})
+    recognizer = MagicMock()
+    recognizer.recognize_google.side_effect = unknown_error_cls("Could not understand")
+
+    module = types.SimpleNamespace(
+        Recognizer=lambda: recognizer,
+        AudioFile=MagicMock(),
+        UnknownValueError=unknown_error_cls,
+        RequestError=type('RequestError', (Exception,), {}),
+    )
+    monkeypatch.setitem(sys.modules, 'speech_recognition', module)
+
+    stt = SpeechToText(simulation_mode=False)
+    fake_whisper = MagicMock()
+    fake_whisper.transcribe.return_value = {'text': 'whisper recovered text'}
+    monkeypatch.setattr(stt, '_ensure_model', lambda: None)
+    stt.model = fake_whisper
+
+    assert stt.transcribe(str(audio)) == 'whisper recovered text'
+    assert stt.last_status == 'recognized'
+    fake_whisper.transcribe.assert_called_once_with(str(audio))
+
+
+def test_accumulated_speech_used_when_fragment_transcription_empty(monkeypatch, tmp_path):
+    engine = WakeWordEngine(temp_dir=str(tmp_path))
+    engine.adaptive_threshold = 50.0
+    engine._is_running = True
+    engine.set_state(WakeState.LISTENING_SPEECH)
+    engine.silence_timeout_s = 0.0
+    engine.wake_word_enabled = False
+
+    speech_file = tmp_path / 'speech_chunk.wav'
+    def fake_record(path, duration_s=1.5):
+        with wave.open(path, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes(struct.pack('<h', 150) * 800)
+        return True
+
+    monkeypatch.setattr(engine, '_record_audio_chunk', fake_record)
+    monkeypatch.setattr(engine, '_check_daemon_commands', lambda: None)
+    monkeypatch.setattr(engine, '_is_tts_playing', lambda: False)
+
+    rms_calls = 0
+    def mock_rms(path):
+        nonlocal rms_calls
+        rms_calls += 1
+        return 150.0 if rms_calls == 1 else 10.0
+
+    monkeypatch.setattr(engine, '_calculate_audio_rms', mock_rms)
+
+    def fake_transcribe(wav_path):
+        if 'accumulated_command.wav' in wav_path:
+            return 'turn on the lights'
+        return ''  # isolated fragments return empty
+
+    monkeypatch.setattr(engine, '_transcribe', fake_transcribe)
+
+    executed_cmds = []
+    def record_exec(cmd):
+        executed_cmds.append(cmd)
+        engine.stop()
+
+    monkeypatch.setattr(engine, '_execute_command_and_respond', record_exec)
+    engine._run_loop()
+
+    assert executed_cmds == ['turn on the lights']
+
