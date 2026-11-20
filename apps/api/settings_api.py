@@ -237,6 +237,8 @@ def get_category_settings(category: str):
             val = resolve_key(provider_name, config)
             if not val:
                 return ""
+            if len(val) >= 8:
+                return f"{val[:4]}****{val[-4:]}"
             return "********"
 
         return {

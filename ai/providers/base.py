@@ -296,12 +296,17 @@ class OllamaProvider(AIProvider):
         self._inference_slot = threading.BoundedSemaphore(1)
         self._retry_after = 0.0
 
+    def reset_cooldown(self) -> None:
+        """Reset the failure cooldown timer."""
+        self._retry_after = 0.0
+
     def is_available(self) -> bool:
         if not self.enabled:
             return False
-        # Always perform a fresh check; cache the result for callers who
-        # inspect the attribute directly, but don't short‑circuit here so
-        # that unit tests (and real callers) see the current server state.
+        # Use short cache TTL to avoid hammering the local Ollama endpoint
+        # while still allowing tests to verify fresh state when needed.
+        if self._available is not None and time.monotonic() - self._last_check < 5.0:
+            return self._available
         self._last_check = time.monotonic()
         try:
             r = requests.get(f"{self.base_url}/api/tags", timeout=3.0)
@@ -421,7 +426,7 @@ class OllamaProvider(AIProvider):
                     "stream": False,
                     "options": {
                         "temperature": kwargs.get("temperature", 0.2),
-                        "num_predict": kwargs.get("num_predict", 1024),
+                        "num_predict": kwargs.get("num_predict", 384),
                     }
                 },
                 timeout=req_timeout,
@@ -443,7 +448,7 @@ class OllamaProvider(AIProvider):
         except Exception as e:
             logger.error(f"Ollama chat error: {e}")
             if isinstance(e, (requests.Timeout, requests.ConnectionError)):
-                self._retry_after = time.monotonic() + 30.0
+                self._retry_after = time.monotonic() + 5.0
             return {
                 "text": "",
                 "tool_calls": [],

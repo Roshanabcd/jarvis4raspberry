@@ -201,7 +201,7 @@ class PermissionManager:
             r"\b(make|give|set|switch|grant|elevate|promote)\s+(?:(?:me|user)\s+)?(?:to\s+)?(?:admin|administrator|root|superuser)(?:\s+mode|\s+role|\s+privileges)?\b",
             r"\bi\s+am\s+(the\s+)?(admin|administrator|root|superuser)\b",
             r"\bgrant\s+me\s+admin\s+privileges\b",
-            r"\bset\s+role\s+(to\s+)?admin\b",
+            r"\b(set|switch|change)\s+role\s+(to\s+)?(?:admin|administrator|root)\b",
         ]
         for pat in patterns:
             if re.search(pat, text_lower):

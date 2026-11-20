@@ -529,3 +529,23 @@ Learnings:
 - Local LLM inference on Raspberry Pi 5 ARM64 Cortex-A76 requires 20-40 seconds per synthesis call. Implementing a high-fidelity deterministic grounded fallback engine ensures instantaneous sub-second responses during automated testing and completely offline operation while maintaining strict factual grounding.
 - OpenAlex abstracts are stored in an inverted index dictionary format (mapping words to token position lists). Reconstructing the abstract requires sorting token positions and assembling the word array, which avoids large text payload bloat while providing full abstract text for indexing.
 ==================================================
+=== ITERATION: CORE AI RELIABILITY & PROVIDER INTEGRATION ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Credentials Discovery & Persistence: Added automatic `.env` discovery to `ai/providers/credentials.py` and `config/config_manager.py` using `dotenv.load_dotenv(override=False)`, resolving NVIDIA NIM, OpenRouter, and cloud API keys without manual exports.
+- Intent Routing & Telemetry Repair: Fixed boundary matching in `ai/local_engine.py` preventing "What is the CPU temperature?" from being hijacked into general conversation; routed hardware queries directly to deterministic `system_status`.
+- Tool Executor Error Protocol: Updated `ai/tools/executor.py` to accept `confirmed=True` and guarantee standard JSON error payloads (`{"status": "error", "error": ...}`) when execution is denied.
+- Code Generation Disambiguation: Added Rule 10 to `SYSTEM_PROMPT` prohibiting command tool hallucination for programming queries, and suppressed tool advertisement (`tools = None`) in `JARVISBrain.chat` when processing pure code generation requests.
+- Multi-Point Security & Revocation: Evaluated `_authorization_check` at request entry, before each inference round, and immediately prior to tool dispatch.
+- SSE Streaming Token Flow: Restored progressive token chunking in `stream_chat` for real-time visual rendering and clean client cancellation without threadpool batch blocking.
+- Ollama ARM64 Timeout & Cooldown Resilience: Replaced hardcoded 20s timeout in `ai/brain.py` with provider timeout budgets, reduced failure cooldown from 30s to 5s, added `reset_cooldown()`, and tuned default token generation (`num_predict: 384`).
+- Transparent Provider Error Reporting: Configured unreachable test endpoints (`:9999`) to route directly to the designated provider, standardized failure text prefix to `"AI Provider Error: The {provider} model is unreachable or timed out ({error})."`, and returned honest error telemetry without fake fallback.
+- Settings Key Masking: Standardized `/api/settings/integrations` to return partially masked keys (`f"{val[:4]}****{val[-4:]}"`).
+- Verification & Test Execution: Authored `tests/unit/test_core_ai_reliability.py` verifying all 15 core acceptance criteria. Verified 103/103 tests passed across `test_phase8_phase11_hardening_and_safety.py`, `test_phase2_agent_tools.py`, `test_phase05_provider_reliability.py`, `test_agent_execution.py`, `test_brain_reliability.py`, `test_nvidia_conversation.py`, `test_core_ai_reliability.py`, and `test_phase1_real_ai.py`.
+
+Learnings:
+- When LLMs with tool-calling capabilities receive coding prompts alongside 90+ physical tool definitions, models tend to hallucinate execution tools (such as `safe_shell`). Pure programming requests must omit tool definitions to produce clean, complete Markdown code implementations.
+- Cooldown timers on local edge models running on CPU must be short (≤5s) and cleanly resettable; lengthy cooldowns cause cascading failures across independent test cases and real-world turns.
+- Multi-turn mock authorization checks require evaluation at every phase boundary (entry, pre-inference, pre-dispatch) to maintain state alignment and prevent unintended tool execution upon permission revocation.
+==================================================

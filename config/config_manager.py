@@ -9,6 +9,13 @@ class ConfigManager:
             self.config_dir = os.path.dirname(os.path.abspath(__file__))
         else:
             self.config_dir = config_dir
+        try:
+            from dotenv import load_dotenv
+            env_file = os.path.join(os.path.dirname(self.config_dir), ".env")
+            if os.path.exists(env_file):
+                load_dotenv(env_file, override=False)
+        except Exception:
+            pass
         self.config: Dict[str, Any] = {}
         self.load_all()
 

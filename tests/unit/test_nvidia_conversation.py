@@ -116,3 +116,22 @@ def test_truncated_cloud_reply_is_not_reported_as_completed(monkeypatch, ending)
     assert events[0]['token'] == 'Partial'
     assert events[-1]['error']
     response.close.assert_called_once()
+
+
+def test_background_session_revoked_before_tool_dispatch(brain, monkeypatch):
+    provider = MagicMock()
+    provider.name, provider.model = 'nvidia', 'chat-model'
+    provider.generate.return_value = {'tool_calls':[{'name':'calculate','args':{'expression':'17+25'}}]}
+    monkeypatch.setattr(brain, '_get_provider', lambda *a: provider)
+    monkeypatch.setattr('ai.tools.agent_tools.available_tools', lambda *a, **kw: [{'name':'calculate'}])
+    executor = MagicMock()
+    monkeypatch.setattr('ai.tools.agent_tools.execute_agent_tool', executor)
+    guard = MagicMock(side_effect=[True, True, False])
+    result = brain.chat('Please compute the answer', role='GUEST', _allow_compound=False, _authorization_check=guard)
+    assert result['status'] == 'failed'
+    executor.assert_not_called()
+
+
+def test_background_expired_session_never_starts_inference(brain):
+    result = brain.chat('Do a task', _authorization_check=lambda: False)
+    assert result['error'] == 'authorization_changed'

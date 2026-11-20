@@ -20,7 +20,14 @@ client = TestClient(app)
 class TestPhase8to11HardeningAndSafety:
 
     def setup_method(self):
+        from apps.api.robot_api import require_http_actuation_authorization
+        app.dependency_overrides[require_http_actuation_authorization] = lambda: robot
         # Ensure robot starts in known state
+        robot.disarm()
+        robot.clear_emergency_stop()
+
+    def teardown_method(self):
+        app.dependency_overrides.clear()
         robot.disarm()
         robot.clear_emergency_stop()
 

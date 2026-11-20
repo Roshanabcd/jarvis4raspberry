@@ -17,15 +17,15 @@ class ToolExecutor:
     Each method is isolated, safe, and returns a JSON-serialisable result.
     """
 
-    def execute(self, name: str, args: Dict[str, Any]) -> str:
+    def execute(self, name: str, args: Dict[str, Any], confirmed: bool = True) -> str:
         """Dispatch a tool call through ToolRegistry or fallback executor methods."""
         from tools.registry import tool_registry
         if tool_registry.has_tool(name):
             try:
-                res = tool_registry.execute_tool(name, args)
+                res = tool_registry.execute_tool(name, args, confirmed=confirmed)
                 if res["success"]:
                     return json.dumps(res["result"], default=str) if isinstance(res["result"], (dict, list)) else str(res["result"])
-                return json.dumps({"error": res.get("error", "Execution failed"), "tool": name})
+                return json.dumps({"status": "error", "error": res.get("error", "Execution failed"), "tool": name})
             except Exception as e:
                 logger.warning(f"Tool registry execution error for {name}: {e}")
 

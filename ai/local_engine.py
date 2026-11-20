@@ -53,8 +53,9 @@ INTENTS = [
     (r"\bservo\s+(\d+)\s+(?:to\s+)?(\d+)\b", "servo_set", None),
 
     # System (before sensors to take priority)
-    (r"\b(system\s+status|cpu\s+usage|processor\s+usage|ram\s+usage|memory\s+usage|disk\s+usage|system\s+info|system\s+health|hardware\s+status)\b", "system_status", None),
-    (r"\b(?:check|show|get|display|report)\s+(?:the\s+)?(?:system|cpu|ram|memory|disk|hardware)(?:\s+(?:status|usage|info|health))?\b", "system_status", None),
+    (r"\b(system\s+status|cpu\s+usage|cpu\s+temp(?:erature)?|processor\s+usage|processor\s+temp(?:erature)?|ram\s+usage|memory\s+usage|disk\s+usage|system\s+info|system\s+health|hardware\s+status)\b", "system_status", None),
+    (r"\b(?:check|show|get|display|report|what\s+is\s+(?:the\s+)?)\s*(?:system|cpu|ram|memory|disk|hardware)(?:\s+(?:status|usage|info|health|temp(?:erature)?))?\b", "system_status", None),
+    (r"\b(?:what\s+is\s+(?:the\s+)?(?:current\s+)?cpu\s+temp(?:erature)?)\b", "system_status", None),
     (r"^(?:status|health|system info)$", "system_status", None),
     (r"\b(how much (memory|ram)|memory available|free (memory|ram|disk)|disk space|uptime)\b", "system_status", None),
 
@@ -458,7 +459,7 @@ class LocalIntelligenceEngine:
             r"how\s+(?:does|do|can|could|would|to|is|are|should|come)|"
             r"what\s+(?:is|are)\s+(?:the\s+)?(?:difference|meaning|definition|concept|theory|function|purpose|role|history|architecture|benefit|flaw|use)|"
             r"what\s+(?:does|do)\s+.*\s+(?:mean|stand\s+for|do)|"
-            r"what\s+is\s+(?:a|an|the|cpu|ram|rom|gpu|ai|os|stt|tts|vad|pipewire|pid|systemd|linux|python|hardware|software|firmware|memory|cache|recursion|decorator|algorithm|neural\s+network)|"
+            r"what\s+is\s+(?:(?:a|an|the)\s+)?(?:cpu|ram|rom|gpu|ai|os|stt|tts|vad|pipewire|pid|systemd|linux|python|hardware|software|firmware|memory|cache|recursion|decorator|algorithm|neural\s+network)\b(?!\s+(?:temperature|temp|usage|status|load|percent|gb|mb|info|health))|"
             r"tell\s+me\s+about\s+(?:the\s+)?(?:history|concept|theory|meaning|background|difference|future|story)|"
             r"(?:can|could|would)\s+you\s+(?:explain|describe|clarify|elaborate|tell\s+me\s+about)|"
             r"difference\s+between|meaning\s+of|definition\s+of|"

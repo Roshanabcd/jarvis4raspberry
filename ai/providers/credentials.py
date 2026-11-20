@@ -1,6 +1,15 @@
 """Resolve configured credentials without exposing their values in diagnostics."""
 import os
 
+try:
+    from dotenv import load_dotenv
+    _proj_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    _env_path = os.path.join(_proj_root, ".env")
+    if os.path.exists(_env_path):
+        load_dotenv(_env_path, override=False)
+except Exception:
+    pass
+
 ENV_KEYS = {
     'openai': ('OPENAI_API_KEY',),
     'gemini': ('GEMINI_API_KEY', 'GOOGLE_API_KEY'),
