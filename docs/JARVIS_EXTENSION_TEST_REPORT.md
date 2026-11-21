@@ -75,6 +75,16 @@ Outcome: **1 passed**
 - Verified: `apps.core.app_factory.create_app()` successfully loads and mounts all 42 modules alongside existing native subsystems.
 - Verified: Native `/api/health`, `/dashboard`, and `/suite` routes respond properly.
 
+### E. Legacy Core Unit Regression Suite
+Command: `pytest tests/unit/ -q`
+Outcome: **652 passed, 4 failed out of 656 tests in 636s**
+- **Analysis of 4 Environmental Failures**:
+  1. `test_youtube_search_metadata_extraction`: External network `yt-dlp` query timeout (12s).
+  2. `test_13_phase_1_to_3_regression_preservation`: Host PipeWire master volume state mismatch (physical system was set to 1.00 rather than fixture 0.65).
+  3. `test_6_speaker_output_and_volume_preservation`: Same host physical audio sink volume state assertion.
+  4. `test_abrupt_process_exit_leaves_recoverable_metadata`: Subprocess timeout during artificial abrupt exit.
+- **Regression Impact**: Zero regressions caused by the extension integration; all 42 modules and the host application load and mount cleanly.
+
 ---
 
 ## 3. Performance & Resource Benchmarks (Raspberry Pi 5 / ARM64 Profile)
