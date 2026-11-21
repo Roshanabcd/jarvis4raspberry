@@ -856,6 +856,7 @@
   }
 </style>
 <link rel="stylesheet" href="/control-center.css">
+<link rel="stylesheet" href="/jarvis-notifications.css">
 </head>
 <body>
 
@@ -869,7 +870,7 @@
 <header role="banner">
   <div class="brand">
     <span class="logo">⚡ JARVIS OS</span>
-    <span class="tagline">Raspberry Pi 5 AI & Robotics</span>
+    <span class="tagline">Raspberry Pi 5 AI &amp; Robotics</span>
   </div>
   <div class="cc-topnav" aria-label="Quick navigation"><button onclick="showTab('home')">⌂ Control center</button><button onclick="showTab('developer')">⌘ Workspace</button><button onclick="showTab('agents')">AI agents</button><button onclick="showTab('memory')">Memory</button><button onclick="showTab('integrations')">Integrations</button></div>
   <div class="status-center" aria-label="System status" role="group">
@@ -880,15 +881,89 @@
     <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: local fallback</span>
     <span id="hdr-wake-pill" class="status-pill live" title="12-State Background Voice Engine">🎙️ Wake: STANDBY</span>
     <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Camera: unverified</span>
-    <span id="hdr-user-pill" class="status-pill" title="Security Identity & Role" onclick="showTab('vision')" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();showTab('vision')}">👤 Guest</span>
+    <span id="hdr-user-pill" class="status-pill" title="Security Identity &amp; Role" onclick="toggleAccountPopover(event)" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAccountPopover(event)}">👤 Guest</span>
     <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Local dashboard</span>
   </div>
   <div class="header-actions">
-    <button class="btn dark" onclick="showTab('vision')" aria-label="Account and administrator sign in">Account</button>
+    <button class="btn dark" onclick="toggleAccountPopover(event)" aria-label="Account and administrator sign in">Account</button>
+    <button id="hdr-notifications-btn" class="btn dark" onclick="if(window.jarvisNotify)window.jarvisNotify.toggleDrawer()" aria-label="Notifications" title="System Notifications &amp; Alerts">🔔 Alerts <span id="hdr-notif-count" class="badge online" style="display:none;margin-left:4px">0</span></button>
+    <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text);cursor:pointer;background:rgba(255,255,255,0.04);padding:4px 8px;border-radius:4px;border:1px solid var(--card-border)" title="Auto-speak high-priority notifications and alerts aloud"><input type="checkbox" id="hdr-auto-speak-notif" onchange="if(window.jarvisNotify)window.jarvisNotify.toggleAutoSpeak(this.checked)"> 🔊 Auto-Speak</label>
     <span id="ws-badge" class="ws-badge" role="status" aria-live="polite">● Connecting...</span>
-    <button class="btn danger" style="padding: 4px 12px; font-size: 0.75rem;" onclick="robotCmd('estop')" aria-label="Emergency stop all robot actuators">🛑 E-STOP</button>
+    <button id="estop-btn" class="btn danger" style="padding: 4px 12px; font-size: 0.75rem;" onclick="robotCmd('estop')" aria-label="Emergency stop all robot actuators">🛑 E-STOP</button>
   </div>
 </header>
+
+<!-- Floating Account & Admin PIN Popover -->
+<div id="jarvis-account-popover" role="dialog" aria-labelledby="jarvis-account-title" aria-modal="true">
+  <div class="jarvis-account-header">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:1.2rem">🔐</span>
+      <h3 id="jarvis-account-title" style="margin:0;font-size:0.95rem;color:var(--accent);font-weight:700">Account &amp; Security</h3>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span id="popover-role-badge" class="jarvis-account-role-badge guest">GUEST</span>
+      <button class="jarvis-toast-btn-icon" onclick="toggleAccountPopover(event)" aria-label="Close Account Popover">✕</button>
+    </div>
+  </div>
+
+  <div id="admin-enroll-status-banner" style="padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--card-border);margin-bottom:12px;font-size:0.78rem;line-height:1.4">
+    Loading identity status...
+  </div>
+
+  <div style="background:rgba(0,0,0,0.3);border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px">
+    <div style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-bottom:8px">Sign in as Administrator</div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px">
+      <input type="password" id="verify-pin-input" placeholder="Enter PIN..." maxlength="12" style="padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem;flex:1">
+      <button class="btn" style="padding:6px 12px;font-size:0.8rem" onclick="verifyAdminPinSubmit()">Sign In</button>
+      <button class="btn dark" style="padding:6px 10px;font-size:0.8rem" onclick="logoutAdminSession()">Sign Out</button>
+    </div>
+    <div id="verify-pin-result" role="status" aria-live="polite" style="font-size:0.75rem;min-height:16px"></div>
+  </div>
+
+  <details id="popover-enroll-details" style="background:rgba(0,0,0,0.2);border:1px solid var(--card-border);border-radius:8px;padding:10px;margin-bottom:12px">
+    <summary style="font-size:0.8rem;color:var(--muted);cursor:pointer;font-weight:600">First-time administrator setup</summary>
+    <div style="margin-top:10px">
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Administrator Name:</label>
+        <input type="text" id="enroll-admin-name" value="Roshan" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.8rem">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+        <div>
+          <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Admin PIN:</label>
+          <input type="password" id="enroll-admin-pin" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.8rem">
+        </div>
+        <div>
+          <label style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:3px">Confirm PIN:</label>
+          <input type="password" id="enroll-admin-pin-confirm" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.8rem">
+        </div>
+      </div>
+      <div style="margin-bottom:8px;font-size:0.74rem;color:var(--text)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="enroll-admin-confirm-chk">
+          <span>I confirm creating the administrator account with this PIN.</span>
+        </label>
+      </div>
+      <div style="margin-bottom:8px;font-size:0.74rem;color:var(--text)">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="enroll-admin-use-camera">
+          <span>Also enroll my face using the camera</span>
+        </label>
+      </div>
+      <button class="btn" style="width:100%;padding:6px;font-size:0.8rem" onclick="enrollAdminSubmit()">Create administrator</button>
+      <div id="enroll-admin-msg" style="font-size:0.75rem;color:var(--muted);margin-top:6px"></div>
+    </div>
+  </details>
+
+  <details style="background:rgba(0,0,0,0.2);border:1px solid var(--card-border);border-radius:8px;padding:10px">
+    <summary style="font-size:0.8rem;color:var(--muted);cursor:pointer;font-weight:600;display:flex;justify-content:space-between;align-items:center">
+      <span>Registered Users</span>
+      <button class="btn dark" style="padding:2px 6px;font-size:0.7rem;margin-left:auto" onclick="event.stopPropagation();loadUsersList()">🔄</button>
+    </summary>
+    <div id="enrolled-users-list" style="margin-top:8px;font-size:0.75rem;max-height:140px;overflow-y:auto">
+      Loading enrolled users...
+    </div>
+  </details>
+</div>
 
 <nav role="tablist" aria-label="JARVIS OS sections">
   <button class="active" role="tab" aria-selected="true" aria-controls="tab-home" id="nav-home" data-tab="home" onclick="showTab('home')">⌂ Dashboard</button>
@@ -934,11 +1009,21 @@
       </div>
       <section class="cc-hero" id="cc-hero" data-state="idle" aria-label="JARVIS assistant">
         <div class="cc-chips"><span id="cc-connection">Connecting</span><span id="cc-wake">Voice: checking</span><span id="cc-provider">Model: checking</span></div>
-        <div class="cc-avatar" id="cc-avatar-box" role="img" aria-label="Animated Digital Human Character"><div id="cc-hero-avatar"></div></div>
+        <div class="cc-orbital-core">
+          <div class="cc-orbital-ring"></div>
+          <div class="cc-orbital-ring-inner"></div>
+          <div class="cc-avatar" id="cc-avatar-box" role="img" aria-label="Animated Digital Human Character"><div id="cc-hero-avatar"></div></div>
+        </div>
         <div class="cc-wave" aria-hidden="true"><i style="--level:2"></i><i style="--level:4"></i><i style="--level:7"></i><i style="--level:3"></i><i style="--level:9"></i><i style="--level:14"></i><i style="--level:8"></i><i style="--level:18"></i><i style="--level:12"></i><i style="--level:7"></i><i style="--level:20"></i><i style="--level:15"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:8"></i><i style="--level:14"></i><i style="--level:20"></i><i style="--level:12"></i><i style="--level:17"></i><i style="--level:8"></i><i style="--level:13"></i><i style="--level:5"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:7"></i><i style="--level:4"></i><i style="--level:2"></i></div>
         <button class="cc-mic" type="button" id="cc-speak" aria-label="Speak to JARVIS using the existing microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button>
         <div class="cc-state" id="cc-state" role="status" aria-live="polite">Ready</div>
         <div class="cc-caption" id="cc-caption">Hello. What would you like to work on?</div>
+        <div class="cc-quick-chips" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">
+          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('System Status')">📊 System Status</button>
+          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Screen')">🖥️ Screen</button>
+          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Sensors')">🌡️ Sensors</button>
+          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Robot')">🤖 Robot</button>
+        </div>
         <div class="cc-controls"><button class="btn dark" onclick="showTab('chat');document.getElementById('active-desktop-start').focus()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
         <details class="cc-voice-settings"><summary>Voice &amp; conversation preferences</summary>
           <div class="cc-controls"><label for="cc-character-select">Character</label><select id="cc-character-select"><option value="aria">ARIA (Female Assistant)</option><option value="atlas">ATLAS (Male Assistant)</option><option value="classic">Classic Mode</option></select></div>
@@ -973,62 +1058,73 @@
   <!-- 2. AI CHAT -->
   <div id="tab-chat" class="tab" role="tabpanel" aria-labelledby="nav-chat">
     <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h2>Neural Dialogue Engine</h2>
+      <!-- Compact Top Bar (<= 52px height) -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;padding:6px 0;border-bottom:1px solid var(--card-border)">
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-weight:700;color:var(--accent);font-size:0.95rem;display:flex;align-items:center;gap:6px">💬 Dialogue</span>
           <label class="sr-only" for="chat-model-select">Chat model</label>
-          <select id="chat-model-select" style="max-width:280px" onchange="switchChatModel(this.value)" aria-label="Chat model">
+          <select id="chat-model-select" style="max-width:240px;padding:4px 8px;font-size:0.8rem" onchange="switchChatModel(this.value)" aria-label="Chat model">
             <option value="">Loading configured models…</option>
           </select>
-          <button id="chat-ai-setup" class="btn dark" onclick="showTab('integrations');document.getElementById('key-openrouter').focus()">API keys &amp; models</button>
           <label class="sr-only" for="chat-mode">Conversation or task mode</label>
-          <select id="chat-mode" aria-label="Conversation or task mode" title="Conversation streams text without executing tools. Chat and tasks can run authorized actions.">
+          <select id="chat-mode" style="max-width:180px;padding:4px 8px;font-size:0.8rem" aria-label="Conversation or task mode" title="Conversation streams text without executing tools. Chat and tasks can run authorized actions.">
             <option value="tasks">Chat and tasks</option>
             <option value="conversation">Conversation only · streaming</option>
           </select>
           <span id="chat-status-badge" class="badge online" role="status" aria-live="polite">🟢 Ready</span>
-          <span id="chat-telemetry-badge" style="font-size:0.75rem;color:var(--muted)">⚡ --</span>
-          <label style="display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text);background:var(--card-bg);padding:4px 8px;border-radius:4px;border:1px solid var(--card-border);cursor:pointer" title="Speak every final AI response aloud"><input type="checkbox" id="chat-auto-speak" checked> 🔊 Auto-Speak</label>
-          <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="clearChat()">🗑️ Clear</button>
-          <button id="cancel-chat-btn" class="btn warn" style="display:none;padding:4px 10px;font-size:0.75rem" onclick="cancelChat()">⏹️ Stop</button>
-          <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="stopSpeech()">🔇 Mute</button>
+          <span id="chat-telemetry-badge" style="font-size:0.72rem;color:var(--muted)">⚡ --</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button id="toggle-active-desktop-btn" class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="toggleActiveDesktopDrawer()">🖥️ Active Mode</button>
+          <button id="chat-ai-setup" class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="showTab('integrations');document.getElementById('key-openrouter').focus()">Keys</button>
+          <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.75rem;color:var(--text);background:var(--card-bg);padding:3px 8px;border-radius:4px;border:1px solid var(--card-border);cursor:pointer" title="Speak every final AI response aloud"><input type="checkbox" id="chat-auto-speak" checked> 🔊 Auto-Speak</label>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="stopSpeech()">🔇 Mute</button>
+          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="clearChat()">🗑️ Clear</button>
+          <button id="cancel-chat-btn" class="btn warn" style="display:none;padding:4px 8px;font-size:0.75rem" onclick="cancelChat()">⏹️ Stop</button>
         </div>
       </div>
-      <section id="active-desktop-panel" class="panel" aria-labelledby="active-desktop-heading" aria-busy="false" style="margin:12px 0">
-        <h2 id="active-desktop-heading">JARVIS active mode</h2>
-        <p id="active-desktop-help" style="color:var(--muted);font-size:0.85rem">Share a screen or terminal window, use the existing microphone service, and hear replies. Screen frames stay in memory on this computer. “Ask about screen” uses the local vision model.</p>
-        <fieldset class="active-desktop-options" style="gap:14px;margin-bottom:8px;border:0;padding:0;min-inline-size:0">
-          <legend class="sr-only">Active mode options</legend>
-          <label for="active-screen"><input id="active-screen" type="checkbox" checked> Share screen</label>
-          <label for="active-microphone"><input id="active-microphone" type="checkbox" checked aria-describedby="active-desktop-help"> Microphone</label>
-          <label for="active-speaker"><input id="active-speaker" type="checkbox" checked> Spoken replies</label>
-          <button id="active-desktop-start" class="btn" type="button" onclick="jarvisDesktop.start()" aria-describedby="active-desktop-help">Activate JARVIS</button>
-          <button id="active-desktop-stop" class="btn warn" type="button" onclick="jarvisDesktop.stop()" disabled>Stop active mode</button>
-        </fieldset>
-        <p id="active-desktop-status" class="status-msg" role="status" aria-live="polite">Inactive</p>
-        <video id="active-desktop-preview" autoplay muted playsinline hidden style="width:100%;max-height:280px;background:#03050c;border-radius:8px" aria-label="Shared screen preview"></video>
-        <div class="active-desktop-actions" style="margin-top:10px">
-          <label class="sr-only" for="active-desktop-question">Question about the shared screen</label>
-          <input id="active-desktop-question" maxlength="1000" style="flex:1" placeholder="What does this terminal error mean?" aria-describedby="active-desktop-status active-desktop-help">
-          <button id="active-desktop-read-text" class="btn dark" type="button" onclick="jarvisDesktop.readText()" disabled>Read screen text</button>
-          <button id="active-desktop-describe" class="btn dark" type="button" onclick="jarvisDesktop.describe()" disabled>Ask about screen</button>
+
+      <!-- Collapsible Active Mode Drawer (Collapsed by default to eliminate screen clutter) -->
+      <details id="active-desktop-drawer" style="margin:8px 0;background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:10px">
+        <summary style="font-size:0.8rem;color:var(--muted);cursor:pointer;font-weight:600">🖥️ Screen Share &amp; Active Mode Controls</summary>
+        <div style="margin-top:10px">
+          <section id="active-desktop-panel" aria-labelledby="active-desktop-heading" aria-busy="false" style="border:none;background:transparent;padding:0;margin:0">
+            <h2 id="active-desktop-heading" style="font-size:0.88rem;margin-bottom:6px">JARVIS active mode</h2>
+            <p id="active-desktop-help" style="color:var(--muted);font-size:0.8rem">Share a screen or terminal window, use the existing microphone service, and hear replies. Screen frames stay in memory on this computer. “Ask about screen” uses the local vision model.</p>
+            <fieldset class="active-desktop-options" style="gap:14px;margin-bottom:8px;border:0;padding:0;min-inline-size:0;display:flex;align-items:center;flex-wrap:wrap">
+              <legend class="sr-only">Active mode options</legend>
+              <label for="active-screen"><input id="active-screen" type="checkbox" checked> Share screen</label>
+              <label for="active-microphone"><input id="active-microphone" type="checkbox" checked aria-describedby="active-desktop-help"> Microphone</label>
+              <label for="active-speaker"><input id="active-speaker" type="checkbox" checked> Spoken replies</label>
+              <button id="active-desktop-start" class="btn" type="button" onclick="jarvisDesktop.start()" aria-describedby="active-desktop-help">Activate JARVIS</button>
+              <button id="active-desktop-stop" class="btn warn" type="button" onclick="jarvisDesktop.stop()" disabled>Stop active mode</button>
+            </fieldset>
+            <p id="active-desktop-status" class="status-msg" role="status" aria-live="polite">Inactive</p>
+            <video id="active-desktop-preview" autoplay muted playsinline hidden style="width:100%;max-height:280px;background:#03050c;border-radius:8px" aria-label="Shared screen preview"></video>
+            <div class="active-desktop-actions" style="margin-top:10px;display:flex;gap:6px">
+              <label class="sr-only" for="active-desktop-question">Question about the shared screen</label>
+              <input id="active-desktop-question" maxlength="1000" style="flex:1" placeholder="What does this terminal error mean?" aria-describedby="active-desktop-status active-desktop-help">
+              <button id="active-desktop-read-text" class="btn dark" type="button" onclick="jarvisDesktop.readText()" disabled>Read screen text</button>
+              <button id="active-desktop-describe" class="btn dark" type="button" onclick="jarvisDesktop.describe()" disabled>Ask about screen</button>
+            </div>
+            <p id="active-desktop-answer" class="status-msg" style="white-space:pre-wrap" aria-live="polite"></p>
+            <p style="font-size:0.72rem;color:var(--muted)">Native mouse, keyboard, and window controls are in Computer Use and operate this host’s X11 desktop.</p>
+          </section>
         </div>
-        <p id="active-desktop-answer" class="status-msg" style="white-space:pre-wrap" aria-live="polite"></p>
-        <p style="font-size:0.75rem;color:var(--muted)">Native mouse, keyboard, and window controls are in Computer Use and operate this host’s X11 desktop. Voice listening follows its existing wake-word settings.</p>
-      </section>
-      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages"></div>
-      <div class="chat-compose">
-        <label for="voice-capture-source">Microphone</label>
-        <select id="voice-capture-source" aria-label="Microphone capture location">
-          <option value="host">JARVIS host (ReSpeaker)</option>
-          <option value="browser">This browser (explicit permission)</option>
+      </details>
+      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:calc(100vh - 280px);min-height:520px;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
+      <div class="chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:var(--card);padding:10px 0 0;border-top:1px solid var(--card-border);z-index:20">
+        <select id="voice-capture-source" style="max-width:140px;font-size:0.78rem;padding:6px" aria-label="Microphone capture location">
+          <option value="host">ReSpeaker Mic</option>
+          <option value="browser">Browser Mic</option>
         </select>
-        <button id="mic-btn" class="btn dark" style="border:1px solid var(--accent);color:var(--accent)" onclick="toggleVoiceRecord()" title="Capture ReSpeaker microphone" aria-label="Speak to JARVIS">
+        <button id="mic-btn" class="btn dark" style="border:1px solid var(--accent);color:var(--accent);padding:6px 10px;font-size:0.8rem" onclick="toggleVoiceRecord()" title="Capture ReSpeaker microphone" aria-label="Speak to JARVIS">
           <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
         </button>
+        <button class="btn dark" style="padding:6px 10px;font-size:0.8rem" onclick="quickChatInspectScreen()" title="Inspect current screen with Vision AI">🖥️ Screen</button>
         <label class="sr-only" for="chat-in">Message to JARVIS</label>
-        <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()" aria-label="Message to JARVIS">
-        <button id="chat-send-btn" class="btn" onclick="sendChat()">Send</button>
+        <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()" aria-label="Message to JARVIS" style="flex:1">
+        <button id="chat-send-btn" class="btn" onclick="sendChat()" style="padding:6px 16px">Send</button>
       </div>
       <section class="panel" id="background-tasks-panel" aria-labelledby="background-tasks-heading" style="margin-top:16px">
         <h2 id="background-tasks-heading">Background tasks</h2>
@@ -1048,7 +1144,7 @@
   <!-- 3. VOICE CENTER -->
   <div id="tab-voice" class="tab">
     <div class="panel">
-      <h2>OmniVoice & Audio Subsystem</h2>
+      <h2>OmniVoice &amp; Audio Subsystem</h2>
       <div class="grid" style="margin-bottom:16px">
         <div class="card">
           <h3>Microphone Device</h3>
@@ -1056,19 +1152,61 @@
           <div class="sub" id="voice-mic-sub">ReSpeaker Lite USB (plughw:2,0)</div>
         </div>
         <div class="card">
-          <h3>Cloned Voice Engine</h3>
-          <div class="val" id="cloner-provider-val" style="font-size:0.95rem;color:#ffaa00">OMNIVOICE OFFLINE — FALLBACK ACTIVE</div>
-          <div class="sub" id="cloner-sub-val">Local TTS fallback active</div>
+          <h3>Voice Model Engine</h3>
+          <div class="val" id="cloner-provider-val" style="font-size:0.95rem;color:var(--accent)">MICROSOFT ARIA NEURAL</div>
+          <div class="sub" id="cloner-sub-val">Edge Neural TTS / Offline fallback active</div>
         </div>
         <div class="card">
           <h3>Physical Speaker</h3>
-          <div class="val" id="voice-speaker-val" style="font-size:1.1rem">READY</div>
-          <div class="sub" id="voice-speaker-sub">PipeWire ReSpeaker Lite (pw-play)</div>
+          <div class="val" id="voice-speaker-val" style="font-size:1.1rem">ReSpeaker Lite</div>
+          <div class="sub" id="voice-speaker-sub">PipeWire Default Sink · 65% Volume</div>
         </div>
         <div class="card">
           <h3>Voice Disk Cache</h3>
           <div class="val" id="voice-cache-count">0</div>
           <div class="sub">Instant replay cache (&lt;0.5ms)</div>
+        </div>
+      </div>
+
+      <!-- Physical Audio Output & Speaker Hardware Control -->
+      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🔊</span>
+            <div>
+              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Physical Audio Output &amp; Speaker Management</h3>
+              <div style="font-size:0.75rem;color:var(--muted)">Select hardware playback device, calibrate output volume, and test live speech output</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="testSpeakerOutputPhrase()">🔊 Test Speaker (Speaks Aloud)</button>
+            <button class="btn dark" onclick="loadVoiceHardware()">🔄 Refresh Audio Devices</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:14px;align-items:end">
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Active Speaker Output Device</label>
+            <select id="voice-speaker-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:8px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="changeSpeakerDevice(this.value)">
+              <option value="">Detecting audio output devices...</option>
+            </select>
+          </div>
+
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label style="font-size:0.75rem;color:var(--muted);font-weight:600;margin:0">Speaker Volume Level</label>
+              <span id="voice-volume-pct" style="font-size:0.8rem;color:var(--accent);font-family:monospace;font-weight:700">65%</span>
+            </div>
+            <input type="range" id="voice-speaker-volume" min="0" max="100" value="65" style="width:100%;margin-top:8px" oninput="changeSpeakerVolume(this.value)">
+          </div>
+
+          <div>
+            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Wake Word Engine ("Jarvis")</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+              <span id="voice-tab-wake-status" style="font-size:0.82rem;color:var(--green)">🟢 ARMED</span>
+              <button id="voice-tab-wake-toggle" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="toggleWakeWordEngine()">Disable Wake Word</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1078,13 +1216,14 @@
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🎭</span>
             <div>
-              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Digital Human Avatar & Neural Voice Studio</h3>
-              <div style="font-size:0.75rem;color:var(--muted)">Select persona, calibrate neural voice, and test real-time audio-reactive viseme lip-sync</div>
+              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Digital Human Avatar &amp; Neural Voice Studio</h3>
+              <div style="font-size:0.75rem;color:var(--muted)">Select persona, calibrate neural voice model, and test real-time viseme lip-sync</div>
             </div>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('aria')">🗣️ Preview ARIA</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('atlas')">🗣️ Preview ATLAS</button>
+            <button class="btn" style="padding:4px 12px;font-size:0.75rem" onclick="previewVoiceModel()">🗣️ Live Preview Voice</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('aria')">Preview ARIA</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('atlas')">Preview ATLAS</button>
           </div>
         </div>
 
@@ -1101,121 +1240,60 @@
           <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
             <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Neural TTS Voice Model</label>
             <select id="voice-tab-voice-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncVoiceSelection(this.value)">
+              <option value="en-US-GuyNeural">Microsoft Guy (Authoritative Male - Recommended)</option>
               <option value="en-US-AriaNeural" selected>Microsoft Aria (Expressive Female)</option>
-              <option value="en-US-GuyNeural">Microsoft Guy (Authoritative Male)</option>
-              <option value="en-US-JennyNeural">Microsoft Jenny (Friendly Female)</option>
-              <option value="en-GB-SoniaNeural">Microsoft Sonia (British Female)</option>
-              <option value="en-US-ChristopherNeural">Microsoft Christopher (Deep Male)</option>
+              <option value="en-US-ChristopherNeural">Microsoft Christopher (Deep Tactical Male)</option>
+              <option value="en-GB-RyanNeural">Microsoft Ryan (British Male)</option>
               <option value="espeak-ng">eSpeak-NG (Local Offline Fallback)</option>
             </select>
           </div>
 
           <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
-            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Wake Word Engine ("Jarvis")</label>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
-              <span id="voice-tab-wake-status" style="font-size:0.82rem;color:var(--green)">🟢 ARMED</span>
-              <button id="voice-tab-wake-toggle" class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="toggleWakeWordEngine()">Disable Wake Word</button>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <label style="font-size:0.75rem;color:var(--muted);font-weight:600;margin:0">Speaking Pacing (Speed)</label>
+              <span id="colab-speed-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">0.85x</span>
             </div>
+            <input id="colab-speed-slider" type="range" min="0.65" max="1.35" step="0.05" value="0.85" style="width:100%;margin-top:8px" oninput="updateSpeedLabel(this.value)">
           </div>
         </div>
       </div>
 
-      <!-- Google Colab OmniVoice Dynamic Integration -->
-      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.3rem">☁️</span>
-            <div>
-              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Google Colab OmniVoice Server</h3>
-              <div style="font-size:0.75rem;color:var(--muted)">Dynamic Gradio URL registration & personal voice cloning</div>
+      <!-- Google Colab OmniVoice Dynamic Integration (Collapsible Drawer) -->
+      <details id="colab-omnivoice-details" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:20px">
+        <summary style="font-size:0.85rem;color:var(--muted);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px">☁️ Google Colab OmniVoice (Optional Cloud GPU Voice Cloning)</span>
+          <span id="colab-status-badge" class="badge" style="background:rgba(255,176,0,0.15);color:var(--warn);font-size:0.7rem">OFFLINE (LOCAL TTS ACTIVE)</span>
+        </summary>
+        <div style="margin-top:14px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:14px">
+            <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+              <div style="font-size:0.75rem;color:var(--muted)">Active Server URL</div>
+              <div id="colab-active-url-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);word-break:break-all;margin-top:2px">Not connected (using local Edge Neural TTS)</div>
+            </div>
+            <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+              <div style="font-size:0.75rem;color:var(--muted)">Voice Reference Profile</div>
+              <div id="colab-ref-sample-display" style="font-family:monospace;font-size:0.85rem;color:#00e5ff;word-break:break-all;margin-top:2px">myvoice_ref_clean.wav (5.2s HD Isolated Sample)</div>
+            </div>
+            <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
+              <div style="font-size:0.75rem;color:var(--muted)">Registration Secret Token</div>
+              <div id="colab-token-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);margin-top:2px">Server-side configuration only</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <span id="colab-status-badge" class="badge" style="background:#ffaa00;color:#000;font-weight:600">CHECKING...</span>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="loadColabOmniVoiceStatus()">🔄 Refresh</button>
-          </div>
-        </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;margin-bottom:14px">
-          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
-            <div style="font-size:0.75rem;color:var(--muted)">Active Server URL</div>
-            <div id="colab-active-url-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);word-break:break-all;margin-top:2px">Not connected</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+            <input id="colab-url-input" placeholder="Paste Colab Gradio share URL (e.g. https://xxxx.gradio.live)..." style="flex:1;min-width:280px;background:#0d1127;border:1px solid var(--card-border);padding:8px 12px;border-radius:4px;color:var(--text);font-family:monospace;font-size:0.85rem">
+            <button class="btn" onclick="registerColabUrl()">🔗 Connect &amp; Register</button>
+            <button class="btn dark" onclick="verifyColabUrl()">🔍 Verify Link</button>
+            <button class="btn" style="background:#7928ca;border-color:#7928ca" onclick="testClonedVoiceAloud()">🗣️ Test Cloned Voice</button>
+            <button class="btn warn" onclick="disconnectColabOmniVoice()">Disconnect</button>
           </div>
-          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
-            <div style="font-size:0.75rem;color:var(--muted)">Voice Reference Profile</div>
-            <div id="colab-ref-sample-display" style="font-family:monospace;font-size:0.85rem;color:#00e5ff;word-break:break-all;margin-top:2px">myvoice_ref_clean.wav (5.2s HD Isolated Sample)</div>
-          </div>
-          <div style="background:var(--card-bg);padding:10px 12px;border-radius:6px;border:1px solid var(--card-border)">
-            <div style="font-size:0.75rem;color:var(--muted)">Registration Secret Token</div>
-            <div id="colab-token-display" style="font-family:monospace;font-size:0.85rem;color:var(--text);margin-top:2px">Server-side configuration only</div>
-          </div>
+          <div id="colab-conn-msg" style="font-size:0.8rem;color:var(--muted);font-family:monospace"></div>
         </div>
-
-        <!-- Automated Colab Server Runner Panel -->
-        <div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.28);border-radius:6px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:1.2rem">⚡</span>
-              <div>
-                <strong style="color:#c4b5fd;font-size:0.85rem">Autonomous Colab Server Execution (`Super_Eleven_Lab_Lite_2_1.ipynb`)</strong>
-                <div id="colab-runner-desc" style="font-size:0.72rem;color:var(--muted)">Session: testColab (Tesla T4) • Manual, explicitly authorized start only</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:6px;align-items:center">
-              <span id="colab-runner-badge" class="badge" style="background:#ffaa00;color:#000;font-size:0.75rem;padding:3px 8px">INITIALIZING</span>
-              <button class="btn" style="background:#7c3aed;border-color:#7c3aed;padding:3px 10px;font-size:0.75rem" onclick="launchColabRunner()">🚀 Run Notebook</button>
-              <button class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="stopColabRunner()">⏹️ Stop Runner</button>
-              <button class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="toggleColabLogs()">📜 Logs</button>
-            </div>
-          </div>
-          <pre id="colab-runner-logs" style="display:none;background:#050711;color:#a5b4fc;padding:10px;border-radius:4px;font-size:0.72rem;max-height:160px;overflow-y:auto;margin-top:10px;white-space:pre-wrap;border:1px solid var(--card-border)"></pre>
-        </div>
-
-        <!-- Voice Quality & Pacing Calibration Panel -->
-        <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,229,255,0.18);border-radius:6px;padding:12px;margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px">
-            <span style="font-size:0.85rem;font-weight:600;color:var(--accent)">🎛️ Voice Sound Quality & Speed Calibration</span>
-            <button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="saveVoiceTuning()">💾 Save Voice Tuning</button>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:12px">
-            <div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <label style="font-size:0.72rem;color:var(--muted);margin:0">Speaking Speed (Pacing)</label>
-                <span id="colab-speed-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">0.85x (Clear & Calm)</span>
-              </div>
-              <input id="colab-speed-slider" type="range" min="0.65" max="1.35" step="0.05" value="0.85" style="width:100%;margin-top:4px" oninput="updateSpeedLabel(this.value)">
-            </div>
-            <div>
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <label style="font-size:0.72rem;color:var(--muted);margin:0">Acoustic Clarity (Diffusion Steps)</label>
-                <span id="colab-steps-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">32 Steps</span>
-              </div>
-              <select id="colab-steps-select" style="width:100%;margin-top:4px;background:#0d1127;border:1px solid var(--card-border);padding:4px 8px;border-radius:4px;color:var(--text);font-size:0.8rem" onchange="document.getElementById('colab-steps-val').textContent = this.value + ' Steps'">
-                <option value="32" selected>32 Steps — Crystal Clear (Best Sound)</option>
-                <option value="24">24 Steps — Balanced Quality</option>
-                <option value="16">16 Steps — Fast Inference</option>
-              </select>
-            </div>
-            <div>
-              <label style="font-size:0.72rem;color:var(--muted);margin:0">Phonetic Alignment Guide</label>
-              <input id="colab-ref-text-input" value="Good morning everyone, my name is Roshan Sharma." style="width:100%;margin-top:4px;background:#0d1127;border:1px solid var(--card-border);padding:4px 8px;border-radius:4px;color:var(--text);font-size:0.8rem">
-            </div>
-          </div>
-        </div>
-
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-          <input id="colab-url-input" placeholder="Paste Colab Gradio share URL (e.g. https://xxxx.gradio.live)..." style="flex:1;min-width:280px;background:#0d1127;border:1px solid var(--card-border);padding:8px 12px;border-radius:4px;color:var(--text);font-family:monospace;font-size:0.85rem">
-          <button class="btn" onclick="registerColabUrl()">🔗 Connect & Register</button>
-          <button class="btn dark" onclick="verifyColabUrl()">🔍 Verify Link</button>
-          <button class="btn" style="background:#7928ca;border-color:#7928ca" onclick="testClonedVoiceAloud()">🗣️ Test Cloned Voice (Crystal Clear)</button>
-          <button class="btn warn" onclick="disconnectColabOmniVoice()">Disconnect</button>
-        </div>
-        <div id="colab-conn-msg" style="font-size:0.8rem;color:var(--muted);font-family:monospace"></div>
-      </div>
+      </details>
 
       <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
         <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (3s)</button>
-        <button class="btn dark" onclick="testPhysicalSpeaker()">🔊 Test Physical Speaker</button>
+        <button class="btn dark" onclick="testSpeakerOutputPhrase()">🔊 Test Physical Speaker</button>
         <button class="btn dark" onclick="testBrowserAudio()">🎧 Test Browser Audio</button>
         <button class="btn dark" onclick="clearVoiceCache()">🗑️ Clear Voice Cache</button>
         <button class="btn warn" onclick="stopSpeech()">⏹️ Interrupt Audio</button>
@@ -1305,32 +1383,35 @@
   <!-- 5. VISION & IDENTITY CENTER -->
   <div id="tab-vision" class="tab">
     <div class="panel">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <h2>Vision & Identity Subsystem (Sony IMX708 + YOLOv8 + YuNet + Moondream)</h2>
-        <span id="vision-hardware-badge" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,0.15);color:var(--green);border:1px solid var(--green)">🟢 IMX708 ONLINE</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h2>Vision &amp; Identity Subsystem (Sony IMX708 + YOLOv8 + YuNet + Moondream)</h2>
+        <span id="vision-hardware-badge" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,0.15);color:var(--green);border:1px solid var(--green)">🟢 IMX708 ONLINE (1080p PDAF)</span>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 360px;gap:20px">
+      <div style="display:grid;grid-template-columns:1.8fr 1fr;gap:20px;align-items:start">
+        <!-- Left: 16:9 Viewfinder & Camera Actions -->
         <div>
           <!-- Stream & Snapshot Viewfinder Mode Header -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <div style="display:flex;gap:6px">
-              <button id="viewfinder-mode-snap" class="btn" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('snap')">📸 Snapshot Preview</button>
-              <button id="viewfinder-mode-live" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('live')">🔴 Live Stream</button>
+              <button id="viewfinder-mode-live" class="btn ok" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('live')">🔴 Live Stream</button>
+              <button id="viewfinder-mode-snap" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchViewfinderMode('snap')">📸 Snapshot Preview</button>
             </div>
             <a id="vision-fullres-link" href="#" target="_blank" style="display:none;color:var(--accent);font-size:0.75rem;text-decoration:none">🔍 Open Full-Res Photo</a>
           </div>
 
-          <!-- Viewfinder -->
-          <div style="background:#050711;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;min-height:360px;display:flex;align-items:center;justify-content:center;position:relative">
-            <img id="vision-viewfinder" src="" alt="Camera Viewfinder" style="max-width:100%;max-height:480px;display:none;border-radius:6px">
-            <div id="vision-placeholder" style="color:var(--muted);text-align:center;padding:40px">
+          <!-- 16:9 Viewfinder with Synchronized Overlay Canvas -->
+          <div id="vision-viewfinder-container" style="background:#050711;border:1px solid var(--card-border);border-radius:8px;overflow:hidden;position:relative;width:100%;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center">
+            <img id="vision-viewfinder" src="/api/vision/stream" alt="Camera Viewfinder" style="width:100%;height:100%;object-fit:cover;display:block">
+            <canvas id="vision-canvas-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none"></canvas>
+            <div id="vision-placeholder" style="color:var(--muted);text-align:center;padding:40px;position:absolute;inset:0;background:#050711;display:none;align-items:center;justify-content:center;flex-direction:column">
               <span style="font-size:3rem;display:block;margin-bottom:8px">📷</span>
               Click "Capture Photo" to acquire image from Sony IMX708
             </div>
           </div>
-          <!-- Action Buttons -->
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">
+
+          <!-- Action Buttons Toolbar -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
             <button class="btn" onclick="captureVisionFrame()">📸 Capture Photo</button>
             <button class="btn" style="background:var(--accent);color:#050811" onclick="detectVisionObjects()">🎯 Detect Objects (YOLO)</button>
             <button class="btn dark" onclick="describeVisionScene()">🧠 Scene Description (Moondream)</button>
@@ -1343,12 +1424,12 @@
           </div>
         </div>
 
+        <!-- Right: Telemetry, AI Description, Detected Objects & Distance -->
         <div>
-          <!-- Right Column Info Panels -->
           <div class="card" style="margin-bottom:12px">
             <h3>Camera Backend</h3>
             <div class="val" id="cam-backend-val" style="font-size:1.1rem">Sony IMX708</div>
-            <div class="sub" id="cam-sub-val">Picamera2 (Dedicated Hardware Owner)</div>
+            <div class="sub" id="cam-sub-val">Picamera2 (Dedicated Hardware Owner · PDAF)</div>
           </div>
 
           <div class="panel" style="padding:12px;margin-bottom:12px">
@@ -1357,77 +1438,25 @@
           </div>
 
           <div class="panel" style="padding:12px;margin-bottom:12px">
-            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🧠 Moondream Scene Description</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+              <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin:0">🧠 Moondream Scene Description</h3>
+              <button id="vision-speak-desc-btn" class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="speakVisionDescription()">🗣️ Speak</button>
+            </div>
             <p id="vision-desc" style="font-size:0.82rem;color:var(--text);line-height:1.4">No capture yet.</p>
           </div>
 
-          <div class="panel" style="padding:12px">
-            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Detected Objects & Range (YOLO + PDAF)</h3>
+          <div class="panel" style="padding:12px;margin-bottom:12px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">🎯 Detected Objects &amp; Range (YOLO + PDAF)</h3>
             <div id="vision-objects" style="font-size:0.82rem;color:var(--muted)">None</div>
           </div>
-        </div>
-      </div>
 
-      <!-- Administrator & Multi-User Governance -->
-      <div style="margin-top:24px;border-top:1px solid var(--card-border);padding-top:16px">
-        <h3 style="font-size:1rem;color:var(--text);margin-bottom:12px">🔐 Administrator access</h3>
-        
-        <div id="admin-enroll-status-banner" style="padding:10px 14px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--card-border);margin-bottom:16px;font-size:0.85rem">
-          Loading identity status...
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-          <!-- Left: Enrollment Wizard -->
-          <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px">
-            <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">First-time administrator setup</h4>
-            <div style="margin-bottom:8px">
-              <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Administrator Name:</label>
-              <input type="text" id="enroll-admin-name" value="Roshan" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
+          <div class="panel" style="padding:12px">
+            <h3 style="font-size:0.75rem;color:var(--muted);text-transform:uppercase;margin-bottom:6px">💬 Ask Vision AI (Moondream)</h3>
+            <div style="display:flex;gap:6px">
+              <input id="vision-qa-input" placeholder="Ask what the camera sees..." style="font-size:0.8rem;padding:6px 10px" onkeydown="if(event.key==='Enter')askVisionAI()">
+              <button class="btn" style="padding:6px 12px;font-size:0.78rem" onclick="askVisionAI()">Ask</button>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-              <div>
-                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Admin PIN (at least 4 characters):</label>
-                <input type="password" id="enroll-admin-pin" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
-              </div>
-              <div>
-                <label style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:3px">Confirm PIN:</label>
-                <input type="password" id="enroll-admin-pin-confirm" placeholder="••••" style="width:100%;padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem">
-              </div>
-            </div>
-            <div style="margin-bottom:12px;font-size:0.78rem;color:var(--text)">
-              <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-                <input type="checkbox" id="enroll-admin-confirm-chk">
-                <span>I confirm creating the administrator account with this PIN.</span>
-              </label>
-            </div>
-            <div style="display:flex;gap:10px;align-items:center">
-              <label><input type="checkbox" id="enroll-admin-use-camera"> Also enroll my face using the camera</label>
-              <button class="btn" onclick="enrollAdminSubmit()">Create administrator</button>
-              <div id="enroll-admin-msg" style="font-size:0.78rem;color:var(--muted)"></div>
-            </div>
-          </div>
-
-          <!-- Right: PIN Verification & User Table -->
-          <div>
-            <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:14px">
-              <h4 style="font-size:0.85rem;color:var(--accent);margin-bottom:10px">Sign in as administrator</h4>
-              <div style="display:flex;gap:8px;align-items:center">
-                <input type="password" id="verify-pin-input" placeholder="Enter PIN..." style="padding:6px 10px;background:#050711;border:1px solid var(--card-border);color:var(--text);border-radius:4px;font-size:0.82rem;width:140px">
-                <button class="btn dark" onclick="verifyAdminPinSubmit()">Sign in</button>
-                <button class="btn dark" onclick="logoutAdminSession()">Sign out</button>
-                <div id="verify-pin-result" role="status" aria-live="polite" style="font-size:0.78rem"></div>
-              </div>
-            </div>
-
-            <div style="background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:16px">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <h4 style="font-size:0.85rem;color:var(--accent)">Registered Users</h4>
-                <button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="loadUsersList()">🔄 Refresh</button>
-              </div>
-              <div id="enrolled-users-list">
-                Loading enrolled users...
-              </div>
-            </div>
+            <div id="vision-qa-answer" style="font-size:0.8rem;color:var(--text);margin-top:8px;line-height:1.4"></div>
           </div>
         </div>
       </div>
@@ -3531,7 +3560,25 @@ async function launchApp(appId) {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(`Cannot Launch App:\n${data.detail || 'Launch denied'}`);
+      if (res.status === 403) {
+        if (window.jarvisNotify) {
+          window.jarvisNotify.error(`Access Denied: ${data.detail || 'This application requires administrator privileges.'}`, {
+            title: 'RBAC Permission Required',
+            action: {
+              text: '🔑 Sign In with PIN',
+              onClick: () => { toggleAccountPopover(); }
+            }
+          });
+        } else {
+          alert(`Cannot Launch App:\n${data.detail || 'Launch denied'}`);
+        }
+        return;
+      }
+      if (window.jarvisNotify) {
+        window.jarvisNotify.warning(`Cannot Launch App: ${data.detail || 'Launch denied'}`);
+      } else {
+        alert(`Cannot Launch App:\n${data.detail || 'Launch denied'}`);
+      }
       return;
     }
     if (data.target_tab) {
@@ -3546,14 +3593,23 @@ async function launchApp(appId) {
     }
     loadRecentApps();
   } catch (err) {
-    alert(`Launch error: ${err.message}`);
+    if (window.jarvisNotify) {
+      window.jarvisNotify.error(`Launch error: ${err.message}`);
+    } else {
+      alert(`Launch error: ${err.message}`);
+    }
   }
 }
 
 function showAppRoadmap(appId) {
   const app = allAppsCatalog.find(a => a.id === appId);
   if (!app) return;
-  alert(`⏳ ${app.name} — ROADMAP STATUS\n\nStatus: PLANNED (Under Development)\n\nDescription: ${app.description}\n\nRoadmap Notes: ${app.roadmap || 'Scheduled for future JARVIS phases.'}\n\nNote: In accordance with JARVIS OS rules, this application is not yet functional.`);
+  const msg = `${app.name} — Status: PLANNED (Under Development). ${app.description}. ${app.roadmap || 'Scheduled for future JARVIS phases.'}`;
+  if (window.jarvisNotify) {
+    window.jarvisNotify.info(msg, { title: 'Application Roadmap' });
+  } else {
+    alert(msg);
+  }
 }
 
 function showAppDetails(appId) {
@@ -4051,7 +4107,7 @@ function createStreamingBubble() {
   div.innerHTML = '<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span>⚡ JARVIS</span><span class="voice-badge"></span></span><div class="msg-content"><span class="cursor-blink">▊</span></div>';
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
+  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="speakBubbleText(this)">🗣️ Speak</button>`;
   container.appendChild(div);
   container.appendChild(meta);
   box.appendChild(container);
@@ -4069,7 +4125,7 @@ function addMsg(cls, text, audioInfo) {
   div.innerHTML = `<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span>${author}</span><span class="voice-badge"></span></span><div class="msg-content">${renderMarkdown(text)}</div>`;
   const meta = document.createElement('div');
   meta.className = 'msg-meta';
-  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button>`;
+  meta.innerHTML = `<span class="audio-controls"></span><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="copyBubbleText(this)">📋 Copy</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="retryLastChat()">↺ Retry</button><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.72rem" onclick="speakBubbleText(this)">🗣️ Speak</button>`;
   container.appendChild(div);
   container.appendChild(meta);
   box.appendChild(container);
@@ -5077,6 +5133,11 @@ function updateHeaderUserPill(name, role) {
   if (pill) {
     pill.textContent = `👤 ${name} (${role})`;
     pill.className = role === 'ADMIN' ? 'status-pill live' : 'status-pill';
+  }
+  const roleBadge = document.getElementById('popover-role-badge');
+  if (roleBadge) {
+    roleBadge.textContent = role;
+    roleBadge.className = 'jarvis-account-role-badge ' + (role === 'ADMIN' ? 'admin' : 'guest');
   }
 }
 
@@ -8935,7 +8996,319 @@ setTimeout(updateStatusCenter, 500);
 <script src="/provider-settings.js"></script>
 <script src="/background-tasks.js"></script>
 <script src="/avatar.js"></script>
+<script src="/jarvis-notifications.js"></script>
 <script src="/control-center.js"></script>
+<script>
+// --- Account & Admin PIN Popover Controller ---
+function toggleAccountPopover(e) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById('jarvis-account-popover');
+  if (!popover) return;
+  const isVisible = popover.style.display === 'block';
+  popover.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) {
+    loadIdentityStatus();
+    const pinInput = document.getElementById('verify-pin-input');
+    if (pinInput) setTimeout(() => pinInput.focus(), 50);
+  }
+}
+document.addEventListener('click', (e) => {
+  const popover = document.getElementById('jarvis-account-popover');
+  if (popover && popover.style.display === 'block') {
+    const isInside = popover.contains(e.target) || 
+      (e.target.closest && (e.target.closest('#hdr-user-pill') || e.target.closest('.header-actions button')));
+    if (!isInside) popover.style.display = 'none';
+  }
+});
+
+// --- Quick Prompt & Chat Helpers ---
+function quickPrompt(topic) {
+  showTab('chat');
+  const inp = document.getElementById('chat-in');
+  if (!inp) return;
+  if (topic === 'System Status') inp.value = 'Provide a full system status overview and hardware health check.';
+  else if (topic === 'Screen') inp.value = 'Inspect the current screen and tell me what is displayed.';
+  else if (topic === 'Sensors') inp.value = 'What are the current sensor readings and environmental metrics?';
+  else if (topic === 'Robot') inp.value = 'What is the current robot actuator state and telemetry?';
+  else inp.value = topic;
+  setTimeout(() => sendChat(), 100);
+}
+
+function toggleActiveDesktopDrawer() {
+  const d = document.getElementById('active-desktop-drawer');
+  if (d) d.open = !d.open;
+}
+
+function quickChatInspectScreen() {
+  const inp = document.getElementById('chat-in');
+  if (inp) {
+    inp.value = "Inspect current screen and explain what is visible.";
+    sendChat();
+  }
+}
+
+function speakBubbleText(btn) {
+  const container = btn.closest('.msg-container');
+  if (!container) return;
+  const content = container.querySelector('.msg-content');
+  if (content && window.jarvisNotify) {
+    window.jarvisNotify.speakText(content.innerText);
+  }
+}
+
+// --- Voice Hardware & Audio Output Controller ---
+let cachedPlaybackDevices = [];
+
+async function loadVoiceHardware() {
+  try {
+    const res = await fetch('/api/voice/devices/speaker');
+    if (!res.ok) return;
+    const data = await res.json();
+    cachedPlaybackDevices = data.available_speakers || [];
+
+    const sel = document.getElementById('voice-speaker-select');
+    if (sel && cachedPlaybackDevices.length > 0) {
+      sel.innerHTML = '';
+      cachedPlaybackDevices.forEach((dev) => {
+        const opt = document.createElement('option');
+        opt.value = `${dev.card}:${dev.device}`;
+        opt.textContent = `${dev.name || 'Speaker'} (Card ${dev.card}, Dev ${dev.device})`;
+        if (data.current_speaker && data.current_speaker.card === dev.card && data.current_speaker.device === dev.device) {
+          opt.selected = true;
+        }
+        sel.appendChild(opt);
+      });
+    }
+
+    if (data.current_speaker) {
+      const spkCard = document.getElementById('voice-speaker-val');
+      if (spkCard) spkCard.textContent = data.current_speaker.name ? data.current_speaker.name.split('[')[0].trim() : 'Speaker';
+    }
+
+    if (typeof data.volume_pct === 'number') {
+      const volSlider = document.getElementById('voice-speaker-volume');
+      const volLabel = document.getElementById('voice-volume-pct');
+      if (volSlider) volSlider.value = data.volume_pct;
+      if (volLabel) volLabel.textContent = `${data.volume_pct}%`;
+      const subVal = document.getElementById('voice-speaker-sub');
+      if (subVal) subVal.textContent = `PipeWire Sink · ${data.volume_pct}% Volume`;
+    }
+
+    // Load Voice Models
+    const mRes = await fetch('/api/voice/models');
+    if (mRes.ok) {
+      const mData = await mRes.json();
+      const vSel = document.getElementById('voice-tab-voice-select');
+      if (vSel && mData.models && mData.models.length > 0) {
+        vSel.innerHTML = '';
+        mData.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name + (m.recommended ? ' ★' : '');
+          if (m.id === mData.active_model) opt.selected = true;
+          vSel.appendChild(opt);
+        });
+      }
+      const modelCard = document.getElementById('cloner-provider-val');
+      if (modelCard) modelCard.textContent = (mData.active_model || 'Local TTS').toUpperCase();
+    }
+  } catch (e) {
+    console.warn('Failed to load voice hardware:', e);
+  }
+}
+
+async function changeSpeakerDevice(val) {
+  if (!val) return;
+  const [cardStr, devStr] = val.split(':');
+  const card = parseInt(cardStr);
+  const device = parseInt(devStr);
+  const found = cachedPlaybackDevices.find(d => d.card === card && d.device === device);
+  const name = found ? found.name : `Card ${card} Dev ${device}`;
+  try {
+    const res = await fetch('/api/voice/devices/speaker', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card, device, name })
+    });
+    if (res.ok) {
+      if (window.jarvisNotify) window.jarvisNotify.success(`Audio output switched to ${name.split('[')[0].trim()}`);
+      loadVoiceHardware();
+    }
+  } catch (e) {
+    if (window.jarvisNotify) window.jarvisNotify.error('Failed to switch speaker device: ' + e);
+  }
+}
+
+let volDebounce = null;
+function changeSpeakerVolume(val) {
+  const volPct = parseInt(val);
+  const volLabel = document.getElementById('voice-volume-pct');
+  if (volLabel) volLabel.textContent = `${volPct}%`;
+  clearTimeout(volDebounce);
+  volDebounce = setTimeout(async () => {
+    try {
+      await fetch('/api/voice/devices/volume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ volume: volPct / 100 })
+      });
+    } catch (_) {}
+  }, 200);
+}
+
+async function testSpeakerOutputPhrase() {
+  if (window.jarvisNotify) window.jarvisNotify.info('🔊 Playing audio test phrase through selected speaker...');
+  try {
+    const res = await fetch('/api/voice/test/speaker_phrase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phrase: 'JARVIS audio output online. ReSpeaker Lite audio is operational.' })
+    });
+    const data = await res.json();
+    if (res.ok && data.status === 'ok') {
+      if (window.jarvisNotify) window.jarvisNotify.success('Speaker test complete: audio dispatched to hardware.');
+    } else {
+      if (window.jarvisNotify) window.jarvisNotify.warning('Speaker test returned non-optimal response.');
+    }
+  } catch (e) {
+    if (window.jarvisNotify) window.jarvisNotify.error('Speaker test failed: ' + e);
+  }
+}
+
+async function syncVoiceSelection(modelId) {
+  try {
+    const res = await fetch('/api/voice/model', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: modelId })
+    });
+    if (res.ok) {
+      if (window.jarvisNotify) window.jarvisNotify.info(`Voice model set to ${modelId}`);
+      const modelCard = document.getElementById('cloner-provider-val');
+      if (modelCard) modelCard.textContent = modelId.toUpperCase();
+    }
+  } catch (e) {
+    if (window.jarvisNotify) window.jarvisNotify.error('Failed to change voice model: ' + e);
+  }
+}
+
+function previewVoiceModel() {
+  if (window.jarvisNotify) {
+    window.jarvisNotify.speakText('Greetings. I am JARVIS. Neural voice synthesis is operating normally.');
+  }
+}
+
+// --- Vision Subsystem & Canvas Overlay Controller ---
+function speakVisionDescription() {
+  const text = document.getElementById('vision-desc')?.textContent;
+  if (text && text !== 'No capture yet.' && window.jarvisNotify) {
+    window.jarvisNotify.speakText(text);
+  }
+}
+
+async function askVisionAI() {
+  const inp = document.getElementById('vision-qa-input');
+  const ans = document.getElementById('vision-qa-answer');
+  if (!inp || !ans) return;
+  const q = inp.value.trim();
+  if (!q) return;
+  ans.textContent = 'Analyzing scene with Moondream VLM...';
+  try {
+    const res = await fetch('/api/vision/qa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q })
+    });
+    const d = await res.json();
+    ans.textContent = d.answer || d.response || d.description || 'No reply received.';
+    if (window.jarvisNotify && document.getElementById('chat-auto-speak')?.checked) {
+      window.jarvisNotify.speakText(ans.textContent);
+    }
+  } catch (e) {
+    ans.textContent = 'Vision QA error: ' + e;
+  }
+}
+
+async function updateVisionCanvasOverlay() {
+  const visionTab = document.getElementById('tab-vision');
+  if (!visionTab || !visionTab.classList.contains('active')) return;
+
+  const canvas = document.getElementById('vision-canvas-overlay');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+  }
+
+  try {
+    const res = await fetch('/api/vision/detections');
+    if (!res.ok) return;
+    const data = await res.json();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const targets = data.targets || [];
+    const objContainer = document.getElementById('vision-objects');
+
+    if (targets.length > 0) {
+      let html = `<div style="margin-bottom:8px"><strong>${targets.length} Target(s) In View</strong>:</div><div style="display:flex;flex-direction:column;gap:6px">`;
+      for (const t of targets) {
+        let [x1, y1, x2, y2] = [0, 0, 0, 0];
+        if (Array.isArray(t.box)) {
+          if (t.box[0] <= 1 && t.box[1] <= 1 && t.box[2] <= 1 && t.box[3] <= 1) {
+            x1 = t.box[0] * canvas.width;
+            y1 = t.box[1] * canvas.height;
+            x2 = t.box[2] * canvas.width;
+            y2 = t.box[3] * canvas.height;
+          } else {
+            const sx = canvas.width / (t.frame_w || 1280);
+            const sy = canvas.height / (t.frame_h || 720);
+            x1 = t.box[0] * sx;
+            y1 = t.box[1] * sy;
+            x2 = t.box[2] * sx;
+            y2 = t.box[3] * sy;
+          }
+        }
+        const w = Math.max(10, x2 - x1);
+        const h = Math.max(10, y2 - y1);
+        const label = t.label || t.class || 'object';
+        const conf = t.confidence ? Math.round(t.confidence * 100) : null;
+        const dist = t.distance_m ? `${t.distance_m.toFixed(1)}m` : null;
+
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x1, y1, w, h);
+
+        const tagText = `${label.toUpperCase()}${conf ? ' ' + conf + '%' : ''}${dist ? ' · ' + dist : ''}`;
+        ctx.font = 'bold 11px monospace';
+        const textWidth = ctx.measureText(tagText).width;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.fillRect(x1, Math.max(0, y1 - 18), textWidth + 8, 18);
+        ctx.fillStyle = '#00ff88';
+        ctx.fillText(tagText, x1 + 4, Math.max(12, y1 - 4));
+
+        html += `<div style="background:rgba(0,0,0,0.3);border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;font-size:0.75rem;display:flex;justify-content:space-between;align-items:center">
+          <span>📦 <strong style="color:var(--accent)">${label.toUpperCase()}</strong> ${conf ? `(${conf}%)` : ''}</span>
+          <span style="color:var(--green);font-family:monospace">${dist || '~1.5m'} <span style="font-size:0.65rem;color:var(--muted)">[PDAF]</span></span>
+        </div>`;
+      }
+      html += `</div>`;
+      if (objContainer && (!lastCapturedImageUrl || viewfinderMode === 'live')) {
+        objContainer.innerHTML = html;
+      }
+    }
+  } catch (_) {}
+}
+
+setInterval(updateVisionCanvasOverlay, 650);
+
+// Initialize Voice Hardware on startup
+document.addEventListener('DOMContentLoaded', () => {
+  loadVoiceHardware();
+});
+</script>
 <script>
 window.jarvisProviderSettings = JarvisProviderSettings.mount(document.getElementById('provider-settings-panel'), {
   authorizeTest: async () => {
