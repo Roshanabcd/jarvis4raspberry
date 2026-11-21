@@ -328,16 +328,16 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
   - Dashboard Voice Tab (`#tab-voice`): verified device telemetry, speaker selection, volume slider, and two-way wake toggle (`🟢 ARMED` -> `⚪ DISARMED` -> `🟢 ARMED`) with live cross-process IPC dispatch to `jarvis-voice.service`.
   - Futuristic Voice View (`/futuristic/#voice`): verified `#voice-waveform-canvas` mounting, privacy indicator state, mute toggle, and barge-in interruption (< 300ms latency gate).
 - Read-Only Physical Diagnostics & Hardware Status (Truthful Recording):
-  - ALSA capture devices: no physical hardware capture cards present; virtual/simulated capture handled via PipeWire daemon.
-  - ALSA playback devices: card 0 (`vc4hdmi0`), card 1 (`vc4hdmi1`).
-  - PipeWire sink: `Built-in Audio Digital Stereo (HDMI)` vol: 1.00 MUTED.
-  - Local TTS fallback: `edge_neural_tts` / offline fallback active; reference audio `/home/roshan/Downloads/myvoice_clean.wav`.
-  - Offline wake-word engine: `openwakeword` with `hey_jarvis_v0.1.onnx` verified loaded on CPUExecutionProvider.
-  - Physical Boundaries: Zero claims of physical speaker audibility or live human speech recognition (physical mic unplugged/simulated, HDMI sink muted).
-- Evidence recorded: 4 screenshots and JSON verification record saved under `docs/jarvis-ui/evidence/audit-remediation/step6-voice/`.
+  - ALSA capture devices: card 2 `Lite [ReSpeaker Lite]`, device 0 (`USB Audio`).
+  - ALSA playback devices: card 0 (`vc4hdmi0`), card 1 (`vc4hdmi1`), card 2 `Lite [ReSpeaker Lite]` device 0.
+  - PipeWire audio state: default sink `ReSpeaker Lite Analog Stereo` (ID 102, vol 0.39, unmuted); default source `ReSpeaker Lite Analog Stereo` (ID 103, vol 0.73, active capture).
+  - Physical Speaker Output: Verified live via `POST /api/voice/test/speaker_phrase` and `POST /api/voice/synthesize` (edge neural TTS playback via `pw-play` completed successfully).
+  - Offline wake-word engine: `openwakeword` with `hey_jarvis_v0.1.onnx` verified loaded on CPUExecutionProvider; streaming frames from ReSpeaker Lite USB.
+  - Physical Boundaries: Zero claims of live human speech recognition (mic bound and streaming audio frames, but acoustic speech recognition requires live operator vocalization test).
+- Evidence recorded: 4 screenshots and JSON verification records saved under `docs/jarvis-ui/evidence/audit-remediation/step6-voice/` (`step6-voice-verification.json` and `physical-speaker-verification.json`).
 
-### Remediation Handoff Summary (Steps 1–6 Complete)
-- **Scope**: Remediated and verified audit issues across Steps 1–6 on branch `feature/jarvis-ui`.
+### Remediation Handoff Summary (Steps 1–6 Complete + Physical Speaker Check)
+- **Resulting Commit**: `bb077d0` (`feat(jarvis-ui): verify and remediate audit issues (steps 1-6)`) on branch `feature/jarvis-ui`.
 - **Verified Live**:
   - `BUG-003`: 45 catalog applications, all 25 extension modules mounted and HTTP 200 OK, guest launch blocked (HTTP 403).
   - `BUG-001` & `UX-004`: Neutral operator role badge (`GUEST` / `Unavailable`, never premature `ADMIN`), keyboard activation to `#tab-account`.
@@ -345,6 +345,7 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
   - `BUG-002` & `UX-002`: All 23 sidebar tabs verified without overflow or DOM nesting traps; launch denial surfaces inline error, restores focus.
   - `AI-001`: Warm local `llama3.2:1b` two-turn memory recall ('violet') and code generation (`def is_even`), TTFT 4.2–5.5s, 0 paid APIs, draft preservation on unavailable models.
   - Voice Step 6: Wake-word toggle schema & sub-string bug resolved; live two-way toggle verified (`🟢 ARMED` <-> `⚪ DISARMED`) with cross-process IPC to `jarvis-voice.service`.
+  - Physical Audio & Speaker: ReSpeaker Lite USB Audio detected as card 2; default PipeWire sink unmuted at 39% volume; system playback and synthesis (`"JARVIS physical speaker check on Raspberry Pi 5."`) verified live with HTTP 200 and completion.
 - **Hardware-Dependent / Remaining Pending**:
-  - Live human speech recognition and physical speaker audibility remain pending hardware connection (plugging in ReSpeaker Lite USB microphone and unmuting the HDMI/speaker PipeWire sink).
+  - ReSpeaker Lite USB microphone is bound and streaming frames to `voice_daemon` (RMS ~5855-8333); live human speech recognition and acoustic wake-word triggering remain untested/pending physical operator vocalization.
   - 3D VRM avatar gate remains deferred per user exception (honest 2D audio-reactive fallback active).

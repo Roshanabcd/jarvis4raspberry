@@ -1,0 +1,165 @@
+{
+  "timestamp": "2026-11-21T15:09:00Z",
+  "environment": {
+    "host": "raspberrypi",
+    "os": "Linux 6.6.74+rpt-rpi-2712 (Raspberry Pi 5)",
+    "branch": "feature/jarvis-ui",
+    "base_commit": "bb077d083ac542e3ddd70ba21aaefb14b7f6da12",
+    "single_owner_preserved": true,
+    "estop_touched": false
+  },
+  "alsa_hardware": {
+    "playback_devices": [
+      {
+        "card": 0,
+        "id": "vc4hdmi0",
+        "name": "vc4-hdmi-0",
+        "device": 0,
+        "desc": "MAI PCM i2s-hifi-0"
+      },
+      {
+        "card": 1,
+        "id": "vc4hdmi1",
+        "name": "vc4-hdmi-1",
+        "device": 0,
+        "desc": "MAI PCM i2s-hifi-0"
+      },
+      {
+        "card": 2,
+        "id": "Lite",
+        "name": "ReSpeaker Lite",
+        "device": 0,
+        "desc": "USB Audio"
+      }
+    ],
+    "capture_devices": [
+      {
+        "card": 2,
+        "id": "Lite",
+        "name": "ReSpeaker Lite",
+        "device": 0,
+        "desc": "USB Audio"
+      }
+    ]
+  },
+  "pipewire_audio_state": {
+    "version": "1.4.2",
+    "default_sink": {
+      "id": 102,
+      "name": "ReSpeaker Lite Analog Stereo",
+      "type": "alsa",
+      "volume": 0.39,
+      "muted": false
+    },
+    "default_source": {
+      "id": 103,
+      "name": "ReSpeaker Lite Analog Stereo",
+      "type": "alsa",
+      "volume": 0.73,
+      "active": true
+    },
+    "hdmi_sink": {
+      "id": 78,
+      "name": "Built-in Audio Digital Stereo (HDMI)",
+      "volume": 0.33,
+      "muted": false
+    }
+  },
+  "fastapi_voice_endpoints": {
+    "speaker_device_endpoint": {
+      "url": "http://127.0.0.1:8000/api/voice/devices/speaker",
+      "status_code": 200,
+      "response": {
+        "status": "ok",
+        "current_speaker": {
+          "card": 2,
+          "device": 0,
+          "name": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]"
+        },
+        "available_speakers": [
+          {
+            "card": 0,
+            "device": 0,
+            "name": "vc4hdmi0 [vc4-hdmi-0] - MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]"
+          },
+          {
+            "card": 1,
+            "device": 0,
+            "name": "vc4hdmi1 [vc4-hdmi-1] - MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]"
+          },
+          {
+            "card": 2,
+            "device": 0,
+            "name": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]"
+          }
+        ],
+        "volume_pct": 65
+      }
+    },
+    "speaker_phrase_test": {
+      "url": "http://127.0.0.1:8000/api/voice/test/speaker_phrase",
+      "status_code": 200,
+      "response": {
+        "status": "ok",
+        "phrase": "JARVIS audio output online. Lite [ReSpeaker Lite] speaker verified.",
+        "speaker": {
+          "card": 2,
+          "device": 0,
+          "name": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]"
+        },
+        "audio_url": "/api/voice/audio/audio_c39c4f825c53",
+        "provider": "cache"
+      }
+    },
+    "speaker_phrase_synthesize": {
+      "url": "http://127.0.0.1:8000/api/voice/synthesize",
+      "status_code": 200,
+      "payload": {
+        "text": "JARVIS physical speaker check on Raspberry Pi 5."
+      },
+      "response": {
+        "status": "ok",
+        "audio_id": "audio_138ff83814e4",
+        "audio_url": "/api/voice/audio/audio_138ff83814e4",
+        "provider": "edge_neural_tts",
+        "provider_label": "Cloud Neural TTS (operator enabled)",
+        "is_cloned": false,
+        "cached": false,
+        "latency_ms": 3226.56,
+        "success": true,
+        "text": "JARVIS physical speaker check on Raspberry Pi 5."
+      }
+    },
+    "voice_status": {
+      "url": "http://127.0.0.1:8000/api/voice/status",
+      "status_code": 200,
+      "response": {
+        "state": "STANDBY_LISTENING",
+        "listening": true,
+        "muted": false,
+        "device": {
+          "card": 2,
+          "device": 0,
+          "name": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]"
+        },
+        "wake_word": "jarvis",
+        "microphone_available": true,
+        "capture_owner": "voice_daemon",
+        "wake_engine": {
+          "state": "STANDBY_LISTENING",
+          "is_running": true,
+          "muted": false,
+          "capture_status": "ok",
+          "capture_failure_reason": "none",
+          "wake_word_enabled": true
+        }
+      }
+    }
+  },
+  "truthfulness_and_hardware_boundaries": {
+    "physical_speaker_playback": "VERIFIED_LIVE - Physical ReSpeaker Lite Analog Stereo speaker detected on USB card 2, active and unmuted in PipeWire (volume 0.39), with FastAPI test playback and synthesis confirmed via system player (pw-play).",
+    "physical_microphone_bound": "CONNECTED_AND_STREAMING - ReSpeaker Lite USB microphone bound to voice_daemon with active RMS audio level telemetry (audio_level_rms: 5855 - 8333) and capture_status 'ok'.",
+    "live_human_speech_recognition": "UNTESTED / NOT CLAIMED - Physical acoustic wake-word activation and conversational STT speech recognition require live operator vocalization test; honest recording preserves distinction between bound audio capture and human speech verification.",
+    "avatar_gate": "Phase 5 3D VRM gate remains deferred per recorded exception; 2D audio-reactive fallback active."
+  }
+}
