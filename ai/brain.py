@@ -519,6 +519,7 @@ class JARVISBrain:
             return
 
         FAST_PATH_INTENTS = {
+            "stop_speech",
             "standalone_number", "robot_forward", "robot_backward", "robot_left", "robot_right",
             "robot_stop", "robot_estop", "servo_set", "system_status",
             "read_sensors", "calculate", "camera_capture", "memory_store",
@@ -535,6 +536,8 @@ class JARVISBrain:
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
+            "computer_command", "antigravity_auto_approve",
+            "screen_check_errors", "screen_explain_error", "agent_repair_error", "agent_explain_changes",
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories"
@@ -862,6 +865,7 @@ class JARVISBrain:
 
         # 4. Fast-Path intents (hardware, sensors, status, math, standalone number, media)
         FAST_PATH_INTENTS = {
+            "stop_speech",
             "standalone_number", "robot_forward", "robot_backward", "robot_left", "robot_right",
             "robot_stop", "robot_estop", "servo_set", "system_status",
             "read_sensors", "calculate", "camera_capture", "memory_store",
@@ -880,6 +884,7 @@ class JARVISBrain:
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
             "computer_command",
             "antigravity_auto_approve",
+            "screen_check_errors", "screen_explain_error", "agent_repair_error", "agent_explain_changes",
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories"

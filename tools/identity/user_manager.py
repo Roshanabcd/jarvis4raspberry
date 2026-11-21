@@ -34,6 +34,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 IDENTITY_DIR = PROJECT_ROOT / "data" / "identity"
 USERS_FILE = IDENTITY_DIR / "users.json"
 ENROLLMENT_PHOTOS_DIR = IDENTITY_DIR / "biometrics"
+ACTIVITY_FILE = IDENTITY_DIR / "activity.json"
+AVATARS_DIR = IDENTITY_DIR / "avatars"
+AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Ensure directory exists with private permissions (rwx------)
 IDENTITY_DIR.mkdir(parents=True, exist_ok=True)
@@ -171,9 +174,13 @@ class UserManager:
 
             if self._verify_pin_hash(pin, stored_hash, salt):
                 self._failed_pin_attempts = 0
+                admin["last_sign_in_at"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+                self._save_users()
+                self.log_activity("LOGIN", "Administrator PIN verified", admin.get("display_name", "Roshan"), "ADMIN", "success")
                 return True, "Administrator authentication verified."
             else:
                 self._failed_pin_attempts += 1
+                self.log_activity("LOGIN_FAILED", "Invalid PIN attempt", "Operator", "GUEST", "warning")
                 if self._failed_pin_attempts >= self._max_pin_attempts:
                     self._lockout_until = time.time() + self._lockout_duration_s
                     logger.warning("Administrator PIN rate-limit lockout triggered for %ds.", self._lockout_duration_s)
@@ -434,7 +441,203 @@ class UserManager:
             "face_confidence": u.get("face_confidence"),
             "enrolled_at": u.get("enrolled_at"),
             "last_seen_at": u.get("last_seen_at"),
+            "bio": u.get("bio", "Lead Robotics Engineer · JARVIS OS"),
+            "callsign": u.get("callsign", u.get("display_name", "Roshan")),
+            "avatar_url": u.get("avatar_url"),
+            "avatar_preset": u.get("avatar_preset", "preset_reactor"),
+            "preferences": u.get("preferences", {
+                "default_tab": "home",
+                "voice_greeting": True,
+                "notification_speech": "important",
+                "default_model": "nvidia/nemotron-3.5-bolt-e4b",
+                "default_voice": "en-US-GuyNeural"
+            }),
+            "last_sign_in_at": u.get("last_sign_in_at"),
         }
+
+    def get_user(self, user_id: str) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            u = self._users.get(user_id)
+            return self._redact_user(u) if u else None
+
+    def update_profile(self, user_id: str, display_name: Optional[str] = None, bio: Optional[str] = None, callsign: Optional[str] = None) -> Dict[str, Any]:
+        with self._lock:
+            if user_id not in self._users:
+                # If guest or admin_user
+                admin = self.get_admin_user()
+                if admin:
+                    user_id = admin["user_id"]
+                else:
+                    return {"success": False, "error": "User account not found"}
+            u = self._users[user_id]
+            if display_name and display_name.strip():
+                u["display_name"] = display_name.strip()
+            if bio is not None:
+                u["bio"] = bio.strip()
+            if callsign is not None:
+                u["callsign"] = callsign.strip()
+            self._save_users()
+            self.log_activity("PROFILE_UPDATE", f"Profile updated for {u['display_name']}", u['display_name'], u.get('role', 'USER'), "success")
+            return {"success": True, "user": self._redact_user(u)}
+
+    def update_avatar(self, user_id: str, avatar_url: Optional[str] = None, avatar_preset: Optional[str] = None) -> Dict[str, Any]:
+        with self._lock:
+            if user_id not in self._users:
+                admin = self.get_admin_user()
+                if admin:
+                    user_id = admin["user_id"]
+                else:
+                    return {"success": False, "error": "User account not found"}
+            u = self._users[user_id]
+            if avatar_url:
+                u["avatar_url"] = avatar_url
+            if avatar_preset:
+                u["avatar_preset"] = avatar_preset
+            self._save_users()
+            self.log_activity("AVATAR_UPDATE", f"Avatar updated for {u['display_name']}", u['display_name'], u.get('role', 'USER'), "success")
+            return {"success": True, "avatar_url": u.get("avatar_url"), "avatar_preset": u.get("avatar_preset")}
+
+    def update_preferences(self, user_id: str, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        with self._lock:
+            if user_id not in self._users:
+                admin = self.get_admin_user()
+                if admin:
+                    user_id = admin["user_id"]
+                else:
+                    return {"success": False, "error": "User account not found"}
+            u = self._users[user_id]
+            current_prefs = u.get("preferences", {})
+            current_prefs.update(preferences)
+            u["preferences"] = current_prefs
+            self._save_users()
+            self.log_activity("PREFERENCES_UPDATE", f"Preferences updated for {u['display_name']}", u['display_name'], u.get('role', 'USER'), "success")
+            return {"success": True, "preferences": current_prefs}
+
+    def change_pin(self, user_id: str, current_pin: str, new_pin: str) -> Tuple[bool, str]:
+        with self._lock:
+            if user_id not in self._users:
+                admin = self.get_admin_user()
+                if admin:
+                    user_id = admin["user_id"]
+                else:
+                    return False, "User account not found."
+            u = self._users[user_id]
+            salt = u.get("pin_salt", "")
+            stored_hash = u.get("pin_hash", "")
+            if not self._verify_pin_hash(current_pin, stored_hash, salt):
+                self.log_activity("PIN_CHANGE_FAILED", "Failed PIN change attempt (incorrect current PIN)", u.get("display_name", "Operator"), u.get("role", "USER"), "error")
+                return False, "Current PIN is incorrect."
+            if not new_pin or len(new_pin) < 4:
+                return False, "New PIN must be at least 4 digits."
+            new_hash, new_salt = self._hash_pin(new_pin)
+            u["pin_hash"] = new_hash
+            u["pin_salt"] = new_salt
+            self._save_users()
+            self.log_activity("PIN_CHANGE", f"PIN successfully changed for {u.get('display_name')}", u.get("display_name", "Operator"), u.get("role", "USER"), "success")
+            return True, "PIN successfully updated."
+
+    def admin_reset_user_pin(self, target_user_id: str, new_pin: str, admin_pin: str) -> Tuple[bool, str]:
+        pin_ok, pin_msg = self.verify_admin_pin(admin_pin)
+        if not pin_ok:
+            return False, f"Admin authorization failed: {pin_msg}"
+        with self._lock:
+            if target_user_id not in self._users:
+                return False, "Target user not found."
+            u = self._users[target_user_id]
+            if not new_pin or len(new_pin) < 4:
+                return False, "New PIN must be at least 4 digits."
+            new_hash, new_salt = self._hash_pin(new_pin)
+            u["pin_hash"] = new_hash
+            u["pin_salt"] = new_salt
+            self._save_users()
+            self.log_activity("USER_PIN_RESET", f"PIN reset for {u.get('display_name')} by Administrator", "Administrator", "ADMIN", "warning")
+            return True, f"PIN for '{u.get('display_name')}' reset successfully."
+
+    def admin_change_user_role(self, target_user_id: str, new_role: str, admin_pin: str) -> Tuple[bool, str]:
+        pin_ok, pin_msg = self.verify_admin_pin(admin_pin)
+        if not pin_ok:
+            return False, f"Admin authorization failed: {pin_msg}"
+        role_upper = new_role.upper()
+        if role_upper not in (UserRole.ADMIN.value, UserRole.USER.value, UserRole.GUEST.value):
+            return False, f"Invalid role: {new_role}"
+        with self._lock:
+            if target_user_id not in self._users:
+                return False, "Target user not found."
+            u = self._users[target_user_id]
+            if u.get("role") == UserRole.ADMIN.value and role_upper != UserRole.ADMIN.value:
+                admin_count = sum(1 for usr in self._users.values() if usr.get("role") == UserRole.ADMIN.value)
+                if admin_count <= 1:
+                    return False, "Cannot demote the sole administrator."
+            u["role"] = role_upper
+            self._save_users()
+            self.log_activity("USER_ROLE_CHANGE", f"Role changed to {role_upper} for {u.get('display_name')}", "Administrator", "ADMIN", "warning")
+            return True, f"Role for '{u.get('display_name')}' changed to {role_upper}."
+
+    def enroll_or_update_face(self, user_id: str, photo_path: str) -> Dict[str, Any]:
+        with self._lock:
+            if user_id not in self._users:
+                admin = self.get_admin_user()
+                if admin:
+                    user_id = admin["user_id"]
+                else:
+                    return {"success": False, "error": "User account not found"}
+            if not photo_path or not os.path.exists(photo_path):
+                return {"success": False, "error": f"Photo file not found: {photo_path}"}
+            faces = face_engine.detect_faces(photo_path)
+            if not faces:
+                return {"success": False, "error": "No face detected in photo. Ensure proper lighting and face the camera directly."}
+            embedding = face_engine.extract_embedding(photo_path, faces[0])
+            if not embedding:
+                return {"success": False, "error": "Failed to extract facial recognition embedding."}
+            u = self._users[user_id]
+            u["face_embedding"] = embedding
+            u["face_confidence"] = faces[0]["confidence"]
+            self._save_users()
+            self.log_activity("FACE_ENROLL", f"Face ID biometric template enrolled for {u.get('display_name')}", u.get('display_name', 'Operator'), u.get('role', 'USER'), "success")
+            return {
+                "success": True,
+                "message": f"Face ID biometric enrolled for '{u.get('display_name')}' (confidence: {round(faces[0]['confidence'] * 100)}%).",
+                "face_confidence": faces[0]["confidence"]
+            }
+
+    def log_activity(self, event_type: str, description: str, user_name: str = "Operator", role: str = "GUEST", status: str = "success") -> None:
+        try:
+            entry = {
+                "id": f"act_{uuid.uuid4().hex[:8]}",
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "event": event_type,
+                "description": description,
+                "user": user_name,
+                "role": role,
+                "status": status
+            }
+            logs = []
+            if ACTIVITY_FILE.exists():
+                try:
+                    logs = json.loads(ACTIVITY_FILE.read_text(encoding="utf-8"))
+                except Exception:
+                    logs = []
+            logs.insert(0, entry)
+            logs = logs[:50]
+            ACTIVITY_FILE.write_text(json.dumps(logs, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning("Failed to append security activity log: %s", e)
+
+    def get_activity(self, limit: int = 20) -> List[Dict[str, Any]]:
+        if not ACTIVITY_FILE.exists():
+            return []
+        try:
+            logs = json.loads(ACTIVITY_FILE.read_text(encoding="utf-8"))
+            return logs[:limit]
+        except Exception:
+            return []
+
+    def clear_activity(self) -> bool:
+        try:
+            ACTIVITY_FILE.write_text(json.dumps([], indent=2), encoding="utf-8")
+            return True
+        except Exception:
+            return False
 
 
 user_manager = UserManager()

@@ -321,9 +321,16 @@ def emergency_stop() -> Dict[str, Any]:
 
 @router.post("/reset-stop")
 def reset_stop() -> Dict[str, Any]:
-    """Clear emergency stop condition."""
+    """Clear emergency stop condition and rearm session."""
     from tools.desktop.unified_computer_service import unified_computer_service
     return unified_computer_service.reset_emergency_stop()
+
+
+@router.post("/rearm")
+def rearm_computer() -> Dict[str, Any]:
+    """Explicit recovery action: clears persistent emergency stop lock, releases inputs, and rearms session."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return unified_computer_service.rearm_session()
 
 
 @router.get("/mode")

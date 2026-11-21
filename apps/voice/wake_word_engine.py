@@ -109,6 +109,9 @@ class WakeWordEngine:
         self.min_energy_threshold: float = float(v_cfg.get("min_energy_threshold", 90.0))
         self.max_energy_threshold: float = float(v_cfg.get("max_energy_threshold", 5000.0))
         self.wake_word_enabled: bool = True
+        self._wake_threshold: float = float(v_cfg.get("wake_threshold", 0.5))
+        self.wake_model_name: str = "hey_jarvis_v0.1"
+        self._openwakeword_model: Optional[Any] = None
         self._prev_standby_frames: Optional[bytes] = None
         self._device_consecutive_errors: int = 0
         self._recorder_consecutive_failures: int = 0
@@ -218,6 +221,9 @@ class WakeWordEngine:
             "recorder_failures": self._recorder_consecutive_failures,
             "stt_status": getattr(self._stt, "last_status", "idle"),
             "wake_word_enabled": self.wake_word_enabled,
+            "wake_engine": "openwakeword",
+            "wake_model": self.wake_model_name,
+            "wake_threshold": self._wake_threshold,
         }
 
     def start(self) -> None:
@@ -318,14 +324,56 @@ class WakeWordEngine:
             if lvl == "high":
                 self.min_energy_threshold = 100.0
                 self.adaptive_threshold = max(100.0, self.ambient_noise_floor * 1.4)
+                self._wake_threshold = 0.35
             elif lvl == "low":
                 self.min_energy_threshold = 300.0
                 self.adaptive_threshold = max(300.0, self.ambient_noise_floor * 2.5)
+                self._wake_threshold = 0.70
             else:  # medium / default
                 self.min_energy_threshold = 150.0
                 self.adaptive_threshold = max(150.0, self.ambient_noise_floor * 1.8)
+                self._wake_threshold = 0.50
             self.adaptive_threshold = min(self.adaptive_threshold, self.max_energy_threshold)
-            logger.info("VAD sensitivity configured to %s (threshold: %.1f)", lvl, self.adaptive_threshold)
+            logger.info("VAD sensitivity configured to %s (threshold: %.1f, wake_threshold: %.2f)",
+                        lvl, self.adaptive_threshold, self._wake_threshold)
+
+    def set_wake_threshold(self, threshold: float) -> None:
+        """Directly adjust acoustic wake-word confidence threshold."""
+        with self._state_lock:
+            self._wake_threshold = max(0.05, min(0.99, float(threshold)))
+            logger.info("Acoustic wake threshold set to %.2f", self._wake_threshold)
+
+    def _score_acoustic_wake(self, wav_path: str) -> float:
+        """Score audio chunk using local openWakeWord neural model for 'hey_jarvis' / 'jarvis'."""
+        if not os.path.exists(wav_path) or os.path.getsize(wav_path) < 100:
+            return 0.0
+        try:
+            if self._openwakeword_model is None:
+                import openwakeword
+                from openwakeword.model import Model
+                paths = [p for p in openwakeword.get_pretrained_model_paths() if "hey_jarvis" in p]
+                if not paths:
+                    paths = openwakeword.get_pretrained_model_paths()
+                self._openwakeword_model = Model(wakeword_model_paths=paths)
+
+            with wave.open(wav_path, "rb") as wf:
+                raw_frames = wf.readframes(wf.getnframes())
+                if not raw_frames:
+                    return 0.0
+                import numpy as np
+                audio_data = np.frombuffer(raw_frames, dtype=np.int16)
+
+            max_score = 0.0
+            step = 1280
+            for i in range(0, len(audio_data) - step + 1, step):
+                pred = self._openwakeword_model.predict(audio_data[i:i + step])
+                for k, v in pred.items():
+                    if v > max_score:
+                        max_score = v
+            return float(max_score)
+        except Exception as e:
+            logger.debug("Acoustic wake word scoring error: %s", e)
+            return 0.0
 
     def barge_in(self) -> None:
         """Immediately halt active speech playback and transition to listening."""
@@ -572,21 +620,19 @@ class WakeWordEngine:
                 # 2. Check energy against adaptive threshold
                 rms = self._calculate_audio_rms(standby_chunk)
                 if rms > self.adaptive_threshold:
-                    # Potential speech detected, transcribe with fast standby path
-                    text = self._transcribe(standby_chunk)
                     matched = False
-                    if text:
-                        logger.debug("Speech detected in standby (RMS: %.1f, threshold: %.1f)", rms, self.adaptive_threshold)
-                        if self._matches_wake_phrase(text):
-                            logger.info(">>> WAKE PHRASE DETECTED! <<<")
-                            self._current_transcript = self._command_after_wake_phrase(text)
-                            self._prev_standby_frames = None
-                            self.set_state(WakeState.LISTENING_SPEECH if self._current_transcript else WakeState.WAKE_DETECTED)
-                            matched = True
-                            continue
+                    # A. Local Acoustic Neural Wake-Word Detection (openWakeWord)
+                    acoustic_score = self._score_acoustic_wake(standby_chunk)
+                    if acoustic_score >= self._wake_threshold:
+                        logger.info(">>> ACOUSTIC WAKE WORD DETECTED! (score: %.3f >= threshold: %.2f) <<<",
+                                    acoustic_score, self._wake_threshold)
+                        self._current_transcript = ""
+                        self._prev_standby_frames = None
+                        self.set_state(WakeState.WAKE_DETECTED)
+                        continue
 
-                    # If not matched alone, check combined audio with previous chunk if previous had speech
-                    if not matched and self._prev_standby_frames is not None:
+                    # B. Check rolling boundary chunk if previous audio contained energy
+                    if self._prev_standby_frames is not None:
                         combined_path = os.path.join(self.temp_dir, "standby_combined.wav")
                         try:
                             with wave.open(standby_chunk, "rb") as wf:
@@ -595,23 +641,34 @@ class WakeWordEngine:
                             with wave.open(combined_path, "wb") as wf:
                                 wf.setparams(current_params)
                                 wf.writeframes(self._prev_standby_frames + current_frames)
-                            combined_text = self._transcribe(combined_path)
-                            if combined_text and self._matches_wake_phrase(combined_text):
-                                logger.info(">>> WAKE PHRASE DETECTED (across chunk boundary)! <<<")
-                                self._current_transcript = self._command_after_wake_phrase(combined_text)
+                            combined_score = self._score_acoustic_wake(combined_path)
+                            if combined_score >= self._wake_threshold:
+                                logger.info(">>> ACOUSTIC WAKE WORD DETECTED (across boundary, score: %.3f)! <<<",
+                                            combined_score)
+                                self._current_transcript = ""
                                 self._prev_standby_frames = None
-                                self.set_state(WakeState.LISTENING_SPEECH if self._current_transcript else WakeState.WAKE_DETECTED)
+                                self.set_state(WakeState.WAKE_DETECTED)
                                 continue
                         except Exception as ex:
-                            logger.debug("Error checking rolling wake chunk: %s", ex)
+                            logger.debug("Error checking rolling acoustic chunk: %s", ex)
+
+                    # C. Fallback: Secondary STT regex match for noisy environments or compound phrases
+                    text = self._transcribe(standby_chunk)
+                    if text:
+                        logger.debug("Speech detected in standby (RMS: %.1f, threshold: %.1f): '%s'", rms, self.adaptive_threshold, text)
+                        if self._matches_wake_phrase(text):
+                            logger.info(">>> WAKE PHRASE DETECTED VIA STT MATCH! <<<")
+                            self._current_transcript = self._command_after_wake_phrase(text)
+                            self._prev_standby_frames = None
+                            self.set_state(WakeState.LISTENING_SPEECH if self._current_transcript else WakeState.WAKE_DETECTED)
+                            matched = True
+                            continue
 
                     if not matched:
-                        # Non-speech / ambient noise chunk (or speech not matching wake phrase)
-                        # Adapt noise floor so engine does not get stuck in a false-trigger loop!
+                        # Non-speech / ambient noise chunk
                         self._prev_standby_frames = None
                         self._update_adaptive_threshold(rms, is_speech=False)
                     else:
-                        # Save current frames for possible boundary overlap
                         try:
                             with wave.open(standby_chunk, "rb") as wf:
                                 self._prev_standby_frames = wf.readframes(wf.getnframes())
@@ -638,7 +695,7 @@ class WakeWordEngine:
                     if rms > self.adaptive_threshold:
                         text = self._transcribe(standby_chunk)
                         if text and len(text.split()) >= 1:
-                            logger.debug("Direct follow-up speech detected")
+                            logger.debug("Direct follow-up speech detected: %s", text)
                             self._current_transcript = text
                             self.set_state(WakeState.LISTENING_SPEECH)
                             continue
@@ -647,13 +704,13 @@ class WakeWordEngine:
                 self._stop_event.wait(0.05)
 
             elif curr == WakeState.WAKE_DETECTED:
-                # Immediate acknowledgment chime/speech
+                # Immediate acknowledgment speech
                 try:
                     from apps.voice.service import voice_service
                     voice_service.stop_playback()
                     from apps.voice.tts import TextToSpeech
                     tts = TextToSpeech(simulation_mode=False)
-                    tts.speak_sync("Yes?")
+                    tts.speak_sync("Yes, I'm listening.")
                 except Exception as ex:
                     logger.debug("Wake acknowledgment notice: %s", ex)
 

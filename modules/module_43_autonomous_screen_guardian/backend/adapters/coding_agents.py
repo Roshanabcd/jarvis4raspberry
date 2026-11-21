@@ -140,14 +140,25 @@ class ReferenceLocalRepairAgent(BaseCodingAgentAdapter):
                 if str(p).startswith(str(workspace.resolve())) and p.is_file():
                     candidates.append(p)
         else:
-            candidates = sorted(p for p in workspace.rglob("*.py") if "test_" not in p.name and "__pycache__" not in p.parts)
+            candidates = sorted(
+                p for p in workspace.rglob("*.py")
+                if "test_" not in p.name
+                and "__pycache__" not in p.parts
+                and "venv" not in p.parts
+                and ".venv" not in p.parts
+                and ".git" not in p.parts
+                and "node_modules" not in p.parts
+            )
 
         diffs: List[str] = []
         changed_files: List[str] = []
         plan_steps: List[str] = []
 
         for py_file in candidates:
-            original = py_file.read_text(encoding="utf-8")
+            try:
+                original = py_file.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                continue
             updated = original
 
             # Pattern 1: Explicit ZeroDivisionError / division by zero guard

@@ -51,6 +51,7 @@ DEFAULT_ROUTER_SPECS: Tuple[RouterSpec, ...] = (
     ("apps.api.desktop_api", "desktop_router", "/api", ("desktop",)),
     ("apps.api.terminal_api", "terminal_router", "/api", ("terminal",)),
     ("apps.api.identity_api", "identity_router", "/api", ("identity",)),
+    ("apps.api.account_api", "account_router", "/api", ("account",)),
     ("apps.api.apps_center_api", "apps_center_router", "/api", ("apps_center",)),
     ("apps.api.browser_media_api", "browser_media_router", "/api", ("browser_media",)),
     ("apps.api.agent_orchestrator_api", "agents_router", "/api", ("agents",)),

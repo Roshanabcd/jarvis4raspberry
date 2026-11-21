@@ -12,7 +12,9 @@ Includes candidate confidence scoring and ambiguity detection.
 from __future__ import annotations
 
 import logging
+import os
 import re
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from tools.desktop.browser_backend import browser_backend
@@ -26,7 +28,7 @@ class ScreenIntelligence:
     """Intelligent UI element detector, grounder, and ambiguity assessor."""
 
     def __init__(self):
-        pass
+        self.last_detected_error: Optional[Dict[str, Any]] = None
 
     def resolve_target(self, query: str, context_hint: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -156,6 +158,178 @@ class ScreenIntelligence:
             "candidates": [],
         }
 
+    def inspect_screen(self, query: Optional[str] = None) -> Dict[str, Any]:
+        """Comprehensive screen observation combining window metadata, browser DOM, and OCR text."""
+        act_win = desktop_perception.get_active_window()
+        open_wins = desktop_perception.list_open_windows()
+        res = desktop_perception.get_screen_resolution()
+
+        browser_info = None
+        if browser_backend.is_running():
+            dom = browser_backend.inspect_dom()
+            if dom.get("status") == "ok":
+                browser_info = {
+                    "url": browser_backend.get_current_url(),
+                    "title": dom.get("title", ""),
+                    "element_count": len(dom.get("elements", [])),
+                }
+
+        # Ephemeral visual snapshot
+        snap = desktop_perception.capture_fullscreen()
+
+        # Optional OCR extraction if a specific textual question is asked
+        ocr_text = ""
+        filepath = snap.get("filepath")
+        if filepath and os.path.exists(filepath):
+            try:
+                import pytesseract
+                from PIL import Image
+                ocr_text = pytesseract.image_to_string(Image.open(filepath)).strip()
+            except Exception as e:
+                logger.debug("OCR extraction skipped: %s", e)
+
+        obs = {
+            "status": "ok",
+            "active_window": act_win,
+            "resolution": res,
+            "open_windows_count": len(open_wins),
+            "browser": browser_info,
+            "ocr_snippet": ocr_text[:300] if ocr_text else None,
+            "full_ocr": ocr_text if len(ocr_text) < 2000 else ocr_text[:2000] + "...",
+            "timestamp": snap.get("timestamp", 0),
+        }
+        self.last_observation = obs
+        return obs
+
+    def check_screen_errors(self) -> Dict[str, Any]:
+        """Inspect visible browser DOM and desktop screenshot for errors, alerts, or exceptions."""
+        import time
+        errors_found: List[Dict[str, Any]] = []
+
+        # 1. Inspect Browser DOM if active
+        if browser_backend.is_running():
+            try:
+                dom = browser_backend.inspect_dom()
+                if dom.get("status") == "ok":
+                    for el in dom.get("elements", []):
+                        el_id = (el.get("id") or "").lower()
+                        text = (el.get("text") or "").strip()
+                        label = (el.get("label") or "").strip()
+                        content = f"{text} {label}".strip()
+                        if not content:
+                            continue
+
+                        # Check for error banners or failure indications
+                        if any(k in el_id for k in ["error", "alert-danger", "fail", "exception"]) or \
+                           re.search(r'\b(?:error|exception|failed|fatal|critical)\b', content, re.I):
+                            # Filter out false positives like "0 errors"
+                            if not re.search(r'\b0\s+errors\b', content, re.I):
+                                errors_found.append({
+                                    "source": "browser_dom",
+                                    "location": el.get("selector") or f"#{el.get('id')}",
+                                    "error_text": content,
+                                    "severity": "high",
+                                })
+            except Exception as e:
+                logger.debug("Browser DOM error inspection error: %s", e)
+
+        # 2. Inspect Desktop Window OCR
+        snap = desktop_perception.capture_active_window()
+        filepath = snap.get("filepath")
+        if filepath and os.path.exists(filepath):
+            try:
+                import pytesseract
+                from PIL import Image
+                raw_ocr = pytesseract.image_to_string(Image.open(filepath))
+                error_patterns = [
+                    r'(?:Error|Exception|Traceback|Failed|CRITICAL|FATAL|SyntaxError|TypeError|ValueError|NameError|ImportError|AttributeError|ZeroDivisionError)[:\s]+([^\n\r]+)',
+                    r'(?:HTTP\s+(?:404|500|502|503)[^\n\r]*)',
+                    r'(?:Connection\s+Refused[^\n\r]*)',
+                ]
+                for pat in error_patterns:
+                    matches = re.findall(pat, raw_ocr, re.I)
+                    for m in matches:
+                        err_line = m.strip() if isinstance(m, str) else m[0].strip()
+                        if err_line and not any(e["error_text"] == err_line for e in errors_found):
+                            errors_found.append({
+                                "source": "desktop_ocr",
+                                "location": snap.get("title", "Active Window"),
+                                "error_text": err_line,
+                                "severity": "high",
+                            })
+            except Exception as e:
+                logger.debug("OCR error inspection error: %s", e)
+
+        if errors_found:
+            top_err = errors_found[0]
+            self.last_detected_error = top_err
+            return {
+                "status": "ok",
+                "error_found": True,
+                "count": len(errors_found),
+                "error": top_err["error_text"],
+                "errors": errors_found,
+                "message": f"Found {len(errors_found)} error(s) displayed on screen: '{top_err['error_text']}' in {top_err['location']}.",
+                "timestamp": time.time(),
+            }
+
+        self.last_detected_error = None
+        return {
+            "status": "ok",
+            "error_found": False,
+            "count": 0,
+            "message": "No errors are currently displayed on the screen or in the active application.",
+            "timestamp": time.time(),
+        }
+
+    def explain_detected_error(self, error_text: Optional[str] = None) -> Dict[str, Any]:
+        """Explain the likely root cause and remediation for the detected error."""
+        err = error_text or (self.last_detected_error.get("error_text") if self.last_detected_error else None)
+        if not err:
+            return {
+                "status": "ok",
+                "has_error": False,
+                "explanation": "No error is currently detected on your screen to explain. You can ask me to inspect your screen first.",
+            }
+
+        err_low = err.lower()
+        cause = "An unhandled exception or application failure occurred."
+        remediation = "Inspect the relevant code or service logs and apply a fix."
+
+        if "zerodivision" in err_low or "division by zero" in err_low:
+            cause = "The program attempted to divide a number by zero in an arithmetic operation."
+            remediation = "Add a zero-check guard clause (e.g. `if b == 0: return 0.0`) before the division."
+        elif "connection refused" in err_low:
+            cause = "The application tried to connect to a local port or server daemon that is offline or not listening."
+            remediation = "Verify that the backend service or listener is started and listening on the specified port."
+        elif "404" in err_low or "not found" in err_low:
+            cause = "The requested URL route or static resource path does not exist on the server."
+            remediation = "Check the API endpoint route path and ensure the corresponding route handler is registered."
+        elif "syntaxerror" in err_low:
+            cause = "Python parser encountered invalid grammar or mismatched punctuation in the source code."
+            remediation = "Check indentation, matching brackets/parentheses, or colon usage."
+        elif "assertionerror" in err_low:
+            cause = "A unit test assertion or invariant validation condition failed."
+            remediation = "Inspect expected vs actual values in the test assertion."
+
+        explanation = (
+            f"🔍 **Error Analysis:**\n\n"
+            f"- **Observed Error:** `{err}`\n"
+            f"- **Likely Cause:** {cause}\n"
+            f"- **Recommended Fix:** {remediation}\n\n"
+            f"You can instruct me to fix it using your available coding agent."
+        )
+
+        return {
+            "status": "ok",
+            "has_error": True,
+            "error": err,
+            "explanation": explanation,
+            "cause": cause,
+            "remediation": remediation,
+        }
+
 
 # Global singleton instance
 screen_intelligence = ScreenIntelligence()
+

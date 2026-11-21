@@ -17,6 +17,10 @@ logger = logging.getLogger("JARVIS.LocalEngine")
 
 # Intent patterns → (intent_name, tool_to_call, template_response)
 INTENTS = [
+    # Speech playback stop / silence
+    (r"\b(?:stop|halt|cancel|cease)\s+(?:speaking|talking|speech|audio\s+output)\b", "stop_speech", None),
+    (r"\b(?:be\s+quiet|shut\s+up|silence|mute\s+speech)\b", "stop_speech", None),
+
     # Media controls (high priority so 'stop music' is not caught by robot stop)
     (r"\b(pause)\s+(?:the\s+)?(?:music|song|track|audio|playback)\b", "pause_media", None),
     (r"\b(stop|halt|kill|end)\s+(?:the\s+)?(?:music|song|track|audio|playback|playing)\b", "stop_media", None),
@@ -392,6 +396,22 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
             return "screen_observe", {"text": text}
 
+        # Check displayed errors ("check whether any errors are displayed", "are there any errors on screen", "inspect errors")
+        if re.search(r'\b(?:check|inspect|find|are\s+there|see\s+if)\s+(?:whether\s+)?(?:any\s+)?(?:errors?|exceptions?|warnings?|bugs?)\s+(?:are\s+)?(?:displayed|shown|visible|on\s+(?:the\s+|my\s+)?screen|in\s+(?:the\s+)?(?:browser|page|dashboard))\b', text_lower):
+            return "screen_check_errors", {"text": text}
+
+        # Explain error ("if there is an error, explain it", "explain the error", "analyze the error")
+        if re.search(r'\b(?:(?:if\s+there\s+is\s+(?:an?\s+)?error[,\s]+)?explain\s+(?:it|the\s+error|this\s+error)|analyze\s+(?:the\s+|this\s+)?error|what\s+caused\s+(?:the\s+|this\s+)?error)\b', text_lower):
+            return "screen_explain_error", {"text": text}
+
+        # Fix error using coding agent ("fix it using my available coding agent", "fix the error using my coding agent", "repair it with coding agent")
+        if re.search(r'\b(?:fix\s+(?:it|the\s+error|this\s+error)|repair\s+(?:it|the\s+error|the\s+bug))\s*(?:using|with)?\s*(?:my\s+|the\s+)?(?:available\s+)?(?:coding\s+agent|coder|ai\s+agent)?\b', text_lower):
+            return "agent_repair_error", {"text": text}
+
+        # Tell me what changed ("tell me what changed", "what changed", "show me what changed", "summarize what changed")
+        if re.search(r'\b(?:tell\s+me\s+what\s+changed|what\s+changed|show\s+(?:me\s+)?what\s+changed|summarize\s+(?:the\s+)?changes?)\b', text_lower):
+            return "agent_explain_changes", {"text": text}
+
         # Take screenshot ("take a screenshot", "capture screen", "capture my screen", "capture active window")
         if re.search(r'\b(?:take\s+(?:a\s+)?screenshot|capture\s+(?:the\s+|my\s+)?(?:screen|desktop|active\s+window))\b', text_lower):
             target = "active_window" if ("active" in text_lower or "window" in text_lower) else "fullscreen"
@@ -577,7 +597,19 @@ class LocalIntelligenceEngine:
         tools_used = []
 
         try:
-            if intent == "standalone_number":
+            if intent == "stop_speech":
+                try:
+                    from apps.voice.speech_manager import speech_manager
+                    speech_manager.stop()
+                except Exception:
+                    pass
+                return {
+                    "response": "I have stopped speaking.",
+                    "tools_used": ["stop_speech"],
+                    "raw": {"status": "stopped"},
+                }
+
+            elif intent == "standalone_number":
                 num = ctx.get("number", text)
                 return {
                     "response": f"You mentioned the number {num}. How would you like me to use it? (e.g., perform a calculation, look up records, or store it in memory?)",
@@ -761,6 +793,14 @@ class LocalIntelligenceEngine:
                 return self._respond_screen_active_tab(ctx)
             elif intent == "screen_type_text":
                 return self._respond_screen_type_text(ctx)
+            elif intent == "screen_check_errors":
+                return self._respond_screen_check_errors(ctx)
+            elif intent == "screen_explain_error":
+                return self._respond_screen_explain_error(ctx)
+            elif intent == "agent_repair_error":
+                return self._respond_agent_repair_error(ctx)
+            elif intent == "agent_explain_changes":
+                return self._respond_agent_explain_changes(ctx)
 
             # Phase 5 Multi-AI Agent Orchestration Dispatches
             elif intent == "agents_discover":
@@ -1401,7 +1441,18 @@ if __name__ == "__main__":
     def _respond_desktop_open_app(self, ctx: Dict) -> Dict:
         from tools.desktop.action_engine import desktop_action_engine
         app = ctx.get("app", "code")
-        res = desktop_action_engine.open_application(app, new_window=True)
+        raw_text = ctx.get("text", "")
+        target = None
+        if re.search(r'\b(?:jarvis\s+)?dashboard\b', raw_text, re.I):
+            target = "http://127.0.0.1:8000"
+        elif re.search(r'\b(?:go\s+to|navigate\s+to|open)\s+(https?://\S+|localhost:\d+|127\.0\.0\.1:\d+)', raw_text, re.I):
+            m_url = re.search(r'\b(?:go\s+to|navigate\s+to|open)\s+(https?://\S+|localhost:\d+|127\.0\.0\.1:\d+)', raw_text, re.I)
+            if m_url:
+                target = m_url.group(1)
+                if not target.startswith("http"):
+                    target = "http://" + target
+
+        res = desktop_action_engine.open_application(app, target=target, new_window=True)
         ar = res["actual_result"]
         if ar.get("success"):
             try:
@@ -1409,8 +1460,9 @@ if __name__ == "__main__":
                 unified_computer_service.set_target_window(app)
             except Exception:
                 pass
+            target_disp = f" to `{target}`" if target else ""
             return {
-                "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`) on desktop session (PID: {ar.get('pid')}).",
+                "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`){target_disp} on desktop session (PID: {ar.get('pid')}).",
                 "tools_used": ["desktop_open_app", "open_app"],
                 "raw": res,
             }
@@ -2316,6 +2368,75 @@ if __name__ == "__main__":
             "response": f"⌨️ Typed text into active field: `\"{text_to_type}\"`. Status: {verified_str}.",
             "tools_used": ["computer_action_type"],
             "raw": res,
+        }
+
+    def _respond_screen_check_errors(self, ctx: Dict) -> Dict:
+        from tools.desktop.screen_intelligence import screen_intelligence
+        result = screen_intelligence.check_screen_errors()
+        if result.get("error_found"):
+            err_text = result.get("error", "Unknown error")
+            count = result.get("count", 1)
+            msg = (
+                f"🚨 {result.get('message')}\n\n"
+                f"```text\n{err_text[:300]}\n```\n\n"
+                "You can say *\"explain this error\"* or *\"fix it using my available coding agent\"*."
+            )
+        else:
+            msg = "✅ No errors are currently displayed on the screen or in the active application."
+
+        return {
+            "response": msg,
+            "tools_used": ["screen_check_errors"],
+            "raw": result,
+        }
+
+    def _respond_screen_explain_error(self, ctx: Dict) -> Dict:
+        from tools.desktop.screen_intelligence import screen_intelligence
+        result = screen_intelligence.explain_detected_error()
+        if result.get("has_error"):
+            msg = result.get("explanation", "Error explained.")
+        else:
+            msg = "ℹ️ No recent screen error has been detected to explain. Try asking me to *\"check whether any errors are displayed\"* first."
+
+        return {
+            "response": msg,
+            "tools_used": ["screen_explain_error"],
+            "raw": result,
+        }
+
+    def _respond_agent_repair_error(self, ctx: Dict) -> Dict:
+        from tools.desktop.coding_agent_bridge import coding_agent_bridge
+        from tools.desktop.screen_intelligence import screen_intelligence
+        err_info = getattr(screen_intelligence, "last_detected_error", None)
+        err_text = err_info.get("error_text", "") if err_info else ""
+        repair_res = coding_agent_bridge.execute_repair(error_context=err_text)
+        agent_name = repair_res.get("agent_name", "Local Coding Agent")
+        status = repair_res.get("status", "unknown")
+        files = repair_res.get("changed_files", [])
+        verified = repair_res.get("verification_passed", False)
+        test_summary = repair_res.get("test_summary", "Tests verified")
+        test_badge = f"Tests: {'Passed ✅' if verified else 'Review needed ⚠️'}"
+        msg = (
+            f"🛠️ **Autonomous Repair Complete via {agent_name}:**\n\n"
+            f"- Status: {status.upper()}\n"
+            f"- Files changed: {len(files)} ({', '.join(files) if files else 'None'})\n"
+            f"- {test_badge} ({test_summary})\n\n"
+            "Say *\"tell me what changed\"* to inspect the unified diff."
+        )
+        return {
+            "response": msg,
+            "tools_used": ["coding_agent_repair"],
+            "raw": repair_res,
+        }
+
+    def _respond_agent_explain_changes(self, ctx: Dict) -> Dict:
+        from tools.desktop.coding_agent_bridge import coding_agent_bridge
+        changes = coding_agent_bridge.explain_changes()
+        msg = changes if isinstance(changes, str) else changes.get("explanation", "No changes recorded.")
+        return {
+            "response": msg,
+            "tools_used": ["coding_agent_explain_changes"],
+            "raw": {"summary": msg},
         }
 
     def _respond_general(self, text: str) -> Dict:

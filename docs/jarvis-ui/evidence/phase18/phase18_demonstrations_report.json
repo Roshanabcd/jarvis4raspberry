@@ -1,0 +1,67 @@
+{
+  "timestamp": 1795254416.8083375,
+  "total": 10,
+  "passed": 10,
+  "results": [
+    {
+      "demo": 1,
+      "name": "Acoustic Wake Word Engine",
+      "passed": true,
+      "details": "Engine: hey_jarvis_v0.1, Threshold: 0.5, Model: hey_jarvis_v0.1.onnx, Synthetic Score: 0.0001"
+    },
+    {
+      "demo": 2,
+      "name": "Voice-to-Action Execution",
+      "passed": true,
+      "details": "Command: 'Jarvis, select option 1 and click Submit.', Response: 'Option 1 was selected and the form was submitted successfully....', Job: vjob_1795254389_6ef3cb13, Status: completed, option1 checked: True"
+    },
+    {
+      "demo": 3,
+      "name": "Natural Multi-Turn Context Retention",
+      "passed": true,
+      "details": "Successfully conducted 3-turn conversational sequence maintaining context across turns without re-waking."
+    },
+    {
+      "demo": 4,
+      "name": "Real-Time Interruption / Barge-In",
+      "passed": true,
+      "details": "Speaking before: True, Speaking after interrupt: False, POST /voice/interrupt status: ok"
+    },
+    {
+      "demo": 5,
+      "name": "Screen Understanding & Error Explanation",
+      "passed": true,
+      "details": "Clean check: '\u2705 No errors are currently displayed on the screen or in the ', Root cause explanation verified: '\ud83d\udd0d **Error Analysis:**\n\n- **Observed Error:** `ZeroDivisionError: division by zero in calculate_ratio()`\n- **Likely Cause...'"
+    },
+    {
+      "demo": 6,
+      "name": "Multi-Step Computer Task Execution",
+      "passed": true,
+      "details": "Executed 3-step action sequence: Move mouse to 400, 300: ok, Select option 2: ok, Type text: ok"
+    },
+    {
+      "demo": 7,
+      "name": "Emergency Stop Under Action",
+      "passed": true,
+      "details": "Lock file exists: True, Blocked message: 'Action blocked: Computer control is currently in EMERGENCY STOP.'"
+    },
+    {
+      "demo": 8,
+      "name": "Safe Recovery & Re-Arm",
+      "passed": true,
+      "details": "Lock removed: True, Status: active, Rearm msg: 'Emergency stop safely cleared and session re-armed. Persistent lock removed and inputs released.'"
+    },
+    {
+      "demo": 9,
+      "name": "Provider Failure & Fallback Resilience",
+      "passed": true,
+      "details": "Local engine successfully executed offline fallback intent 'get_system_status': \ud83d\udcbb System Status:\n  \ud83d\udd32 CPU: 90.2%\n  \ud83d\udcbe RAM: 87.5% used (6.80 GB / 7.76 GB, Availabl..."
+    },
+    {
+      "demo": 10,
+      "name": "Persistent State Preservation Across Restart",
+      "passed": true,
+      "details": "Emergency stop preserved across restart: True, Persistent lock file recovered and cleanly re-armed: True"
+    }
+  ]
+}

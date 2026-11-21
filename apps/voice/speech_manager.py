@@ -54,6 +54,11 @@ class SpeechOutputManager:
 
         logger.info("SpeechOutputManager initialized (stage_dir=%s)", self.stage_dir)
 
+    def is_speaking(self) -> bool:
+        """Return True if speech playback is currently active."""
+        with self._lock:
+            return self._current_player is not None and self._current_player.poll() is None
+
     def get_status(self) -> Dict[str, Any]:
         """Return comprehensive status for voice hardware, TTS cloner, and playback."""
         from apps.voice.service import voice_service

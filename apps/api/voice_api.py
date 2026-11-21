@@ -443,6 +443,7 @@ class WakeWordConfigRequest(BaseModel):
     sensitivity: Optional[str] = None  # "low", "medium", "high"
     silence_timeout_s: Optional[float] = None
     follow_up_window_s: Optional[float] = None
+    wake_threshold: Optional[float] = None
 
 
 @voice_router.post("/wake_word/toggle")
@@ -468,6 +469,8 @@ def get_wake_word_config():
     return {
         "status": "ok",
         "wake_word_enabled": wake_word_engine.wake_word_enabled,
+        "wake_engine": getattr(wake_word_engine, "wake_model_name", "openwakeword"),
+        "wake_threshold": getattr(wake_word_engine, "_wake_threshold", 0.5),
         "silence_timeout_s": wake_word_engine.silence_timeout_s,
         "follow_up_window_s": wake_word_engine.follow_up_window_s,
         "adaptive_threshold": wake_word_engine.adaptive_threshold,
@@ -481,6 +484,8 @@ def configure_wake_word(req: WakeWordConfigRequest):
     from apps.voice.wake_word_engine import wake_word_engine
     if req.sensitivity:
         wake_word_engine.set_vad_sensitivity(req.sensitivity)
+    if req.wake_threshold is not None:
+        wake_word_engine.set_wake_threshold(req.wake_threshold)
     if req.silence_timeout_s is not None and 0.5 <= req.silence_timeout_s <= 15.0:
         wake_word_engine.set_silence_timeout(req.silence_timeout_s)
     if req.follow_up_window_s is not None and 1.0 <= req.follow_up_window_s <= 60.0:
@@ -488,6 +493,7 @@ def configure_wake_word(req: WakeWordConfigRequest):
     return {
         "status": "ok",
         "sensitivity": req.sensitivity,
+        "wake_threshold": getattr(wake_word_engine, "_wake_threshold", 0.5),
         "silence_timeout_s": wake_word_engine.silence_timeout_s,
         "follow_up_window_s": wake_word_engine.follow_up_window_s,
     }

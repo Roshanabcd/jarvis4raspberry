@@ -108,6 +108,20 @@ class VoiceSessionManager:
                         self._current_session.session_id, display_name, role_val, source)
             return self._current_session
 
+    def set_session_ttl(self, ttl_s: float) -> None:
+        with self._lock:
+            self.session_ttl_s = ttl_s
+            if not self._current_session.is_expired():
+                self._current_session.refresh(ttl_s)
+            logger.info("Session TTL updated to %.1fs", ttl_s)
+
+    def extend_session(self, duration_s: Optional[float] = None) -> VoiceSession:
+        with self._lock:
+            ttl = duration_s if duration_s is not None else self.session_ttl_s
+            self._current_session.refresh(ttl)
+            logger.info("Session %s extended by %.1fs", self._current_session.session_id, ttl)
+            return self._current_session
+
     def invalidate_session(self) -> VoiceSession:
         """Reset session to unauthenticated GUEST."""
         with self._lock:

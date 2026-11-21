@@ -10,12 +10,15 @@ Enforces:
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import re
 import threading
 import time
 import uuid
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from tools.desktop.browser_backend import browser_backend
@@ -24,6 +27,7 @@ from tools.desktop.screen_intelligence import screen_intelligence
 from tools.desktop.desktop_perception import desktop_perception
 
 logger = logging.getLogger("JARVIS.UnifiedComputerService")
+ESTOP_LOCK_PATH = Path("/home/roshan/.gemini/antigravity/scratch/jarvis-os/data/computer_estop.lock")
 
 
 class ComputerControlMode(str, Enum):
@@ -38,9 +42,11 @@ class UnifiedComputerService:
 
     def __init__(self):
         self._mode: ComputerControlMode = ComputerControlMode.COMMAND_CONTROL
-        self._emergency_stopped: bool = False
-        self._stop_requested: bool = False
-        self._session_enabled: bool = True
+        self._lock_file = ESTOP_LOCK_PATH
+        self._lock_file.parent.mkdir(parents=True, exist_ok=True)
+        self._emergency_stopped: bool = self._lock_file.exists()
+        self._stop_requested: bool = self._emergency_stopped
+        self._session_enabled: bool = not self._emergency_stopped
         self._target_window: Optional[str] = None
         self._action_history: List[Dict[str, Any]] = []
         self._max_history: int = 50
@@ -58,6 +64,8 @@ class UnifiedComputerService:
     def enable_session(self) -> Dict[str, Any]:
         """Explicitly enable computer control session."""
         with self._lock:
+            if self._lock_file.exists():
+                return self.rearm_session()
             self._session_enabled = True
             self._emergency_stopped = False
             self._stop_requested = False
@@ -105,13 +113,25 @@ class UnifiedComputerService:
             return self._mode
 
     def is_emergency_stopped(self) -> bool:
+        if self._lock_file.exists():
+            self._emergency_stopped = True
         return self._emergency_stopped
 
     def emergency_stop(self) -> Dict[str, Any]:
-        """Trigger immediate emergency stop: interrupt ongoing actions and release inputs."""
+        """Trigger immediate emergency stop: interrupt ongoing actions, release inputs, and write persistent lock."""
         with self._lock:
             self._emergency_stopped = True
             self._stop_requested = True
+            try:
+                self._lock_file.parent.mkdir(parents=True, exist_ok=True)
+                self._lock_file.write_text(json.dumps({
+                    "timestamp": time.time(),
+                    "reason": "emergency_stop_triggered",
+                    "pid": os.getpid()
+                }))
+            except Exception as e:
+                logger.error("Failed to write estop lock file: %s", e)
+
             native_backend.release_all_inputs()
             logger.warning("🚨 EMERGENCY STOP ACTIVATED. All computer automation halted.")
 
@@ -120,19 +140,41 @@ class UnifiedComputerService:
                 "action": "emergency_stop",
                 "timestamp": time.time(),
                 "status": "stopped",
-                "message": "Emergency stop triggered. Ongoing operations cancelled and inputs released.",
+                "message": "Emergency stop triggered. Ongoing operations cancelled, persistent lock written, and inputs released.",
             }
             self._action_history.append(record)
             return record
 
-    def reset_emergency_stop(self) -> Dict[str, Any]:
-        """Reset emergency stop state after user authorization."""
+    def rearm_session(self, authorization_token: Optional[str] = None) -> Dict[str, Any]:
+        """Safely re-arm computer control session, releasing inputs and removing persistent lock."""
         with self._lock:
+            native_backend.release_all_inputs()
+            try:
+                if self._lock_file.exists():
+                    self._lock_file.unlink()
+            except Exception as e:
+                logger.error("Failed to remove estop lock file: %s", e)
+
             self._emergency_stopped = False
             self._stop_requested = False
             self._session_enabled = True
-            logger.info("Emergency stop cleared. Computer control restored.")
-            return {"status": "ok", "message": "Emergency stop cleared"}
+            self._pending_approvals.clear()
+
+            logger.info("Emergency stop safely cleared and session re-armed. Lock file removed.")
+            return {
+                "status": "active",
+                "session_enabled": True,
+                "emergency_stopped": False,
+                "message": "Emergency stop safely cleared and session re-armed. Persistent lock removed and inputs released.",
+                "response": "Computer control session has been safely re-armed. The emergency lock has been removed.",
+                "verified": True,
+                "tools_used": ["computer_rearm_session"],
+                "timestamp": time.time(),
+            }
+
+    def reset_emergency_stop(self) -> Dict[str, Any]:
+        """Reset emergency stop state after user authorization."""
+        return self.rearm_session()
 
     def get_status(self) -> Dict[str, Any]:
         """Get live status of unified computer control service."""
@@ -209,13 +251,13 @@ class UnifiedComputerService:
                 "timestamp": time.time(),
             }
 
-        # 0b. Session Enable command check
-        if re.search(r"\b(enable|start|activate|resume)\b.*\b(computer\s+control|desktop\s+control|computer\s+session)\b", text_lower):
-            self.enable_session()
+        # 0b. Session Enable / Re-arm command check
+        if re.search(r"\b(re-?arm|enable|start|activate|resume)\b.*\b(computer\s+control|desktop\s+control|computer\s+session|computer)\b", text_lower) or "rearm" in text_lower or "re-arm" in text_lower:
+            res = self.rearm_session()
             return {
                 "action_id": action_id,
                 "status": "enabled",
-                "response": "Computer control session has been enabled. I can now perform desktop and browser actions.",
+                "response": res.get("response", "Computer control session has been re-armed."),
                 "verified": True,
                 "tools_used": ["computer_enable_session"],
                 "timestamp": time.time(),
