@@ -79,8 +79,95 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 
 .cc-avatar { position:relative; width:280px; height:280px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:50%; transition:all 0.3s ease; }
 .cc-avatar.classic-mode { aspect-ratio:1.9; border-radius:30%; background-image:url('/assets/jarvis-design-reference.png'); background-size:304% auto; background-position:52.2% 27%; filter:saturate(.92); mask-image:radial-gradient(ellipse at 50% 52%,black 55%,transparent 78%); }
-#cc-hero-avatar { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-#cc-hero-avatar svg { max-height:260px; width:100%; height:auto; filter:drop-shadow(0 0 20px rgba(0,217,255,0.25)); }
+#cc-hero-avatar { width:100%; height:100%; display:flex; align-items:center; justify-content:center; position:relative; }
+#cc-hero-avatar svg { width:100%; height:100%; max-height:100%; }
+
+/* --- Central Avatar Orb Stage & 2D Audio-Reactive Character Framing --- */
+.avatar-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  margin: 0 auto;
+}
+.avatar-stage.lg {
+  width: 100%;
+  height: 100%;
+}
+.avatar-hud-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.avatar-character-svg {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.6));
+  transition: all 0.4s ease-out;
+  mask-image: linear-gradient(to bottom, black 0%, black 76%, rgba(0, 0, 0, 0.6) 88%, transparent 98%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 76%, rgba(0, 0, 0, 0.6) 88%, transparent 98%);
+}
+.avatar-head-group {
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+}
+.avatar-offline {
+  filter: grayscale(100%) opacity(0.45);
+}
+
+/* Concentric Orbital HUD Rings & Natural Micro-Movement Animations */
+@keyframes jarvisSpinSlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes jarvisSpinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+@keyframes jarvisSpinFast { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes jarvisBreathe {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50% { transform: translateY(-2.5px) scale(1.006); }
+}
+@keyframes jarvisPingPulse {
+  0% { transform: scale(0.96); opacity: 0.6; }
+  50% { transform: scale(1.06); opacity: 0.15; }
+  100% { transform: scale(0.96); opacity: 0.6; }
+}
+
+.jarvis-spin-slow {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinSlow 28s linear infinite;
+}
+.jarvis-spin-reverse {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinReverse 18s linear infinite;
+}
+.jarvis-spin-fast {
+  transform-origin: 150px 150px;
+  animation: jarvisSpinFast 4s linear infinite;
+}
+.jarvis-breathe {
+  animation: jarvisBreathe 4.5s ease-in-out infinite;
+}
+.jarvis-ping-pulse {
+  transform-origin: 150px 150px;
+  animation: jarvisPingPulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .jarvis-spin-slow,
+  .jarvis-spin-reverse,
+  .jarvis-spin-fast,
+  .jarvis-breathe,
+  .jarvis-ping-pulse {
+    animation: none !important;
+  }
+  .avatar-head-group {
+    transition: none !important;
+  }
+}
 .cc-wave { height:36px; display:flex; gap:4px; align-items:center; justify-content:center; margin:10px auto 6px; position:relative; }
 .cc-wave i { width:4px; height:calc(8px + var(--level)*2px); background:linear-gradient(#2fefff,#3ab4fd); border-radius:3px; box-shadow:0 0 8px #11dcff90; opacity:.5; }
 .cc-hero[data-state=speaking] .cc-wave i { animation:cc-wave .6s ease-in-out infinite alternate; animation-delay:calc(var(--level)*-.09s); opacity:1; }
