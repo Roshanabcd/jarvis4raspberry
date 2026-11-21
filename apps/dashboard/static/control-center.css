@@ -45,15 +45,47 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 .cc-hero { text-align:center; min-width:0; position:relative; padding:0 0 8px; }
 .cc-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:8px; }
 .cc-chips span { font-size:.74rem; border:1px solid #215c6b; padding:7px 10px; border-radius:20px; color:#a7e3e9; background:#06202a80; }
-.cc-avatar { position:relative; width:100%; min-height:280px; max-height:380px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:24px; transition:all 0.3s ease; }
+.cc-orbital-core {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  margin: 10px auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(0, 210, 255, 0.08) 0%, rgba(10, 37, 51, 0.45) 70%, transparent 100%);
+  box-shadow: 0 0 35px rgba(0, 210, 255, 0.16), inset 0 0 25px rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.3);
+}
+.cc-orbital-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px dashed rgba(0, 210, 255, 0.45);
+  animation: ccOrbitalSpin 28s linear infinite;
+  pointer-events: none;
+}
+.cc-orbital-ring-inner {
+  position: absolute;
+  inset: -18px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 136, 0.22);
+  animation: ccOrbitalSpinReverse 36s linear infinite;
+  pointer-events: none;
+}
+@keyframes ccOrbitalSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes ccOrbitalSpinReverse { from { transform: rotate(360deg); } to { transform: rotate(0deg); } }
+
+.cc-avatar { position:relative; width:280px; height:280px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:50%; transition:all 0.3s ease; }
 .cc-avatar.classic-mode { aspect-ratio:1.9; border-radius:30%; background-image:url('/assets/jarvis-design-reference.png'); background-size:304% auto; background-position:52.2% 27%; filter:saturate(.92); mask-image:radial-gradient(ellipse at 50% 52%,black 55%,transparent 78%); }
 #cc-hero-avatar { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-#cc-hero-avatar svg { max-height:340px; width:100%; height:auto; filter:drop-shadow(0 0 20px rgba(0,217,255,0.25)); }
-.cc-wave { height:50px; display:flex; gap:4px; align-items:center; justify-content:center; margin-top:-15px; position:relative; }
+#cc-hero-avatar svg { max-height:260px; width:100%; height:auto; filter:drop-shadow(0 0 20px rgba(0,217,255,0.25)); }
+.cc-wave { height:36px; display:flex; gap:4px; align-items:center; justify-content:center; margin:10px auto 6px; position:relative; }
 .cc-wave i { width:4px; height:calc(8px + var(--level)*2px); background:linear-gradient(#2fefff,#3ab4fd); border-radius:3px; box-shadow:0 0 8px #11dcff90; opacity:.5; }
 .cc-hero[data-state=speaking] .cc-wave i { animation:cc-wave .6s ease-in-out infinite alternate; animation-delay:calc(var(--level)*-.09s); opacity:1; }
 .cc-hero[data-state=thinking] .cc-avatar { animation:cc-glow 1.7s ease-in-out infinite alternate; }
-.cc-mic { border:1px solid #53faff; border-radius:50%; width:56px; height:56px; color:#8dfaff; background:radial-gradient(#0b5065,#031725); box-shadow:0 0 24px #00daff55; cursor:pointer; font-size:1.5rem; margin:-4px auto 10px; position:relative; }
+.cc-mic { border:1px solid #53faff; border-radius:50%; width:56px; height:56px; color:#8dfaff; background:radial-gradient(#0b5065,#031725); box-shadow:0 0 24px #00daff55; cursor:pointer; font-size:1.5rem; margin:8px auto 10px; position:relative; }
 .cc-state { color:#b1faff; font-size:.9rem; letter-spacing:.06em; }
 .cc-caption { background:linear-gradient(180deg,#14324b,#071523); border:1px solid #4a738e; border-radius:12px; margin:14px 0; padding:13px; line-height:1.5; min-height:64px; max-height:120px; overflow:auto; font-size:.9rem; }
 .cc-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }

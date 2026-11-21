@@ -402,6 +402,13 @@ def browser_inspect_dom() -> Dict[str, Any]:
     return browser_backend.inspect_dom()
 
 
+@router.get("/browser/screenshot")
+def browser_screenshot() -> Dict[str, Any]:
+    """Capture screenshot of the active browser page."""
+    from tools.desktop.browser_backend import browser_backend
+    return browser_backend.capture_screenshot()
+
+
 @router.get("/fixture/test-page")
 def get_test_fixture():
     """Serve the local test application fixture for browser & desktop automation tests."""

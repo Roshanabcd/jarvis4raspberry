@@ -277,6 +277,20 @@
             this.setState('error');
             this.updateSubtitles('user', 'Voice progress could not be confirmed. Use Mute to stop capture; the request was not repeated.', 'Status timeout');
           }
+        } else {
+          // Autonomous / daemon speech tracking when user speaks directly to physical microphone
+          const isSpkPlaying = Boolean(status?.speaker?.playing);
+          if (isSpkPlaying && !this.isMuted) {
+            if (this.state !== 'speaking') {
+              this.setState('speaking');
+              if (window.jarvisAvatar) window.jarvisAvatar.setState('speaking');
+              const lastResp = status?.last_playback?.text || status?.daemon_telemetry?.last_response || 'JARVIS is speaking…';
+              this.updateSubtitles('jarvis', lastResp, 'Speaking');
+            }
+          } else if (this.state === 'speaking' && !isSpkPlaying && (!this.audioElement || this.audioElement.paused)) {
+            this.setState(this.isMuted ? 'muted' : 'idle');
+            if (window.jarvisAvatar) window.jarvisAvatar.setState('idle');
+          }
         }
         if (this.isMuted) this.setState('muted');
         else if (this.state === 'muted') this.setState('idle');

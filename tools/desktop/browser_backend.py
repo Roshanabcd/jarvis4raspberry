@@ -11,12 +11,96 @@ import asyncio
 import base64
 import logging
 import os
+import queue
 import re
 import threading
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("JARVIS.BrowserBackend")
+
+
+class ElementProxy:
+    def __init__(self, backend, el):
+        self._backend = backend
+        self._el = el
+
+    def __getattr__(self, name):
+        attr = getattr(self._el, name)
+        if callable(attr):
+            def wrapper(*args, **kwargs):
+                return self._backend._run_on_browser_thread(attr, *args, **kwargs)
+            return wrapper
+        return attr
+
+    def is_visible(self) -> bool:
+        return self._backend._run_on_browser_thread(self._el.is_visible)
+
+    def inner_text(self) -> str:
+        return self._backend._run_on_browser_thread(self._el.inner_text)
+
+    def is_enabled(self) -> bool:
+        return self._backend._run_on_browser_thread(self._el.is_enabled)
+
+
+class MouseProxy:
+    def __init__(self, backend, raw_mouse):
+        self._backend = backend
+        self._raw_mouse = raw_mouse
+
+    def __getattr__(self, name):
+        attr = getattr(self._raw_mouse, name)
+        if callable(attr):
+            def wrapper(*args, **kwargs):
+                return self._backend._run_on_browser_thread(attr, *args, **kwargs)
+            return wrapper
+        return attr
+
+
+class KeyboardProxy:
+    def __init__(self, backend, raw_keyboard):
+        self._backend = backend
+        self._raw_keyboard = raw_keyboard
+
+    def __getattr__(self, name):
+        attr = getattr(self._raw_keyboard, name)
+        if callable(attr):
+            def wrapper(*args, **kwargs):
+                return self._backend._run_on_browser_thread(attr, *args, **kwargs)
+            return wrapper
+        return attr
+
+
+class PageProxy:
+    def __init__(self, backend):
+        self._backend = backend
+
+    def __getattr__(self, name):
+        raw_page = self._backend._raw_page
+        if raw_page is None:
+            raise AttributeError("Page is not initialized (no active page)")
+        if name == "mouse":
+            return MouseProxy(self._backend, getattr(raw_page, "mouse"))
+        if name == "keyboard":
+            return KeyboardProxy(self._backend, getattr(raw_page, "keyboard"))
+        attr = getattr(raw_page, name)
+        if callable(attr):
+            def wrapper(*args, **kwargs):
+                def call_impl():
+                    res = attr(*args, **kwargs)
+                    if res is not None and hasattr(res, "is_visible") and hasattr(res, "inner_text"):
+                        return ElementProxy(self._backend, res)
+                    return res
+                return self._backend._run_on_browser_thread(call_impl)
+            return wrapper
+        return attr
+
+
+def _on_browser_thread(func):
+    """Decorator routing Playwright calls to a dedicated single worker thread."""
+    def wrapper(self, *args, **kwargs):
+        return self._run_on_browser_thread(func, self, *args, **kwargs)
+    return wrapper
 
 
 class PlaywrightBrowserBackend:
@@ -28,24 +112,103 @@ class PlaywrightBrowserBackend:
         self._playwright = None
         self._browser = None
         self._context = None
-        self._page = None
+        self._raw_page = None
+        self._page_proxy = PageProxy(self)
         self._lock = threading.RLock()
         self._active_url: Optional[str] = None
         self._last_action_result: Dict[str, Any] = {}
+        self._task_queue: queue.Queue = queue.Queue()
+        self._worker_thread: Optional[threading.Thread] = None
+        self._worker_stop: threading.Event = threading.Event()
 
+    @property
+    def _page(self):
+        if self._raw_page is None:
+            return None
+        return self._page_proxy
+
+    @_page.setter
+    def _page(self, val):
+        self._raw_page = val
+
+    def _ensure_worker(self) -> None:
+        with self._lock:
+            if self._worker_thread is None or not self._worker_thread.is_alive():
+                self._worker_stop.clear()
+                self._worker_thread = threading.Thread(
+                    target=self._worker_loop,
+                    name="PlaywrightWorker",
+                    daemon=True,
+                )
+                self._worker_thread.start()
+
+    def _worker_loop(self) -> None:
+        while not self._worker_stop.is_set():
+            try:
+                task = self._task_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            fn, args, kwargs, result_holder, done_event = task
+            try:
+                result_holder["result"] = fn(*args, **kwargs)
+            except Exception as e:
+                result_holder["error"] = e
+            finally:
+                done_event.set()
+                self._task_queue.task_done()
+
+    def _run_on_browser_thread(self, fn, *args, timeout: float = 30.0, **kwargs):
+        self._ensure_worker()
+        if threading.current_thread() == self._worker_thread:
+            return fn(*args, **kwargs)
+        result_holder: Dict[str, Any] = {}
+        done_event = threading.Event()
+        self._task_queue.put((fn, args, kwargs, result_holder, done_event))
+        if not done_event.wait(timeout=timeout):
+            logger.warning("Browser operation '%s' timed out after %ss", fn.__name__, timeout)
+            if fn.__name__ == "is_running":
+                return False
+            if fn.__name__ in ("get_title", "get_url"):
+                return ""
+            return {"status": "error", "message": f"Browser operation timed out after {timeout}s"}
+        if "error" in result_holder:
+            err = result_holder["error"]
+            logger.warning("Browser worker operation error in '%s': %s", fn.__name__, err)
+            if fn.__name__ == "is_running":
+                return False
+            if fn.__name__ in ("get_title", "get_url"):
+                return ""
+            return {"status": "error", "message": str(err)}
+        return result_holder.get("result")
+
+    @_on_browser_thread
     def is_running(self) -> bool:
         with self._lock:
-            return self._page is not None and not self._page.is_closed()
+            if self._page is None or self._browser is None:
+                return False
+            try:
+                if not self._browser.is_connected():
+                    return False
+                return not self._page.is_closed()
+            except Exception:
+                return False
 
+    @_on_browser_thread
     def start(self, initial_url: Optional[str] = None) -> Dict[str, Any]:
         """Launch browser session synchronously in current thread."""
         with self._lock:
             if self.is_running():
                 if initial_url and self._page:
-                    self._page.goto(initial_url, wait_until="domcontentloaded", timeout=15000)
-                    self._active_url = initial_url
-                return {"status": "already_running", "url": self._page.url if self._page else None}
+                    try:
+                        self._page.goto(initial_url, wait_until="domcontentloaded", timeout=15000)
+                        self._active_url = initial_url
+                    except Exception as e:
+                        logger.warning("Failed navigating active page: %s, restarting browser", e)
+                        self.close()
+                if self.is_running():
+                    return {"status": "already_running", "url": self._page.url if self._page else None}
 
+            self.close()
             try:
                 from playwright.sync_api import sync_playwright
                 self._playwright = sync_playwright().start()
@@ -86,6 +249,7 @@ class PlaywrightBrowserBackend:
                 self.close()
                 return {"status": "error", "message": str(e)}
 
+    @_on_browser_thread
     def navigate(self, url: str) -> Dict[str, Any]:
         """Navigate active page to target URL."""
         with self._lock:
@@ -106,8 +270,14 @@ class PlaywrightBrowserBackend:
                     "title": self._page.title(),
                 }
             except Exception as e:
-                return {"status": "error", "message": str(e)}
+                logger.warning("Navigate error: %s. Re-launching browser session.", e)
+                self.close()
+                res = self.start(initial_url=url)
+                if res.get("status") == "error":
+                    return res
+                return {"status": "ok", "url": url, "title": self.get_title()}
 
+    @_on_browser_thread
     def get_title(self) -> str:
         with self._lock:
             if self._page and not self._page.is_closed():
@@ -117,6 +287,7 @@ class PlaywrightBrowserBackend:
                     pass
             return ""
 
+    @_on_browser_thread
     def get_url(self) -> str:
         with self._lock:
             if self._page and not self._page.is_closed():
@@ -126,6 +297,7 @@ class PlaywrightBrowserBackend:
                     pass
             return ""
 
+    @_on_browser_thread
     def inspect_dom(self) -> Dict[str, Any]:
         """Inspect accessible DOM elements and form controls on the active page."""
         with self._lock:
@@ -264,6 +436,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
+    @_on_browser_thread
     def detect_ambiguity(self, query: str, element_type: Optional[str] = None) -> Dict[str, Any]:
         """Check if multiple visible elements match the target query."""
         dom = self.inspect_dom()
@@ -291,6 +464,7 @@ class PlaywrightBrowserBackend:
             "candidates": candidates,
         }
 
+    @_on_browser_thread
     def select_option(self, option_target: str, verify: bool = True) -> Dict[str, Any]:
         """
         Select an option (radio button, checkbox, or select dropdown value) semantically.
@@ -399,6 +573,7 @@ class PlaywrightBrowserBackend:
                 "verified": False,
             }
 
+    @_on_browser_thread
     def click_button(self, button_text_or_query: str, verify: bool = True) -> Dict[str, Any]:
         """
         Click a button semantically (e.g. 'Submit', 'Search', 'Save').
@@ -471,6 +646,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": f"Click failed: {e}", "verified": False}
 
+    @_on_browser_thread
     def type_text(self, selector_or_field_name: Optional[str], text: str, verify: bool = True) -> Dict[str, Any]:
         """Type text into a field."""
         with self._lock:
@@ -515,6 +691,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": f"Type text error: {e}", "verified": False}
 
+    @_on_browser_thread
     def scroll_page(self, direction: str = "down", amount: int = 300) -> Dict[str, Any]:
         """Scroll page or scrollable element."""
         with self._lock:
@@ -530,6 +707,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
+    @_on_browser_thread
     def right_click(self, target_query: str, verify: bool = True) -> Dict[str, Any]:
         """Right click target element in browser."""
         with self._lock:
@@ -564,6 +742,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": f"Right click failed: {e}", "verified": False}
 
+    @_on_browser_thread
     def press_key(self, key_combo: str) -> Dict[str, Any]:
         """Press key or hotkey inside active browser page."""
         with self._lock:
@@ -585,6 +764,7 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": f"Browser press key error: {e}", "verified": False}
 
+    @_on_browser_thread
     def capture_screenshot(self) -> Dict[str, Any]:
         """Capture screenshot of the active browser page."""
         with self._lock:
@@ -605,6 +785,22 @@ class PlaywrightBrowserBackend:
             except Exception as e:
                 return {"status": "error", "message": str(e)}
 
+    @_on_browser_thread
+    def take_screenshot(self, output_path: str) -> Dict[str, Any]:
+        """Capture screenshot and save to specified file path."""
+        with self._lock:
+            if not self.is_running():
+                return {"status": "error", "message": "Browser is not active"}
+
+            assert self._page is not None
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+                self._page.screenshot(path=output_path, type="png")
+                return {"status": "ok", "path": output_path, "bytes": os.path.getsize(output_path)}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+
+    @_on_browser_thread
     def close(self) -> None:
         """Close browser context, browser instance, and Playwright driver."""
         with self._lock:

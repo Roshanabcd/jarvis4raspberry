@@ -75,7 +75,7 @@ INTENTS = [
     (r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", "create_calculator", None),
 
     # Desktop Apps & Editors
-    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
+    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|firefox|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
     (r"\b(open\s+.*in\s+(?:vs\s*code|vscode|editor|mousepad))\b", "open_app", None),
     (r"\b(run|execute)\s+(?:the\s+)?(?:python\s+)?(?:program|script|code|file)\b", "run_code", None),
 
@@ -119,6 +119,8 @@ class LocalIntelligenceEngine:
     def classify_intent(self, text: str) -> Tuple[str, Dict]:
         """Returns (intent_name, extracted_args)"""
         text_lower = text.lower().strip()
+        # Clean leading wake word or direct greeting prefixes ("jarvis, ", "hey jarvis, ", "ok jarvis, ")
+        cmd_clean = re.sub(r'^(?:(?:hey|ok|hello|hi)\s+)?(?:jarvis|javis|jarves)[,\s:]*\s*', '', text_lower).strip() or text_lower
 
         # 0. Standalone number check (Test 5: "2020")
         if re.match(r"^\s*\d+(?:\.\d+)?\s*$", text.strip()):
@@ -137,36 +139,39 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:auto\s+accept|auto\s+approve|accept\s+option\s*1|allow\s+running\s+this\s+command|allow\s+antigravity|antigravity\s+auto)\b', text_lower):
             return "antigravity_auto_approve", {"instruction": text, "text": text}
 
-        # 1. Emergency stop computer automation command
-        if re.search(r'\b(?:stop|halt|cancel)\s+(?:controlling\s+(?:my\s+|the\s+)?computer|computer\s+control|desktop\s+control|automation)\b', text_lower) or re.search(r'\b(?:stop|halt)\s+(?:the\s+)?(?:computer|mouse|browser|screen)\b', text_lower):
+        # 1. Computer Control Session Toggles & Emergency Stop
+        if re.search(r'\b(?:enable|start|resume)\s+(?:computer\s+control|desktop\s+control|controlling\s+(?:the\s+|my\s+)?computer)\b', cmd_clean) or re.search(r'\b(?:start|begin)\s+(?:a\s+)?computer\s+session\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        if re.search(r'\b(?:stop|halt|cancel)\s+(?:controlling\s+(?:my\s+|the\s+)?computer|computer\s+control|desktop\s+control|automation)\b', cmd_clean) or re.search(r'\b(?:stop|halt)\s+(?:the\s+)?(?:computer|mouse|browser|screen)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 2. Compound "select option ... and click submit"
-        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option|[a-z0-9_\-\s]+)\s+and\s+(?:then\s+)?(?:click|press|submit)\b', text_lower):
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option|[a-z0-9_\-\s]+)\s+and\s+(?:then\s+)?(?:click|press|submit)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 3. Form control selection (select option 1, select option 2, select the first option) when not mentioning video/song
-        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option)\b', text_lower) and not re.search(r'\b(?:video|movie|film|song|track)\b', text_lower):
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option)\b', cmd_clean) and not re.search(r'\b(?:video|movie|film|song|track)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 4. Move mouse pointer
-        if re.search(r'\bmove\s+(?:the\s+)?mouse\s+(?:pointer\s+)?to\s+', text_lower):
+        if re.search(r'\bmove\s+(?:the\s+)?mouse\s+(?:pointer\s+)?to\s+', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 5. Right click / double click
-        if re.search(r'\b(?:right[\s\-]click|double[\s\-]click)\b', text_lower):
+        if re.search(r'\b(?:right[\s\-]click|double[\s\-]click)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
-        # 6. Click submit / button
-        if re.search(r'\bclick\s+(?:on\s+)?(?:the\s+)?(submit|save|search|confirm|ok|first\s*option|option\s*\d+)\b', text_lower) and not re.search(r'\b(?:video|movie|song)\b', text_lower):
+        # 6. Click submit / button / field / target
+        if re.search(r'\bclick\s+(?:on\s+)?(?:the\s+)?(.+?)[\.\?!]*$', cmd_clean) and not re.search(r'\b(?:video|movie|song|forward|backward|left|right)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 7. Press keyboard hotkey/key
-        if re.search(r'\bpress\s+(?:the\s+)?(?:keys?\s+)?(ctrl\+[a-z]|alt\+[a-z]|shift\+[a-z]|enter|return|escape|tab|backspace|delete|space)\b', text_lower):
+        if re.search(r'\bpress\s+(?:the\s+)?(?:keys?\s+)?(ctrl\+[a-z]|alt\+[a-z]|shift\+[a-z]|enter|return|escape|tab|backspace|delete|space)\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 8. Type text
-        if re.search(r'^(?:jarvis\s*,?\s*)?type\s+["\']?([^"\'\n]+)', text_lower):
+        if re.search(r'^(?:jarvis\s*,?\s*)?type\s+["\']?([^"\'\n]+)', text_lower) or re.search(r'^type\s+["\']?([^"\'\n]+)', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
 
         # 2c. YouTube Player Controls & Playback
@@ -331,7 +336,7 @@ class LocalIntelligenceEngine:
 
         # 3. Phase 2 Desktop Intents
         # 3a. Specific App Opening ("Open Google Chrome", "Open Chrome", "Open Firefox", "Open VS Code", "Open Antigravity")
-        m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', text_lower)
+        m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal|calculator|galculator|browser)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', cmd_clean)
         if m_app:
             return "desktop_open_app", {"app": m_app.group(1).strip(), "text": text}
 
@@ -600,6 +605,13 @@ class LocalIntelligenceEngine:
 
             elif intent == "computer_command":
                 from tools.desktop.unified_computer_service import unified_computer_service
+                if ctx.get("action") == "enable_session":
+                    unified_computer_service.enable_session()
+                    return {
+                        "response": "Computer control session has been enabled. I can now perform desktop and browser actions.",
+                        "tools_used": ["computer_enable_session"],
+                        "raw": {"status": "enabled"},
+                    }
                 res = unified_computer_service.execute_natural_instruction(ctx.get("instruction", text))
                 return {
                     "response": res.get("response", "Computer action executed."),
@@ -1392,6 +1404,11 @@ if __name__ == "__main__":
         res = desktop_action_engine.open_application(app, new_window=True)
         ar = res["actual_result"]
         if ar.get("success"):
+            try:
+                from tools.desktop.unified_computer_service import unified_computer_service
+                unified_computer_service.set_target_window(app)
+            except Exception:
+                pass
             return {
                 "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`) on desktop session (PID: {ar.get('pid')}).",
                 "tools_used": ["desktop_open_app", "open_app"],

@@ -40,6 +40,8 @@ class UnifiedComputerService:
         self._mode: ComputerControlMode = ComputerControlMode.COMMAND_CONTROL
         self._emergency_stopped: bool = False
         self._stop_requested: bool = False
+        self._session_enabled: bool = True
+        self._target_window: Optional[str] = None
         self._action_history: List[Dict[str, Any]] = []
         self._max_history: int = 50
         self._lock = threading.RLock()
@@ -48,6 +50,50 @@ class UnifiedComputerService:
     @property
     def mode(self) -> ComputerControlMode:
         return self._mode
+
+    @property
+    def session_enabled(self) -> bool:
+        return self._session_enabled
+
+    def enable_session(self) -> Dict[str, Any]:
+        """Explicitly enable computer control session."""
+        with self._lock:
+            self._session_enabled = True
+            self._emergency_stopped = False
+            self._stop_requested = False
+            logger.info("Computer control session explicitly enabled.")
+            return {
+                "status": "ok",
+                "session_enabled": True,
+                "response": "Computer control session is now active and ready for commands.",
+                "verified": True,
+                "tools_used": ["computer_session_control"],
+                "timestamp": time.time(),
+            }
+
+    def disable_session(self) -> Dict[str, Any]:
+        """Disable computer control session and trigger safe stop."""
+        with self._lock:
+            self._session_enabled = False
+            self.emergency_stop()
+            logger.info("Computer control session disabled.")
+            return {
+                "status": "stopped",
+                "session_enabled": False,
+                "response": "Computer control session has been closed.",
+                "verified": True,
+                "tools_used": ["computer_session_control"],
+                "timestamp": time.time(),
+            }
+
+    def set_target_window(self, win_name: Optional[str]) -> None:
+        """Store active target window context across conversational turns."""
+        with self._lock:
+            self._target_window = win_name
+            logger.info("Current target window updated to: %s", win_name)
+
+    def get_target_window(self) -> Optional[str]:
+        return self._target_window
 
     def set_mode(self, mode: ComputerControlMode | str) -> ComputerControlMode:
         """Update operational safety mode."""
@@ -84,6 +130,7 @@ class UnifiedComputerService:
         with self._lock:
             self._emergency_stopped = False
             self._stop_requested = False
+            self._session_enabled = True
             logger.info("Emergency stop cleared. Computer control restored.")
             return {"status": "ok", "message": "Emergency stop cleared"}
 
@@ -97,6 +144,8 @@ class UnifiedComputerService:
         return {
             "status": "stopped" if self._emergency_stopped else "active",
             "emergency_stopped": self._emergency_stopped,
+            "session_enabled": self._session_enabled,
+            "target_window": self._target_window,
             "mode": self._mode.value,
             "display": disp_info["display"],
             "server_type": disp_info["server_type"],
@@ -117,6 +166,9 @@ class UnifiedComputerService:
         """Verify safety mode and emergency stop gates."""
         if self._emergency_stopped or self._stop_requested:
             return False, "Action blocked: Computer control is currently in EMERGENCY STOP."
+
+        if not self._session_enabled:
+            return False, "Action blocked: Computer control session is currently inactive. Say 'Jarvis, enable computer control' to activate it."
 
         if is_mutation and self._mode == ComputerControlMode.OBSERVE:
             return False, "Action blocked: Current mode is OBSERVE (read-only). Clicking or typing is prohibited."
@@ -154,6 +206,18 @@ class UnifiedComputerService:
                 "response": "I have stopped controlling the computer immediately. All active operations were cancelled.",
                 "verified": True,
                 "tools_used": ["computer_emergency_stop"],
+                "timestamp": time.time(),
+            }
+
+        # 0b. Session Enable command check
+        if re.search(r"\b(enable|start|activate|resume)\b.*\b(computer\s+control|desktop\s+control|computer\s+session)\b", text_lower):
+            self.enable_session()
+            return {
+                "action_id": action_id,
+                "status": "enabled",
+                "response": "Computer control session has been enabled. I can now perform desktop and browser actions.",
+                "verified": True,
+                "tools_used": ["computer_enable_session"],
                 "timestamp": time.time(),
             }
 
@@ -353,13 +417,27 @@ class UnifiedComputerService:
                 self._action_history.append(record)
                 return record
 
-        # 2. Native Desktop Click
+        # 2. Native / Grounded UI Click
         res = screen_intelligence.resolve_target(target_query)
         if res.get("status") == "ok":
             el = res.get("element", {})
             center = el.get("center") or {}
-            cx, cy = center.get("x"), center.get("y")
+            rect = el.get("rect")
+            if rect:
+                cx = int(rect.get("x", 0) + rect.get("width", 0) // 2)
+                cy = int(rect.get("y", 0) + rect.get("height", 0) // 2)
+            else:
+                cx = center.get("x")
+                cy = center.get("y")
+
             if cx is not None and cy is not None:
+                tools_used = ["native_click"]
+                if browser_backend.is_running() and el.get("id"):
+                    try:
+                        browser_backend._page.click(f"#{el['id']}", timeout=2000)
+                        tools_used.append("browser_click")
+                    except Exception:
+                        pass
                 d_res = native_backend.click(x=cx, y=cy, button="left", clicks=1)
                 resp = f"Moved to and clicked '{target_query}' at ({cx}, {cy})."
                 record = {
@@ -369,7 +447,7 @@ class UnifiedComputerService:
                     "response": resp,
                     "verified": True,
                     "details": d_res,
-                    "tools_used": ["native_click"],
+                    "tools_used": tools_used,
                     "timestamp": time.time(),
                 }
                 self._action_history.append(record)
@@ -559,7 +637,12 @@ class UnifiedComputerService:
                 return record
 
         # Native desktop typing
-        d_res = native_backend.type_text(text)
+        if self._target_window:
+            try:
+                native_backend.focus_window(self._target_window)
+            except Exception:
+                pass
+        d_res = native_backend.type_text(text, target_window=self._target_window)
         resp = f"Typed \"{text}\" into the active window."
         record = {
             "action_id": action_id,
@@ -577,6 +660,11 @@ class UnifiedComputerService:
     def _execute_press_key(self, key_combo: str, action_id: str, raw_text: str) -> Dict[str, Any]:
         """Press key or key combination."""
         tools_used = []
+        if self._target_window and not browser_backend.is_running():
+            try:
+                native_backend.focus_window(self._target_window)
+            except Exception:
+                pass
         if browser_backend.is_running():
             b_res = browser_backend.press_key(key_combo)
             if b_res.get("status") == "ok":

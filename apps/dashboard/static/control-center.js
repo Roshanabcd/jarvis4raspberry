@@ -319,6 +319,43 @@
     }
   }
 
+  function renderTasks(jobs, empty) {
+    const area = byId('cc-tasks');
+    if (!area) return;
+    area.replaceChildren();
+    if (!Array.isArray(jobs) || !jobs.length) {
+      area.textContent = empty;
+      area.classList.add('cc-subtle');
+      return;
+    }
+    area.classList.remove('cc-subtle');
+    for (const job of jobs.slice(0, 4)) {
+      const row = doc.createElement('div'); row.className = 'cc-list-row';
+      const labelCol = doc.createElement('div');
+      labelCol.style.cssText = 'min-width:0;flex:1;margin-right:8px;text-align:left';
+      
+      const title = doc.createElement('div');
+      title.style.cssText = 'font-size:0.82rem;font-weight:600;color:#e2e8f0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+      const rawTitle = job.name || job.prompt || job.description || job.task || '';
+      title.textContent = rawTitle ? (rawTitle.length > 32 ? rawTitle.slice(0, 32) + '…' : rawTitle) : ('Task ' + (job.job_id || '').slice(-6));
+      
+      const meta = doc.createElement('div');
+      meta.style.cssText = 'font-size:0.7rem;color:#64748b;margin-top:2px';
+      const timeStr = job.created_at ? new Date(job.created_at * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Active';
+      meta.textContent = `${timeStr} · ${(job.job_id || '').slice(0, 8)}`;
+      
+      labelCol.append(title, meta);
+
+      const badge = doc.createElement('span');
+      const st = (job.status || 'pending').toLowerCase();
+      badge.className = 'cc-badge ' + (st === 'completed' || st === 'success' ? 'live' : '');
+      badge.textContent = job.status || 'pending';
+
+      row.append(labelCol, badge);
+      area.appendChild(row);
+    }
+  }
+
   async function refresh() {
     if (refreshing || doc.hidden) return;
     refreshing = true;
@@ -357,7 +394,7 @@
       text('cc-terminal', sys ? `[HOST] ${sys.os || 'Local'} · ${sys.arch || ''}\n[UPTIME] ${sys.uptime_str || 'Unknown'}\n[AI] ${selected || 'Unavailable'}\n[WORKSPACE] Ready to open\nCommands run only when requested.` : '[JARVIS] Service status unavailable.');
 
       const jobs = value(3)?.jobs;
-      rows('cc-tasks', Array.isArray(jobs) ? jobs.map(job => [job.job_id, job.status]) : [], jobs ? 'No background tasks yet.' : 'Task history unavailable.');
+      renderTasks(jobs, jobs ? 'No background tasks yet.' : 'Task history unavailable.');
 
       const schedules = value(4)?.tasks;
       rows('cc-schedules', Array.isArray(schedules) ? schedules.map(item => [item.name, item.schedule || 'Saved']) : [], schedules ? 'No schedules saved.' : 'Schedules unavailable.');

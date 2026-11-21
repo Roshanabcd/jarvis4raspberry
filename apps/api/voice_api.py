@@ -47,6 +47,22 @@ class VoiceTuningRequest(BaseModel):
     reference_audio_path: Optional[str] = None
 
 
+class SetSpeakerRequest(BaseModel):
+    card: int
+    device: int
+    name: Optional[str] = None
+
+
+class SetVolumeRequest(BaseModel):
+    volume: float = Field(..., ge=0.0, le=1.5)
+
+
+class SetVoiceModelRequest(BaseModel):
+    voice_name: Optional[str] = None
+    character: Optional[str] = None
+    speed: Optional[float] = None
+
+
 def _daemon_snapshot():
     """Resolve the capture owner and accept only fresh daemon telemetry."""
     from apps.voice.wake_word_engine import is_voice_service_daemon_running
@@ -86,12 +102,121 @@ def get_voice_devices():
     output_devs = voice_service.audio_manager.detect_playback_devices()
     selected_in = voice_service.audio_manager.select_best_device()
     selected_out = voice_service.audio_manager.select_best_playback_device()
+    vol = voice_service.audio_manager.get_volume()
     return {
         "status": "ok",
         "input_devices": input_devs,
         "output_devices": output_devs,
         "selected_input": selected_in,
         "selected_output": selected_out,
+        "volume": vol,
+    }
+
+
+@voice_router.get("/devices/speaker")
+def get_voice_speaker():
+    """Get active physical speaker and available playback devices."""
+    output_devs = voice_service.audio_manager.detect_playback_devices()
+    selected_out = voice_service.audio_manager.select_best_playback_device()
+    vol = voice_service.audio_manager.get_volume()
+    return {
+        "status": "ok",
+        "current_speaker": selected_out,
+        "available_speakers": output_devs,
+        "volume_pct": int(vol * 100),
+    }
+
+
+@voice_router.post("/devices/speaker")
+def set_voice_speaker(req: SetSpeakerRequest):
+    """Set active physical speaker output device."""
+    sel = voice_service.audio_manager.set_playback_device(card=req.card, device=req.device, name=req.name)
+    return {"status": "ok", "selected_output": sel}
+
+
+@voice_router.get("/devices/volume")
+def get_voice_volume():
+    """Get current output volume."""
+    vol = voice_service.audio_manager.get_volume()
+    return {"status": "ok", "volume": vol}
+
+
+@voice_router.post("/devices/volume")
+def set_voice_volume(req: SetVolumeRequest):
+    """Set current output volume."""
+    vol = voice_service.audio_manager.set_volume(req.volume)
+    return {"status": "ok", "volume": vol}
+
+
+@voice_router.get("/models")
+def list_voice_models():
+    """List available voice models, personas, and active status."""
+    from config.config_manager import config
+    from apps.voice.gradio_tts import gradio_cloner
+    cloner_st = gradio_cloner.get_provider_status()
+    models = [
+        {"id": "en-US-GuyNeural", "name": "JARVIS / Guy Neural (Authoritative Male)", "gender": "male", "engine": "edge-tts", "recommended": True},
+        {"id": "en-US-AriaNeural", "name": "Aria Neural (Expressive Female)", "gender": "female", "engine": "edge-tts", "recommended": False},
+        {"id": "en-US-ChristopherNeural", "name": "Christopher Neural (Deep Tactical Male)", "gender": "male", "engine": "edge-tts", "recommended": False},
+        {"id": "en-GB-RyanNeural", "name": "Ryan Neural (British Male)", "gender": "male", "engine": "edge-tts", "recommended": False},
+        {"id": "espeak-ng", "name": "eSpeak-NG (Local Offline Fallback)", "gender": "neutral", "engine": "espeak", "recommended": False},
+    ]
+    if cloner_st.get("online"):
+        models.insert(0, {
+            "id": "omnivoice",
+            "name": "OmniVoice Cloned Voice (Custom Model)",
+            "gender": "custom",
+            "engine": "omnivoice",
+            "recommended": True,
+        })
+    v_cfg = config.get("voice", {}) or {}
+    return {
+        "status": "ok",
+        "models": models,
+        "active_model": v_cfg.get("neural_voice", "en-US-GuyNeural"),
+        "active_character": v_cfg.get("character", "atlas"),
+        "speed": gradio_cloner.default_speed,
+        "omnivoice_online": cloner_st.get("online", False),
+    }
+
+
+@voice_router.post("/model")
+def set_voice_model(req: SetVoiceModelRequest):
+    """Set active TTS voice model, persona, and speed."""
+    from config.config_manager import config
+    from apps.voice.gradio_tts import gradio_cloner
+    v_cfg = config.get("voice", {}) or {}
+    if req.voice_name:
+        v_cfg["neural_voice"] = req.voice_name
+        v_cfg["fallback_voice"] = req.voice_name
+    if req.character:
+        v_cfg["character"] = req.character
+    if req.speed is not None:
+        v_cfg["speed"] = req.speed
+        gradio_cloner.default_speed = float(req.speed)
+    config.set("voice", v_cfg)
+    return {
+        "status": "ok",
+        "active_model": v_cfg.get("neural_voice"),
+        "active_character": v_cfg.get("character"),
+        "speed": gradio_cloner.default_speed,
+    }
+
+
+@voice_router.post("/test/speaker_phrase")
+def test_speaker_phrase():
+    """Synthesize and speak a live confirmation phrase through the physical speaker."""
+    from apps.voice.speech_manager import speech_manager
+    spk = voice_service.audio_manager.select_best_playback_device()
+    spk_name = spk.get("name", "Speaker").split(" - ")[0]
+    phrase = f"JARVIS audio output online. {spk_name} speaker verified."
+    res = speech_manager.synthesize_and_stage(phrase, play_system=True)
+    return {
+        "status": "ok" if res.get("success") else "error",
+        "phrase": phrase,
+        "speaker": spk,
+        "audio_url": res.get("audio_url"),
+        "provider": res.get("provider"),
     }
 
 
