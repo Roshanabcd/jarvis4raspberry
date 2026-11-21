@@ -44,6 +44,7 @@ data/screenshots/*.jpg
 data/identity/
 data/audit/
 data/documents/
+data/modules_staging/
 .jarvis/diagnostics/
 .jarvis_*/
 *.bak
