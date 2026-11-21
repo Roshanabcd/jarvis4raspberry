@@ -1,6 +1,6 @@
 # Current verified checkpoint — 21 November 2026
 
-Latest focused evidence: 78 Python checks (74 voice + 4 extension bridge) passed; 9 capture-feedback/privacy checks passed; 10 futuristic ownership checks passed; 1 Chromium synthetic playback check and 1 Chromium extension navigation check passed. The earlier broad frontend checkpoint had 81 passing tests before merging newer work. Full hardware acceptance, offline wake, fresh cloud-provider conversation and full phase gates are NOT verified by these fixtures. Evidence: jarvis-ui/evidence/phase-6/corrective/. Historical ALL VERIFIED wording below is not current acceptance.
+Latest focused evidence: 78 Python checks (74 voice + 4 extension bridge) passed; 9 capture-feedback/privacy checks passed; 10 futuristic ownership checks passed; 1 Chromium synthetic playback check and 2 Chromium extension navigation/rendering checks passed. The earlier broad frontend checkpoint had 81 passing tests before merging newer work. Full hardware acceptance, offline wake, fresh cloud-provider conversation and full phase gates are NOT verified by these fixtures. Evidence: jarvis-ui/evidence/phase-6/corrective/. Historical ALL VERIFIED wording below is not current acceptance.
 
 The earlier notes below are preserved for history; conflicting completion claims are superseded by this checkpoint.
 

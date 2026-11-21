@@ -1717,7 +1717,8 @@
               if (window.jarvisShell) {
                 window.jarvisShell.showToast(res.message || `Launched ${id}`, 'success');
                 if (res.target_tab) {
-                  window.location.hash = res.target_tab;
+                  if (['voice','documents'].includes(res.target_tab)) window.location.hash = res.target_tab;
+                  else window.location.assign('/?tab=' + encodeURIComponent(res.target_tab));
                 } else if (typeof res.route === 'string' && /^\/(?!\/)/.test(res.route) && !res.route.includes('\\')) {
                   window.location.assign(res.route);
                 } else {

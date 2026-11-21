@@ -219,3 +219,12 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Merged regression results: 78 Python passed, 84 frontend passed, two isolated Chromium checks passed (synthetic playback and module navigation). Evidence in phase-6/corrective. Existing full phase gates and physical acceptance remain unverified.
 - Found duplicate core service configured on port 8000 with >1100 restarts; stopped only the competing user jarvis-backend.service. Kept system core and microphone owner running.
 - Required next: reload system core after code integration, verify 45 catalog entries / 42 registered suite entries, then test real speech and module features. No automatic module action or hardware motion was executed.
+
+### Final source handoff (21 November 2026)
+1. Integrated voice/module bridge in ff18700 on feature/jarvis-ui; preserved user untracked files and all module implementations.
+2. UI follow-up uses same-window local navigation, avoiding blocked popup opens; legacy tabs remain reachable via /?tab=….
+3. Escaped module-readiness text; two Chromium catalog fixtures pass. Synthetic voice browser check also passed earlier.
+4. Full root-dashboard inline JavaScript syntax passed. No new dependency.
+5. Await operator system core restart; don't start a duplicate backend. User duplicate service is stopped, not permanently disabled.
+6. Verify fresh API/catalog counts after restart, then live human speech → actual provider → speaker; offline wake remains unfinished.
+7. Source software checkpoint complete; full Phase 6 gate and project acceptance remain unverified.

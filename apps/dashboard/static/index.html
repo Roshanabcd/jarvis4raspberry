@@ -3292,6 +3292,12 @@ function formatCategory(cat) {
   return map[cat] || cat.replace(/_/g, ' ').toUpperCase();
 }
 
+function openRequestedDashboardTab() {
+  const requested = new URLSearchParams(window.location.search).get('tab');
+  if (requested && /^[a-z][a-z0-9-]*$/.test(requested) && document.getElementById('tab-' + requested)) showTab(requested);
+}
+window.addEventListener('DOMContentLoaded', openRequestedDashboardTab);
+
 async function loadAppsCenter() {
   try {
     await loadAppsCenterIdentity();
@@ -3356,6 +3362,10 @@ function resetAppsFilters() {
     else p.classList.remove('active');
   });
   renderAppsCenter();
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[character]));
 }
 
 function renderAppsCenter() {
@@ -3452,7 +3462,8 @@ async function launchApp(appId) {
       if (data.route.startsWith('/apps/') || data.route.startsWith('#')) {
         window.location.hash = data.route.replace('/apps/', '');
       } else {
-        window.open(data.route, '_blank');
+        if (/^\/(?!\/)/.test(data.route) && !data.route.includes('\\')) window.location.assign(data.route);
+        else throw new Error('Application route is not a valid local page.');
       }
     }
     loadRecentApps();

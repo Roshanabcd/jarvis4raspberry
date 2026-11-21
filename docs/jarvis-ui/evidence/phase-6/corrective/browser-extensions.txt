@@ -1,9 +1,10 @@
-✔ extension card opens its real local route and filters use backend category values (4416.422817ms)
-ℹ tests 1
+✔ extension card opens its real local route and filters use backend category values (2194.484499ms)
+✔ legacy catalog renders extension readiness safely and opens without popup (2036.815954ms)
+ℹ tests 2
 ℹ suites 0
-ℹ pass 1
+ℹ pass 2
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 6354.816552
+ℹ duration_ms 5982.963819

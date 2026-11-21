@@ -1,4 +1,16 @@
-# Phase 6 corrective checkpoint — NOT VERIFIED OR DEPLOYED
+Current checkpoint (21 November 2026): source integrated into feature/jarvis-ui.
+Core reload still pending operator action. Physical microphone/speaker acceptance
+and offline wake detection remain unverified. Current evidence: merged-python.txt
+(78 passed), merged-frontend.txt (84 passed), browser-capture-privacy.txt (9 focused,
+included in the frontend total), browser-playback.txt (1 Chromium synthetic muted
+audio test), browser-extensions.txt (2 Chromium route/escaping tests). The browser
+checks use intercepted fixtures, not physical audio or provider calls. Inline
+JavaScript syntax for the complete merged root dashboard also passed.
+
+Earlier checkpoint details below are historical; integration and browser permission
+statements in that record are superseded above.
+
+# Phase 6 corrective evidence — integrated source, live acceptance pending
 
 All checks here are offline, use synthetic audio/mocked inference and perform no
 physical microphone, speaker, camera or robot operation. No network socket was
