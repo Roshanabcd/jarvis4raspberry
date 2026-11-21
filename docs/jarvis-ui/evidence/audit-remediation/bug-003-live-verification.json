@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-11-21T13:45:41Z",
+  "source_revision": "c25be13",
+  "classification": "LIVE_DEPLOYMENT",
+  "service_owner": "jarvis-core.service (systemd system slice, PID 1804)",
+  "health_endpoint": "http://127.0.0.1:8000/api/health",
+  "health_status": "WARNING",
+  "catalog_endpoint": "http://127.0.0.1:8000/api/apps/catalog",
+  "total_applications_in_catalog": 45,
+  "total_extension_applications": 25,
+  "extensions_available_count": 25,
+  "routes_verified": [
+    {
+      "id": "extension-18",
+      "name": "Multi-Agent Task Orchestrator",
+      "route": "/orchestrator",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-19",
+      "name": "Autonomous Computer Assistant",
+      "route": "/computer-assistant",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-20",
+      "name": "Real-Time Conversational AI",
+      "route": "/conversational-ai",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-21",
+      "name": "Intelligent Browser Agent",
+      "route": "/browser-agent",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-22",
+      "name": "Intelligent AI Model Router",
+      "route": "/model-router",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-23",
+      "name": "Personal Executive Assistant",
+      "route": "/executive-assistant",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-24",
+      "name": "Email & Calendar Assistant",
+      "route": "/email-calendar",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-25",
+      "name": "AI Meeting Assistant",
+      "route": "/meeting-assistant",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-26",
+      "name": "Project Autopilot",
+      "route": "/project-autopilot",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-27",
+      "name": "GitHub & CI/CD Manager",
+      "route": "/github-cicd",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-28",
+      "name": "AI Data Analyst",
+      "route": "/ai-data-analyst",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-29",
+      "name": "Advanced File Manager",
+      "route": "/file-manager",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-30",
+      "name": "Smart Home Controller",
+      "route": "/smart-home",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-31",
+      "name": "JARVIS Robot Brain",
+      "route": "/robot-brain",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-32",
+      "name": "System Health & Diagnostics",
+      "route": "/system-health",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-33",
+      "name": "Defensive Cybersecurity Agent",
+      "route": "/cybersecurity",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-34",
+      "name": "Personal Finance Manager",
+      "route": "/finance",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-35",
+      "name": "Visual Workflow Builder",
+      "route": "/workflows",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-36",
+      "name": "Screen Vision Assistant",
+      "route": "/vision",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-37",
+      "name": "Cross-Device Control Center",
+      "route": "/devices",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-38",
+      "name": "Plugin & Skills Marketplace",
+      "route": "/marketplace",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-39",
+      "name": "Backup & Recovery Manager",
+      "route": "/backups",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-40",
+      "name": "Permissions & Approval Center",
+      "route": "/approvals",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-41",
+      "name": "Universal Notification Center",
+      "route": "/notifications",
+      "catalog_status": "available",
+      "http_status": 200
+    },
+    {
+      "id": "extension-42",
+      "name": "Unified Extension Manager & SDK",
+      "route": "/extensions",
+      "catalog_status": "available",
+      "http_status": 200
+    }
+  ],
+  "launch_enforcement_tests": {
+    "guest_launch_extension_28": "BLOCKED_403",
+    "nonexistent_launch_extension_99": "BLOCKED_404"
+  }
+}

@@ -1,0 +1,456 @@
+{
+  "suite": "Step 5 \u2014 Local AI Route Verification (AI-001, P1-High)",
+  "git": {
+    "revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d",
+    "is_dirty": true,
+    "diff_stat": ".claude/helpers/.helpers-version                   |   2 +-\n .claude/helpers/helpers.manifest.json              |   4 +-\n .claude/helpers/memory.cjs                         |   0\n .claude/helpers/session.cjs                        |   0\n .claude/helpers/statusline.cjs                     |   4 +-\n JARVIS_BUGS_AND_IMPROVEMENTS.json                  | 145 +++--\n ai/brain.py                                        |  15 +\n ai/providers/base.py                               |   4 +-\n apps/api/account_api.py                            |  30 +-\n apps/dashboard/static/index.html                   | 687 ++++++++++++++++++---\n docs/JARVIS_BUGS_AND_IMPROVEMENTS.json             | 145 +++--\n docs/jarvis-ui/PLAN.md                             |  36 ++\n .../screenshots/baseline_desktop_1920x1080.png     | Bin 953586 -> 1008725 bytes\n .../screenshots/baseline_laptop_1366x768.png       | Bin 588817 -> 628848 bytes\n .../screenshots/baseline_mobile_375x667.png        | Bin 146492 -> 185579 bytes\n .../screenshots/baseline_tablet_768x1024.png       | Bin 463472 -> 511208 bytes\n docs/jarvis-ui/evidence/phase-1/smoke_report.json  |  16 +-\n tests/frontend/realtime-chat.test.cjs              |  10 +\n tests/unit/test_provider_integrations.py           |  16 +\n 19 files changed, 903 insertions(+), 211 deletions(-)"
+  },
+  "safety_checks": {
+    "estop_visible_and_enabled": true,
+    "estop_never_clicked": true,
+    "zero_paid_cloud_apis": true,
+    "no_model_downloads": true,
+    "vision_model_excluded_from_text_benchmarks": true
+  },
+  "unit_tests": {
+    "command": "venv/bin/python -m pytest -v tests/unit/test_provider_integrations.py -k ollama",
+    "returncode": 0,
+    "passed": true,
+    "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- /home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /home/roshan/.gemini/antigravity/scratch/jarvis-os\nconfigfile: pyproject.toml\nplugins: anyio-4.15.1\ncollecting ... collected 23 items / 20 deselected / 3 selected\n\ntests/unit/test_provider_integrations.py::test_ollama_honors_remaining_budget_for_large_model PASSED [ 33%]\ntests/unit/test_provider_integrations.py::test_ollama_availability_reuses_short_cache PASSED [ 66%]\ntests/unit/test_provider_integrations.py::test_ollama_empty_manifest_and_chat_model_choice PASSED [100%]\n\n======================= 3 passed, 20 deselected in 0.59s =======================\n"
+  },
+  "model_inspection": {
+    "ollama_tags": {
+      "models": [
+        {
+          "name": "moondream:latest",
+          "model": "moondream:latest",
+          "modified_at": "2026-11-10T01:55:22.046815939Z",
+          "size": 1738451197,
+          "digest": "55fc3abd386771e5b5d1bbcc732f3c3f4df6e9f9f08f1131f9cc27ba2d1eec5b",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "phi2",
+            "families": [
+              "phi2",
+              "clip"
+            ],
+            "parameter_size": "1B",
+            "quantization_level": "Q4_0",
+            "context_length": 2048,
+            "embedding_length": 2048,
+            "runner": "ggml"
+          },
+          "capabilities": [
+            "completion",
+            "vision"
+          ]
+        },
+        {
+          "name": "llama3.2:1b",
+          "model": "llama3.2:1b",
+          "modified_at": "2026-10-14T16:28:43.693342945+01:00",
+          "size": 1321098329,
+          "digest": "baf6a787fdffd633537aa2eb51cfd54cb93ff08e28040095462bb63daf552878",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "llama",
+            "families": [
+              "llama"
+            ],
+            "parameter_size": "1.2B",
+            "quantization_level": "Q8_0",
+            "context_length": 131072,
+            "embedding_length": 2048,
+            "runner": "ggml"
+          },
+          "capabilities": [
+            "completion",
+            "tools"
+          ]
+        },
+        {
+          "name": "qwen3.5:4b",
+          "model": "qwen3.5:4b",
+          "modified_at": "2026-09-17T13:53:34.464204795+01:00",
+          "size": 3389983735,
+          "digest": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd",
+          "details": {
+            "parent_model": "",
+            "format": "gguf",
+            "family": "qwen35",
+            "families": [
+              "qwen35"
+            ],
+            "parameter_size": "4.7B",
+            "quantization_level": "Q4_K_M",
+            "context_length": 262144,
+            "embedding_length": 2560,
+            "runner": "ggml"
+          },
+          "capabilities": [
+            "completion",
+            "vision",
+            "tools",
+            "thinking"
+          ]
+        }
+      ]
+    },
+    "chat_providers": {
+      "providers": [
+        {
+          "name": "ollama",
+          "available": true,
+          "model": "llama3.2:1b",
+          "models": [
+            "moondream:latest",
+            "llama3.2:1b",
+            "qwen3.5:4b"
+          ],
+          "active": true,
+          "enabled": true,
+          "credential_configured": null,
+          "verification": "not_tested"
+        },
+        {
+          "name": "llama_cpp",
+          "available": false,
+          "model": "llama-cpp-python",
+          "models": [],
+          "active": false,
+          "enabled": true,
+          "credential_configured": null,
+          "verification": "not_tested"
+        },
+        {
+          "name": "gemini",
+          "available": false,
+          "model": "gemini-2.0-flash",
+          "models": [
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": false,
+          "verification": "missing_key"
+        },
+        {
+          "name": "openai",
+          "available": false,
+          "model": "gpt-4o-mini",
+          "models": [
+            "gpt-4o-mini",
+            "gpt-4o",
+            "gpt-4-turbo",
+            "o1-mini"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": false,
+          "verification": "missing_key"
+        },
+        {
+          "name": "anthropic",
+          "available": false,
+          "model": "claude-3-haiku-20240307",
+          "models": [
+            "claude-3-5-sonnet-20241022",
+            "claude-3-haiku-20240307",
+            "claude-3-opus-20240229"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": false,
+          "verification": "missing_key"
+        },
+        {
+          "name": "nvidia",
+          "available": true,
+          "model": "nvidia/nemotron-3.5-bolt-e4b",
+          "models": [
+            "nvidia/nemotron-3.5-bolt-e4b",
+            "bigcode/starcoder2-15b",
+            "fastino/gliner2-pii",
+            "google/gemma-3-12b-it",
+            "google/gemma-3-4b-it",
+            "google/gemma-4-31b-it",
+            "meta/muse-glimmer-30b",
+            "minimaxai/minimax-m3.1-flash",
+            "mistralai/mistral-large-4-1t-a52b",
+            "moonshotai/kimi-k3.1-pro",
+            "nvidia/ai-synthetic-video-detector",
+            "nvidia/cosmos-reason2-8b",
+            "nvidia/embed-qa-4",
+            "nvidia/ising-calibration-1.5-31b",
+            "nvidia/llama-3.1-nemoguard-8b-topic-control",
+            "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
+            "nvidia/llama-3.2-nemoretriever-1b-vlm-embed-v1",
+            "nvidia/llama-3.2-nv-embedqa-1b-v1",
+            "nvidia/nemotron-3-embed-1b",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+            "nvidia/nemotron-3.5-content-safety",
+            "nvidia/nemotron-3.5-embed-1b",
+            "nvidia/nemotron-3.5-embed-8b",
+            "nvidia/nemotron-3.5-lightning-30b-a3b",
+            "nvidia/nemotron-3.5-super-vl-120b-a12b",
+            "nvidia/nv-embedqa-mistral-7b-v2",
+            "nvidia/nvclip",
+            "nvidia/riva-translate-4b-instruct-v2",
+            "poolside/laguna-xs-2.1",
+            "snowflake/arctic-embed-l",
+            "stepfun-ai/step-5-preview",
+            "z-ai/glm-5.3-flash"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": true,
+          "verification": "not_tested"
+        },
+        {
+          "name": "openrouter",
+          "available": true,
+          "model": "openrouter/free",
+          "models": [
+            "openrouter/free"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": true,
+          "verification": "not_tested"
+        },
+        {
+          "name": "groq",
+          "available": false,
+          "model": "llama-3.1-8b-instant",
+          "models": [
+            "llama-3.1-8b-instant"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": false,
+          "verification": "missing_key"
+        },
+        {
+          "name": "together",
+          "available": false,
+          "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+          "models": [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": false,
+          "verification": "missing_key"
+        },
+        {
+          "name": "cognitum",
+          "available": true,
+          "model": "cognitum-low",
+          "models": [
+            "cognitum-low",
+            "cognitum-auto",
+            "cognitum-mid",
+            "cognitum-high",
+            "cognitum-ultra"
+          ],
+          "active": false,
+          "enabled": true,
+          "credential_configured": true,
+          "verification": "not_tested"
+        }
+      ],
+      "active_provider": "ollama",
+      "active_model": "llama3.2:1b"
+    }
+  },
+  "offline_ui_checks": {
+    "draft_preserved": true,
+    "zero_stream_requests_on_unavailable": true,
+    "unavailable_status_badge": "\ud83d\udd34 Select an available model or refresh model availability.",
+    "refresh_control_working": true,
+    "rejected_switch_handled": true,
+    "cancellation_handled": true
+  },
+  "live_benchmark": {
+    "1440x900": {
+      "turns": [
+        {
+          "turn_idx": 1,
+          "name": "turn1_seed",
+          "prompt": "Remember the audit word violet. Reply with only the word.",
+          "ttft_ms": 5228.3,
+          "total_latency_ms": 6487.2,
+          "reply_text": "violet",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 6286ms (0.2 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 90.0,
+            "ram_percent": 86.0,
+            "ram_used_mb": 6835.7,
+            "ram_available_mb": 1115.0,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 86.5,
+            "ram_used_mb": 6873.5,
+            "ram_available_mb": 1077.2,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1440x900.png"
+        },
+        {
+          "turn_idx": 2,
+          "name": "turn2_recall",
+          "prompt": "What was the audit word?",
+          "ttft_ms": 4393.0,
+          "total_latency_ms": 7583.7,
+          "reply_text": "violet",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 7382ms (0.1 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 92.5,
+            "ram_percent": 87.7,
+            "ram_used_mb": 6973.0,
+            "ram_available_mb": 977.7,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.0,
+            "ram_used_mb": 6996.8,
+            "ram_available_mb": 953.8,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1440x900.png",
+          "recall_verified": true
+        },
+        {
+          "turn_idx": 3,
+          "name": "turn3_code_gen",
+          "prompt": "Write a Python function is_even(n) that returns True for even integers.",
+          "ttft_ms": 4280.0,
+          "total_latency_ms": 21332.1,
+          "reply_text": "python\nCopy\ndef is_even(n):\n    return n % 2 == 0",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 20805ms (0.5 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.1,
+            "ram_used_mb": 7004.2,
+            "ram_available_mb": 946.5,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.0,
+            "ram_used_mb": 6992.9,
+            "ram_available_mb": 957.8,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1440x900.png",
+          "code_gen_verified": true
+        }
+      ]
+    },
+    "1280x720": {
+      "turns": [
+        {
+          "turn_idx": 1,
+          "name": "turn1_seed",
+          "prompt": "Remember the audit word violet. Reply with only the word.",
+          "ttft_ms": 4343.5,
+          "total_latency_ms": 7499.3,
+          "reply_text": "violet",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 7275ms (0.1 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 90.0,
+            "ram_percent": 86.6,
+            "ram_used_mb": 6883.0,
+            "ram_available_mb": 1067.7,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 87.1,
+            "ram_used_mb": 6925.4,
+            "ram_available_mb": 1025.3,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1280x720.png"
+        },
+        {
+          "turn_idx": 2,
+          "name": "turn2_recall",
+          "prompt": "What was the audit word?",
+          "ttft_ms": 5520.5,
+          "total_latency_ms": 7010.1,
+          "reply_text": "violet",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 6592ms (0.2 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.5,
+            "ram_used_mb": 7038.9,
+            "ram_available_mb": 911.8,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.4,
+            "ram_used_mb": 7025.0,
+            "ram_available_mb": 925.7,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1280x720.png",
+          "recall_verified": true
+        },
+        {
+          "turn_idx": 3,
+          "name": "turn3_code_gen",
+          "prompt": "Write a Python function is_even(n) that returns True for even integers.",
+          "ttft_ms": 5059.3,
+          "total_latency_ms": 20266.5,
+          "reply_text": "python\nCopy\ndef is_even(n):\n    return n % 2 == 0",
+          "status_badge": "\ud83d\udfe2 Reply ready",
+          "telemetry": "\u26a1 20003ms (0.5 tok/s) \u2022 ollama",
+          "hardware_idle": {
+            "cpu_percent": 100.0,
+            "ram_percent": 88.6,
+            "ram_used_mb": 7043.0,
+            "ram_available_mb": 907.7,
+            "ram_total_mb": 7950.7
+          },
+          "hardware_active": {
+            "cpu_percent": 100.0,
+            "ram_percent": 79.7,
+            "ram_used_mb": 6336.9,
+            "ram_available_mb": 1613.8,
+            "ram_total_mb": 7950.7
+          },
+          "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1280x720.png",
+          "code_gen_verified": true
+        }
+      ]
+    }
+  },
+  "screenshots": [
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_draft_preserved.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_rejected_switch.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_cancelled.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1440x900.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1440x900.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1440x900.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1280x720.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1280x720.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1280x720.png"
+  ],
+  "overall_verified": true
+}

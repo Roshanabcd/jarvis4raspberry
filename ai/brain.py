@@ -197,6 +197,21 @@ class JARVISBrain:
                 client.list_models = lambda client=client: [client.model]
             self._providers.append(client)
 
+        # FreeLLMAPI shares the chat-completions protocol. Register it only
+        # when the operator supplies a gateway key and a gateway model ID.
+        gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+        gateway_model = os.getenv("FREELLMAPI_MODEL", "").strip()
+        if usable_key(gateway_key) and gateway_model:
+            gateway = OpenAIProvider(
+                api_key=gateway_key,
+                base_url="http://127.0.0.1:3001/v1",
+                model=gateway_model,
+                enabled=True,
+            )
+            gateway.name = "freellmapi"
+            gateway.list_models = lambda: [gateway.model]
+            self._providers.append(gateway)
+
         # 7. Generic OpenAI-Compatible
         custom_cfg = cfg.get("custom", {}) or {}
         if custom_cfg.get("enabled"):

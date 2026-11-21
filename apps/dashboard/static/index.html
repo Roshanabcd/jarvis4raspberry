@@ -857,6 +857,7 @@
 </style>
 <link rel="stylesheet" href="/control-center.css">
 <link rel="stylesheet" href="/jarvis-notifications.css">
+<link rel="stylesheet" href="/account-center.css">
 </head>
 <body>
 
@@ -881,11 +882,15 @@
     <span id="hdr-voice-pill" class="status-pill" title="Active TTS Provider">🗣️ Voice: local fallback</span>
     <span id="hdr-wake-pill" class="status-pill live" title="12-State Background Voice Engine">🎙️ Wake: STANDBY</span>
     <span id="hdr-cam-pill" class="status-pill" title="Sony IMX708 Camera Module 3">📷 Camera: unverified</span>
-    <span id="hdr-user-pill" class="status-pill" title="Security Identity &amp; Role" onclick="toggleAccountPopover(event)" style="cursor:pointer" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAccountPopover(event)}">👤 Guest</span>
     <span id="hdr-browser-pill" class="status-pill" title="Active Desktop Browser">🌐 Local dashboard</span>
   </div>
   <div class="header-actions">
-    <button class="btn dark" onclick="toggleAccountPopover(event)" aria-label="Account and administrator sign in">Account</button>
+    <button id="hdr-user-pill" class="hdr-user-pill" onclick="toggleAccountPopover(event)" aria-label="Operator Account &amp; Role" title="Operator Account &amp; Role">
+      <span class="hdr-user-avatar-mini" id="hdr-pill-avatar">R</span>
+      <span class="hdr-user-name" id="hdr-pill-name">Operator</span>
+      <span class="sidebar-op-role-dot" id="hdr-pill-dot"></span>
+      <span class="hdr-user-role" id="hdr-pill-role">Pending</span>
+    </button>
     <button id="hdr-notifications-btn" class="btn dark" onclick="if(window.jarvisNotify)window.jarvisNotify.toggleDrawer()" aria-label="Notifications" title="System Notifications &amp; Alerts">🔔 Alerts <span id="hdr-notif-count" class="badge online" style="display:none;margin-left:4px">0</span></button>
     <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text);cursor:pointer;background:rgba(255,255,255,0.04);padding:4px 8px;border-radius:4px;border:1px solid var(--card-border)" title="Auto-speak high-priority notifications and alerts aloud"><input type="checkbox" id="hdr-auto-speak-notif" onchange="if(window.jarvisNotify)window.jarvisNotify.toggleAutoSpeak(this.checked)"> 🔊 Auto-Speak</label>
     <span id="ws-badge" class="ws-badge" role="status" aria-live="polite">● Connecting...</span>
@@ -909,6 +914,15 @@
   <div id="admin-enroll-status-banner" style="padding:8px 12px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid var(--card-border);margin-bottom:12px;font-size:0.78rem;line-height:1.4">
     Loading identity status...
   </div>
+
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(0,0,0,0.3);border:1px solid var(--card-border);border-radius:6px;margin-bottom:10px">
+    <span style="font-size:0.75rem;color:var(--muted)">Session Elevation:</span>
+    <span id="popover-session-countdown" style="font-family:monospace;font-size:0.85rem;color:var(--accent);font-weight:700">Pending</span>
+  </div>
+
+  <button class="btn ok" style="width:100%;margin-bottom:12px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px" onclick="showTab('account');toggleAccountPopover(event);">
+    <span>👤</span> Open Profile &amp; Account Center
+  </button>
 
   <div style="background:rgba(0,0,0,0.3);border:1px solid var(--card-border);border-radius:8px;padding:12px;margin-bottom:12px">
     <div style="font-size:0.8rem;color:var(--accent);font-weight:600;margin-bottom:8px">Sign in as Administrator</div>
@@ -965,7 +979,7 @@
   </details>
 </div>
 
-<nav role="tablist" aria-label="JARVIS OS sections">
+<nav role="tablist" aria-orientation="vertical" aria-label="JARVIS OS sections">
   <button class="active" role="tab" aria-selected="true" aria-controls="tab-home" id="nav-home" data-tab="home" onclick="showTab('home')">⌂ Dashboard</button>
   <button role="tab" aria-selected="false" aria-controls="tab-apps" id="nav-apps" data-tab="apps" onclick="showTab('apps')">📱 Apps</button>
   <button role="tab" aria-selected="false" aria-controls="tab-chat" id="nav-chat" data-tab="chat" onclick="showTab('chat')">💬 AI Chat</button>
@@ -988,8 +1002,23 @@
   <button role="tab" aria-selected="false" aria-controls="tab-documents" id="nav-documents" data-tab="documents" onclick="showTab('documents')">📄 Document AI</button>
   <button role="tab" aria-selected="false" aria-controls="tab-research" id="nav-research" data-tab="research" onclick="showTab('research')">🔬 Research Assistant</button>
   <button role="tab" aria-selected="false" aria-controls="tab-settings" id="nav-settings" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
+  <button role="tab" aria-selected="false" aria-controls="tab-account" id="nav-account" data-tab="account" onclick="showTab('account')">👤 Account</button>
   <a href="/suite" id="nav-suite" style="color: #00d2ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: 0.8rem; font-weight: 600; border-radius: 6px; transition: all 0.2s; border: 1px solid rgba(0, 210, 255, 0.35); background: rgba(0, 210, 255, 0.08); margin-left: 4px;" title="Open All-in-One AI Feature Suite (42 Modules)">⚡ AI Feature Suite</a>
 </nav>
+
+<!-- Sidebar Pinned Operator Footer Card -->
+<button type="button" id="sidebar-operator-card" class="sidebar-operator-card" onclick="showTab('account')" title="Open Operator Profile &amp; Account Center">
+  <span class="sidebar-op-avatar" id="sidebar-avatar">
+    <span id="sidebar-avatar-initial">R</span>
+  </span>
+  <span class="sidebar-op-info">
+    <span class="sidebar-op-name" id="sidebar-operator-name">Operator</span>
+    <span class="sidebar-op-role-row">
+      <span class="sidebar-op-role-dot" id="sidebar-role-dot"></span>
+      <span class="sidebar-op-role-text" id="sidebar-role-text">Pending</span>
+    </span>
+  </span>
+</button>
 
 <main id="main-content">
   <!-- 1. HOME -->
@@ -1066,6 +1095,8 @@
           <select id="chat-model-select" style="max-width:240px;padding:4px 8px;font-size:0.8rem" onchange="switchChatModel(this.value)" aria-label="Chat model">
             <option value="">Loading configured models…</option>
           </select>
+          <button type="button" class="btn dark" onclick="initChatModels()" aria-label="Refresh model availability" title="Refresh model availability">↻</button>
+          <span id="chat-model-feedback" role="status" aria-live="polite">Checking models…</span>
           <label class="sr-only" for="chat-mode">Conversation or task mode</label>
           <select id="chat-mode" style="max-width:180px;padding:4px 8px;font-size:0.8rem" aria-label="Conversation or task mode" title="Conversation streams text without executing tools. Chat and tasks can run authorized actions.">
             <option value="tasks">Chat and tasks</option>
@@ -1112,7 +1143,7 @@
           </section>
         </div>
       </details>
-      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:calc(100vh - 280px);min-height:520px;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
+      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:clamp(12rem, calc(100dvh - 22rem), 48rem);min-height:0;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
       <div class="chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:var(--card);padding:10px 0 0;border-top:1px solid var(--card-border);z-index:20">
         <select id="voice-capture-source" style="max-width:140px;font-size:0.78rem;padding:6px" aria-label="Microphone capture location">
           <option value="host">ReSpeaker Mic</option>
@@ -1384,7 +1415,7 @@
   <div id="tab-vision" class="tab">
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <h2>Vision &amp; Identity Subsystem (Sony IMX708 + YOLOv8 + YuNet + Moondream)</h2>
+        <h2>Vision &amp; Neural Perception Subsystem (Sony IMX708 + YOLOv8 + YuNet + Moondream)</h2>
         <span id="vision-hardware-badge" style="font-size:0.75rem;padding:3px 10px;border-radius:12px;background:rgba(0,255,136,0.15);color:var(--green);border:1px solid var(--green)">🟢 IMX708 ONLINE (1080p PDAF)</span>
       </div>
 
@@ -1654,6 +1685,7 @@
         <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="testComponent('ai_provider')">🧪 Test AI Brain</button>
       </div>
 
+      <p id="settings-save-status" role="status" aria-live="polite"></p>
       <div class="settings-layout">
         <div class="cat-menu" id="settings-cat-menu">
           <!-- Injected via JS -->
@@ -2109,32 +2141,31 @@
       <div>
         <h2>📱 JARVIS APPS CENTER</h2>
         <p style="font-size:0.84rem;color:var(--muted)">
-          Unified AI Application Platform — 20 Modular Applications with Shared Authentication, RBAC, AI Providers & Hardware Throttling
+          Find an app by name or capability, or filter by availability.
         </p>
         <p id="apps-identity-label" style="font-size:0.74rem;color:var(--muted);margin-top:6px">
           Loading local operator identity…
         </p>
         <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <a href="/suite" target="_blank" class="btn primary" style="padding:6px 14px;font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">⚡ Open Unified Feature Suite (/suite)</a>
-          <span style="font-size:0.75rem;color:var(--muted)">All 42 modular AI feature engines registered &amp; mounted on Raspberry Pi 5</span>
+          <a href="/suite" target="_blank" class="btn primary" style="padding:6px 14px;font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">⚡ Open Feature Suite</a>
         </div>
       </div>
       <div class="apps-stats-pills">
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-total">20</div>
+          <div class="num" id="apps-stat-total">—</div>
           <div class="lbl">Total Apps</div>
         </div>
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-available" style="color:var(--green)">20</div>
+          <div class="num" id="apps-stat-available" style="color:var(--green)">—</div>
           <div class="lbl">Available</div>
         </div>
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-planned" style="color:#94a3b8">0</div>
+          <div class="num" id="apps-stat-planned" style="color:#94a3b8">—</div>
           <div class="lbl">Roadmap</div>
         </div>
         <div class="app-stat-box">
-          <div class="num" id="apps-stat-resource" style="font-size:0.95rem;color:var(--accent)">Pi 5 Ready</div>
-          <div class="lbl" id="apps-stat-res-sub">100% Online</div>
+          <div class="num" id="apps-stat-resource" style="font-size:0.95rem;color:var(--accent)">Unavailable</div>
+          <div class="lbl" id="apps-stat-res-sub">Host resources</div>
         </div>
       </div>
     </div>
@@ -2169,14 +2200,14 @@
     <div class="apps-filter-bar">
       <div class="apps-search-wrap">
         <span class="search-icon">🔍</span>
-        <input type="text" id="apps-search-input" placeholder="Search 20 applications by name, category, capability, or keywords..." oninput="filterApps()">
+        <input type="text" id="apps-search-input" placeholder="Search applications by name, category, capability, or keywords..." oninput="filterApps()">
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <select id="apps-status-select" onchange="filterApps()" style="padding:9px 12px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:var(--text);font-size:0.82rem;outline:none;">
-          <option value="all">All Statuses (20)</option>
-          <option value="available">Available Only (3)</option>
-          <option value="planned">Roadmap / Planned (17)</option>
-          <option value="in_development">In Development (0)</option>
+          <option value="all">All Statuses</option>
+          <option value="available">Available Only</option>
+          <option value="planned">Roadmap / Planned</option>
+          <option value="in_development">In Development</option>
         </select>
         <button class="btn dark" onclick="resetAppsFilters()" style="padding:8px 12px;font-size:0.82rem;" title="Reset Search & Filters">↺ Reset</button>
       </div>
@@ -2184,20 +2215,21 @@
 
     <!-- 10 Category Horizontal Pills -->
     <div class="apps-category-row" id="apps-category-pills">
-      <div class="cat-pill active" onclick="selectAppCategory('all', this)">All Categories (20)</div>
-      <div class="cat-pill" onclick="selectAppCategory('productivity', this)">Productivity</div>
-      <div class="cat-pill" onclick="selectAppCategory('education_learning', this)">Education & Learning</div>
-      <div class="cat-pill" onclick="selectAppCategory('developer_tools', this)">Developer Tools</div>
-      <div class="cat-pill" onclick="selectAppCategory('ai_agents', this)">AI Agents</div>
-      <div class="cat-pill" onclick="selectAppCategory('business_support', this)">Business & Support</div>
-      <div class="cat-pill" onclick="selectAppCategory('research_knowledge', this)">Research & Knowledge</div>
-      <div class="cat-pill" onclick="selectAppCategory('computer_vision', this)">Computer Vision</div>
-      <div class="cat-pill" onclick="selectAppCategory('media_content', this)">Media & Content</div>
-      <div class="cat-pill" onclick="selectAppCategory('security_analytics', this)">Security & Analytics</div>
-      <div class="cat-pill" onclick="selectAppCategory('experimental', this)">Experimental</div>
+      <button type="button" class="cat-pill active" aria-pressed="true" onclick="selectAppCategory('all', this)">All Categories</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('productivity', this)">Productivity</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('education_learning', this)">Education & Learning</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('developer_tools', this)">Developer Tools</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('ai_agents', this)">AI Agents</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('business_support', this)">Business & Support</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('research_knowledge', this)">Research & Knowledge</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('computer_vision', this)">Computer Vision</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('media_content', this)">Media & Content</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('security_analytics', this)">Security & Analytics</button>
+      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('experimental', this)">Experimental</button>
     </div>
 
     <!-- Dynamic 20 Applications Cards Grid -->
+    <p id="apps-launch-status" role="status" aria-live="polite"></p>
     <div class="apps-grid" id="apps-grid">
       <div style="grid-column: 1/-1; text-align:center; color:var(--muted); padding:40px;">Loading JARVIS applications...</div>
     </div>
@@ -2435,6 +2467,8 @@
         <pre id="dev-diff-modal-body" style="background:#03050c;border:1px solid var(--card-border);border-radius:6px;padding:12px;overflow:auto;flex:1;font-size:0.75rem;color:#cbd5e1;font-family:monospace;white-space:pre-wrap"></pre>
       </div>
     </div>
+  </div>
+
   <!-- 20. YOUTUBE VIDEO SUMMARIZER & ASSISTANT (Phase 11) -->
   <div id="tab-youtube" class="tab" role="tabpanel" aria-labelledby="nav-youtube">
     <!-- Hero / Phase 11 Banner -->
@@ -3250,6 +3284,411 @@
       </div>
     </div>
   </div>
+
+  <!-- OPERATOR PROFILE & ACCOUNT CENTER (#tab-account) -->
+  <div id="tab-account" class="tab" role="tabpanel" aria-labelledby="nav-account">
+    <!-- Hero Operator Profile Card -->
+    <div class="account-hero-card">
+      <div class="account-hero-top">
+        <div class="account-avatar-wrapper">
+          <div class="account-avatar-ring" onclick="document.getElementById('account-avatar-file-input').click()" title="Click to upload custom avatar">
+            <div class="account-avatar-inner" id="account-avatar-inner">
+              <span id="operator-avatar-initial">R</span>
+            </div>
+          </div>
+          <button class="account-avatar-badge-btn" onclick="AccountCenter.openCameraAvatarModal()" title="Capture avatar from Sony IMX708 camera">📷</button>
+          <input type="file" id="account-avatar-file-input" accept="image/*" style="display:none" onchange="AccountCenter.uploadAvatarFile(this)">
+        </div>
+
+        <div class="account-hero-identity">
+          <div class="account-title-row">
+            <input type="text" id="account-display-name-input" class="account-name-input" value="" title="Click to edit Display Name" placeholder="Operator Name">
+            <span id="account-role-badge" class="account-badge-role">Pending</span>
+            <button class="btn ok" style="padding:4px 12px;font-size:0.75rem" onclick="AccountCenter.saveOperatorProfile()" id="btn-save-profile">💾 Save Profile</button>
+          </div>
+          <textarea id="account-bio-input" class="account-bio-input" rows="2" placeholder="Operator role and operational responsibilities..." title="Click to edit Bio"></textarea>
+          
+          <div class="account-callsign-row">
+            <span>Preferred Callsign:</span>
+            <input type="text" id="account-callsign-input" class="account-callsign-input" value="" placeholder="Callsign">
+            <span style="font-size:0.72rem;color:var(--muted);margin-left:8px">(Used by JARVIS in neural voice synthesis)</span>
+          </div>
+
+          <div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:0.72rem;color:#7aa5b9;text-transform:uppercase;letter-spacing:0.5px">Quick Avatar Presets:</span>
+            <div id="avatar-presets-strip" style="display:inline-flex;gap:6px">
+              <button class="avatar-preset-pill active" data-preset="jarvis" onclick="AccountCenter.selectAvatarPreset('jarvis')">⚡ Jarvis</button>
+              <button class="avatar-preset-pill" data-preset="stark" onclick="AccountCenter.selectAvatarPreset('stark')">🦾 Stark</button>
+              <button class="avatar-preset-pill" data-preset="cyber" onclick="AccountCenter.selectAvatarPreset('cyber')">🌐 Cyber</button>
+              <button class="avatar-preset-pill" data-preset="synth" onclick="AccountCenter.selectAvatarPreset('synth')">🧬 Synth</button>
+              <button class="avatar-preset-pill" data-preset="hologram" onclick="AccountCenter.selectAvatarPreset('hologram')">💠 Hologram</button>
+              <button class="avatar-preset-pill" data-preset="terminal" onclick="AccountCenter.selectAvatarPreset('terminal')">💻 Terminal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Session Status Bar -->
+      <div class="account-session-bar">
+        <div class="account-session-timer">
+          <span style="font-size:0.78rem;color:#7aa5b9">Active Session Countdown:</span>
+          <span id="account-session-timer-text" class="account-timer-pill">Pending</span>
+          <div style="width:140px;height:6px;background:rgba(0,0,0,0.5);border-radius:3px;overflow:hidden;border:1px solid #163e52">
+            <div id="account-session-progress-bar" style="height:100%;width:100%;background:linear-gradient(90deg,#00d2ff,#00ff88);transition:width 0.3s"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn dark" style="padding:5px 12px;font-size:0.76rem" onclick="AccountCenter.extendAdminSession(15)" id="btn-extend-session">⏳ Extend +15m</button>
+          <button class="btn dark" style="padding:5px 12px;font-size:0.76rem" onclick="AccountCenter.extendAdminSession(60)">⏳ Extend +1h</button>
+          <button class="btn danger" style="padding:5px 12px;font-size:0.76rem" onclick="AccountCenter.lockAdminSession()" id="btn-lock-session">🔒 Lock Session</button>
+        </div>
+      </div>
+
+      <!-- 4-Tile KPI Strip -->
+      <div class="account-kpi-grid">
+        <div class="account-kpi-tile">
+          <span class="account-kpi-label">Access Level</span>
+          <span class="account-kpi-value" id="kpi-role-level" style="color:#00ff88">Pending</span>
+          <span class="account-kpi-sub">Privileged Root Operator</span>
+        </div>
+        <div class="account-kpi-tile">
+          <span class="account-kpi-label">Security Session</span>
+          <span class="account-kpi-value" id="kpi-session-status" style="color:#00ff88">Pending</span>
+          <span class="account-kpi-sub">Full RBAC Capabilities</span>
+        </div>
+        <div class="account-kpi-tile">
+          <span class="account-kpi-label">Biometric Face ID</span>
+          <span class="account-kpi-value" id="kpi-face-status" style="color:#00d2ff">Pending</span>
+          <span class="account-kpi-sub">YuNet Landmark Vector</span>
+        </div>
+        <div class="account-kpi-tile">
+          <span class="account-kpi-label">Enrolled Operators</span>
+          <span class="account-kpi-value" id="kpi-total-users">1</span>
+          <span class="account-kpi-sub">Registered in users.json</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2-Column Responsive Body Grid -->
+    <div class="account-grid">
+      <!-- Left Column: Security & Preferences -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Security, PIN & Biometric Access Card -->
+        <div class="account-card">
+          <div class="account-card-header">
+            <div class="account-card-title">
+              <span>🔐</span> Security, PIN &amp; Biometric Access
+            </div>
+            <span class="account-badge-role admin" style="font-size:0.68rem;padding:2px 8px">ROOT HARDENED</span>
+          </div>
+
+          <!-- PIN Elevation -->
+          <div style="background:rgba(4,18,28,0.6);border:1px solid #163e52;border-radius:8px;padding:12px;margin-bottom:14px">
+            <div style="font-size:0.8rem;font-weight:600;color:#00d2ff;margin-bottom:6px">Quick PIN Elevation</div>
+            <div style="font-size:0.74rem;color:#7aa5b9;margin-bottom:8px">Authenticate to elevate session duration and unlock privileged robot actuation and shell controls.</div>
+            <div style="display:flex;gap:6px">
+              <input type="password" id="account-pin-elevate-input" placeholder="Enter PIN..." maxlength="12" style="background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.82rem;flex:1">
+              <button class="btn ok" style="padding:6px 14px;font-size:0.8rem" onclick="AccountCenter.elevatePinSubmit()" id="btn-account-pin-elevate">Unlock</button>
+            </div>
+          </div>
+
+          <!-- Change PIN Form -->
+          <div style="background:rgba(4,18,28,0.6);border:1px solid #163e52;border-radius:8px;padding:12px;margin-bottom:14px">
+            <div style="font-size:0.8rem;font-weight:600;color:#00d2ff;margin-bottom:6px">Change Administrator PIN</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+              <div>
+                <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Current PIN:</label>
+                <input type="password" id="change-pin-curr" placeholder="Current PIN" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+              </div>
+              <div>
+                <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">New PIN (min 4):</label>
+                <input type="password" id="change-pin-new" placeholder="New PIN" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+              </div>
+            </div>
+            <div style="margin-bottom:8px">
+              <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Confirm New PIN:</label>
+              <input type="password" id="change-pin-confirm" placeholder="Confirm PIN" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+            </div>
+            <button class="btn dark" style="width:100%;padding:6px;font-size:0.8rem" onclick="AccountCenter.submitChangePinForm()" id="btn-change-pin-submit">Update Administrator PIN</button>
+          </div>
+
+          <!-- Session Duration Policy & Face Biometrics -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="background:rgba(4,18,28,0.6);border:1px solid #163e52;border-radius:8px;padding:12px">
+              <div style="font-size:0.78rem;font-weight:600;color:#00d2ff;margin-bottom:4px">Session Duration</div>
+              <div style="font-size:0.72rem;color:#7aa5b9;margin-bottom:8px">Elevation timeout window:</div>
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <button class="btn dark" style="padding:4px 8px;font-size:0.72rem;text-align:left" onclick="AccountCenter.setSessionDurationPolicy(5)">⏱️ 5 Minutes (Strict)</button>
+                <button class="btn dark" style="padding:4px 8px;font-size:0.72rem;text-align:left" onclick="AccountCenter.setSessionDurationPolicy(15)">⏱️ 15 Minutes (Default)</button>
+                <button class="btn dark" style="padding:4px 8px;font-size:0.72rem;text-align:left" onclick="AccountCenter.setSessionDurationPolicy(60)">⏱️ 1 Hour (Extended)</button>
+              </div>
+            </div>
+
+            <div style="background:rgba(4,18,28,0.6);border:1px solid #163e52;border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">
+              <div>
+                <div style="font-size:0.78rem;font-weight:600;color:#00d2ff;margin-bottom:4px">YuNet Face ID</div>
+                <div style="font-size:0.72rem;color:#7aa5b9;margin-bottom:8px">Biometric recognition via IMX708 neural pipeline.</div>
+              </div>
+              <button class="btn ok" style="padding:6px;font-size:0.76rem" onclick="AccountCenter.openFaceEnrollModal()" id="btn-open-face-enroll">👤 Enroll Face ID</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Operator Preferences & JARVIS Behavior -->
+        <div class="account-card">
+          <div class="account-card-header">
+            <div class="account-card-title">
+              <span>⚙️</span> Operator Preferences &amp; JARVIS Voice Behavior
+            </div>
+            <button class="btn ok" style="padding:4px 10px;font-size:0.72rem" onclick="AccountCenter.saveOperatorPreferences()" id="btn-save-prefs">Save Settings</button>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div>
+              <label style="font-size:0.75rem;color:#7aa5b9;display:block;margin-bottom:4px">Default Startup Tab:</label>
+              <select id="pref-default-tab" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+                <option value="home">⌂ Control Center (Dashboard)</option>
+                <option value="chat">💬 AI Chat Assistant</option>
+                <option value="voice">🎙️ Neural Voice Subsystem</option>
+                <option value="vision">👁️ Vision &amp; Neural Perception</option>
+                <option value="robot">🤖 Robot Actuator Suite</option>
+                <option value="apps">📱 Applications Center</option>
+                <option value="developer">⚡ Developer Hub</option>
+                <option value="account">👤 Operator Profile &amp; Account</option>
+              </select>
+            </div>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(4,18,28,0.6);border:1px solid #163e52;border-radius:6px">
+              <div>
+                <div style="font-size:0.8rem;color:#e2e8f0;font-weight:600">Voice Greeting on Sign-In</div>
+                <div style="font-size:0.72rem;color:#7aa5b9">JARVIS welcomes operator by callsign upon PIN elevation</div>
+              </div>
+              <input type="checkbox" id="pref-voice-greeting" checked style="width:18px;height:18px;cursor:pointer">
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Notification Speech Mode:</label>
+                <select id="pref-speech-mode" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px;border-radius:4px;font-size:0.78rem">
+                  <option value="muted">🔇 Muted / Visual Only</option>
+                  <option value="critical_only">⚠️ Critical Alerts Only</option>
+                  <option value="all">🔊 Speak All Alerts</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Preferred AI Voice Actor:</label>
+                <select id="pref-voice-actor" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px;border-radius:4px;font-size:0.78rem">
+                  <option value="en_GB-alan-medium">Alan (British Warm)</option>
+                  <option value="en_US-bryce-medium">Bryce (Deep Tech)</option>
+                  <option value="en_US-amy-medium">Amy (Neural Natural)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Registered Users, RBAC Matrix & Security Log -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Registered Users & RBAC Capability Manager -->
+        <div class="account-card">
+          <div class="account-card-header">
+            <div class="account-card-title">
+              <span>👥</span> Registered Operators &amp; Capability Manager
+            </div>
+            <button class="btn ok" style="padding:4px 10px;font-size:0.72rem" onclick="AccountCenter.openAddUserModal()" id="btn-add-operator">➕ Add Operator</button>
+          </div>
+
+          <div style="overflow-x:auto;margin-bottom:16px">
+            <table class="account-users-table" id="account-users-table">
+              <thead>
+                <tr>
+                  <th>Operator</th>
+                  <th>Role</th>
+                  <th>PIN</th>
+                  <th>Face ID</th>
+                  <th>Last Seen</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="account-users-table-body">
+                <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:14px">Loading enrolled operators...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- RBAC Capability Matrix -->
+          <div style="border-top:1px solid #16364a;padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:600;color:#00d2ff;margin-bottom:4px">Security &amp; Hardware Capability Matrix</div>
+            <table class="account-matrix-table">
+              <thead>
+                <tr>
+                  <th>Subsystem &amp; Privilege</th>
+                  <th style="color:#00ff88">ADMIN</th>
+                  <th style="color:#00d2ff">USER</th>
+                  <th style="color:#ffb000">GUEST</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Robot Motion &amp; E-Stop Latches</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                </tr>
+                <tr>
+                  <td>System Shell &amp; Terminal Execution</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                </tr>
+                <tr>
+                  <td>AI Model &amp; Provider Settings</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#7aa5b9">○ View Only</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                </tr>
+                <tr>
+                  <td>Biometric Face ID Enrollment</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                </tr>
+                <tr>
+                  <td>AI Chat, Reasoning &amp; Memory</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#00d2ff">✓ Standard</td>
+                  <td style="color:#ffb000">○ Ephemeral</td>
+                </tr>
+                <tr>
+                  <td>Voice Synthesis &amp; Media Playback</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#00d2ff">✓ Standard</td>
+                  <td style="color:#ff3366">✕ Denied</td>
+                </tr>
+                <tr>
+                  <td>Environmental Sensors &amp; Telemetry</td>
+                  <td style="color:#00ff88">✓ Full</td>
+                  <td style="color:#00d2ff">✓ Standard</td>
+                  <td style="color:#ffb000">○ Read-Only</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Security & Access Activity Log -->
+        <div class="account-card">
+          <div class="account-card-header">
+            <div class="account-card-title">
+              <span>📜</span> Security &amp; Access Activity Audit Feed
+            </div>
+            <button class="btn dark" style="padding:2px 8px;font-size:0.7rem" onclick="AccountCenter.clearSecurityActivity()" id="btn-clear-activity">Clear Log</button>
+          </div>
+          <div class="account-activity-feed" id="account-activity-feed">
+            <div style="color:var(--muted);font-size:0.78rem;text-align:center;padding:16px">Loading security audit log...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals for Operator Management -->
+  <!-- 1. Avatar Camera Capture Modal -->
+  <div id="avatar-camera-modal" class="account-modal-overlay">
+    <div class="account-modal-box">
+      <div class="account-modal-header">
+        <div class="account-modal-title"><span>📷</span> Sony IMX708 Avatar Capture</div>
+        <button class="jarvis-toast-btn-icon" onclick="AccountCenter.closeCameraAvatarModal()">✕</button>
+      </div>
+      <div style="position:relative;width:100%;aspect-ratio:16/9;background:#030a12;border-radius:8px;overflow:hidden;border:1px solid #1b4961">
+        <img id="avatar-camera-stream" src="" alt="IMX708 Viewfinder" style="width:100%;height:100%;object-fit:cover;display:block">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn dark" onclick="AccountCenter.closeCameraAvatarModal()">Cancel</button>
+        <button class="btn ok" onclick="AccountCenter.captureCameraAvatar()">📸 Snap &amp; Set Avatar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Face ID Biometric Enrollment Modal -->
+  <div id="account-face-enroll-modal" class="account-modal-overlay">
+    <div class="account-modal-box">
+      <div class="account-modal-header">
+        <div class="account-modal-title"><span>👤</span> YuNet Biometric Face ID Enrollment</div>
+        <button class="jarvis-toast-btn-icon" onclick="AccountCenter.closeFaceEnrollModal()">✕</button>
+      </div>
+      <div style="font-size:0.76rem;color:#7aa5b9">
+        Look directly at the camera. The YuNet landmark engine will detect facial keypoints and generate an encrypted embedding vector.
+      </div>
+      <div style="position:relative;width:100%;aspect-ratio:16/9;background:#030a12;border-radius:8px;overflow:hidden;border:1px solid #1b4961">
+        <img id="face-enroll-stream" src="" alt="Biometric Stream" style="width:100%;height:100%;object-fit:cover;display:block">
+      </div>
+      <div>
+        <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Confirm with Administrator PIN:</label>
+        <input type="password" id="face-enroll-pin" placeholder="Enter PIN..." style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button class="btn dark" onclick="AccountCenter.closeFaceEnrollModal()">Cancel</button>
+        <button class="btn ok" onclick="AccountCenter.submitFaceEnroll()">⚡ Capture &amp; Enroll Biometrics</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Add Operator Modal -->
+  <div id="account-add-user-modal" class="account-modal-overlay">
+    <div class="account-modal-box">
+      <div class="account-modal-header">
+        <div class="account-modal-title"><span>➕</span> Register New Operator</div>
+        <button class="jarvis-toast-btn-icon" onclick="AccountCenter.closeAddUserModal()">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div>
+          <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Operator Name:</label>
+          <input type="text" id="add-user-name" placeholder="e.g. Maya" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Access Role:</label>
+            <select id="add-user-role" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px;border-radius:4px;font-size:0.78rem">
+              <option value="USER">USER (Standard Operator)</option>
+              <option value="ADMIN">ADMIN (Full Hardware Root)</option>
+              <option value="GUEST">GUEST (View Only)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Initial PIN (min 4):</label>
+            <input type="password" id="add-user-pin" placeholder="••••" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:0.72rem;color:#7aa5b9;display:block;margin-bottom:3px">Callsign (Optional):</label>
+          <input type="text" id="add-user-callsign" placeholder="e.g. Phoenix" style="width:100%;background:#030b14;border:1px solid #184258;color:#effcff;padding:6px 10px;border-radius:4px;font-size:0.8rem">
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
+        <button class="btn dark" onclick="AccountCenter.closeAddUserModal()">Cancel</button>
+        <button class="btn ok" onclick="AccountCenter.submitAddUser()">Register Operator</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Universal In-App Confirmation Modal (No native window.confirm) -->
+  <div id="account-confirm-modal" class="account-modal-overlay">
+    <div class="account-modal-box" style="width:420px">
+      <div class="account-modal-header">
+        <div class="account-modal-title" id="confirm-modal-title"><span>⚠️</span> Confirm Action</div>
+        <button class="jarvis-toast-btn-icon" onclick="AccountCenter.closeConfirmModal()">✕</button>
+      </div>
+      <div id="confirm-modal-message" style="font-size:0.84rem;color:#cbd5e1;line-height:1.4">
+        Are you sure you want to perform this action?
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px">
+        <button class="btn dark" onclick="AccountCenter.closeConfirmModal()">Cancel</button>
+        <button class="btn ok" id="confirm-modal-action-btn" onclick="AccountCenter.confirmModalAccept()">Confirm</button>
+      </div>
+    </div>
+  </div>
 </main>
 
 <script>
@@ -3340,7 +3779,8 @@ function showTab(name) {
   if (name === 'chat') loadChatHistory();
   if (name === 'desktop') { loadDesktopStatus(); loadDesktopApps(); loadDesktopProjects(); }
   if (name === 'computer') { loadComputerStatus(); loadComputerHistory(); }
-  if (name === 'vision') loadIdentityStatus();
+  if (name === 'vision') { /* Perception-focused; auth decoupled */ }
+  if (name === 'account') { if (window.AccountCenter) window.AccountCenter.loadAccountCenter(); }
   if (name === 'agents') { loadAgentManager(); }
   if (name === 'apps') { loadAppsCenter(); }
   if (name === 'developer') { loadDeveloperCenter(); }
@@ -3352,11 +3792,11 @@ function initTabKeyboardNavigation() {
   const buttons = Array.from(document.querySelectorAll('nav[role="tablist"] button[role="tab"]'));
   buttons.forEach((btn, index) => {
     btn.addEventListener('keydown', (event) => {
-      if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+      if (!['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
       let next = index;
-      if (event.key === 'ArrowRight') next = (index + 1) % buttons.length;
-      if (event.key === 'ArrowLeft') next = (index - 1 + buttons.length) % buttons.length;
+      if (['ArrowRight', 'ArrowDown'].includes(event.key)) next = (index + 1) % buttons.length;
+      if (['ArrowLeft', 'ArrowUp'].includes(event.key)) next = (index - 1 + buttons.length) % buttons.length;
       if (event.key === 'Home') next = 0;
       if (event.key === 'End') next = buttons.length - 1;
       const target = buttons[next];
@@ -3379,6 +3819,8 @@ document.addEventListener('DOMContentLoaded', initTabKeyboardNavigation);
 
 // ─── Apps Center Management ──────────────────────────────────
 let allAppsCatalog = [];
+let catalogState = "loading";
+let catalogRequest = 0;
 let activeAppCategory = 'all';
 let activeAppStatus = 'all';
 
@@ -3406,22 +3848,27 @@ function openRequestedDashboardTab() {
 window.addEventListener('DOMContentLoaded', openRequestedDashboardTab);
 
 async function loadAppsCenter() {
+  const request = ++catalogRequest;
+  catalogState = "loading";
+  renderAppsCenter();
+  loadAppResources();
   try {
-    await loadAppsCenterIdentity();
+    loadAppsCenterIdentity();
     const res = await fetch('/api/apps/catalog');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    allAppsCatalog = data.applications || [];
+    if (request !== catalogRequest) return;
+    if (!Array.isArray(data.applications)) throw new Error('Invalid catalog response');
+    allAppsCatalog = data.applications;
+    catalogState = "ready";
     renderAppsCenter();
     loadAppFavorites();
     loadRecentApps();
-    loadAppResources();
   } catch (err) {
-    console.error('Failed to load apps catalog:', err);
-    const grid = document.getElementById('apps-grid');
-    if (grid) {
-      grid.innerHTML = `<div style="grid-column: 1/-1; color:var(--err); padding:30px; text-align:center;">Failed to load applications catalog: ${err.message}</div>`;
-    }
+    if (request !== catalogRequest) return;
+    catalogState = "unavailable";
+    allAppsCatalog = [];
+    renderAppsCenter();
   }
 }
 
@@ -3476,6 +3923,32 @@ function escapeHtml(value) {
 }
 
 function renderAppsCenter() {
+  for (const pill of document.querySelectorAll('#apps-category-pills button')) {
+    pill.setAttribute('aria-pressed', String(pill.classList.contains('active')));
+  }
+  if (catalogState !== "ready") {
+    for (const id of ['apps-stat-total', 'apps-stat-available', 'apps-stat-planned']) {
+      document.getElementById(id).textContent = '—';
+    }
+    for (const option of document.querySelectorAll('#apps-status-select option')) {
+      option.textContent = option.textContent.replace(/ \(\d+\)$/, '');
+    }
+    const grid = document.getElementById('apps-grid');
+    grid.textContent = catalogState === 'loading' ? 'Loading applications…' : 'Application catalog unavailable. ';
+    if (catalogState === 'unavailable') {
+      const retry = document.createElement('button');
+      retry.className = 'btn dark';
+      retry.textContent = 'Retry';
+      retry.onclick = loadAppsCenter;
+      grid.appendChild(retry);
+    }
+    return;
+  }
+  for (const option of document.querySelectorAll('#apps-status-select option')) {
+    const count = option.value === 'all' ? allAppsCatalog.length :
+      allAppsCatalog.filter(app => app.status === option.value).length;
+    option.textContent = option.textContent.replace(/ \(\d+\)$/, '') + ' (' + count + ')';
+  }
   const query = (document.getElementById('apps-search-input')?.value || '').toLowerCase().trim();
   const statusFilter = (document.getElementById('apps-status-select')?.value || 'all');
 
@@ -3541,7 +4014,7 @@ function renderAppsCenter() {
         <div class="app-footer-actions">
           <button class="btn dark" style="padding:4px 8px;font-size:0.75rem;" onclick="showAppDetails('${app.id}')">ℹ️ Details</button>
           ${isAvail ? `
-            <button class="btn success" style="padding:4px 12px;font-size:0.75rem;font-weight:600;" onclick="launchApp('${app.id}')">🚀 Open</button>
+            <button id="btn-launch-${app.id}" class="btn success" style="padding:4px 12px;font-size:0.75rem;font-weight:600;" onclick="launchApp('${app.id}', event)">🚀 Open</button>
           ` : `
             <button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;opacity:0.85;" onclick="showAppRoadmap('${app.id}')">⏳ Roadmap</button>
           `}
@@ -3551,7 +4024,11 @@ function renderAppsCenter() {
   }).join('');
 }
 
-async function launchApp(appId) {
+async function launchApp(appId, ev) {
+  const triggerBtn = (ev && (ev.currentTarget || ev.target)) ||
+    (typeof event !== 'undefined' && event ? (event.currentTarget || event.target) : null) ||
+    document.getElementById('btn-launch-' + appId) ||
+    document.activeElement;
   try {
     const res = await fetch(`/api/apps/launch/${encodeURIComponent(appId)}`, {
       method: 'POST',
@@ -3570,14 +4047,20 @@ async function launchApp(appId) {
             }
           });
         } else {
-          alert(`Cannot Launch App:\n${data.detail || 'Launch denied'}`);
+          document.getElementById('apps-launch-status').textContent = data.detail || 'Launch denied';
+        }
+        if (triggerBtn && typeof triggerBtn.focus === 'function') {
+          triggerBtn.focus();
         }
         return;
       }
       if (window.jarvisNotify) {
         window.jarvisNotify.warning(`Cannot Launch App: ${data.detail || 'Launch denied'}`);
       } else {
-        alert(`Cannot Launch App:\n${data.detail || 'Launch denied'}`);
+        document.getElementById('apps-launch-status').textContent = data.detail || 'Launch denied';
+      }
+      if (triggerBtn && typeof triggerBtn.focus === 'function') {
+        triggerBtn.focus();
       }
       return;
     }
@@ -3596,7 +4079,10 @@ async function launchApp(appId) {
     if (window.jarvisNotify) {
       window.jarvisNotify.error(`Launch error: ${err.message}`);
     } else {
-      alert(`Launch error: ${err.message}`);
+      document.getElementById('apps-launch-status').textContent = 'Launch error: ' + err.message;
+    }
+    if (triggerBtn && typeof triggerBtn.focus === 'function') {
+      triggerBtn.focus();
     }
   }
 }
@@ -3722,22 +4208,23 @@ async function loadRecentApps() {
 }
 
 async function loadAppResources() {
+  const reading = document.getElementById('apps-stat-resource');
+  const detail = document.getElementById('apps-stat-res-sub');
+  const request = catalogRequest;
+  if (!reading || !detail) return;
   try {
-    const res = await fetch('/api/apps/resources');
-    if (!res.ok) return;
-    const data = await res.json();
-    const t = data.telemetry || {};
-    const resEl = document.getElementById('apps-stat-resource');
-    const subEl = document.getElementById('apps-stat-res-sub');
-    if (resEl) {
-      resEl.innerText = `CPU ${t.cpu_percent}% | RAM ${t.ram_used_percent}%`;
-      resEl.style.color = t.system_load_status === 'nominal' ? 'var(--green)' : 'var(--warn)';
-    }
-    if (subEl) {
-      subEl.innerText = `Avail: ${t.ram_available_mb} MB (${t.system_load_status})`;
-    }
-  } catch (e) {
-    console.error('Error loading resources:', e);
+    const response = await fetch('/api/apps/resources');
+    if (!response.ok) throw new Error('Resource telemetry unavailable');
+    const {telemetry = {}} = await response.json();
+    if (request !== catalogRequest) return;
+    const percentage = value => Number.isFinite(value) && value >= 0 && value <= 100 ? value + '%' : 'Unavailable';
+    reading.textContent = `CPU ${percentage(telemetry.cpu_percent)} | RAM ${percentage(telemetry.ram_used_percent)}`;
+    detail.textContent = Number.isFinite(telemetry.ram_available_mb) && telemetry.ram_available_mb >= 0
+      ? `Available memory: ${telemetry.ram_available_mb} MB` : 'Available memory: Unavailable';
+  } catch {
+    if (request !== catalogRequest) return;
+    reading.textContent = 'Unavailable';
+    detail.textContent = 'Host resources';
   }
 }
 
@@ -3852,24 +4339,31 @@ let currentChatAbort = null;
 let currentChatRequestId = null;
 let lastUserMessage = "";
 
+let modelDiscoveryRequest = 0;
 async function initChatModels() {
+  const feedback = document.getElementById('chat-model-feedback');
+  const request = ++modelDiscoveryRequest;
   try {
     const r = await fetch('/api/chat/providers');
-    if (!r.ok) return;
+    if (!r.ok) throw new Error('Model list unavailable');
     const data = await r.json();
     const sel = document.getElementById('chat-model-select');
     const studioSel = document.getElementById('studio-model-select');
-    if (!sel || !data.providers) return;
+    if (request !== modelDiscoveryRequest || !sel) return;
+    if (!Array.isArray(data.providers)) throw new Error('Invalid provider list');
     sel.innerHTML = '';
     if (studioSel) studioSel.innerHTML = '';
 
     data.providers.forEach(p => {
-      const avail = p.available ? '🟢' : '⚪';
+      const state = !p.enabled && p.enabled !== undefined ? 'disabled' :
+        p.verification === 'missing_key' ? 'missing key' :
+        !p.available ? 'unavailable' : p.name === 'ollama' ? 'local' : 'configured';
       const models = (p.models && p.models.length > 0) ? p.models : [p.model || p.name];
       models.forEach(m => {
         const opt = document.createElement('option');
         opt.value = `${p.name}:${m}`;
-        opt.textContent = `${avail} ${p.name.toUpperCase()}: ${m}`;
+        opt.textContent = `${p.name.toUpperCase()}: ${m} (${state})`;
+        opt.dataset.unavailable = String(!p.available);
         if (p.active && (p.model === m || !p.model)) opt.selected = true;
         sel.appendChild(opt);
         if (studioSel) studioSel.appendChild(opt.cloneNode(true));
@@ -3884,7 +4378,11 @@ async function initChatModels() {
         if (studioSel) studioSel.value = value;
       }
     }
-  } catch (e) {}
+    feedback.textContent = data.providers.some(p => p.available)
+      ? '' : 'No available model. Check provider settings, then refresh.';
+  } catch (error) {
+    if (request === modelDiscoveryRequest) feedback.textContent = 'Model availability could not be checked. Refresh to retry.';
+  }
 }
 initChatModels();
 
@@ -3899,7 +4397,7 @@ async function switchChatModel(val) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ provider, model })
     });
-    if (!response.ok) throw new Error('Model selection was rejected');
+    if (!response.ok || !(await response.json()).success) throw new Error('Model selection was rejected');
     setChatStatus('ready', `Active: ${provider} (${model})`);
     return true;
   } catch (e) {
@@ -3938,14 +4436,18 @@ async function sendChat() {
   const msg = inp.value.trim();
   if (!msg || document.getElementById('chat-send-btn').disabled) return;
 
+  const sel = document.getElementById('chat-model-select');
+  const conversationOnly = document.getElementById('chat-mode')?.value === 'conversation';
+  if (conversationOnly && (!sel?.value || sel.selectedOptions?.[0]?.dataset.unavailable === 'true')) {
+    setChatStatus('error', 'Select an available model or refresh model availability.');
+    return;
+  }
+  const [provider, ...rest] = (sel?.value || '').split(':');
+  const model = rest.join(':');
+
   lastUserMessage = msg;
   inp.value = '';
   addMsg('user', msg);
-
-  const sel = document.getElementById('chat-model-select');
-  const selVal = sel ? sel.value : 'ollama:llama3.2:1b';
-  const [provider, ...rest] = selVal.split(':');
-  const model = rest.join(':');
 
   setChatStatus('loading', 'Sending your message…');
   document.getElementById('cancel-chat-btn').style.display = 'inline-block';
@@ -5129,10 +5631,17 @@ async function identifyFaceVision() {
 let dashboardIdentityRole = "GUEST";
 function updateHeaderUserPill(name, role) {
   dashboardIdentityRole = role;
-  const pill = document.getElementById('hdr-user-pill');
-  if (pill) {
-    pill.textContent = `👤 ${name} (${role})`;
-    pill.className = role === 'ADMIN' ? 'status-pill live' : 'status-pill';
+  if (window.AccountCenter) {
+    window.AccountCenter.updateHeaderPill(name, role);
+    window.AccountCenter.updateSidebarCard(name, role);
+  }
+  const nameEl = document.getElementById('hdr-pill-name');
+  if (!nameEl) {
+    const pill = document.getElementById('hdr-user-pill');
+    if (pill) {
+      pill.textContent = `👤 ${name} (${role})`;
+      pill.className = role === 'ADMIN' ? 'status-pill live' : 'status-pill';
+    }
   }
   const roleBadge = document.getElementById('popover-role-badge');
   if (roleBadge) {
@@ -5241,6 +5750,12 @@ async function verifyAdminPinSubmit() {
     updateHeaderUserPill(d.active_user.display_name, d.authorization_role);
     status.textContent = 'Signed in as administrator. Privileged settings still request your PIN for each change.';
     await loadIdentityStatus();
+    if (window.AccountCenter) {
+      await window.AccountCenter.loadAccountCenter();
+      if (window.AccountCenter.preferences?.voice_greeting) {
+        window.AccountCenter.triggerVoiceGreeting(`Welcome back, ${window.AccountCenter.currentUser?.callsign || d.active_user.display_name}. Session elevated.`);
+      }
+    }
   } catch(e) { status.textContent = e.message; }
   finally { input.value = ''; }
 }
@@ -5253,6 +5768,12 @@ async function logoutAdminSession() {
     updateHeaderUserPill('Guest', 'GUEST');
     status.textContent = 'Signed out.';
     await loadIdentityStatus();
+    if (window.AccountCenter) {
+      await window.AccountCenter.loadAccountCenter();
+      if (window.AccountCenter.preferences?.voice_greeting) {
+        window.AccountCenter.triggerVoiceGreeting('Session secured. Terminal locked.');
+      }
+    }
   } catch(e) { status.textContent = e.message; }
 }
 
@@ -5738,7 +6259,12 @@ function requestPrivilegedSettingsHeaders(actionLabel) {
 
   const pin = window.prompt('Enter the administrator PIN to continue:');
   if (!pin || !pin.trim()) {
-    alert('A fresh administrator PIN is required.');
+    if (window.jarvisNotify) {
+      window.jarvisNotify.warning('A fresh administrator PIN is required.');
+    } else {
+      const statusEl = document.getElementById('settings-save-status');
+      if (statusEl) statusEl.textContent = 'A fresh administrator PIN is required.';
+    }
     return null;
   }
 
@@ -5776,10 +6302,10 @@ async function saveActiveCategory() {
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || 'Settings update was denied.');
-    alert(`Category ${activeSettingsCat.toUpperCase()} settings saved successfully.`);
+    document.getElementById('settings-save-status').textContent = `Saved ${activeSettingsCat.toUpperCase()} settings.`;
     allSettingsCategories[activeSettingsCat] = payload;
   } catch(e) {
-    alert("Error saving settings: " + e);
+    document.getElementById('settings-save-status').textContent = 'Could not save settings: ' + e.message;
   }
 }
 
@@ -8998,6 +9524,7 @@ setTimeout(updateStatusCenter, 500);
 <script src="/avatar.js"></script>
 <script src="/jarvis-notifications.js"></script>
 <script src="/control-center.js"></script>
+<script src="/account-center.js"></script>
 <script>
 // --- Account & Admin PIN Popover Controller ---
 function toggleAccountPopover(e) {

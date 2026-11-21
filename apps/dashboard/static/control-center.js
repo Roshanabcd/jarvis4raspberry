@@ -452,13 +452,13 @@
   root.toggleWakeWordEngine = async function() {
     const btn = byId('voice-tab-wake-toggle');
     const statusEl = byId('voice-tab-wake-status');
-    const isCurrentlyArmed = statusEl && statusEl.textContent.includes('ARMED');
+    const isCurrentlyArmed = statusEl && statusEl.textContent.includes('ARMED') && !statusEl.textContent.includes('DISARMED');
     const enable = !isCurrentlyArmed;
     try {
       const res = await fetch('/api/voice/wake_word/toggle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enable: enable })
+        body: JSON.stringify({ enabled: enable, enable: enable })
       });
       const data = await res.json();
       if (data.status === 'ok') {

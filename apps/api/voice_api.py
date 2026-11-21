@@ -436,7 +436,16 @@ async def transcribe_audio_file(
 
 
 class WakeWordToggleRequest(BaseModel):
-    enabled: bool
+    enabled: Optional[bool] = None
+    enable: Optional[bool] = None
+
+    @property
+    def is_enabled(self) -> bool:
+        if self.enabled is not None:
+            return self.enabled
+        if self.enable is not None:
+            return self.enable
+        return True
 
 
 class WakeWordConfigRequest(BaseModel):
@@ -449,17 +458,18 @@ class WakeWordConfigRequest(BaseModel):
 @voice_router.post("/wake_word/toggle")
 def toggle_wake_word(req: WakeWordToggleRequest):
     """Enable or disable background wake-word activation."""
+    target_enabled = req.is_enabled
     external_owner, _ = _daemon_snapshot()
     if external_owner:
-        cmd = "wake_enable" if req.enabled else "wake_disable"
+        cmd = "wake_enable" if target_enabled else "wake_disable"
         from apps.voice.daemon_control import send_daemon_command
         send_daemon_command(cmd)
     try:
         from apps.voice.wake_word_engine import wake_word_engine
-        wake_word_engine.set_wake_word_enabled(req.enabled)
+        wake_word_engine.set_wake_word_enabled(target_enabled)
     except Exception:
         pass
-    return {"status": "ok", "wake_word_enabled": req.enabled}
+    return {"status": "ok", "wake_word_enabled": target_enabled}
 
 
 @voice_router.get("/wake_word/config")

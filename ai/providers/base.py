@@ -395,7 +395,7 @@ class OllamaProvider(AIProvider):
                     tags = []
                 models = [m["name"] for m in tags if isinstance(m, dict)]
                 self._models_cache = models
-                self._available = True
+                self._available = bool(models) if isinstance(tags, list) else True
 
                 # If current model not installed, select best match
                 if self.model not in models and models:
@@ -404,7 +404,7 @@ class OllamaProvider(AIProvider):
                     elif any("qwen3.5:4b" in m for m in models):
                         self.model = next(m for m in models if "qwen3.5:4b" in m)
                     else:
-                        self.model = models[0]
+                        self.model = next((model for model in models if model.split(":")[0] != "moondream"), models[0])
                 return self._available
             else:
                 self._available = False

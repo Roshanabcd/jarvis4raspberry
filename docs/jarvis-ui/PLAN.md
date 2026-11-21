@@ -249,3 +249,102 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
 - Next: deploy and verify integrated BUG-003; run the remaining audit checks within the recorded phase exceptions. Keep voice, avatar and full-delivery gates open.
 
 - Current-source verification: five bridge tests passed; six document pairs synchronized; ten unique issue IDs. Evidence: evidence/phase-6/corrective/handoff-review.txt.
+
+### BUG-003 live deployment verification · 21 November 2026
+- Verified nested FastAPI router prefix fix and catch-all exclusion: 5/5 focused unit tests passed (`tests/unit/test_extension_catalog_bridge.py`).
+- Inspected active port 8000 backend service owner: `jarvis-core.service` (Main PID 1804 in `/system.slice/jarvis-core.service`, active since 11:12:47 GMT).
+- Verified live deployment against port 8000: catalog reports 45 applications, all 25 extension applications report status `available`, and all 25 extension UI routes return HTTP 200 OK.
+- Verified launch RBAC enforcement: guest launch of `/api/apps/launch/extension-28` is blocked with HTTP 403; nonexistent extension launch returns HTTP 404.
+- Evidence saved to `docs/jarvis-ui/evidence/audit-remediation/bug-003-live-verification.json`. BUG-003 updated to `verified_live`.
+- Phase 5 remains blocked for 3D assets per user exception (honest 2D fallback active); Phase 6 remains in-progress.
+
+### Step 3 — Offline/Intercepted UI Verification (`BUG-001`, `UX-002`, `UX-003`, `UX-004`) · 21 November 2026
+- Executed Playwright regression runner `tests/browser/audit_handoff.py` across both `1440x900` and `1280x720` viewports (1 worker, fake media devices, audio muted).
+- Enforced hard safety rail: `#estop-btn` verified visible and enabled in DOM, never clicked.
+- Verified 23 dashboard panels sweep and keyboard navigation (vertical tab arrow navigation and category pill space toggle) at both viewports.
+- Verified `BUG-001` (`#account-role-badge`): Delayed `/api/identity/status` response confirms initial badge displays `Pending` / `Unavailable` (never privileged `ADMIN` before confirmation); guest hydration confirms `GUEST` badge; authorized operator hydration confirms `ADMIN` badge.
+- Verified `UX-002` (`#tab-apps`): Mocked `window.jarvisNotify = null`; adapter launch denial triggers accessible inline error in `#apps-launch-status` with zero native dialogs (`alert`/`confirm`), and focus is restored to the triggering Launch button.
+- Verified `UX-003` (`#tab-settings`): Saved reversible setting (`core.debug_mode`); confirmed inline success in `#settings-save-status` with zero native `alert()` dialogs.
+- Verified `UX-004` (`#sidebar-operator-card`): Located by native `button` tag/role; keyboard focus + `Enter` keypress verified to activate and display `#tab-account`.
+- Evidence recorded: 12 screenshots saved in `docs/jarvis-ui/evidence/audit-remediation/`; structured execution report saved in `docs/jarvis-ui/evidence/audit-remediation/step3-offline-ui-verification.json`.
+- Status updated to `verified_offline` for `BUG-001`, `UX-002`, `UX-003`, and `UX-004`.
+
+### Step 4 — Live Deployment & Populated-Catalog Verification (`UX-005`, `UX-006`, `BUG-002`, `UX-001`, plus live checks for `BUG-001`, `UX-002`, `UX-004`) · 21 November 2026
+- Verified served `index.html` at `http://127.0.0.1:8000/` strictly matches working tree on disk (length 496,653 bytes, SHA256 `a922a2c1edc338a7cdf7fc54d9f76792fc10653da7997a0543cb8949a0a1f07e`).
+- Executed Playwright live test suite `tests/browser/test_step4_live.py` against running `jarvis-core.service` at `http://127.0.0.1:8000` across `1440x900` and `1280x720` (1 worker, fake media, audio muted).
+- Enforced hard safety rail: `#estop-btn` verified visible and enabled in DOM, never clicked.
+- Verified `UX-001` (`nav[role=tablist]`): Focused `#nav-home`; ArrowDown and ArrowUp advance keyboard focus, `aria-selected="true"`, and visible panels (`#tab-apps` and `#tab-home`) cleanly.
+- Verified `BUG-002` (`nav [data-tab]`): Clicked through all 23 sidebar tabs from another tab; explicitly verified `YouTube`, `Documents`, `Research`, and `Account` become visible with zero panel overflow and zero DOM nesting traps (direct children of `#main-content`).
+- Verified `UX-005` (`#apps-category-pills`): Focused "AI Agents" category button by role, pressed Space; verified `aria-pressed="true"`, filtered live 45-app catalog to exactly 6 AI agent cards, and reset back to 45 cards via "All Categories".
+- Verified `UX-006` (`#apps-status-select`): Confirmed filter dropdown labels All Statuses (45), Available Only (45), Roadmap / Planned (0), In Development (0) and hero stats 45/45/0 exact match the 45 live rendered cards in `#apps-grid`.
+- Verified Live Carry-overs:
+  - `BUG-001`: Unauthenticated live guest session confirms neutral role badge (`GUEST` / `Unavailable`), never premature `ADMIN`.
+  - `UX-002`: Live guest launch denial on `extension-28` returns HTTP 403, writing accessible error to `#apps-launch-status` with zero native dialogs, and explicitly restoring focus to `#btn-launch-extension-28`.
+  - `UX-004`: `#sidebar-operator-card` native button receives keyboard focus and activates on `Enter`, opening `#tab-account`.
+  - `UX-003`: Kept offline/isolated to avoid mutating live production settings.
+- Evidence recorded: 20 screenshots saved in `docs/jarvis-ui/evidence/audit-remediation/step4-live/`; structured execution report saved in `docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json`.
+- Status updated to `verified_live` for `UX-001`, `UX-005`, `UX-006`, `BUG-002`, `BUG-001`, `UX-002`, and `UX-004`.
+
+### Step 5 — Local AI Route Verification (`AI-001`, P1-High) · 21 November 2026
+- Verified focused provider unit tests: 3/3 passed (`tests/unit/test_provider_integrations.py -k ollama` in 0.59s).
+- Inspected installed local models (read-only): confirmed Ollama has `llama3.2:1b` (1.3 GB, text model) active and warm; vision-only `moondream:latest` strictly excluded from conversational text benchmarks; zero paid cloud APIs called; zero new models downloaded.
+- Enforced hard safety rail: `#estop-btn` verified visible and enabled in DOM, never clicked.
+- Verified Offline / Intercepted UI Suite (`tests/browser/test_step5_ai_001.py`):
+  - Draft preservation: Selecting unavailable model in Conversation mode preserves draft in `#chat-in`, fires zero `/api/chat/stream` requests, and displays inline error (`🔴 Select an available model or refresh model availability.`).
+  - Refresh control: Refresh button (`↻`) re-queries `/api/chat/providers` and updates model options.
+  - Rejected model switch: Mocked 400 rejection on `/api/chat/model` surfaces inline error (`🔴 Model could not be selected. Check provider settings.`).
+  - Cancellation UI state: In-flight streaming message cancellation via `#cancel-chat-btn` hides Stop button, re-enables Send button, and updates `#chat-status-badge` to `🟢 Stopped`.
+- Verified Live Local Text-Model Benchmark against running `jarvis-core.service` on `http://127.0.0.1:8000` with `llama3.2:1b` across both `1440x900` and `1280x720`:
+  - **Turn 1 (Memory Seed)**: `"Remember the audit word violet. Reply with only the word."`
+    - 1440x900: TTFT 5228.3ms, Total 6487.2ms, Status `🟢 Reply ready`, Telemetry `⚡ 6286ms (0.2 tok/s) • ollama`.
+    - 1280x720: TTFT 4343.5ms, Total 7499.3ms, Status `🟢 Reply ready`, Telemetry `⚡ 7275ms (0.1 tok/s) • ollama`.
+    - Reply: `"violet"`.
+  - **Turn 2 (Memory Recall)**: `"What was the audit word?"`
+    - 1440x900: TTFT 4393.0ms, Total 7583.7ms, Status `🟢 Reply ready`, Telemetry `⚡ 7382ms (0.1 tok/s) • ollama`.
+    - 1280x720: TTFT 5520.5ms, Total 7010.1ms, Status `🟢 Reply ready`, Telemetry `⚡ 6592ms (0.2 tok/s) • ollama`.
+    - Reply: `"violet"` (100% accurate recall across both viewports).
+  - **Turn 3 (Code Generation)**: `"Write a Python function is_even(n) that returns True for even integers."`
+    - 1440x900: TTFT 4280.0ms, Total 21332.1ms, Status `🟢 Reply ready`, Telemetry `⚡ 20805ms (0.5 tok/s) • ollama`.
+    - 1280x720: TTFT 5059.3ms, Total 20266.5ms, Status `🟢 Reply ready`, Telemetry `⚡ 20003ms (0.5 tok/s) • ollama`.
+    - Reply: `def is_even(n):\n    return n % 2 == 0`.
+  - **Pi 5 Hardware Footprint**: Idle ~90% CPU / ~6.8GB RAM; active inference 100% CPU (all 4 cores) / ~6.9-7.0GB RAM (leaving ~950MB to 1.1GB RAM free/available). Zero memory pressure or OOM.
+- Evidence recorded: 9 screenshots saved in `docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/`; structured execution report saved in `docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/step5-ai-001-verification.json`.
+- Status updated to `verified_live` for `AI-001`.
+
+### Step 6 — Voice Acceptance & Local Wake-Word (`docs/CODEX_VOICE_CONTINUATION.md`) · 21 November 2026
+- Reconciled voice checklist against `docs/CODEX_VOICE_CONTINUATION.md`, `apps/voice/`, and live running daemons.
+- Respected recorded Phase 5 exception: honest 2D audio-reactive avatar fallback active (labeled amplitude-driven mouth movement; 3D avatar gate explicitly remains unverified/deferred).
+- Enforced single device owner and zero-duplicate backend boundary: confirmed `jarvis-voice.service` (Main PID 1258) owns PipeWire capture (`pw-record --rate=16000 --channels=1 --format=s16`), while `jarvis-core.service` (Main PID 1804) serves port 8000. No competing process spawned.
+- Enforced zero package/model install boundary: verified local `openwakeword` and ONNX model `hey_jarvis_v0.1.onnx` are already bundled and load on CPUExecutionProvider in `venv`. Zero native runtimes, system packages, or model downloads performed.
+- Enforced hard safety rail: `#estop-btn` verified visible and enabled in DOM, never clicked.
+- Verified Provider-Independent Unit & Frontend Tests:
+  - Frontend voice suites: 24/24 passed (10 in `futuristic-voice-ownership.test.cjs`, 9 in `voice-capture-feedback.test.cjs`, 5 in `voice-jobs.test.cjs`).
+  - Python voice unit suite: 97/97 passed (`test_voice_daemon_delivery.py`, `test_voice_job_delivery.py`, `test_voice_job_persistence.py`, `test_voice_capture_reliability.py`).
+  - Isolated browser playback: 1/1 passed (`tests/browser/voice_playback_isolated.cjs` - verifies single analyser, 2D mouth drive, and clean pause/stop).
+- Fixed Real Defects Discovered During Verification:
+  - Fixed `apps/dashboard/static/control-center.js` and `apps/api/voice_api.py`: wake word toggle payload sent `{enable: enable}` instead of `{enabled: bool}`, which caused 422 Unprocessable Entity. Updated `control-center.js` to send `{enabled: enable, enable: enable}` and made `WakeWordToggleRequest` accept either parameter name.
+  - Fixed `control-center.js` state inspection: `"DISARMED".includes("ARMED")` evaluated to `true`, preventing re-enabling wake word once disarmed. Corrected condition to ensure accurate two-way toggle.
+- Verified Live Browser Suite across `1440x900` and `1280x720` (`tests/browser/test_step6_voice.py`):
+  - Dashboard Voice Tab (`#tab-voice`): verified device telemetry, speaker selection, volume slider, and two-way wake toggle (`🟢 ARMED` -> `⚪ DISARMED` -> `🟢 ARMED`) with live cross-process IPC dispatch to `jarvis-voice.service`.
+  - Futuristic Voice View (`/futuristic/#voice`): verified `#voice-waveform-canvas` mounting, privacy indicator state, mute toggle, and barge-in interruption (< 300ms latency gate).
+- Read-Only Physical Diagnostics & Hardware Status (Truthful Recording):
+  - ALSA capture devices: no physical hardware capture cards present; virtual/simulated capture handled via PipeWire daemon.
+  - ALSA playback devices: card 0 (`vc4hdmi0`), card 1 (`vc4hdmi1`).
+  - PipeWire sink: `Built-in Audio Digital Stereo (HDMI)` vol: 1.00 MUTED.
+  - Local TTS fallback: `edge_neural_tts` / offline fallback active; reference audio `/home/roshan/Downloads/myvoice_clean.wav`.
+  - Offline wake-word engine: `openwakeword` with `hey_jarvis_v0.1.onnx` verified loaded on CPUExecutionProvider.
+  - Physical Boundaries: Zero claims of physical speaker audibility or live human speech recognition (physical mic unplugged/simulated, HDMI sink muted).
+- Evidence recorded: 4 screenshots and JSON verification record saved under `docs/jarvis-ui/evidence/audit-remediation/step6-voice/`.
+
+### Remediation Handoff Summary (Steps 1–6 Complete)
+- **Scope**: Remediated and verified audit issues across Steps 1–6 on branch `feature/jarvis-ui`.
+- **Verified Live**:
+  - `BUG-003`: 45 catalog applications, all 25 extension modules mounted and HTTP 200 OK, guest launch blocked (HTTP 403).
+  - `BUG-001` & `UX-004`: Neutral operator role badge (`GUEST` / `Unavailable`, never premature `ADMIN`), keyboard activation to `#tab-account`.
+  - `UX-001`, `UX-005`, `UX-006`: Arrow tablist navigation, Space category toggle (45 -> 6 -> 45), exact status counts matching hero stats.
+  - `BUG-002` & `UX-002`: All 23 sidebar tabs verified without overflow or DOM nesting traps; launch denial surfaces inline error, restores focus.
+  - `AI-001`: Warm local `llama3.2:1b` two-turn memory recall ('violet') and code generation (`def is_even`), TTFT 4.2–5.5s, 0 paid APIs, draft preservation on unavailable models.
+  - Voice Step 6: Wake-word toggle schema & sub-string bug resolved; live two-way toggle verified (`🟢 ARMED` <-> `⚪ DISARMED`) with cross-process IPC to `jarvis-voice.service`.
+- **Hardware-Dependent / Remaining Pending**:
+  - Live human speech recognition and physical speaker audibility remain pending hardware connection (plugging in ReSpeaker Lite USB microphone and unmuting the HDMI/speaker PipeWire sink).
+  - 3D VRM avatar gate remains deferred per user exception (honest 2D audio-reactive fallback active).

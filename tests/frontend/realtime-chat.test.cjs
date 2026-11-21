@@ -95,3 +95,13 @@ test('failed reply never starts browser speech', async()=>{
   await ui.context.sendChat();
   assert.deepEqual(spoken,[]);
 });
+
+test('conversation preserves draft and avoids sending to an unavailable model', async () => {
+  const ui = setup([]);
+  ui.nodes['chat-mode'].value = 'conversation';
+  ui.nodes['chat-model-select'].selectedOptions = [{dataset: {unavailable: 'true'}}];
+  await ui.context.sendChat();
+  assert.equal(ui.nodes['chat-in'].value, 'hello');
+  assert.equal(ui.calls.length, 0);
+  assert.match(ui.statuses.at(-1).text, /available model/);
+});
