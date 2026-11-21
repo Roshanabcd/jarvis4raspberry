@@ -228,3 +228,5 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 5. Await operator system core restart; don't start a duplicate backend. User duplicate service is stopped, not permanently disabled.
 6. Verify fresh API/catalog counts after restart, then live human speech → actual provider → speaker; offline wake remains unfinished.
 7. Source software checkpoint complete; full Phase 6 gate and project acceptance remain unverified.
+
+- Reloaded the existing user voice service successfully (active/running); kept system core active. Core administrator restart remains pending. No additional recorder or backend was started.
