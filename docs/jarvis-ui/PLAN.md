@@ -197,3 +197,13 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Evidence: 74 Python and 72 frontend regressions passed; no hardware verification.
 - Next: approved localhost browser gate, then conflict-aware integration into `feature/jarvis-ui`.
 - Keep Phase 5 blocked until real 3D assets/renderer meet its gate; do not claim full delivery.
+
+### 2026-11-21 continuation checkpoint
+- Latest user brief explicitly permits an honestly labeled 2D avatar fallback and prioritizes existing voice repair, then offline wake detection and module launch integration.
+- Preserved earlier owner-only push-to-talk, cancellation and private fallback-audio fixes.
+- Removed unconditional home voice success; capture errors are no longer silence; no duplicate browser replay of server-owned speech.
+- Generation-guarded status polling; pending capture waits for owner acknowledgement; speaking follows actual browser `playing`, not `play()` invocation.
+- Shared browser analyser between waveform and 2D mouth to prevent duplicate MediaElementSource errors. No new dependency.
+- Tests: 74 Python / 81 frontend passed; 1 Chromium synthetic muted-audio test passed. Evidence in phase-6/corrective. These are not physical audio acceptance.
+- Next: merge current feature/jarvis-ui changes, preserve extension integration, and fix module catalog launch paths. See docs/CODEX_VOICE_CONTINUATION.md.
+- Full phase gate remains unverified; no full project completion claim.

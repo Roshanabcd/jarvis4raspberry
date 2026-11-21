@@ -78,7 +78,7 @@
   chatModel.addEventListener('change',()=>{model.value=chatModel.value;});
   model.addEventListener('change',async()=>{model.disabled=true;chatModel.value=model.value;try{await root.switchChatModel(model.value);await root.initChatModels();}finally{syncModels();model.disabled=false;}});
   syncModels();
-  byId('cc-speak').addEventListener('click',async()=>{text('cc-chat-feedback','Listening through the existing JARVIS microphone service…');await root.toggleVoiceRecord();text('cc-chat-feedback','Voice request finished. Check the conversation for the result.');syncConversation();});
+  byId('cc-speak').addEventListener('click',async()=>{text('cc-chat-feedback','Listening through the existing JARVIS microphone service…');const outcome=await root.toggleVoiceRecord();text('cc-chat-feedback',outcome?.message||'Voice outcome unavailable. Open Voice Diagnostics.');syncConversation();});
   byId('cc-chat-form').addEventListener('submit',async event=>{
     event.preventDefault();
     const input=byId('cc-message'), message=input.value.trim();

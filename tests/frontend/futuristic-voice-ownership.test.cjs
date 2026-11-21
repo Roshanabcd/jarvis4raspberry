@@ -67,3 +67,29 @@ test('late capture acceptance cannot undo mute',async()=>{
   assert.equal(ui.voice.isMuted,true);assert.equal(mutes,count+1);assert.equal(ui.captures(),0);
   assert.equal(ui.voice.captureRequested,false);
 });
+
+test('standby before daemon accepts capture does not dismiss pending request',async()=>{
+  let state='STANDBY_LISTENING';
+  const ui=setup({pushToTalk:async()=>({status:'accepted'}),getVoiceStatus:async()=>({muted:false}),getWakeStatus:async()=>({state})});
+  await ui.voice.startListening();await ui.voice.refreshStatus();
+  assert.equal(ui.voice.captureRequested,true);
+  state='LISTENING_SPEECH';await ui.voice.refreshStatus();
+  assert.equal(ui.voice.state,'listening');
+  state='STREAMING_TRANSCRIPTION';await ui.voice.refreshStatus();
+  assert.equal(ui.voice.state,'processing');
+  state='FOLLOW_UP_STANDBY';await ui.voice.refreshStatus();
+  assert.equal(ui.voice.captureRequested,false);
+  assert.doesNotMatch(ui.voice.currentSubtitles.status,/complete/i);
+});
+test('late status poll cannot undo mute',async()=>{
+  let resolve;
+  const ui=setup({getVoiceStatus:()=>new Promise(done=>{resolve=done;}),muteVoice:async()=>{},interruptVoice:async()=>{}});
+  const pending=ui.voice.refreshStatus();await ui.voice.mute();
+  resolve({muted:false});await pending;
+  assert.equal(ui.voice.isMuted,true);assert.equal(ui.voice.state,'muted');
+});
+test('capture failure and status timeout remain explicit, without resubmission',async()=>{
+  const ui=setup({pushToTalk:async()=>({status:'accepted'}),getVoiceStatus:async()=>({muted:false}),getWakeStatus:async()=>({state:'STANDBY_LISTENING'})});
+  await ui.voice.startListening();ui.voice.captureDeadline=0;await ui.voice.refreshStatus();
+  assert.equal(ui.voice.state,'error');assert.match(ui.voice.currentSubtitles.status,/timeout/);
+});

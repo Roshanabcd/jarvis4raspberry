@@ -3,7 +3,7 @@
  * Master Requirements: SPEC.md Section 4 & PLAN.md Phase 5
  * Truthfulness: Svg2D vector digital humans (ARIA & ATLAS) and Vrm3D interface.
  * Real FPS measurement, 9 states, 5 mouth visemes, blinking, gaze micro-movements,
- * and audio-reactive lip-sync driver.
+ * and an audio-reactive mouth driver (not phoneme lip-sync).
  */
 
 (function () {
@@ -97,7 +97,7 @@
       const primaryGlow = isOffline ? '#475569' : (isMuted ? '#FFB300' : 'var(--accent, #00D9FF)');
       const secondaryGlow = isOffline ? '#334155' : (isFemale ? '#9868FF' : '#218BFF');
 
-      // Mouth path matching state and live phoneme shape
+      // Mouth path matching state and audio-derived openness
       let mouthPath = 'M 138 162 Q 150 167 162 162';
       let isOpenMouth = false;
 
@@ -341,6 +341,14 @@
       this.dataArray = null;
       this.rafId = null;
       this.isListening = false;
+      this.audioSources = new WeakMap();
+    }
+
+    connectAnalyser(analyser) {
+      if (!analyser) return;
+      this.analyser = analyser;
+      this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+      this.startAnalysis();
     }
 
     /**
@@ -355,14 +363,16 @@
           this.audioContext.resume();
         }
 
-        const source = this.audioContext.createMediaElementSource(audioEl);
-        this.analyser = this.audioContext.createAnalyser();
-        this.analyser.fftSize = 128;
-        source.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-
-        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-        this.startAnalysis();
+        let analyser = this.audioSources.get(audioEl);
+        if (!analyser) {
+          const source = this.audioContext.createMediaElementSource(audioEl);
+          analyser = this.audioContext.createAnalyser();
+          analyser.fftSize = 128;
+          source.connect(analyser);
+          analyser.connect(this.audioContext.destination);
+          this.audioSources.set(audioEl, analyser);
+        }
+        this.connectAnalyser(analyser);
       } catch (err) {
         console.warn('Audio-reactive analyser setup bypassed:', err);
       }
@@ -381,7 +391,7 @@
           for (let i = 0; i < this.dataArray.length; i++) sum += this.dataArray[i];
           const average = sum / this.dataArray.length;
 
-          // Map RMS amplitude to mouth viseme openness
+          // Map measured frequency energy to mouth openness; no phoneme timing.
           if (average < 15) {
             this.controller.setMouthShape('closed');
           } else if (average < 45) {

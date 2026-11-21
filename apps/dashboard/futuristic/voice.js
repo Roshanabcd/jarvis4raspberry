@@ -27,6 +27,9 @@
       this.requestGeneration = 0;
       this.activeJobId = null;
       this.captureRequested = false;
+      this.captureObserved = false;
+      this.captureDeadline = 0;
+      this.statusPollPending = false;
 
       // Web Audio & Visualizer State
       this.audioContext = null;
@@ -70,15 +73,26 @@
       }
       this.audioElement = audio;
 
-      audio.addEventListener('play', () => {
+      audio.addEventListener('playing', () => {
+        if (this.isMuted) { audio.pause(); return; }
         this.setState('speaking');
         this.updateSubtitles('jarvis', this.currentSubtitles.text, 'Speaking');
         if (window.jarvisAvatar) {
           window.jarvisAvatar.setState('speaking');
           if (window.jarvisAvatar.lipSync) {
-            window.jarvisAvatar.lipSync.connectAudioElement(this.audioElement);
+            // Reuse this player's analyser: an audio element cannot have two
+            // MediaElementSource nodes in separate AudioContexts.
+            if (this.audioSourceNode && this.analyser) window.jarvisAvatar.lipSync.connectAnalyser(this.analyser);
+            else window.jarvisAvatar.lipSync.connectAudioElement(this.audioElement);
           }
         }
+      });
+
+      audio.addEventListener('waiting', () => {
+        this.setState(this.isMuted ? 'muted' : 'processing');
+        this.updateSubtitles('jarvis', this.currentSubtitles.text, 'Audio buffering');
+        window.jarvisAvatar?.setState('idle');
+        window.jarvisAvatar?.setMouthShape('closed');
       });
 
       audio.addEventListener('ended', () => {
@@ -216,34 +230,61 @@
 
     startPolling() {
       if (this.pollTimer) clearInterval(this.pollTimer);
-      this.pollTimer = setInterval(async () => {
-        if (!window.jarvisApi) return;
-        try {
-          const status = await window.jarvisApi.getVoiceStatus();
-          this.voiceStatus = status;
-          if (this.captureRequested) {
-            const wake = await window.jarvisApi.getWakeStatus();
-            this.wakeStatus = wake;
-            if (['LISTENING_SPEECH', 'STREAMING_TRANSCRIPTION', 'SILENCE_COUNTDOWN'].includes(wake.state)) this.setState('listening');
-            else if (['STANDBY_LISTENING', 'FOLLOW_UP_STANDBY', 'MUTED'].includes(wake.state)) {
-              this.captureRequested = false;
-              this.setState(wake.state === 'MUTED' ? 'muted' : 'idle');
-            }
+      this.pollTimer = setInterval(() => this.refreshStatus(), 1500);
+    }
+
+    async refreshStatus() {
+      if (!window.jarvisApi || this.statusPollPending) return;
+      this.statusPollPending = true;
+      const generation = this.requestGeneration;
+      try {
+        const status = await window.jarvisApi.getVoiceStatus();
+        const wake = this.captureRequested ? await window.jarvisApi.getWakeStatus() : null;
+        if (generation !== this.requestGeneration) return;
+        this.voiceStatus = status;
+        this.isMuted = Boolean(status.muted);
+        if (wake) {
+          this.wakeStatus = wake;
+          const stages = {
+            LISTENING_SPEECH: ['listening', 'Listening…'],
+            SILENCE_COUNTDOWN: ['listening', 'Waiting for the end of speech…'],
+            STREAMING_TRANSCRIPTION: ['processing', 'Transcribing…'],
+            COMMAND_SUBMITTED: ['processing', 'Speech submitted…'],
+            PROCESSING_AGENT: ['processing', 'Thinking…'],
+            SPEAKING_RESPONSE: ['speaking', 'System speaker active · waveform unavailable'],
+          };
+          const stage = stages[wake.state];
+          if (stage) {
+            if (!this.captureObserved) this.captureDeadline = performance.now() + 120000;
+            this.captureObserved = true;
+            this.setState(stage[0]);
+            this.updateSubtitles('jarvis', stage[1], stage[1]);
+          } else if (wake.state === 'ERROR' || wake.capture_status === 'failed') {
+            this.captureRequested = false;
+            this.setState('error');
+            this.updateSubtitles('user', 'Microphone capture failed. Check the selected host device in Voice Diagnostics.', 'Capture failed');
+          } else if (wake.state === 'MUTED' || (this.captureObserved && ['STANDBY_LISTENING','FOLLOW_UP_STANDBY'].includes(wake.state))) {
+            this.captureRequested = false;
+            this.setState(wake.state === 'MUTED' ? 'muted' : 'idle');
+            this.updateSubtitles('jarvis', wake.state === 'MUTED' ? 'Microphone muted.' : 'Voice session returned to standby. Check the conversation for any reply; playback is not independently confirmed here.', 'Standby');
           }
-          this.isMuted = Boolean(status.muted);
-          if (this.isMuted && this.state !== 'speaking' && this.state !== 'listening') {
-            this.state = 'muted';
-          } else if (!this.isMuted && this.state === 'muted') {
-            this.state = 'idle';
-          }
-          this.updateView();
-        } catch (err) {
-          if (this.state !== 'offline') {
-            this.state = 'offline';
-            this.updateView();
+          if (this.captureRequested && performance.now() >= this.captureDeadline) {
+            this.captureRequested = false;
+            this.setState('error');
+            this.updateSubtitles('user', 'Voice progress could not be confirmed. Use Mute to stop capture; the request was not repeated.', 'Status timeout');
           }
         }
-      }, 3500);
+        if (this.isMuted) this.setState('muted');
+        else if (this.state === 'muted') this.setState('idle');
+        this.updateView();
+      } catch (_) {
+        if (generation === this.requestGeneration) {
+          this.setState('offline');
+          this.updateSubtitles('user', 'Voice service unavailable. Capture stop cannot be confirmed while disconnected.', 'Offline');
+        }
+      } finally {
+        this.statusPollPending = false;
+      }
     }
 
     setState(newState) {
@@ -385,6 +426,8 @@
       this.hideErrorBanner();
       const generation = ++this.requestGeneration;
       this.captureRequested = true;
+      this.captureObserved = false;
+      this.captureDeadline = performance.now() + 15000;
       this.setState('processing');
       this.updateSubtitles('user', 'Requesting the existing microphone owner…', 'Capture requested');
       try {
@@ -559,13 +602,10 @@
       if (!this.audioElement) this.setupAudioElement();
 
       if (speechText) {
-        this.updateSubtitles('jarvis', speechText, 'Speaking');
+        this.updateSubtitles('jarvis', speechText, 'Loading audio');
       }
-
-      this.setState('speaking');
-      if (window.jarvisAvatar) {
-        window.jarvisAvatar.setState('speaking');
-      }
+      this.setState('processing');
+      window.jarvisAvatar?.setState('idle');
 
       // Connect HTML5 Audio to Web Audio Analyser if not already connected
       if (this.audioContext && this.analyser && !this.audioSourceNode) {

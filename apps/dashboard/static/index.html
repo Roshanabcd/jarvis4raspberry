@@ -4033,59 +4033,59 @@ async function stopSpeech() {
 
 let isVoiceRecording = false;
 async function toggleVoiceRecord() {
-  if (isVoiceRecording) return;
+  if (isVoiceRecording) return {status: 'busy', message: 'A voice request is already in progress.'};
   const btn = document.getElementById('mic-btn');
   const icon = document.getElementById('mic-icon');
   const lbl = document.getElementById('mic-label');
   const chatStatus = document.getElementById('chat-status-badge');
-
+  const report = (status, message) => {
+    chatStatus.textContent = message;
+    chatStatus.className = 'badge ' + (status === 'error' ? 'offline' : 'warning');
+    return {status, message};
+  };
   isVoiceRecording = true;
-  btn.style.background = '#e74c3c';
-  btn.style.borderColor = '#ff6b6b';
-  icon.textContent = '🔴';
-  lbl.textContent = 'Listening (3s)...';
-  chatStatus.textContent = '🎤 Capturing Microphone...';
-  chatStatus.className = 'badge warning';
-
+  btn.disabled = true;
+  icon.textContent = '🎤';
+  lbl.textContent = 'Requesting microphone…';
+  report('pending', 'Requesting the existing microphone owner…');
   try {
-    const res = await fetch('/api/voice/listen_once', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ duration_secs: 3 })
+    // Prefer the owner already running on the host. Never open a browser
+    // recorder or compete with the native daemon for the same microphone.
+    const capture = await fetch('/api/voice/push-to-talk', {
+      method: 'POST', headers: {'X-Jarvis-Client': 'dashboard'},
+      signal: AbortSignal.timeout(6000)
     });
-    const d = await res.json();
-    if (d.status === 'ok' && d.transcribed) {
-      addMsg('user', d.transcribed);
-      if (d.response) {
-        addMsg('jarvis', d.response, {
-          audio_url: d.audio_url,
-          provider_label: d.provider_label,
-          is_cloned: d.is_cloned
-        });
-        if (d.audio_url) {
-          const autoSpeak = document.getElementById('chat-auto-speak');
-          if (!autoSpeak || autoSpeak.checked) {
-            playJarvisAudio(d.audio_url);
-          }
-        }
-      }
-      chatStatus.textContent = '🟢 Ready';
-      chatStatus.className = 'badge online';
-    } else if (d.status === 'empty' || !d.transcribed) {
-      chatStatus.textContent = '⚠️ No speech detected (silence)';
-      chatStatus.className = 'badge warning';
-      setTimeout(() => { chatStatus.textContent = '🟢 Ready'; chatStatus.className = 'badge online'; }, 3000);
-    } else {
-      chatStatus.textContent = '⚠️ ' + (d.message || 'Capture failed');
-      chatStatus.className = 'badge offline';
+    if (capture.ok) {
+      const accepted = await capture.json();
+      if (accepted.status !== 'accepted') return report('error', 'Microphone request was not confirmed.');
+      return report('accepted', 'Microphone request accepted. Watch Voice for listening, transcription and playback status.');
     }
-  } catch (err) {
-    chatStatus.textContent = '❌ Microphone error: ' + err.message;
-    chatStatus.className = 'badge offline';
+    // Only a confirmed absence of a native owner permits one-shot capture.
+    // Do not retry after a timeout or an authentication/permission failure.
+    if (capture.status !== 409) return report('error', 'Voice service unavailable or microphone access denied.');
+    lbl.textContent = 'Capturing microphone…';
+    const res = await fetch('/api/voice/listen_once', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({duration_secs: 3}), signal: AbortSignal.timeout(90000)
+    });
+    if (!res.ok) return report('error', 'Voice service could not complete capture.');
+    const d = await res.json();
+    // Check errors before missing transcripts: a failed recorder is not silence.
+    if (d.status === 'error') return report('error', 'Microphone capture unavailable. Check Voice Diagnostics for device and service status.');
+    if (d.status === 'empty') return report('empty', 'No speech recognized.');
+    if (d.status !== 'ok' || !d.transcribed) return report('error', 'Speech recognition outcome could not be confirmed.');
+    addMsg('user', d.transcribed);
+    if (!d.response) return report('error', 'Speech recognized, but no AI reply was received.');
+    addMsg('jarvis', d.response, {provider_label: d.provider_label});
+    // listen_once already queues system playback. Do not play audio_url again.
+    return d.job_id
+      ? report('queued', 'Reply received. System speech queued; check Voice Jobs for playback status.')
+      : report('error', 'Reply received, but speech delivery is unavailable.');
+  } catch (_) {
+    return report('error', 'Voice request outcome could not be confirmed. It was not automatically repeated.');
   } finally {
     isVoiceRecording = false;
-    btn.style.background = '#182042';
-    btn.style.borderColor = 'var(--card-border)';
+    btn.disabled = false;
     icon.textContent = '🎤';
     lbl.textContent = 'Speak';
   }
