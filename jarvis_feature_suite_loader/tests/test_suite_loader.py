@@ -21,11 +21,11 @@ class TestUnifiedSuiteLoader(unittest.TestCase):
         suite_health = client.get("/api/suite/health")
         self.assertEqual(suite_health.status_code, 200)
         body = suite_health.json()
-        self.assertEqual(body["total_registered"], 42)
-        self.assertEqual(body["mounted_count"], 42)
-        self.assertEqual(body["operational_count"], 42)
-        self.assertEqual(body["discovered_count"], 42)
-        self.assertEqual(body["installed_count"], 42)
+        self.assertEqual(body["total_registered"], 43)
+        self.assertEqual(body["mounted_count"], 43)
+        self.assertEqual(body["operational_count"], 43)
+        self.assertEqual(body["discovered_count"], 43)
+        self.assertEqual(body["installed_count"], 43)
 
         # 3. Check every single module's health and UI endpoint
         for feat in body["features"]:
@@ -40,7 +40,7 @@ class TestUnifiedSuiteLoader(unittest.TestCase):
         diag = client.get("/api/suite/diagnostics")
         self.assertEqual(diag.status_code, 200)
         diag_body = diag.json()
-        self.assertEqual(diag_body["total_modules"], 42)
+        self.assertEqual(diag_body["total_modules"], 43)
         self.assertIn("cpu_percent", diag_body)
         self.assertIn("ram_used_mb", diag_body)
 

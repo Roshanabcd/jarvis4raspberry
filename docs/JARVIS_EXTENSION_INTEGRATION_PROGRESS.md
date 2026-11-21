@@ -36,17 +36,18 @@ Tests: four synthetic in-process API checks and one actual Chromium navigation c
 | 40 | Permissions & Approval Center | Yes | Yes | Yes | Yes | 6/6 | Operational (Fail-Closed Enforcement) |
 | 41 | Universal Notification Center | Yes | Yes | Yes | Yes | 6/6 | Operational |
 | 42 | Unified Extension Manager & SDK | Yes | Yes | Yes | Yes | 10/10 | Operational |
+| 43 | Autonomous Screen Guardian & AI Repair Agent | Yes | Yes | Yes | Yes | 18/18 | Operational (Permission-Gated AI Repair) |
 
 ---
 
 ## Metric Breakdown (Truthful State Verification)
 
-- **Total Platform Modules**: 42 / 42
-- **Discovered**: 42 (17 native baseline + 25 downloaded archives)
-- **Installed**: 42 (All 25 modules extracted, namespaced, structured into `modules/`, and mounted)
-- **Configured**: 42 (Isolated sqlite stores in `data/`, environment variables validated, route namespaces registered)
-- **Enabled**: 42 (All enabled by default with individual dynamic toggle support via `/api/suite/modules/{id}/toggle`)
-- **Operational**: 42 (All health checks return HTTP 200 `status: healthy` / `ok`, zero mock execution)
+- **Total Platform Modules**: 43 / 43
+- **Discovered**: 43 (17 native baseline + 26 extension archives/directories)
+- **Installed**: 43 (All 26 modules extracted, namespaced, structured into `modules/`, and mounted)
+- **Configured**: 43 (Isolated sqlite stores in `data/`, environment variables validated, route namespaces registered)
+- **Enabled**: 43 (All enabled by default with individual dynamic toggle support via `/api/suite/modules/{id}/toggle`)
+- **Operational**: 43 (All health checks return HTTP 200 `status: healthy` / `ok`, zero mock execution)
 - **Degraded**: 0
 - **Blocked**: 0
 - **Failed**: 0
@@ -57,3 +58,4 @@ Tests: four synthetic in-process API checks and one actual Chromium navigation c
 - **Module 31 (Robot Brain)**: Hardware disarmed by default; simulated physics only; zero real servo actuation without explicit operator confirmation.
 - **Module 34 (Finance Manager)**: Simulation / paper trading only; zero real money movements or API brokerage keys activated.
 - **Module 40 (Approval Center)**: Active human-in-the-loop gatekeeper with fail-closed policy enforcement on destructive shell, file deletion, and external dispatch.
+- **Module 43 (Screen Guardian & AI Repair Agent)**: User-authorized desktop screen monitoring with explicit consent required, local OCR, and permission-controlled AI coding agent repair with automated test verification.

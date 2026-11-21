@@ -531,6 +531,25 @@ FEATURE_REGISTRY: List[Dict[str, Any]] = [
         "description": "Archive scanner, compatibility analyzer, dynamic registry, health monitor, and shared SDK.",
         "permissions": ["extensions:manage", "sdk:host"],
     },
+    {
+        "module_number": 43,
+        "id": "autonomous_screen_guardian",
+        "package": "modules.module_43_autonomous_screen_guardian",
+        "name": "Autonomous Screen Guardian & AI Repair Agent",
+        "category": "Security & Governance",
+        "tier": "MEDIUM",
+        "ui_path": "/screen-guardian",
+        "health_path": "/api/v1/screen-guardian/health",
+        "description": "User-authorized desktop screen monitoring, real-time local OCR, contextual error detection, and permission-controlled AI coding agent repair with automated test verification.",
+        "permissions": [
+            "screen.monitor.explicit_consent",
+            "screen.ocr.read",
+            "vision.provider.invoke_optional",
+            "repair.workspace.read_write_authorized",
+            "repair.agent.execute_approved",
+            "system.telemetry.read",
+        ],
+    },
 ]
 
 

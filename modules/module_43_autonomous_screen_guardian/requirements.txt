@@ -1,0 +1,9 @@
+fastapi>=0.92.0
+uvicorn>=0.17.6
+pydantic>=1.10.4
+httpx>=0.23.3
+Pillow>=9.0.0
+# Optional on Raspberry Pi 5 / Linux desktop for hardware telemetry & enhanced OCR:
+# psutil>=5.9.0
+# pytesseract>=0.3.10
+# mss>=9.0.1
