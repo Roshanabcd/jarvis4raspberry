@@ -510,6 +510,10 @@
       this.notifyListeners();
     }
 
+    setAvatarType(type) {
+      return this.setAvatar(type);
+    }
+
     setMouthShape(shape) {
       this.mouthShape = shape;
       this.syncRenderer();

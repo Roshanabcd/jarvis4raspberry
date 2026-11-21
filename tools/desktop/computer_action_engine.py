@@ -27,6 +27,14 @@ class ComputerActionEngine:
     def get_action_history(self) -> List[Dict[str, Any]]:
         return self._action_history[-self._max_history:]
 
+    def move_cursor(self, x: int, y: int, smooth: bool = True) -> Dict[str, Any]:
+        """Move native desktop pointer to (x, y) with visible movement."""
+        from tools.desktop.native_backend import native_backend
+        from tools.desktop.unified_computer_service import unified_computer_service
+        if unified_computer_service.is_emergency_stopped():
+            return {"status": "error", "message": "Emergency stop is active", "verified": False}
+        return native_backend.move_cursor(x, y, duration=0.25, smooth=smooth)
+
     def click_element(
         self,
         x: int,
@@ -36,6 +44,10 @@ class ComputerActionEngine:
         verify: bool = True
     ) -> Dict[str, Any]:
         """Perform mouse click at (x, y) with pre- and post-action verification."""
+        from tools.desktop.unified_computer_service import unified_computer_service
+        if unified_computer_service.is_emergency_stopped():
+            return {"status": "error", "message": "Emergency stop is active", "verified": False}
+
         action_id = f"act_{uuid.uuid4().hex[:8]}"
         t_start = time.perf_counter()
 

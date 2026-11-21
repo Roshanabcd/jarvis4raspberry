@@ -1,19 +1,19 @@
 {
-  "timestamp": "2026-11-20T14:46:17.179Z",
+  "timestamp": "2026-11-21T06:42:25.977Z",
   "files": [
     {
       "file": "api.js",
-      "rawBytes": 27590,
-      "rawKb": 26.94,
-      "gzipBytes": 5854,
-      "gzipKb": 5.72
+      "rawBytes": 28320,
+      "rawKb": 27.66,
+      "gzipBytes": 5985,
+      "gzipKb": 5.84
     },
     {
       "file": "avatar.js",
-      "rawBytes": 23077,
-      "rawKb": 22.54,
-      "gzipBytes": 5800,
-      "gzipKb": 5.66
+      "rawBytes": 23500,
+      "rawKb": 22.95,
+      "gzipBytes": 5898,
+      "gzipKb": 5.76
     },
     {
       "file": "chat.js",
@@ -31,9 +31,9 @@
     },
     {
       "file": "developer.js",
-      "rawBytes": 39088,
-      "rawKb": 38.17,
-      "gzipBytes": 8493,
+      "rawBytes": 39073,
+      "rawKb": 38.16,
+      "gzipBytes": 8490,
       "gzipKb": 8.29
     },
     {
@@ -45,10 +45,10 @@
     },
     {
       "file": "operations.js",
-      "rawBytes": 82871,
-      "rawKb": 80.93,
-      "gzipBytes": 14504,
-      "gzipKb": 14.16
+      "rawBytes": 83695,
+      "rawKb": 81.73,
+      "gzipBytes": 14789,
+      "gzipKb": 14.44
     },
     {
       "file": "robot_devices.js",
@@ -59,10 +59,10 @@
     },
     {
       "file": "shell.js",
-      "rawBytes": 34241,
-      "rawKb": 33.44,
-      "gzipBytes": 7768,
-      "gzipKb": 7.59
+      "rawBytes": 34300,
+      "rawKb": 33.5,
+      "gzipBytes": 7785,
+      "gzipKb": 7.6
     },
     {
       "file": "theme.css",
@@ -73,14 +73,14 @@
     },
     {
       "file": "voice.js",
-      "rawBytes": 45687,
-      "rawKb": 44.62,
-      "gzipBytes": 10253,
-      "gzipKb": 10.01
+      "rawBytes": 49913,
+      "rawKb": 48.74,
+      "gzipBytes": 11416,
+      "gzipKb": 11.15
     }
   ],
-  "totalRawKb": 400.48,
-  "totalGzipKb": 83.53,
+  "totalRawKb": 406.58,
+  "totalGzipKb": 85.18,
   "gzipTargetLimitKb": 250,
   "passLimit": true,
   "zeroMockData": true,

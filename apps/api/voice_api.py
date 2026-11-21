@@ -174,6 +174,11 @@ def mute_voice():
     external_owner, _ = _daemon_snapshot()
     if external_owner:
         _send_daemon_command_or_raise("mute")
+        try:
+            from apps.voice.daemon_status import publish_status
+            publish_status("MUTED", True)
+        except Exception:
+            pass
         return {"status": "ok", "muted": True, "target": "daemon"}
     voice_service.mute()
     return {"status": "ok", "muted": True, "target": "backend", "state": voice_service.get_state()}
@@ -185,6 +190,11 @@ def unmute_voice():
     external_owner, _ = _daemon_snapshot()
     if external_owner:
         _send_daemon_command_or_raise("unmute")
+        try:
+            from apps.voice.daemon_status import publish_status
+            publish_status("STANDBY_LISTENING", True)
+        except Exception:
+            pass
         return {"status": "ok", "muted": False, "target": "daemon"}
     voice_service.unmute()
     return {"status": "ok", "muted": False, "target": "backend", "state": voice_service.get_state()}

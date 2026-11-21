@@ -1775,11 +1775,26 @@
 
   <!-- 16. COMPUTER USE & VISUAL AUTOMATION -->
   <div id="tab-computer" class="tab" role="tabpanel" aria-labelledby="nav-computer">
-    <p id="comp-action-feedback" class="status-msg" role="status" aria-live="polite" style="margin-bottom:12px;font-size:0.84rem;color:var(--muted)">Computer Use controls the host X11 desktop. Existing observe and action buttons are unchanged.</p>
-    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <p id="comp-action-feedback" class="status-msg" role="status" aria-live="polite" style="margin:0;font-size:0.84rem;color:var(--muted)">Intelligent computer automation: voice, mouse, keyboard, and browser control.</p>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label for="comp-safety-mode" style="font-size:0.75rem;color:var(--muted)">Mode:</label>
+        <select id="comp-safety-mode" onchange="changeComputerMode(this.value)" style="background:#0b111e;border:1px solid var(--card-border);color:var(--accent);padding:4px 8px;border-radius:4px;font-size:0.75rem">
+          <option value="command_control">Mode 3: Command Control</option>
+          <option value="observe">Mode 1: Observe Only</option>
+          <option value="guided">Mode 2: Guided Approval</option>
+          <option value="trusted_workflow">Mode 4: Trusted Workflow</option>
+        </select>
+        <button id="comp-estop-btn" class="btn" style="background:#ef4444;color:#fff;font-weight:bold;padding:4px 12px;font-size:0.75rem" onclick="triggerComputerStop()">🛑 STOP</button>
+        <button id="comp-reset-btn" class="btn dark" style="padding:4px 8px;font-size:0.75rem;display:none" onclick="resetComputerStop()">✓ Reset Stop</button>
+      </div>
+    </div>
+
+    <!-- Active Session Metrics HUD -->
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 16px;">
       <div class="card">
-        <h3>Display & Session</h3>
-        <div class="val" id="comp-res-val" style="font-size:1.3rem">1360 × 768</div>
+        <h3>Display & Server</h3>
+        <div class="val" id="comp-res-val" style="font-size:1.2rem">1360 × 768</div>
         <div class="sub" id="comp-disp-sub">Native X11 on :0</div>
       </div>
       <div class="card">
@@ -1788,19 +1803,116 @@
         <div class="sub" id="comp-act-title" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">—</div>
       </div>
       <div class="card">
-        <h3>Open Windows</h3>
-        <div class="val" id="comp-win-count" style="font-size:1.3rem">0</div>
-        <div class="sub">Visible Applications</div>
+        <h3>Mouse Pointer</h3>
+        <div class="val" id="comp-cursor-val" style="font-size:1.2rem;color:var(--accent)">—</div>
+        <div class="sub" id="comp-cursor-sub">Desktop Coordinates</div>
       </div>
       <div class="card">
-        <h3>Computer Task State</h3>
-        <div class="val" id="comp-task-state" style="font-size:1.1rem;color:var(--accent)">IDLE</div>
-        <div class="sub" id="comp-task-sub">Verified Plan-Act-Observe</div>
+        <h3>Automation State</h3>
+        <div class="val" id="comp-task-state" style="font-size:1.1rem;color:var(--success)">ACTIVE</div>
+        <div class="sub" id="comp-task-sub">Verified Observe-Act-Verify</div>
       </div>
     </div>
 
-    <!-- Observation & Visual Perception -->
-    <div class="responsive-2col observe-grid">
+    <!-- AI Command Center & Browser Automation Bar -->
+    <div class="panel" style="margin-bottom:16px;background:rgba(0,210,255,0.03);border:1px solid rgba(0,210,255,0.2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="color:var(--accent);margin:0">⚡ AI Natural Language Command Center</h2>
+        <span id="comp-ai-indicator" class="badge online" style="font-size:0.7rem">READY</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">Enter natural language instructions (e.g., <em>"Select option 1 and click Submit"</em>, <em>"Move mouse to search box"</em>, <em>"Type Hello JARVIS"</em>, <em>"Press Ctrl+A"</em>).</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="comp-ai-cmd-in" placeholder="e.g. Select option 1 and click Submit..." style="flex:1;min-width:280px;padding:8px 12px;background:#050711;border:1px solid var(--card-border);border-radius:4px;color:#fff" onkeydown="if(event.key==='Enter')executeNaturalComputerCommand()">
+        <button class="btn" style="padding:8px 18px" onclick="executeNaturalComputerCommand()">Execute Command</button>
+        <button class="btn dark" style="padding:8px 12px;font-size:0.8rem" onclick="openTestBrowserForm()">🌐 Open Test Form</button>
+      </div>
+      <div id="comp-ai-cmd-output" role="status" aria-live="polite" style="margin-top:10px;padding:8px 12px;background:#02040a;border-radius:4px;border:1px solid var(--card-border);font-size:0.82rem;font-family:monospace;min-height:32px">Ready for command.</div>
+    </div>
+
+    <!-- Antigravity IDE Automation & Option-1 Auto-Approver -->
+    <div class="panel" style="margin-bottom:16px;background:rgba(16,185,129,0.03);border:1px solid rgba(16,185,129,0.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 style="color:var(--success);margin:0">🤖 Antigravity IDE Auto-Execution & Option-1 Supervisor</h2>
+        <span id="comp-ag-status-badge" class="badge online" style="font-size:0.7rem">ACTIVE</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">Automatically accepts Option 1 and submits in running Antigravity IDE conversations, and ensures commands execute eagerly without confirmation prompts.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn" style="background:#10b981;color:#fff;padding:8px 16px" onclick="triggerAntigravityAutoApproveOnce()">⚡ Auto-Accept Option 1 & Send Now</button>
+        <button class="btn dark" style="padding:8px 14px" onclick="applyAntigravitySettingsUI()">⚙️ Re-Apply Settings</button>
+        <button id="comp-ag-daemon-toggle" class="btn dark" style="padding:8px 14px" onclick="toggleAntigravitySupervisorDaemon()">▶ Start Supervisor Daemon</button>
+      </div>
+      <div id="comp-ag-feedback" role="status" aria-live="polite" style="margin-top:10px;padding:8px 12px;background:#02040a;border-radius:4px;border:1px solid var(--card-border);font-size:0.82rem;font-family:monospace;min-height:30px">Policy: CASCADE_COMMANDS_AUTO_EXECUTION_EAGER | Hook: PreToolUse allow active</div>
+    </div>
+
+    <!-- Mouse & Keyboard Controls -->
+    <div class="responsive-2col" style="margin-bottom:16px">
+      <!-- Direct Mouse Controls -->
+      <div class="panel">
+        <h2>🖱️ Native Mouse Controls</h2>
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.75rem;color:var(--muted)">Move Mouse to Coordinates (X, Y)</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <input id="comp-mouse-x" type="number" placeholder="X" style="width:80px;padding:6px;background:#050711;border:1px solid var(--card-border);color:#fff;border-radius:4px">
+            <input id="comp-mouse-y" type="number" placeholder="Y" style="width:80px;padding:6px;background:#050711;border:1px solid var(--card-border);color:#fff;border-radius:4px">
+            <button class="btn" style="padding:6px 12px;font-size:0.8rem" onclick="moveMouseToCoords()">Move</button>
+            <button class="btn dark" style="padding:6px 10px;font-size:0.8rem" onclick="refreshCursorPosition()">📍 Position</button>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.75rem;color:var(--muted)">Mouse Clicks & Actions</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="clickMouseBtn('left')">Left Click</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="clickMouseBtn('right')">Right Click</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="clickMouseBtn('double')">Double Click</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="scrollComputer('up')">📜 Scroll Up</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="scrollComputer('down')">📜 Scroll Down</button>
+          </div>
+        </div>
+        <div>
+          <label for="comp-find-in" style="font-size:0.75rem;color:var(--muted)">Find & Click Named Element</label>
+          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
+            <input id="comp-find-in" placeholder="e.g. 'Submit', 'Option 1', 'settings'..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')findComputerElement()">
+            <button class="btn dark" onclick="findComputerElement()">Find</button>
+            <button class="btn" onclick="clickComputerNamed()">Click</button>
+          </div>
+          <div id="comp-find-result" role="status" aria-live="polite" style="margin-top:6px;font-size:0.75rem;font-family:monospace;background:#050711;padding:6px 8px;border-radius:4px;border:1px solid var(--card-border)">Enter query to locate element.</div>
+        </div>
+      </div>
+
+      <!-- Keyboard Controls & Window Switcher -->
+      <div class="panel">
+        <h2>⌨️ Native Keyboard Controls</h2>
+        <div style="margin-bottom:12px">
+          <label for="comp-type-in" style="font-size:0.75rem;color:var(--muted)">Type Text into Active Target</label>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <input id="comp-type-in" placeholder="Text to type..." style="flex:1" onkeydown="if(event.key==='Enter')typeComputerText()">
+            <button class="btn" onclick="typeComputerText()">Type</button>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:0.75rem;color:var(--muted)">Keyboard Shortcuts</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('ctrl+a')">Ctrl+A</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('ctrl+c')">Ctrl+C</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('ctrl+v')">Ctrl+V</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('enter')">Enter</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('escape')">Esc</button>
+            <button class="btn dark" style="padding:6px 12px;font-size:0.8rem" onclick="pressHotkeyBtn('tab')">Tab</button>
+          </div>
+        </div>
+        <div>
+          <label style="font-size:0.75rem;color:var(--muted)">Window Switcher</label>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+            <button class="btn dark" style="padding:6px 10px;font-size:0.75rem" onclick="switchComputerWindow('chrome')">🌐 Chrome</button>
+            <button class="btn dark" style="padding:6px 10px;font-size:0.75rem" onclick="switchComputerWindow('vscode')">📝 VS Code</button>
+            <button class="btn dark" style="padding:6px 10px;font-size:0.75rem" onclick="switchComputerWindow('terminal')">💻 Terminal</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Observation & Visual Preview -->
+    <div class="responsive-2col observe-grid" style="margin-bottom:16px">
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <h2>👁️ Visual Desktop Observation</h2>
@@ -1817,57 +1929,23 @@
         <div id="comp-snap-meta" style="font-size:0.75rem;color:var(--muted);margin-top:8px;font-family:monospace"></div>
       </div>
 
-      <!-- Semantic Element Finder & Action Console -->
-      <div class="panel">
-        <h2>🖱️ Desktop Action & Element Finder</h2>
-        <div style="margin-bottom:12px">
-          <label for="comp-find-in" style="font-size:0.75rem;color:var(--muted)">Find & Highlight Element</label>
-          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
-            <input id="comp-find-in" placeholder="e.g. 'settings', 'search field', 'close', 'tab 2'..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')findComputerElement()">
-            <button class="btn dark" onclick="findComputerElement()">Find</button>
-            <button class="btn" onclick="clickComputerNamed()">Click</button>
-          </div>
-          <div id="comp-find-result" role="status" aria-live="polite" style="margin-top:8px;font-size:0.75rem;font-family:monospace;background:#050711;padding:8px;border-radius:6px;border:1px solid var(--card-border);min-height:40px">Enter element query above to inspect coordinates.</div>
-        </div>
-
-        <div style="margin-bottom:12px">
-          <label style="font-size:0.75rem;color:var(--muted)">Quick Action Shortcuts</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="scrollComputer('down')">📜 Scroll Down</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="scrollComputer('up')">📜 Scroll Up</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('chrome')">🌐 Chrome</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('vscode')">📝 VS Code</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="switchComputerWindow('terminal')">💻 Terminal</button>
-          </div>
-        </div>
-
-        <div>
-          <label for="comp-type-in" style="font-size:0.75rem;color:var(--muted)">Type Text into Field</label>
-          <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
-            <input id="comp-type-in" placeholder="Text to type into active window..." style="flex:1;min-width:160px" onkeydown="if(event.key==='Enter')typeComputerText()">
-            <button class="btn" onclick="typeComputerText()">Type</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Open Windows List & Action History -->
-    <div class="responsive-2col">
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <h2>🪟 Open Desktop Windows</h2>
-          <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadComputerStatus()">↺ Refresh</button>
-        </div>
-        <div id="comp-windows-list" style="max-height:220px;overflow-y:auto;font-size:0.8rem">Loading windows...</div>
-      </div>
-
+      <!-- Action Verification History -->
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
           <h2>📋 Action Verification History</h2>
           <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadComputerHistory()">↺ Refresh</button>
         </div>
-        <div id="comp-history-list" style="max-height:220px;overflow-y:auto;font-size:0.8rem">Loading history...</div>
+        <div id="comp-history-list" style="max-height:280px;overflow-y:auto;font-size:0.8rem">Loading history...</div>
       </div>
+    </div>
+
+    <!-- Open Desktop Windows -->
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h2>🪟 Open Desktop Windows</h2>
+        <button class="btn dark" style="padding:4px 8px;font-size:0.75rem" onclick="loadComputerStatus()">↺ Refresh</button>
+      </div>
+      <div id="comp-windows-list" style="max-height:180px;overflow-y:auto;font-size:0.8rem">Loading windows...</div>
     </div>
   </div>
 
@@ -6139,11 +6217,36 @@ async function loadComputerStatus() {
     const d = await r.json();
     const res = d.resolution || {};
     const act = d.active_window || {};
+    const cur = d.cursor_position || {};
+    const srv = d.server_type || 'x11';
+
     document.getElementById('comp-res-val').textContent = `${res.width || 1360} × ${res.height || 768}`;
-    document.getElementById('comp-disp-sub').textContent = `Native X11 on ${d.display || ':0'}`;
+    document.getElementById('comp-disp-sub').textContent = `${srv.toUpperCase()} on ${d.display || ':0'}`;
     document.getElementById('comp-act-app').textContent = (act.app || 'desktop').toUpperCase();
     document.getElementById('comp-act-title').textContent = act.title || 'Desktop Root';
-    document.getElementById('comp-win-count').textContent = d.open_window_count || 0;
+
+    if (document.getElementById('comp-cursor-val')) {
+      document.getElementById('comp-cursor-val').textContent = `(${cur.x ?? '—'}, ${cur.y ?? '—'})`;
+    }
+
+    if (document.getElementById('comp-safety-mode') && d.mode) {
+      document.getElementById('comp-safety-mode').value = d.mode;
+    }
+
+    const estopBtn = document.getElementById('comp-estop-btn');
+    const resetBtn = document.getElementById('comp-reset-btn');
+    const stateVal = document.getElementById('comp-task-state');
+
+    if (d.emergency_stopped) {
+      if (stateVal) { stateVal.textContent = 'STOPPED'; stateVal.style.color = 'var(--danger)'; }
+      if (estopBtn) estopBtn.style.display = 'none';
+      if (resetBtn) resetBtn.style.display = 'inline-block';
+      showUiFeedback('🚨 EMERGENCY STOP is active. Computer control is halted.', { tone: 'error', statusId: 'comp-action-feedback' });
+    } else {
+      if (stateVal) { stateVal.textContent = (d.mode || 'ACTIVE').toUpperCase(); stateVal.style.color = 'var(--success)'; }
+      if (estopBtn) estopBtn.style.display = 'inline-block';
+      if (resetBtn) resetBtn.style.display = 'none';
+    }
 
     // Load windows list
     const wr = await fetch('/api/computer/windows');
@@ -6330,6 +6433,202 @@ async function loadComputerHistory() {
     console.error("loadComputerHistory error:", e);
   }
 }
+
+async function executeNaturalComputerCommand() {
+  const inputEl = document.getElementById('comp-ai-cmd-in');
+  const outEl = document.getElementById('comp-ai-cmd-output');
+  const cmd = inputEl ? inputEl.value.trim() : '';
+  if (!cmd) return;
+
+  outEl.innerHTML = '<span style="color:var(--accent)">Executing instruction…</span>';
+  showUiFeedback(`Executing: "${cmd}"`, { tone: 'busy', statusId: 'comp-action-feedback' });
+
+  try {
+    const r = await fetch('/api/computer/execute-command', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({instruction: cmd})
+    });
+    const d = await r.json();
+    const isOk = d.verified || d.status === 'ok';
+    const color = isOk ? 'var(--success)' : (d.status === 'ambiguous' ? '#ffaa00' : 'var(--danger)');
+
+    outEl.innerHTML = `<span style="color:${color}">[${(d.status || 'DONE').toUpperCase()}]</span> ${d.response || 'Action completed.'}`;
+    showUiFeedback(d.response || 'Command executed.', { tone: isOk ? 'ok' : 'warn', statusId: 'comp-action-feedback' });
+    loadComputerStatus();
+    loadComputerHistory();
+  } catch(e) {
+    outEl.innerHTML = `<span style="color:var(--danger)">[ERROR]</span> ${e.message}`;
+    showUiFeedback('Command error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function triggerComputerStop() {
+  try {
+    const r = await fetch('/api/computer/stop', {method: 'POST'});
+    const d = await r.json();
+    showUiFeedback('🛑 EMERGENCY STOP TRIGGERED. All actions cancelled.', { tone: 'error', statusId: 'comp-action-feedback' });
+    loadComputerStatus();
+    loadComputerHistory();
+  } catch(e) {
+    showUiFeedback('Stop error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function triggerAntigravityAutoApproveOnce() {
+  const fb = document.getElementById('comp-ag-feedback');
+  fb.textContent = 'Scanning Antigravity IDE for option 1 modals...';
+  try {
+    const res = await fetch('/api/computer/antigravity/auto-approve/run-once', { method: 'POST' });
+    const data = await res.json();
+    if (data.actions && data.actions.length > 0) {
+      fb.innerHTML = `<span style="color:var(--success)">✓ Auto-accepted Option 1 and sent in ${data.actions.length} conversation(s).</span>`;
+    } else {
+      fb.innerHTML = '<span style="color:var(--muted)">No pending confirmation modal detected in Antigravity. Auto-execution policy is active.</span>';
+    }
+  } catch (e) {
+    fb.innerHTML = `<span style="color:var(--danger)">Error: ${e.message}</span>`;
+  }
+}
+
+async function applyAntigravitySettingsUI() {
+  const fb = document.getElementById('comp-ag-feedback');
+  fb.textContent = 'Applying Antigravity eager auto-execution policy...';
+  try {
+    const res = await fetch('/api/computer/antigravity/apply-settings', { method: 'POST' });
+    const data = await res.json();
+    fb.innerHTML = `<span style="color:var(--success)">✓ Applied settings to config.json, outside-of-project.json, and hooks.json.</span>`;
+  } catch (e) {
+    fb.innerHTML = `<span style="color:var(--danger)">Error: ${e.message}</span>`;
+  }
+}
+
+let agDaemonRunning = false;
+async function toggleAntigravitySupervisorDaemon() {
+  const btn = document.getElementById('comp-ag-daemon-toggle');
+  const fb = document.getElementById('comp-ag-feedback');
+  const endpoint = agDaemonRunning ? '/api/computer/antigravity/auto-approve/stop' : '/api/computer/antigravity/auto-approve/start';
+  try {
+    const res = await fetch(endpoint, { method: 'POST' });
+    const data = await res.json();
+    agDaemonRunning = !agDaemonRunning;
+    btn.textContent = agDaemonRunning ? '⏹ Stop Supervisor Daemon' : '▶ Start Supervisor Daemon';
+    btn.style.background = agDaemonRunning ? '#ef4444' : '';
+    fb.textContent = `Supervisor Daemon ${agDaemonRunning ? 'running (polling every 1.5s)' : 'stopped'}.`;
+  } catch (e) {
+    fb.textContent = `Daemon toggle error: ${e.message}`;
+  }
+}
+
+async function resetComputerStop() {
+  try {
+    const r = await fetch('/api/computer/reset-stop', {method: 'POST'});
+    const d = await r.json();
+    showUiFeedback('✓ Emergency stop reset.', { tone: 'ok', statusId: 'comp-action-feedback' });
+    loadComputerStatus();
+  } catch(e) {
+    showUiFeedback('Reset error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function changeComputerMode(mode) {
+  try {
+    const r = await fetch('/api/computer/mode', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({mode: mode})
+    });
+    const d = await r.json();
+    showUiFeedback(`Safety mode set to ${mode.toUpperCase()}.`, { tone: 'ok', statusId: 'comp-action-feedback' });
+    loadComputerStatus();
+  } catch(e) {
+    showUiFeedback('Mode error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function moveMouseToCoords() {
+  const x = parseInt(document.getElementById('comp-mouse-x').value, 10);
+  const y = parseInt(document.getElementById('comp-mouse-y').value, 10);
+  if (isNaN(x) || isNaN(y)) {
+    showUiFeedback('Enter valid X and Y coordinates', { tone: 'warn', statusId: 'comp-action-feedback' });
+    return;
+  }
+  try {
+    showUiFeedback(`Moving pointer to (${x}, ${y})…`, { tone: 'busy', statusId: 'comp-action-feedback' });
+    const r = await fetch('/api/computer/mouse/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({x: x, y: y, smooth: true})
+    });
+    const d = await r.json();
+    showUiFeedback(`Cursor moved to (${x}, ${y}).`, { tone: 'ok', statusId: 'comp-action-feedback' });
+    refreshCursorPosition();
+    loadComputerHistory();
+  } catch(e) {
+    showUiFeedback('Move error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function refreshCursorPosition() {
+  try {
+    const r = await fetch('/api/computer/mouse/position');
+    const d = await r.json();
+    if (d.position && document.getElementById('comp-cursor-val')) {
+      document.getElementById('comp-cursor-val').textContent = `(${d.position.x}, ${d.position.y})`;
+    }
+  } catch(e) {}
+}
+
+async function clickMouseBtn(btn) {
+  try {
+    const act = btn === 'double' ? 'double_click' : (btn === 'right' ? 'right_click' : 'click');
+    const clicks = btn === 'double' ? 2 : 1;
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: act, clicks: clicks, verify: true})
+    });
+    const d = await r.json();
+    showUiFeedback(`${btn.toUpperCase()} Click: ${d.status}.`, { tone: 'ok', statusId: 'comp-action-feedback' });
+    loadComputerHistory();
+    refreshCursorPosition();
+  } catch(e) {
+    showUiFeedback('Click error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function pressHotkeyBtn(hotkey) {
+  try {
+    const r = await fetch('/api/computer/action', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'press_hotkey', hotkey: hotkey})
+    });
+    const d = await r.json();
+    showUiFeedback(`Pressed ${hotkey.toUpperCase()}.`, { tone: 'ok', statusId: 'comp-action-feedback' });
+    loadComputerHistory();
+  } catch(e) {
+    showUiFeedback('Hotkey error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
+async function openTestBrowserForm() {
+  try {
+    const testUrl = window.location.origin + '/fixtures/test-page';
+    showUiFeedback('Opening test fixture in browser backend…', { tone: 'busy', statusId: 'comp-action-feedback' });
+    const r = await fetch('/api/computer/browser/navigate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url: testUrl})
+    });
+    const d = await r.json();
+    showUiFeedback('Test fixture opened in browser backend.', { tone: 'ok', statusId: 'comp-action-feedback' });
+    loadComputerStatus();
+  } catch(e) {
+    showUiFeedback('Browser open error: ' + e.message, { tone: 'error', statusId: 'comp-action-feedback' });
+  }
+}
+
 
 // ─── Phase 5: Multi-AI Agent Orchestrator & Self-Healing ──────
 async function loadAgentManager() {

@@ -878,6 +878,8 @@ class JARVISBrain:
             "stream_volume_control", "master_volume_control", "theme_control",
             "screen_observe", "screen_screenshot", "screen_find_element", "screen_click_element",
             "screen_scroll", "screen_switch_window", "screen_switch_window_index", "screen_type_text", "screen_active_tab",
+            "computer_command",
+            "antigravity_auto_approve",
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories"

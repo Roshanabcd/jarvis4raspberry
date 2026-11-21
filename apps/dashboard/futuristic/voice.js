@@ -242,7 +242,11 @@
         const wake = this.captureRequested ? await window.jarvisApi.getWakeStatus() : null;
         if (generation !== this.requestGeneration) return;
         this.voiceStatus = status;
-        this.isMuted = Boolean(status.muted);
+        if (typeof status.muted === 'boolean' && !this.isMuted) {
+          this.isMuted = status.muted;
+        } else if (status.muted === false && !this.isMuted) {
+          this.isMuted = false;
+        }
         if (wake) {
           this.wakeStatus = wake;
           const stages = {
@@ -424,6 +428,22 @@
       if (this.isMuted) await this.unmute();
       if (this.isMuted) return;
       this.hideErrorBanner();
+
+      // In real browser DOM context, verify browser microphone permission
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === 'function') {
+        if (typeof document !== 'undefined' && document.getElementById && document.getElementById('voice-view-container')) {
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            try { stream.getTracks().forEach(t => t.stop()); } catch(_) {}
+          } catch (err) {
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || (err.message && err.message.includes('Permission denied'))) {
+              this.handlePermissionDenied();
+              return;
+            }
+          }
+        }
+      }
+
       const generation = ++this.requestGeneration;
       this.captureRequested = true;
       this.captureObserved = false;
@@ -799,11 +819,14 @@
 
     showErrorBanner(title, message, onRetry) {
       let banner = document.getElementById('voice-error-banner');
-      if (!banner && this.container) {
-        banner = document.createElement('div');
-        banner.id = 'voice-error-banner';
-        banner.className = 'voice-error-banner';
-        this.container.prepend(banner);
+      if (!banner) {
+        const cont = this.container || (typeof document !== 'undefined' && document.getElementById('voice-view-container')) || (typeof document !== 'undefined' && document.body);
+        if (cont) {
+          banner = document.createElement('div');
+          banner.id = 'voice-error-banner';
+          banner.className = 'voice-error-banner';
+          cont.prepend(banner);
+        }
       }
       if (banner) {
         banner.style.display = 'flex';

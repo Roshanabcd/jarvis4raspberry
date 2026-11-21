@@ -198,6 +198,67 @@ JARVIS_TOOLS: List[Dict] = [
                 "language": {"type": "string", "enum": ["python", "bash"], "default": "python"}
             }
         }
+    },
+    {
+        "name": "computer_execute",
+        "description": "Execute natural language computer automation command with verification (e.g. 'Select option 1 and click Submit').",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "instruction": {"type": "string", "description": "Instruction to execute on computer"}
+            },
+            "required": ["instruction"]
+        }
+    },
+    {
+        "name": "computer_select_option",
+        "description": "Select radio button, checkbox, or dropdown option in browser or desktop.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "option": {"type": "string", "description": "Name or value of option to select (e.g. 'Option 1')"}
+            },
+            "required": ["option"]
+        }
+    },
+    {
+        "name": "computer_click",
+        "description": "Click element or button on screen or browser.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "button": {"type": "string", "description": "Button to click (e.g. 'Submit', 'left', 'right')"}
+            },
+            "required": ["button"]
+        }
+    },
+    {
+        "name": "computer_move_mouse",
+        "description": "Move desktop mouse pointer to target coordinates (x, y) or named element.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "x": {"type": "integer"},
+                "y": {"type": "integer"}
+            },
+            "required": ["x", "y"]
+        }
+    },
+    {
+        "name": "computer_type",
+        "description": "Type text into focused field or window.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string"}
+            },
+            "required": ["text"]
+        }
+    },
+    {
+        "name": "computer_stop",
+        "description": "Emergency stop all computer automation.",
+        "parameters": {"type": "object", "properties": {}}
     }
 ]
 

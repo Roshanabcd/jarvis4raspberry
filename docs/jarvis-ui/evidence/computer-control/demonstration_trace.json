@@ -1,0 +1,65 @@
+{
+  "timestamp": 1795246261.2570412,
+  "environment": "Raspberry Pi 5 (X11 :0, aarch64)",
+  "all_steps_passed": true,
+  "steps": [
+    {
+      "step": 1,
+      "instruction": "Jarvis, select option 1 and click Submit.",
+      "status": "ok",
+      "verified": true,
+      "response": "Option 1 was selected and the form was submitted successfully.",
+      "evidence_screenshot": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/computer-control/01_select_option1_submitted.png",
+      "duration_ms": 716.36,
+      "checks": {
+        "option1_checked": true,
+        "submissions_counter": "Submissions: 1",
+        "banner_text": "Option 1 was selected and the form was submitted successfully. Text: \"\""
+      }
+    },
+    {
+      "step": 2,
+      "instruction": "Jarvis, move the mouse to the search box.",
+      "status": "ok",
+      "verified": true,
+      "response": "Moved mouse to 'search box' at (491, 464).",
+      "cursor_position": {
+        "x": 491,
+        "y": 464
+      },
+      "evidence_screenshot": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/computer-control/02_mouse_moved_search_box.png",
+      "duration_ms": 429.85
+    },
+    {
+      "step": 3,
+      "instruction": "Jarvis, right-click the test item.",
+      "status": "ok",
+      "verified": true,
+      "response": "Right-clicked 'test item' at (680, 727).",
+      "context_menu_visible": true,
+      "context_feedback": "Context status: Context menu opened at (680, 764)",
+      "evidence_screenshot": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/computer-control/03_right_clicked_test_item.png",
+      "duration_ms": 973.81
+    },
+    {
+      "step": 4,
+      "instruction": "Jarvis, type Hello World.",
+      "status": "ok",
+      "verified": true,
+      "response": "Typed \"Hello World\" into the active field.",
+      "input_value": "Hello World",
+      "evidence_screenshot": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/computer-control/04_typed_hello_world.png",
+      "duration_ms": 47.92
+    },
+    {
+      "step": 5,
+      "instruction": "Jarvis, press Enter.",
+      "status": "ok",
+      "verified": true,
+      "response": "Pressed ENTER.",
+      "counter_after_enter": "Submissions: 2",
+      "evidence_screenshot": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/computer-control/05_pressed_enter.png",
+      "duration_ms": 412.35
+    }
+  ]
+}

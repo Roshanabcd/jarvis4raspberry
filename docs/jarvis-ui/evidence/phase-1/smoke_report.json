@@ -132,26 +132,26 @@
       "viewport": "desktop_1920x1080",
       "dimensions": "1920x1080",
       "screenshot": "baseline_desktop_1920x1080.png",
-      "bytes": 895244
+      "bytes": 953586
     },
     {
       "viewport": "laptop_1366x768",
       "dimensions": "1366x768",
       "screenshot": "baseline_laptop_1366x768.png",
-      "bytes": 520716
+      "bytes": 588817
     },
     {
       "viewport": "tablet_768x1024",
       "dimensions": "768x1024",
       "screenshot": "baseline_tablet_768x1024.png",
-      "bytes": 445974
+      "bytes": 463472
     },
     {
       "viewport": "mobile_375x667",
       "dimensions": "375x667",
       "screenshot": "baseline_mobile_375x667.png",
-      "bytes": 115475
+      "bytes": 146492
     }
   ],
-  "timestamp": "2026-11-20T17:30:15.856Z"
+  "timestamp": "2026-11-21T06:33:47.270Z"
 }

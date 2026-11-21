@@ -401,3 +401,30 @@ class ToolExecutor:
                 except OSError:
                     pass
 
+    # ── Computer Control & Browser Automation ───────────────────
+
+    def _tool_computer_execute(self, instruction: str) -> Dict[str, Any]:
+        from tools.desktop.unified_computer_service import unified_computer_service
+        return unified_computer_service.execute_natural_instruction(instruction)
+
+    def _tool_computer_select_option(self, option: str) -> Dict[str, Any]:
+        from tools.desktop.browser_backend import browser_backend
+        return browser_backend.select_option(option, verify=True)
+
+    def _tool_computer_click(self, button: str = "left", x: Optional[int] = None, y: Optional[int] = None) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.click(x=x, y=y, button=button)
+
+    def _tool_computer_move_mouse(self, x: int, y: int) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.move_cursor(x, y, duration=0.25, smooth=True)
+
+    def _tool_computer_type(self, text: str) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.type_text(text)
+
+    def _tool_computer_stop(self) -> Dict[str, Any]:
+        from tools.desktop.unified_computer_service import unified_computer_service
+        return unified_computer_service.emergency_stop()
+
+

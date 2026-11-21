@@ -1704,7 +1704,7 @@
               // Surface honest roadmap explanation
               const modal = container.querySelector('#app-planned-modal');
               container.querySelector('#app-planned-desc').innerHTML = `
-                <strong>${this.escapeHtml(id)}</strong> cannot be opened in its current state.<br><br>
+                <strong>${this.escapeHtml(id)}</strong> is currently in roadmap (Planned) and not yet implemented.<br><br>
                 ${roadmap ? `<em>Roadmap note: ${this.escapeHtml(roadmap)}</em>` : 'Implementation scheduled in a future release.'}
               `;
               modal.classList.remove('hidden');

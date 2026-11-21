@@ -1401,6 +1401,93 @@ class ToolRegistry:
             "execute": lambda command, session_id="default", confirm=False, confirmation_token=None, **_: terminal_engine.execute_command(command, session_id=session_id, confirm=confirm, confirmation_token=confirmation_token),
         })
 
+        # ── Intelligent Computer Control Tools ─────────────────────────
+        from tools.desktop.unified_computer_service import unified_computer_service
+        from tools.desktop.browser_backend import browser_backend
+        from tools.desktop.native_backend import native_backend
+
+        self.register_tool({
+            "name": "computer_execute",
+            "description": "Execute natural language computer automation command with verification (e.g. 'Select option 1 and click Submit')",
+            "schema": {"instruction": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:execute"],
+            "execute": lambda instruction, **_: unified_computer_service.execute_natural_instruction(instruction),
+        })
+
+        self.register_tool({
+            "name": "computer_move_mouse",
+            "description": "Move desktop mouse pointer smoothly to target element or coordinates",
+            "schema": {"x": "int", "y": "int"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda x, y, smooth=True, **_: native_backend.move_cursor(x, y, duration=0.25, smooth=smooth),
+        })
+
+        self.register_tool({
+            "name": "computer_click",
+            "description": "Click mouse button at specified coordinates or target element",
+            "schema": {"button": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda button="left", x=None, y=None, clicks=1, **_: native_backend.click(x=x, y=y, button=button, clicks=clicks),
+        })
+
+        self.register_tool({
+            "name": "computer_select_option",
+            "description": "Select radio button, checkbox, or dropdown option in browser or desktop interface",
+            "schema": {"option": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:input"],
+            "execute": lambda option, verify=True, **_: browser_backend.select_option(option, verify=verify),
+        })
+
+        self.register_tool({
+            "name": "computer_type",
+            "description": "Type text into currently focused field or target window",
+            "schema": {"text": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda text, target_window=None, **_: native_backend.type_text(text, target_window=target_window),
+        })
+
+        self.register_tool({
+            "name": "computer_press_key",
+            "description": "Press a keyboard key or hotkey combination (e.g. 'ctrl+a', 'Return', 'Escape')",
+            "schema": {"key": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda key, **_: native_backend.press_hotkey(key),
+        })
+
+        self.register_tool({
+            "name": "computer_scroll",
+            "description": "Scroll mouse wheel up or down",
+            "schema": {"direction": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda direction="down", clicks=5, **_: native_backend.scroll(direction=direction, clicks=clicks),
+        })
+
+        self.register_tool({
+            "name": "computer_stop",
+            "description": "Emergency stop computer automation immediately and release held inputs",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:execute"],
+            "execute": lambda **_: unified_computer_service.emergency_stop(),
+        })
+
+        self.register_tool({
+            "name": "browser_open",
+            "description": "Open or navigate Playwright browser to target URL",
+            "schema": {"url": "str"},
+            "risk_level": 1,
+            "permissions": ["browser:navigate"],
+            "execute": lambda url, **_: browser_backend.navigate(url),
+        })
+
+
 
 # Global tool registry instances for compatibility
 tool_registry = ToolRegistry()

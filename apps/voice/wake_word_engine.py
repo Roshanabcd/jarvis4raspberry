@@ -163,6 +163,11 @@ class WakeWordEngine:
                 logger.info("WakeWordEngine State Transition: %s -> %s", self._state.value, new_state.value)
                 self._state = new_state
                 self._state_entered_time = time.time()
+                try:
+                    from apps.voice.daemon_status import publish_status
+                    publish_status(self._state.value, self._is_running, diagnostics=self.get_capture_diagnostics())
+                except Exception:
+                    pass
 
     def set_command_handler(self, handler: Callable[[str], Any]) -> None:
         self._on_command_handler = handler

@@ -36,6 +36,7 @@ _COMPUTER_ACTION_TOOLS = {
     "double_click": "computer_double_click",
     "right_click": "computer_right_click",
     "click_named": "computer_click",
+    "move_mouse": "computer_move_mouse",
     "type": "computer_type",
     "press_key": "computer_press_key",
     "press_hotkey": "computer_press_hotkey",
@@ -44,9 +45,33 @@ _COMPUTER_ACTION_TOOLS = {
     "focus_window": "computer_focus_window",
     "minimize": "computer_minimize_window",
     "maximize": "computer_maximize_window",
+    "emergency_stop": "computer_stop",
 }
 
 # Pydantic Schemas
+class CommandRequest(BaseModel):
+    instruction: str = Field(..., description="Natural language computer instruction (e.g. 'Select option 1 and click Submit')")
+
+class MoveMouseRequest(BaseModel):
+    x: Optional[int] = None
+    y: Optional[int] = None
+    target: Optional[str] = None
+    smooth: bool = True
+
+class BrowserNavigateRequest(BaseModel):
+    url: str
+
+class BrowserSelectRequest(BaseModel):
+    option: str
+    verify: bool = True
+
+class BrowserClickRequest(BaseModel):
+    button: str
+    verify: bool = True
+
+class ModeRequest(BaseModel):
+    mode: str = Field(..., description="'observe', 'guided', 'command_control', or 'trusted_workflow'")
+
 class ScreenshotRequest(BaseModel):
     target: str = Field(default="fullscreen", description="'fullscreen', 'active_window', or 'region'")
     x: Optional[int] = None
@@ -59,7 +84,7 @@ class FindElementRequest(BaseModel):
     window_id: Optional[str] = None
 
 class ActionRequest(BaseModel):
-    action: str = Field(..., description="Action name: click, double_click, right_click, click_named, type, press_key, press_hotkey, scroll, switch_window, focus_window, minimize, maximize")
+    action: str = Field(..., description="Action name: click, double_click, right_click, click_named, move_mouse, type, press_key, press_hotkey, scroll, switch_window, focus_window, minimize, maximize")
     x: Optional[int] = None
     y: Optional[int] = None
     query: Optional[str] = None
@@ -80,20 +105,23 @@ class TaskCreateRequest(BaseModel):
 @router.get("/status")
 def get_computer_status() -> Dict[str, Any]:
     """Get high-level status of the computer use subsystem."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    u_stat = unified_computer_service.get_status()
+
     resolution = desktop_perception.get_screen_resolution()
     active_win = desktop_perception.get_active_window()
     wins = desktop_perception.list_open_windows()
     last_obs = desktop_perception.get_last_observation()
 
     return {
-        "status": "ok",
+        **u_stat,
         "display": desktop_perception.display,
         "resolution": resolution,
         "active_window": active_win,
         "open_window_count": len([w for w in wins if w.get("desktop", 0) != -1]),
         "total_windows": len(wins),
         "last_observation_timestamp": last_obs.get("timestamp") if last_obs else None,
-        "recent_actions_count": len(computer_action_engine.get_action_history()),
+        "recent_actions_count": len(unified_computer_service.get_history()),
     }
 
 
@@ -229,6 +257,11 @@ def execute_computer_action(req: ActionRequest) -> Dict[str, Any]:
             raise HTTPException(status_code=400, detail="minimize requires 'target_window' parameter")
         return computer_action_engine.minimize_window(req.target_window)
 
+    elif act == "move_mouse":
+        if req.x is None or req.y is None:
+            raise HTTPException(status_code=400, detail="move_mouse requires x and y coordinates")
+        return computer_action_engine.move_cursor(req.x, req.y)
+
     elif act == "maximize":
         if not req.target_window:
             raise HTTPException(status_code=400, detail="maximize requires 'target_window' parameter")
@@ -241,7 +274,8 @@ def execute_computer_action(req: ActionRequest) -> Dict[str, Any]:
 @router.get("/history")
 def get_action_history() -> Dict[str, Any]:
     """Retrieve recent action logs with verification evidence."""
-    return {"status": "ok", "history": computer_action_engine.get_action_history()}
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return {"status": "ok", "history": unified_computer_service.get_history()}
 
 
 # Multi-Step Computer Tasks
@@ -267,3 +301,153 @@ def stop_task(task_id: str) -> Dict[str, Any]:
     """Halt an active computer task."""
     res = computer_action_engine.stop_task(task_id)
     return res
+
+
+# ── Unified Computer Control Endpoints ────────────────────────
+
+@router.post("/execute-command")
+def execute_natural_command(req: CommandRequest) -> Dict[str, Any]:
+    """Execute a natural-language computer automation instruction with verification."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return unified_computer_service.execute_natural_instruction(req.instruction)
+
+
+@router.post("/stop")
+def emergency_stop() -> Dict[str, Any]:
+    """Emergency stop kill switch — immediately halts all automation and releases inputs."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return unified_computer_service.emergency_stop()
+
+
+@router.post("/reset-stop")
+def reset_stop() -> Dict[str, Any]:
+    """Clear emergency stop condition."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return unified_computer_service.reset_emergency_stop()
+
+
+@router.get("/mode")
+def get_control_mode() -> Dict[str, Any]:
+    """Get active safety mode (observe, guided, command_control, trusted_workflow)."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    return {"status": "ok", "mode": unified_computer_service.mode.value}
+
+
+@router.post("/mode")
+def set_control_mode(req: ModeRequest) -> Dict[str, Any]:
+    """Set active safety mode."""
+    from tools.desktop.unified_computer_service import unified_computer_service
+    try:
+        mode = unified_computer_service.set_mode(req.mode)
+        return {"status": "ok", "mode": mode.value}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/mouse/move")
+def move_mouse(req: MoveMouseRequest) -> Dict[str, Any]:
+    """Move genuine mouse pointer to target coordinates or named element."""
+    _require_computer_permission("computer_move_mouse")
+    from tools.desktop.native_backend import native_backend
+    from tools.desktop.screen_intelligence import screen_intelligence
+
+    if req.target:
+        res = screen_intelligence.resolve_target(req.target)
+        if res.get("status") == "ok":
+            el = res.get("element", {})
+            center = el.get("center") or {}
+            cx, cy = center.get("x"), center.get("y")
+            if cx is not None and cy is not None:
+                return native_backend.move_cursor(cx, cy, duration=0.25, smooth=req.smooth)
+        raise HTTPException(status_code=404, detail=f"Target '{req.target}' not located")
+
+    if req.x is None or req.y is None:
+        raise HTTPException(status_code=400, detail="Provide either 'target' or both 'x' and 'y'")
+
+    return native_backend.move_cursor(req.x, req.y, duration=0.25, smooth=req.smooth)
+
+
+@router.get("/mouse/position")
+def get_mouse_position() -> Dict[str, Any]:
+    """Get current pointer coordinates on desktop."""
+    from tools.desktop.native_backend import native_backend
+    return {"status": "ok", "position": native_backend.get_cursor_position()}
+
+
+@router.post("/browser/navigate")
+def browser_navigate(req: BrowserNavigateRequest) -> Dict[str, Any]:
+    """Open or navigate Playwright browser to URL."""
+    from tools.desktop.browser_backend import browser_backend
+    return browser_backend.navigate(req.url)
+
+
+@router.post("/browser/select")
+def browser_select_option(req: BrowserSelectRequest) -> Dict[str, Any]:
+    """Select option (radio button, checkbox, dropdown) semantically."""
+    from tools.desktop.browser_backend import browser_backend
+    return browser_backend.select_option(req.option, verify=req.verify)
+
+
+@router.post("/browser/click")
+def browser_click_button(req: BrowserClickRequest) -> Dict[str, Any]:
+    """Click a button in the browser with ambiguity detection."""
+    from tools.desktop.browser_backend import browser_backend
+    return browser_backend.click_button(req.button, verify=req.verify)
+
+
+@router.get("/browser/dom")
+def browser_inspect_dom() -> Dict[str, Any]:
+    """Inspect active page accessible DOM and form elements."""
+    from tools.desktop.browser_backend import browser_backend
+    return browser_backend.inspect_dom()
+
+
+@router.get("/fixture/test-page")
+def get_test_fixture():
+    """Serve the local test application fixture for browser & desktop automation tests."""
+    from fastapi.responses import FileResponse
+    import os
+    fixture_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "tests", "fixtures", "computer_control_test_page.html"))
+    if os.path.exists(fixture_path):
+        return FileResponse(fixture_path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="Test fixture HTML file not found")
+
+
+# --- Antigravity IDE Automation & Auto-Approver Endpoints ---
+
+@router.post("/antigravity/apply-settings")
+def antigravity_apply_settings() -> Dict[str, Any]:
+    """Apply Antigravity eager command execution policy and PreToolUse lifecycle hook."""
+    from tools.desktop.antigravity_approver import apply_antigravity_settings
+    return apply_antigravity_settings()
+
+
+@router.post("/antigravity/auto-approve/run-once")
+async def antigravity_auto_approve_run_once(port: int = Query(9333, description="Antigravity CDP debugging port")) -> Dict[str, Any]:
+    """Scan all open Antigravity conversation tabs once and auto-accept Option 1."""
+    from tools.desktop.antigravity_approver import scan_and_auto_approve_cdp
+    return await scan_and_auto_approve_cdp(cdp_port=port)
+
+
+@router.post("/antigravity/auto-approve/start")
+def antigravity_auto_approve_start(port: int = Query(9333, description="Antigravity CDP debugging port")) -> Dict[str, Any]:
+    """Start the background Antigravity auto-approver supervisor daemon."""
+    from tools.desktop.antigravity_approver import antigravity_supervisor
+    antigravity_supervisor.cdp_port = port
+    return antigravity_supervisor.start()
+
+
+@router.post("/antigravity/auto-approve/stop")
+def antigravity_auto_approve_stop() -> Dict[str, Any]:
+    """Stop the background Antigravity auto-approver supervisor daemon."""
+    from tools.desktop.antigravity_approver import antigravity_supervisor
+    return antigravity_supervisor.stop()
+
+
+@router.get("/antigravity/auto-approve/status")
+def antigravity_auto_approve_status() -> Dict[str, Any]:
+    """Get the live status of the Antigravity auto-approver daemon and configuration."""
+    from tools.desktop.antigravity_approver import antigravity_supervisor
+    return antigravity_supervisor.get_status()
+
+
