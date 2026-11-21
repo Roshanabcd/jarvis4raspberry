@@ -543,7 +543,7 @@
       </div>
       <div class="nav-links">
         <a class="nav-btn" href="/">Dashboard</a>
-        <a class="nav-btn" href="/futuristic">Futuristic HUD</a>
+        <a class="nav-btn" href="/futuristic/">Futuristic HUD</a>
         <a class="nav-btn" href="/orchestrator">Multi-Agent</a>
         <a class="nav-btn" href="/extensions">Extension Manager</a>
         <a class="nav-btn primary" href="#refresh" onclick="loadSuite(); return false;">↻ Refresh State</a>
@@ -598,15 +598,14 @@
       </div>
       <div class="filter-pills" id="categoryPills">
         <div class="pill active" data-cat="all" onclick="selectCat('all')">All Categories (42)</div>
-        <div class="pill" data-cat="Core AI OS" onclick="selectCat('Core AI OS')">Core AI OS</div>
-        <div class="pill" data-cat="Productivity" onclick="selectCat('Productivity')">Productivity</div>
-        <div class="pill" data-cat="Engineering" onclick="selectCat('Engineering')">Engineering & DevOps</div>
-        <div class="pill" data-cat="Security" onclick="selectCat('Security')">Security & Governance</div>
-        <div class="pill" data-cat="Analytics" onclick="selectCat('Analytics')">Analytics</div>
-        <div class="pill" data-cat="Computer Vision" onclick="selectCat('Computer Vision')">Computer Vision</div>
-        <div class="pill" data-cat="Robotics" onclick="selectCat('Robotics')">Robotics & IoT</div>
-        <div class="pill" data-cat="Developer Tools" onclick="selectCat('Developer Tools')">Developer Tools</div>
-        <div class="pill" data-cat="favorites" onclick="selectCat('favorites')">★ Favorites</div>
+        <div class="pill" data-cat="core_ai" onclick="selectCat('core_ai')">Core AI &amp; Agents (8)</div>
+        <div class="pill" data-cat="productivity" onclick="selectCat('productivity')">Productivity &amp; Office (12)</div>
+        <div class="pill" data-cat="engineering" onclick="selectCat('engineering')">Engineering &amp; DevOps (4)</div>
+        <div class="pill" data-cat="security" onclick="selectCat('security')">Security &amp; Governance (4)</div>
+        <div class="pill" data-cat="analytics" onclick="selectCat('analytics')">Analytics &amp; Finance (3)</div>
+        <div class="pill" data-cat="vision" onclick="selectCat('vision')">Vision &amp; Multimodal (7)</div>
+        <div class="pill" data-cat="robotics" onclick="selectCat('robotics')">Robotics &amp; IoT (4)</div>
+        <div class="pill" data-cat="favorites" onclick="selectCat('favorites')">★ Favorites (0)</div>
       </div>
     </div>
 
@@ -634,6 +633,45 @@
     let currentCategory = "all";
     let favorites = new Set(JSON.parse(localStorage.getItem("jarvis_favs") || "[]"));
 
+    const categoryMapping = {
+      core_ai: ["Core AI OS", "Extensibility", "Management", "Notifications"],
+      productivity: ["Productivity", "Business & Support", "Education & Learning"],
+      engineering: ["Engineering", "DevOps", "Developer Tools", "Automation"],
+      security: ["Security", "Security & Analytics", "Governance", "Resilience"],
+      analytics: ["Analytics", "Finance", "Experimental"],
+      vision: ["Computer Vision", "Media & Content", "Research & Knowledge"],
+      robotics: ["Robotics", "IoT Automation", "Device Mesh", "Observability"]
+    };
+
+    function updatePillCounts() {
+      const counts = { all: allModules.length, favorites: 0 };
+      for (const key of Object.keys(categoryMapping)) counts[key] = 0;
+
+      for (const m of allModules) {
+        if (favorites.has(m.id)) counts.favorites++;
+        for (const [key, cats] of Object.entries(categoryMapping)) {
+          if (cats.includes(m.category)) counts[key]++;
+        }
+      }
+
+      document.querySelectorAll("#categoryPills .pill").forEach(p => {
+        const cat = p.getAttribute("data-cat");
+        const count = counts[cat] !== undefined ? counts[cat] : 0;
+        const labels = {
+          all: `All Categories (${count})`,
+          core_ai: `Core AI & Agents (${count})`,
+          productivity: `Productivity & Office (${count})`,
+          engineering: `Engineering & DevOps (${count})`,
+          security: `Security & Governance (${count})`,
+          analytics: `Analytics & Finance (${count})`,
+          vision: `Vision & Multimodal (${count})`,
+          robotics: `Robotics & IoT (${count})`,
+          favorites: `★ Favorites (${count})`
+        };
+        if (labels[cat]) p.textContent = labels[cat];
+      });
+    }
+
     async function loadSuite() {
       try {
         const res = await fetch("/api/suite/health");
@@ -649,6 +687,7 @@
         document.getElementById("cntDegraded").textContent = data.degraded_count || 0;
         document.getElementById("cntFailed").textContent = (data.blocked_count || 0) + (data.failed_count || 0);
 
+        updatePillCounts();
         filterModules();
         loadDiagnostics();
       } catch (err) {
@@ -683,6 +722,7 @@
         favorites.add(id);
       }
       localStorage.setItem("jarvis_favs", JSON.stringify(Array.from(favorites)));
+      updatePillCounts();
       filterModules();
     }
 
@@ -698,12 +738,8 @@
         let matchCat = true;
         if (currentCategory === "favorites") {
           matchCat = favorites.has(m.id);
-        } else if (currentCategory === "Engineering") {
-          matchCat = m.category === "Engineering" || m.category === "DevOps";
-        } else if (currentCategory === "Security") {
-          matchCat = m.category === "Security" || m.category === "Security & Analytics" || m.category === "Governance";
-        } else if (currentCategory === "Robotics") {
-          matchCat = m.category === "Robotics" || m.category === "IoT Automation" || m.category === "Device Mesh";
+        } else if (categoryMapping[currentCategory]) {
+          matchCat = categoryMapping[currentCategory].includes(m.category);
         } else if (currentCategory !== "all") {
           matchCat = m.category === currentCategory;
         }

@@ -621,8 +621,14 @@ def mount_jarvis_feature_suite(
 
     suite_router = APIRouter(tags=["JARVIS Feature Suite"])
 
-    @suite_router.get("/suite", response_class=HTMLResponse, include_in_schema=False)
+    @suite_router.api_route("/suite", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
     def suite_ui() -> HTMLResponse:
+        if not STATIC_INDEX.exists():
+            raise HTTPException(status_code=500, detail="Suite Launchpad UI missing.")
+        return HTMLResponse(content=STATIC_INDEX.read_text(encoding="utf-8"))
+
+    @suite_router.api_route("/suite/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
+    def suite_ui_slash() -> HTMLResponse:
         if not STATIC_INDEX.exists():
             raise HTTPException(status_code=500, detail="Suite Launchpad UI missing.")
         return HTMLResponse(content=STATIC_INDEX.read_text(encoding="utf-8"))

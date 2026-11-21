@@ -18,6 +18,7 @@ from typing import AsyncGenerator, Sequence, Tuple
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from config.config_manager import config
@@ -229,10 +230,18 @@ def create_app(
             app.mount("/futuristic", StaticFiles(directory=futuristic_dir, html=True), name="futuristic")
             logger.info("✓ Futuristic dashboard at %s", futuristic_dir)
 
+            @app.get("/futuristic", include_in_schema=False)
+            def _redirect_futuristic():
+                return RedirectResponse(url="/futuristic/")
+
         dashboard_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "static")
         if os.path.isdir(dashboard_dir):
             app.mount("/", StaticFiles(directory=dashboard_dir, html=True), name="dashboard")
             logger.info("✓ Dashboard at %s", dashboard_dir)
+
+            @app.get("/dashboard", include_in_schema=False)
+            def _redirect_dashboard():
+                return RedirectResponse(url="/")
         else:
             logger.warning("Dashboard static directory not found — skipping mount.")
 
