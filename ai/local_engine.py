@@ -132,6 +132,43 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:change|set|make|switch)\s+(?:the\s+)?(?:background|accent|theme)\b', text_lower) or re.search(r'\b(?:reset\s+theme|default\s+theme)\b', text_lower):
             return "theme_control", {"text": text}
 
+        # 2b-ii. Intelligent Computer Control Intents (Mouse, Keyboard, Browser, Desktop Automation)
+        # Antigravity IDE Auto-Approver & Command Auto-Accept
+        if re.search(r'\b(?:auto\s+accept|auto\s+approve|accept\s+option\s*1|allow\s+running\s+this\s+command|allow\s+antigravity|antigravity\s+auto)\b', text_lower):
+            return "antigravity_auto_approve", {"instruction": text, "text": text}
+
+        # 1. Emergency stop computer automation command
+        if re.search(r'\b(?:stop|halt|cancel)\s+(?:controlling\s+(?:my\s+|the\s+)?computer|computer\s+control|desktop\s+control|automation)\b', text_lower) or re.search(r'\b(?:stop|halt)\s+(?:the\s+)?(?:computer|mouse|browser|screen)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 2. Compound "select option ... and click submit"
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option|[a-z0-9_\-\s]+)\s+and\s+(?:then\s+)?(?:click|press|submit)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 3. Form control selection (select option 1, select option 2, select the first option) when not mentioning video/song
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option)\b', text_lower) and not re.search(r'\b(?:video|movie|film|song|track)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 4. Move mouse pointer
+        if re.search(r'\bmove\s+(?:the\s+)?mouse\s+(?:pointer\s+)?to\s+', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 5. Right click / double click
+        if re.search(r'\b(?:right[\s\-]click|double[\s\-]click)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 6. Click submit / button
+        if re.search(r'\bclick\s+(?:on\s+)?(?:the\s+)?(submit|save|search|confirm|ok|first\s*option|option\s*\d+)\b', text_lower) and not re.search(r'\b(?:video|movie|song)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 7. Press keyboard hotkey/key
+        if re.search(r'\bpress\s+(?:the\s+)?(?:keys?\s+)?(ctrl\+[a-z]|alt\+[a-z]|shift\+[a-z]|enter|return|escape|tab|backspace|delete|space)\b', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 8. Type text
+        if re.search(r'^(?:jarvis\s*,?\s*)?type\s+["\']?([^"\'\n]+)', text_lower):
+            return "computer_command", {"instruction": text, "text": text}
+
         # 2c. YouTube Player Controls & Playback
         # Video volume (must precede generic volume)
         m_vvol = re.search(r'\b(?:set|change|increase|decrease)\s+(?:the\s+)?(?:video|youtube)\s+volume\s+(?:to\s+)?(\d+)\%?\b', text_lower)
@@ -540,6 +577,34 @@ class LocalIntelligenceEngine:
                 return {
                     "response": f"You mentioned the number {num}. How would you like me to use it? (e.g., perform a calculation, look up records, or store it in memory?)",
                     "tools_used": [],
+                }
+
+            elif intent == "antigravity_auto_approve":
+                from tools.desktop.antigravity_approver import apply_antigravity_settings, scan_and_auto_approve_cdp
+                import asyncio
+                set_res = apply_antigravity_settings()
+                try:
+                    scan_res = asyncio.run(scan_and_auto_approve_cdp())
+                except Exception as e:
+                    scan_res = {"error": str(e), "actions": []}
+                actions = scan_res.get("actions", [])
+                if actions:
+                    resp = f"JARVIS has automatically selected Option 1 and submitted in {len(actions)} Antigravity conversation(s)."
+                else:
+                    resp = "JARVIS has applied Antigravity auto-execution settings. Option 1 will always be accepted and commands will proceed automatically."
+                return {
+                    "response": resp,
+                    "tools_used": ["antigravity_auto_approve"],
+                    "raw": {"settings": set_res, "scan": scan_res},
+                }
+
+            elif intent == "computer_command":
+                from tools.desktop.unified_computer_service import unified_computer_service
+                res = unified_computer_service.execute_natural_instruction(ctx.get("instruction", text))
+                return {
+                    "response": res.get("response", "Computer action executed."),
+                    "tools_used": res.get("tools_used", ["computer_command"]),
+                    "raw": res,
                 }
 
             elif intent == "identity":
