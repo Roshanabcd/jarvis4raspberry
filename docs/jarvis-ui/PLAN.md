@@ -349,3 +349,10 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
 - **Hardware-Dependent / Remaining Pending**:
   - ReSpeaker Lite USB microphone is bound and streaming frames to `voice_daemon` (RMS ~5855-8333); live human speech recognition and acoustic wake-word triggering remain untested/pending physical operator vocalization.
   - 3D VRM avatar gate remains deferred per user exception (honest 2D audio-reactive fallback active).
+
+### Catalog deployment and launch-denial evidence
+- Operator restart loaded the catalog fix: health OK, 45 apps, 25/25 extensions available; all 25 extension interface GETs returned 200. Suite currently reports 43 registered/mounted modules; no inference/action readiness implied.
+- BUG-003 marked verified_live for route discovery only. Evidence: corrective/catalog-restart-verification.json.
+- UX-002 passed isolated Chromium at 1440×900 and 1280×720: persistent denial, restored button focus, zero dialogs. Marked verified_offline; source hash and screenshots in corrective/launch-denial-review/.
+- Added reproducible tests/browser/app_launch_denial.cjs using one browser, intercepted/disabled network and no real media. Each run creates a new temporary evidence directory.
+- No existing implementation was rewritten merely to show activity. Remaining audit items and phase gates stay open.

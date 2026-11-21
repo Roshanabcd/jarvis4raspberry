@@ -47,17 +47,16 @@
     "expected_behavior": "Denial reason stays in app context.",
     "recommended_fix": "Render a persistent inline error and restore focus to Launch.",
     "verification_test": "Assert zero dialog events and an accessible denial reason.",
-    "status": "verified_live",
+    "status": "verified_offline",
     "evidence_type": "live Playwright test and source inspection",
-    "implementation_note": "Launch failure fallback writes to #apps-launch-status. Verified live guest launch denial on extension-28 returns 403 inline with zero native dialogs and restores focus across 1440x900 and 1280x720.",
-    "verification_scope": "live_and_offline",
+    "implementation_note": "At 1440×900 and 1280×720, missing notification service plus MOCK 403 produced persistent inline denial, restored focus to Open, and zero native dialogs. No real app launch or role change.",
+    "verification_scope": "isolated_browser_mock_403",
     "evidence_paths": [
-      "docs/jarvis-ui/evidence/audit-remediation/step3-offline-ui-verification.json",
-      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
-      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux002_live_launch_denial_1440.png",
-      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux002_live_launch_denial_1280.png"
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-audit-result.json",
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-denial-1440.png",
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-denial-1280.png"
     ],
-    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+    "verified_revision": "266c316"
   },
   {
     "id": "UX-003",
@@ -302,11 +301,12 @@
     "verification_test": "Test nested router prefixes and catch-all exclusion; after authorized deployment confirm registered extension cards can open while missing/disabled entries remain blocked.",
     "status": "verified_live",
     "evidence_type": "live catalog and route verification",
-    "implementation_note": "Nested-router correction verified in isolation (5/5 unit tests passed) and live on running jarvis-core.service (PID 1804). Catalog returns 45 apps; all 25 extensions report status 'available' and return HTTP 200 on their UI routes. Unauthorized guest launch blocked with HTTP 403, and nonexistent extension launch returns HTTP 404.",
-    "verification_scope": "live_deployment",
+    "implementation_note": "After operator restart: 45 catalog entries, all 25 extensions available; all 25 interface GETs returned HTTP 200. This verifies route discovery and reachability, not module action/provider/hardware readiness.",
+    "verification_scope": "live_catalog_and_interface_reachability",
     "evidence_paths": [
       "docs/jarvis-ui/evidence/phase-6/corrective/handoff-review.txt",
-      "docs/jarvis-ui/evidence/audit-remediation/bug-003-live-verification.json"
+      "docs/jarvis-ui/evidence/audit-remediation/bug-003-live-verification.json",
+      "docs/jarvis-ui/evidence/phase-6/corrective/catalog-restart-verification.json"
     ],
     "verified_revision": "c25be13"
   }
