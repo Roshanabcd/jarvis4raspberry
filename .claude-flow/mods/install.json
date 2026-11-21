@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "installedAt": "2026-11-20T17:40:37.127Z",
+  "files": {
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/.claude/settings.json": {
+      "plugins": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo",
+        "ruflo-protector@ruflo"
+      ],
+      "marketplace": true,
+      "env": true,
+      "claudeInstalled": []
+    }
+  }
+}

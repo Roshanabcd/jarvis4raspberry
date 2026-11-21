@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 21: Intelligent Browser Agent</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #FFB84D;
+      --red: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FA8C4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, rgba(33,139,255,0.14), transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 18px;
+      box-shadow: 0 0 28px rgba(0, 217, 255, 0.08);
+    }
+    .brand h1 { font-size: 1.25rem; letter-spacing: 0.04em; color: var(--cyan); }
+    .brand p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge {
+      padding: 5px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0,217,255,0.08); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.14); color: var(--amber); }
+    .badge.ok { border-color: rgba(37,230,162,0.5); background: rgba(37,230,162,0.12); color: var(--green); }
+    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 0.95rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    input, select, textarea {
+      background: var(--panel-alt); color: var(--text); border: 1px solid rgba(143,168,196,0.28);
+      border-radius: 8px; padding: 8px 10px; font-size: 0.85rem; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--cyan); }
+    input.grow { flex: 1; min-width: 180px; }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 13px; font-size: 0.82rem; cursor: pointer; transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.9; }
+    button.secondary { background: rgba(152,104,255,0.2); color: var(--text); border: 1px solid rgba(152,104,255,0.5); }
+    button.danger { background: rgba(255,92,119,0.2); color: #FFD2DA; border: 1px solid rgba(255,92,119,0.55); }
+    button.success { background: rgba(37,230,162,0.2); color: #C9FFEE; border: 1px solid rgba(37,230,162,0.55); }
+    .alert { padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 10px; display: none; }
+    .alert.show { display: block; }
+    .alert.err { background: rgba(255,92,119,0.16); border: 1px solid var(--red); color: #FFD2DA; }
+    .alert.info { background: rgba(0,217,255,0.12); border: 1px solid var(--cyan); color: var(--text); }
+    .viewport {
+      background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px; text-align: center; min-height: 220px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+    }
+    .viewport img { max-width: 100%; border-radius: 8px; border: 1px solid rgba(0,217,255,0.3); }
+    .meta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+    .stat { background: var(--panel-alt); border: 1px solid rgba(0,217,255,0.15); border-radius: 8px; padding: 10px; }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+    .stat .val { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: 3px; }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; }
+    .item { background: var(--panel-alt); border: 1px solid rgba(143,168,196,0.18); border-radius: 8px; padding: 10px; font-size: 0.82rem; }
+    .item-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.77rem; color: var(--cyan); word-break: break-all; }
+    .pill { font-size: 0.7rem; padding: 2px 7px; border-radius: 999px; background: rgba(33,139,255,0.2); color: var(--text); }
+    .pill.pending, .pill.awaiting_approval { background: rgba(255,184,77,0.22); color: var(--amber); }
+    .pill.approved, .pill.completed { background: rgba(37,230,162,0.2); color: var(--green); }
+    .pill.rejected, .pill.cancelled, .pill.failed { background: rgba(255,92,119,0.22); color: var(--red); }
+    pre.dom-box {
+      background: #060D19; border: 1px solid rgba(0,217,255,0.15); border-radius: 8px;
+      padding: 10px; max-height: 200px; overflow: auto; font-size: 0.76rem; color: #B8E6FF;
+      margin-top: 10px; text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <h1>JARVIS OS // MODULE 21 — INTELLIGENT BROWSER AGENT</h1>
+      <p>Policy-Governed Browser Navigation, Real HTML DOM Extraction, Screenshot Analysis &amp; Human Approval Gates</p>
+    </div>
+    <div class="badges">
+      <span id="simBadge" class="badge sim">SIMULATED ADAPTER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+      <span id="contractBadge" class="badge ok">CONTRACT v1.0.0</span>
+    </div>
+  </header>
+
+  <div id="alertBox" class="alert"></div>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>
+          <span>1. Browser Session &amp; Navigation</span>
+          <span id="activeSessionLabel" class="mono">No active session</span>
+        </h2>
+        <div class="row">
+          <select id="sessionSelect" class="grow"></select>
+          <button onclick="createSession()">+ New Session</button>
+          <button class="danger" onclick="closeActiveSession()">Close Session</button>
+        </div>
+        <div class="row">
+          <input id="urlInput" class="grow" value="https://docs.jarvis.local/overview" placeholder="https://docs.jarvis.local/overview" />
+          <button onclick="navigate()">Navigate</button>
+          <button class="secondary" onclick="inspectPage()">Inspect DOM</button>
+          <button class="secondary" onclick="captureScreenshot()">Screenshot</button>
+        </div>
+        <div class="row">
+          <button class="secondary" onclick="quickNav('https://docs.jarvis.local/overview')">Docs Fixture</button>
+          <button class="secondary" onclick="quickNav('https://portal.jarvis.local/feedback')">Feedback Form</button>
+          <button class="secondary" onclick="quickNav('https://releases.jarvis.local/downloads')">Downloads</button>
+          <button class="danger" onclick="quickNav('http://127.0.0.1:8121/admin')">Test SSRF Block</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span>2. Live Viewport &amp; Screenshot Analysis</span><span id="pageTitle" class="mono">—</span></h2>
+        <div class="viewport" id="viewport">
+          <p style="color:var(--muted);font-size:0.85rem;">Create or select a session and click <b>Screenshot</b> to capture &amp; analyze the active page.</p>
+        </div>
+        <div class="meta-grid" id="domStats">
+          <div class="stat"><div class="label">Headings</div><div class="val" id="statHeadings">0</div></div>
+          <div class="stat"><div class="label">Links</div><div class="val" id="statLinks">0</div></div>
+          <div class="stat"><div class="label">Forms</div><div class="val" id="statForms">0</div></div>
+        </div>
+        <pre id="domOutput" class="dom-box">DOM extraction output will appear here...</pre>
+      </section>
+
+      <section class="card">
+        <h2><span>3. Form Interaction (Human Approval Required for Submit)</span></h2>
+        <div class="row">
+          <input id="formIdInput" value="feedback-form" placeholder="Form ID" />
+          <input id="fieldOperator" value="Roshan" placeholder="operator" />
+          <input id="fieldModule" value="module-21" placeholder="module" />
+          <input id="fieldNotes" class="grow" value="Verified DOM extraction and approval gates." placeholder="notes" />
+        </div>
+        <div class="row">
+          <button class="secondary" onclick="fillForm()">Fill Form</button>
+          <button onclick="submitForm()">Submit Form (Gated)</button>
+          <button class="secondary" onclick="triggerDownload()">Download Release Notes</button>
+        </div>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2><span>4. Multi-Page Workflows</span><button onclick="runDemoWorkflow()">Run Demo Workflow</button></h2>
+        <div id="workflowsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>5. Human Approval Queue (Form Submissions)</span></h2>
+        <div id="approvalsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>6. Sandboxed Downloads</span></h2>
+        <div id="downloadsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>7. Browser Automation Logs</span><button class="secondary" onclick="refreshAll()">Refresh</button></h2>
+        <div id="logsList" class="list"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/browser-agent';
+    let currentSessionId = null;
+
+    function showAlert(msg, isErr = false) {
+      const box = document.getElementById('alertBox');
+      box.textContent = msg;
+      box.className = 'alert show ' + (isErr ? 'err' : 'info');
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || ('HTTP ' + res.status);
+        showAlert(msg, true);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function renderDom(dom) {
+      if (!dom) return;
+      document.getElementById('pageTitle').textContent = dom.title || '—';
+      document.getElementById('statHeadings').textContent = dom.element_counts?.headings ?? 0;
+      document.getElementById('statLinks').textContent = dom.element_counts?.links ?? 0;
+      document.getElementById('statForms').textContent = dom.element_counts?.forms ?? 0;
+      document.getElementById('domOutput').textContent = JSON.stringify(dom, null, 2);
+    }
+
+    async function createSession() {
+      const s = await api('/sessions', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'Operator Session', start_url: 'https://docs.jarvis.local/overview' }),
+      });
+      currentSessionId = s.session_id;
+      showAlert('Created browser session ' + s.session_id);
+      await inspectPage();
+      await refreshAll();
+    }
+
+    async function closeActiveSession() {
+      if (!currentSessionId) return showAlert('No active session selected.', true);
+      await api(`/sessions/${currentSessionId}/close`, { method: 'POST' });
+      showAlert('Closed session ' + currentSessionId);
+      currentSessionId = null;
+      await refreshAll();
+    }
+
+    async function quickNav(url) {
+      document.getElementById('urlInput').value = url;
+      await navigate();
+    }
+
+    async function navigate() {
+      if (!currentSessionId) await createSession();
+      const url = document.getElementById('urlInput').value.trim();
+      const res = await api(`/sessions/${currentSessionId}/navigate`, {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      });
+      renderDom(res.dom);
+      showAlert('Navigated to ' + res.url);
+      await refreshAll();
+    }
+
+    async function inspectPage() {
+      if (!currentSessionId) return showAlert('Create a session first.', true);
+      const res = await api(`/sessions/${currentSessionId}/inspect`);
+      renderDom(res.dom);
+      showAlert('DOM extracted for ' + res.url);
+    }
+
+    async function captureScreenshot() {
+      if (!currentSessionId) return showAlert('Create a session first.', true);
+      const res = await api(`/sessions/${currentSessionId}/screenshot`, { method: 'POST' });
+      const vp = document.getElementById('viewport');
+      vp.innerHTML = `<img src="data:image/png;base64,${res.image_b64}" alt="Captured browser screenshot" />
+        <div class="mono">${res.width}x${res.height} | Forms: ${res.analysis?.interactive_forms} | Links: ${res.analysis?.navigable_links} | Gate: ${res.analysis?.has_submission_gate}</div>`;
+      showAlert('Captured and analyzed screenshot (' + res.width + 'x' + res.height + ').');
+      await refreshAll();
+    }
+
+    async function fillForm() {
+      if (!currentSessionId) return showAlert('Create a session first.', true);
+      const form_id = document.getElementById('formIdInput').value.trim();
+      const fields = {
+        operator: document.getElementById('fieldOperator').value,
+        module: document.getElementById('fieldModule').value,
+        notes: document.getElementById('fieldNotes').value,
+      };
+      await api(`/sessions/${currentSessionId}/form/fill`, {
+        method: 'POST',
+        body: JSON.stringify({ form_id, fields }),
+      });
+      showAlert('Filled form ' + form_id + ' (not yet submitted).');
+      await refreshAll();
+    }
+
+    async function submitForm() {
+      if (!currentSessionId) return showAlert('Create a session first.', true);
+      const form_id = document.getElementById('formIdInput').value.trim();
+      const fields = {
+        operator: document.getElementById('fieldOperator').value,
+        module: document.getElementById('fieldModule').value,
+        notes: document.getElementById('fieldNotes').value,
+      };
+      const res = await api(`/sessions/${currentSessionId}/form/submit`, {
+        method: 'POST',
+        body: JSON.stringify({ form_id, fields, requested_by: 'web-operator' }),
+      });
+      showAlert(res.status === 'awaiting_approval' ? 'Form submission queued for human approval (' + res.approval.approval_id + ').' : 'Form submitted.');
+      await refreshAll();
+    }
+
+    async function triggerDownload() {
+      if (!currentSessionId) await createSession();
+      const res = await api(`/sessions/${currentSessionId}/download`, {
+        method: 'POST',
+        body: JSON.stringify({ url: 'https://releases.jarvis.local/files/jarvis_release_notes.txt' }),
+      });
+      showAlert('Downloaded ' + res.filename + ' (SHA-256: ' + res.sha256.slice(0, 12) + '...)');
+      await refreshAll();
+    }
+
+    async function runDemoWorkflow() {
+      const wf = await api('/workflows', {
+        method: 'POST',
+        body: JSON.stringify({
+          session_id: currentSessionId,
+          name: 'Docs -> Feedback -> Download Pipeline',
+          steps: [
+            { action: 'navigate', params: { url: 'https://docs.jarvis.local/overview' } },
+            { action: 'inspect', params: {} },
+            { action: 'navigate', params: { url: 'https://portal.jarvis.local/feedback' } },
+            { action: 'submit_form', params: { form_id: 'feedback-form', fields: { operator: 'Roshan', module: 'module-21', notes: 'Workflow test' } } },
+            { action: 'download', params: { url: 'https://releases.jarvis.local/files/jarvis_release_notes.txt' } }
+          ]
+        })
+      });
+      showAlert('Workflow ' + wf.task_id + ' status: ' + wf.status);
+      await refreshAll();
+    }
+
+    async function cancelWorkflow(id) {
+      await api(`/workflows/${id}/cancel`, { method: 'POST' });
+      showAlert('Cancelled workflow ' + id);
+      await refreshAll();
+    }
+
+    async function decideApproval(id, approved) {
+      await api(`/approvals/${id}/decide`, {
+        method: 'POST',
+        body: JSON.stringify({ approved, decided_by: 'web-operator', comment: approved ? 'Approved in UI' : 'Rejected in UI' }),
+      });
+      showAlert((approved ? 'Approved' : 'Rejected') + ' submission ' + id);
+      await refreshAll();
+    }
+
+    async function refreshAll() {
+      const [status, sessions, workflows, approvals, downloads, logs] = await Promise.all([
+        api('/status'), api('/sessions'), api('/workflows'), api('/approvals'), api('/downloads'), api('/logs?limit=40')
+      ]);
+
+      document.getElementById('simBadge').textContent = status.simulated ? 'SIMULATED ADAPTER' : 'LIVE ADAPTER';
+
+      const sel = document.getElementById('sessionSelect');
+      sel.innerHTML = '';
+      sessions.sessions.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.session_id;
+        opt.textContent = `${s.name} (${s.status}) — ${s.current_url}`;
+        if (!currentSessionId && s.status === 'active') currentSessionId = s.session_id;
+        if (s.session_id === currentSessionId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = () => { currentSessionId = sel.value; document.getElementById('activeSessionLabel').textContent = currentSessionId; };
+      document.getElementById('activeSessionLabel').textContent = currentSessionId || 'No active session';
+
+      document.getElementById('workflowsList').innerHTML = workflows.workflows.length
+        ? workflows.workflows.map(w => `
+          <div class="item">
+            <div class="item-head"><b>${w.name}</b><span class="pill ${w.status}">${w.status}</span></div>
+            <div class="mono">${w.task_id} | step ${w.current_step}/${w.steps.length}</div>
+            ${['running','awaiting_approval','pending'].includes(w.status) ? `<div style="margin-top:6px;"><button class="danger" onclick="cancelWorkflow('${w.task_id}')">Cancel Task</button></div>` : ''}
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No workflows executed yet.</div>';
+
+      document.getElementById('approvalsList').innerHTML = approvals.approvals.length
+        ? approvals.approvals.map(a => `
+          <div class="item">
+            <div class="item-head"><b>Form: ${a.form_id}</b><span class="pill ${a.status}">${a.status}</span></div>
+            <div class="mono">${a.url}</div>
+            <div style="color:var(--muted);margin:4px 0;">Fields: ${JSON.stringify(a.fields)}</div>
+            ${a.status === 'pending' ? `<div class="row" style="margin-top:6px;margin-bottom:0;">
+              <button class="success" onclick="decideApproval('${a.approval_id}', true)">Approve &amp; Submit</button>
+              <button class="danger" onclick="decideApproval('${a.approval_id}', false)">Reject</button>
+            </div>` : ''}
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No pending form approvals.</div>';
+
+      document.getElementById('downloadsList').innerHTML = downloads.downloads.length
+        ? downloads.downloads.map(d => `
+          <div class="item">
+            <div class="item-head"><b>${d.filename}</b><span class="pill completed">${d.size_bytes} B</span></div>
+            <div class="mono">SHA-256: ${d.sha256}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No downloads yet.</div>';
+
+      document.getElementById('logsList').innerHTML = logs.logs.map(l => `
+        <div class="item">
+          <div class="item-head"><b>${l.event_type || l.action || 'event'}</b><span class="pill">${l.level}</span></div>
+          <div>${l.message}</div>
+          <div class="mono">${l.created_at}</div>
+        </div>`).join('');
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/events`);
+      const badge = document.getElementById('wsBadge');
+      ws.onopen = () => { badge.textContent = 'WS: LIVE'; badge.className = 'badge ok'; };
+      ws.onclose = () => { badge.textContent = 'WS: RECONNECTING'; badge.className = 'badge'; setTimeout(connectWS, 4000); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

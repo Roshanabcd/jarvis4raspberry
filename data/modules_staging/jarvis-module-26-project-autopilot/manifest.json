@@ -1,0 +1,29 @@
+{
+  "module_id": "jarvis-module-26-project-autopilot",
+  "module_number": 26,
+  "name": "Project Autopilot",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "CRITICAL",
+  "category": "autonomous_engineering",
+  "description": "Autonomous project planning, milestone decomposition, dependency-aware task execution, human approval checkpoints, and sandboxed starter scaffolding for JARVIS OS.",
+  "default_port": 8126,
+  "ui_route": "/project-autopilot",
+  "api_prefix": "/api/v1/project-autopilot",
+  "ws_endpoint": "/api/v1/project-autopilot/ws/events",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M26_DB_PATH",
+    "default_path": "./data/jarvis_project_autopilot.db"
+  },
+  "capabilities": [
+    "goal_to_milestone_decomposition",
+    "dependency_aware_task_execution",
+    "human_approval_checkpoints",
+    "dry_run_execution",
+    "sandboxed_workspace_scaffolding",
+    "markdown_blueprint_export"
+  ]
+}

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 27: GitHub &amp; CI/CD Manager</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --warn: #FFB84D;
+      --danger: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FAAC8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top right, rgba(33, 139, 255, 0.14), transparent 42%),
+                  radial-gradient(circle at bottom left, rgba(152, 104, 255, 0.12), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px; background: rgba(16, 30, 48, 0.9);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .orb {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan), var(--blue) 60%, var(--purple));
+      box-shadow: 0 0 18px rgba(0, 217, 255, 0.65);
+    }
+    h1 { margin: 0; font-size: 1.12rem; letter-spacing: 0.04em; }
+    .subtitle { font-size: 0.78rem; color: var(--muted); }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0, 217, 255, 0.1); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255, 184, 77, 0.45); background: rgba(255, 184, 77, 0.12); color: var(--warn); }
+    .badge.ok { border-color: rgba(37, 230, 162, 0.45); background: rgba(37, 230, 162, 0.12); color: var(--green); }
+    .badge.err { border-color: rgba(255, 92, 119, 0.45); background: rgba(255, 92, 119, 0.12); color: var(--danger); }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 20px 24px 40px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi .val { font-size: 1.65rem; font-weight: 700; margin-top: 6px; color: var(--cyan); }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .panel h2 { margin: 0 0 12px; font-size: 0.96rem; color: var(--cyan); letter-spacing: 0.03em; }
+    label { display: block; font-size: 0.76rem; color: var(--muted); margin: 8px 0 4px; }
+    input, select {
+      width: 100%; background: var(--panel-alt); color: var(--text);
+      border: 1px solid rgba(143, 170, 200, 0.25); border-radius: 8px;
+      padding: 8px 10px; font-size: 0.86rem; font-family: inherit;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 14px; cursor: pointer; font-size: 0.82rem;
+    }
+    button.secondary { background: rgba(152, 104, 255, 0.16); color: var(--text); border: 1px solid rgba(152, 104, 255, 0.45); }
+    button.ok { background: rgba(37, 230, 162, 0.18); color: var(--green); border: 1px solid rgba(37, 230, 162, 0.45); }
+    button.danger { background: rgba(255, 92, 119, 0.16); color: var(--danger); border: 1px solid rgba(255, 92, 119, 0.45); }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+    .card { background: var(--panel-alt); border: 1px solid rgba(0, 217, 255, 0.16); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+    .card.active, .card:hover { border-color: var(--cyan); }
+    .card-title { font-weight: 600; font-size: 0.88rem; }
+    .card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .item-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel-alt); border-radius: 10px; border: 1px solid rgba(0,217,255,0.14); margin-bottom: 8px; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    #toast { font-size: 0.82rem; color: var(--green); min-height: 20px; margin-bottom: 8px; }
+    @media (max-width: 960px) { .kpi-grid, .layout, .cols { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <h1>JARVIS OS · Module 27 — GitHub &amp; CI/CD Manager</h1>
+        <div class="subtitle">Repositories · PR Merge Gates · CI/CD Pipelines · Releases &amp; Rollbacks · Webhook HMAC</div>
+      </div>
+    </div>
+    <div class="row">
+      <span id="simBadge" class="badge sim">SIMULATED GITHUB / ACTIONS</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="toast"></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Repositories</div><div id="kRepos" class="val">0</div></div>
+      <div class="kpi"><div class="label">Open / Merged PRs</div><div id="kPrs" class="val" style="color:var(--green)">0 / 0</div></div>
+      <div class="kpi"><div class="label">Pipeline Runs</div><div id="kRuns" class="val" style="color:var(--purple)">0</div></div>
+      <div class="kpi"><div class="label">Releases</div><div id="kRels" class="val" style="color:var(--warn)">0</div></div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="panel">
+          <h2>Register Repository</h2>
+          <label>Full Name (`owner/repo`)</label>
+          <input id="rName" placeholder="e.g. roshan/jarvis-os" />
+          <label>Default Branch</label>
+          <input id="rBranch" value="main" />
+          <div style="margin-top:10px"><button onclick="registerRepo()">+ Register Repo</button></div>
+        </div>
+
+        <div class="panel">
+          <h2>Repositories</h2>
+          <div id="repoList" class="list"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2 id="activeRepoTitle" style="margin:0">Select or Register a Repository</h2>
+            <div class="row">
+              <button onclick="triggerRun(false)">Run CI Pipeline</button>
+              <button class="danger" onclick="triggerRun(true)">Simulate Failure</button>
+            </div>
+          </div>
+          <div id="activeRepoMeta" class="card-meta" style="margin-top:6px">No repository selected.</div>
+        </div>
+
+        <div class="cols">
+          <div class="panel">
+            <h2>Pull Requests &amp; Merge Gates</h2>
+            <div class="row" style="margin-bottom:10px">
+              <input id="prTitle" placeholder="PR title..." style="flex:1" />
+              <input id="prBranch" placeholder="feat/branch" style="width:130px" />
+              <button class="secondary" onclick="createPR()">+ PR</button>
+            </div>
+            <div id="prList"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Releases &amp; Rollbacks</h2>
+            <div class="row" style="margin-bottom:10px">
+              <input id="relTag" placeholder="v1.0.0" style="width:110px" />
+              <input id="relNotes" placeholder="Release notes..." style="flex:1" />
+              <button class="secondary" onclick="publishRelease()">Publish</button>
+            </div>
+            <div id="relList"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Recent CI/CD Pipeline Runs</h2>
+          <div id="runList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/github-cicd';
+    let activeRepoId = null;
+    let activeRepoBranch = 'main';
+
+    function toast(msg, isErr = false) {
+      const el = document.getElementById('toast');
+      el.style.color = isErr ? 'var(--danger)' : 'var(--green)';
+      el.textContent = msg;
+      setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 4000);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ? data.error.message : JSON.stringify(data));
+      return data;
+    }
+
+    async function refreshStatus() {
+      const s = await api('/status');
+      document.getElementById('kRepos').textContent = s.repositories_count;
+      document.getElementById('kPrs').textContent = `${s.open_prs} / ${s.merged_prs}`;
+      document.getElementById('kRuns').textContent = `${s.pipeline_runs} (${s.failed_runs} fail)`;
+      document.getElementById('kRels').textContent = s.releases_count;
+    }
+
+    async function loadRepos() {
+      const data = await api('/repos');
+      const box = document.getElementById('repoList');
+      box.innerHTML = '';
+      if (!data.repositories.length) {
+        box.innerHTML = '<div class="card-meta">No repositories registered yet.</div>';
+        return;
+      }
+      data.repositories.forEach(r => {
+        const div = document.createElement('div');
+        div.className = 'card' + (r.repo_id === activeRepoId ? ' active' : '');
+        div.innerHTML = `<div class="card-title">${r.full_name}</div><div class="card-meta">branch: ${r.default_branch} · CI gate: ${r.require_ci_green ? 'ON' : 'OFF'}</div>`;
+        div.onclick = () => selectRepo(r);
+        box.appendChild(div);
+      });
+      if (!activeRepoId && data.repositories.length) selectRepo(data.repositories[0]);
+    }
+
+    async function selectRepo(repo) {
+      activeRepoId = repo.repo_id;
+      activeRepoBranch = repo.default_branch;
+      document.getElementById('activeRepoTitle').textContent = repo.full_name;
+      document.getElementById('activeRepoMeta').textContent = `ID: ${repo.repo_id} · Default Branch: ${repo.default_branch} · Workflows: ${repo.workflows.join(', ')}`;
+      await Promise.all([loadPRs(), loadRuns(), loadReleases(), loadRepos()]);
+    }
+
+    async function loadPRs() {
+      if (!activeRepoId) return;
+      const data = await api(`/pull-requests?repo_id=${activeRepoId}`);
+      document.getElementById('prList').innerHTML = data.pull_requests.map(p => `
+        <div class="item-row">
+          <div>
+            <div class="card-title">#${p.pr_number} ${p.title}</div>
+            <div class="card-meta">${p.source_branch} -> ${p.target_branch} · CI: ${p.ci_status} · ${p.status}</div>
+          </div>
+          <div class="row">
+            ${p.status === 'open' ? `<button class="secondary" onclick="triggerRunForPR('${p.pr_id}','${p.source_branch}')">Run CI</button><button class="ok" onclick="mergePR('${p.pr_id}')">Merge</button>` : `<span class="badge ok">${p.status}</span>`}
+          </div>
+        </div>
+      `).join('') || '<div class="card-meta">No pull requests yet.</div>';
+    }
+
+    async function loadRuns() {
+      if (!activeRepoId) return;
+      const data = await api(`/pipelines?repo_id=${activeRepoId}`);
+      document.getElementById('runList').innerHTML = data.runs.map(r => `
+        <div class="item-row">
+          <div>
+            <div class="card-title">${r.workflow_name} @ ${r.branch}</div>
+            <div class="card-meta">${r.duration_sec}s · ${r.steps.map(s => `${s.step}:${s.status}`).join(' | ')}</div>
+          </div>
+          <span class="badge ${r.status === 'passed' ? 'ok' : 'err'}">${r.status.toUpperCase()}</span>
+        </div>
+      `).join('') || '<div class="card-meta">No pipeline runs yet.</div>';
+    }
+
+    async function loadReleases() {
+      if (!activeRepoId) return;
+      const data = await api(`/releases?repo_id=${activeRepoId}`);
+      document.getElementById('relList').innerHTML = data.releases.map(rel => `
+        <div class="item-row">
+          <div>
+            <div class="card-title">${rel.tag_name}</div>
+            <div class="card-meta">${rel.notes || 'No notes'} · ${rel.status}</div>
+          </div>
+          ${rel.status === 'published' ? `<button class="danger" onclick="rollbackRel('${rel.release_id}')">Rollback</button>` : `<span class="badge err">${rel.status}</span>`}
+        </div>
+      `).join('') || '<div class="card-meta">No releases published yet.</div>';
+    }
+
+    async function registerRepo() {
+      try {
+        const full_name = document.getElementById('rName').value.trim();
+        const default_branch = document.getElementById('rBranch').value.trim() || 'main';
+        const repo = await api('/repos', { method: 'POST', body: JSON.stringify({ full_name, default_branch }) });
+        document.getElementById('rName').value = '';
+        toast(`Registered ${repo.full_name}`);
+        await refreshStatus();
+        await selectRepo(repo);
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function createPR() {
+      if (!activeRepoId) return;
+      try {
+        const title = document.getElementById('prTitle').value.trim();
+        const source_branch = document.getElementById('prBranch').value.trim() || 'feat/update';
+        await api('/pull-requests', { method: 'POST', body: JSON.stringify({ repo_id: activeRepoId, title, source_branch, target_branch: activeRepoBranch }) });
+        document.getElementById('prTitle').value = '';
+        toast('Pull request created.');
+        await refreshStatus();
+        await loadPRs();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function triggerRun(simulate_failure) {
+      if (!activeRepoId) return;
+      try {
+        const run = await api('/pipelines/trigger', { method: 'POST', body: JSON.stringify({ repo_id: activeRepoId, branch: activeRepoBranch, simulate_failure }) });
+        toast(`Pipeline ${run.status} (${run.duration_sec}s)`, run.status === 'failed');
+        await refreshStatus();
+        await loadRuns();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function triggerRunForPR(pr_id, branch) {
+      try {
+        const run = await api('/pipelines/trigger', { method: 'POST', body: JSON.stringify({ repo_id: activeRepoId, pr_id, branch }) });
+        toast(`PR CI ${run.status}.`);
+        await refreshStatus();
+        await Promise.all([loadPRs(), loadRuns()]);
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function mergePR(pr_id) {
+      try {
+        await api(`/pull-requests/${pr_id}/merge`, { method: 'POST', body: JSON.stringify({ strategy: 'squash', merged_by: 'operator' }) });
+        toast('PR merged cleanly.');
+        await refreshStatus();
+        await loadPRs();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function publishRelease() {
+      if (!activeRepoId) return;
+      try {
+        const tag_name = document.getElementById('relTag').value.trim();
+        const notes = document.getElementById('relNotes').value.trim();
+        await api('/releases', { method: 'POST', body: JSON.stringify({ repo_id: activeRepoId, tag_name, notes }) });
+        document.getElementById('relTag').value = '';
+        document.getElementById('relNotes').value = '';
+        toast(`Release ${tag_name} published.`);
+        await refreshStatus();
+        await loadReleases();
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function rollbackRel(id) {
+      await api(`/releases/${id}/rollback`, { method: 'POST' });
+      toast('Release marked rolled back.');
+      await loadReleases();
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}${API}/ws/events`);
+      const b = document.getElementById('wsBadge');
+      ws.onopen = () => { b.textContent = 'WS: LIVE'; b.className = 'badge ok'; };
+      ws.onclose = () => { b.textContent = 'WS: RECONNECTING'; b.className = 'badge'; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => refreshStatus();
+    }
+
+    refreshStatus();
+    loadRepos();
+    connectWS();
+  </script>
+</body>
+</html>
