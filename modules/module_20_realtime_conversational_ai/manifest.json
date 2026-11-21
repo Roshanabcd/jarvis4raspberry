@@ -1,0 +1,93 @@
+{
+  "module_id": "jarvis-module-20-realtime-conversational-ai",
+  "module_number": 20,
+  "name": "Real-Time Conversational AI",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "phase": "PHASE_A_CORE_AI_OS",
+  "priority": "CRITICAL",
+  "category": "Core AI Operating System",
+  "description": "Voice-first real-time conversational assistant for JARVIS OS featuring configurable AI provider adapters with automatic error recovery, streaming token & viseme timelines, voice interruption (barge-in), ARIA & ATLAS animated holographic avatars, blinking/facial states, subtitles, and SQLite conversation history.",
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "fastapi>=0.92.0",
+      "uvicorn>=0.17.6",
+      "pydantic>=1.10.4",
+      "httpx>=0.23.3"
+    ],
+    "optional_packages": [
+      "pytest>=7.4.0",
+      "pytest-asyncio>=0.21.0"
+    ],
+    "jarvis_modules": [
+      "jarvis-module-22-intelligent-model-router (optional future adapter)"
+    ]
+  },
+  "permissions": [
+    "voice:microphone:browser_permission",
+    "voice:tts:playback",
+    "ai:provider:chat",
+    "storage:sqlite:local"
+  ],
+  "resource_requirements": {
+    "min_ram_mb": 128,
+    "recommended_ram_mb": 256,
+    "cpu_cores": 1,
+    "gpu_required": false,
+    "storage_type": "sqlite_wal"
+  },
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_mount": "backend.app.main:mount_module",
+    "frontend_dev": "frontend/src/main.tsx",
+    "frontend_standalone_url": "/conversational-ai",
+    "health_check": "/api/v1/conversational-ai/health",
+    "manifest_endpoint": "/api/v1/conversational-ai/manifest",
+    "openapi_prefix": "/api/v1/conversational-ai",
+    "websocket_stream": "/api/v1/conversational-ai/ws/chat"
+  },
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "JARVIS_M20_HOST": { "type": "string", "default": "0.0.0.0" },
+      "JARVIS_M20_PORT": { "type": "integer", "default": 8120 },
+      "JARVIS_M20_DB_PATH": { "type": "string", "default": "./data/jarvis_conversational_ai.db" },
+      "JARVIS_M20_PROVIDER": { "type": "string", "enum": ["simulated_local", "ollama", "openai_compatible"], "default": "simulated_local" },
+      "JARVIS_M20_PROVIDER_URL": { "type": "string", "default": "" },
+      "JARVIS_M20_PROVIDER_MODEL": { "type": "string", "default": "jarvis-local-sim-v1" },
+      "JARVIS_M20_CONTEXT_WINDOW": { "type": "integer", "default": 12 }
+    }
+  },
+  "events": {
+    "published": [
+      "conversation.session.created",
+      "conversation.turn.started",
+      "conversation.turn.token",
+      "conversation.turn.completed",
+      "conversation.turn.interrupted",
+      "conversation.provider.fallback"
+    ],
+    "subscribed": [
+      "orchestrator.voice.briefing"
+    ]
+  },
+  "error_format": {
+    "schema": {
+      "error": {
+        "code": "string",
+        "message": "string",
+        "details": "object|null",
+        "timestamp": "ISO-8601 UTC string"
+      }
+    }
+  },
+  "simulation_disclosure": {
+    "uses_simulation_by_default": true,
+    "lip_sync_accuracy": "approximate_syllable_viseme_browser_fallback",
+    "simulated_components": [
+      "Default provider is SimulatedLocalProvider until JARVIS_M20_PROVIDER and credentials/URL are configured.",
+      "Browser-native Web Speech API TTS/STT uses approximate syllable/viseme lip-sync rather than phoneme-accurate audio forced alignment."
+    ]
+  }
+}

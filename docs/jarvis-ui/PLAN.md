@@ -207,3 +207,15 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 - Tests: 74 Python / 81 frontend passed; 1 Chromium synthetic muted-audio test passed. Evidence in phase-6/corrective. These are not physical audio acceptance.
 - Next: merge current feature/jarvis-ui changes, preserve extension integration, and fix module catalog launch paths. See docs/CODEX_VOICE_CONTINUATION.md.
 - Full phase gate remains unverified; no full project completion claim.
+
+
+- 2026-11-20: Executed Advanced Voice Agent & Multimodal Intelligence Upgrade. Resolved "Voice request finished" error via HTML5 audio bridge `/api/voice/transcribe`; activated openWakeWord with 8-state voice session lifecycle; integrated Microsoft Edge-TTS neural voices (ARIA and ATLAS) with local offline fallback; rendered Svg2D vector digital human avatar with 5 phonetic visemes driven by Web Audio FFT; integrated multimodal screen_capture and camera_capture with Moondream VLM and IMX708; compiled all 6 audit/architecture documents in docs/; verified 100% test pass rate across 656 backend unit tests and 91 frontend tests. Verified in commit d7005b2.
+
+### 2026-11-21 merged voice and extension continuation
+- Preserved newer ARIA/ATLAS home controls, browser transcription endpoint, all 25 extracted modules and extension-manager code.
+- Browser microphone is an explicit source choice, requires native mute acknowledgment, releases tracks on failure/cancel, and submits recognized text through existing Chat without a second inference/speaker owner.
+- Added a read-only catalog bridge for modules 18–42 without changing module engines, database schema or stored registry. Existing role checks still guard launch; both dashboards open real local routes and label interface registration separately from operational readiness.
+- Corrected futuristic category values and unavailable status display. No new dependency.
+- Merged regression results: 78 Python passed, 84 frontend passed, two isolated Chromium checks passed (synthetic playback and module navigation). Evidence in phase-6/corrective. Existing full phase gates and physical acceptance remain unverified.
+- Found duplicate core service configured on port 8000 with >1100 restarts; stopped only the competing user jarvis-backend.service. Kept system core and microphone owner running.
+- Required next: reload system core after code integration, verify 45 catalog entries / 42 registered suite entries, then test real speech and module features. No automatic module action or hardware motion was executed.

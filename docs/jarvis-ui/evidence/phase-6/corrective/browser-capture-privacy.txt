@@ -1,0 +1,17 @@
+✔ accepted owner request never opens a second recorder or claims completion (12.156307ms)
+✔ daemon ownership and capture errors are never reported as silence (7.278406ms)
+✔ confirmed no-speech response has its own outcome (4.663346ms)
+✔ server-owned speech is queued once and never replayed in browser (3.875646ms)
+✔ permission or uncertain timeout cannot start fallback capture (7.268258ms)
+✔ text success without speech delivery remains a delivery error (5.126566ms)
+✔ explicit browser mode never silently switches to host when permission fails (4.974826ms)
+✔ browser capture does not begin if native-owner mute is rejected (4.500421ms)
+✔ cancel while browser permission is pending closes late stream without submission (49.824034ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 343.523267

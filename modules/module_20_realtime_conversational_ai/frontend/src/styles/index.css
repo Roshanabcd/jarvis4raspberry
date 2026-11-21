@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { background: #050B16; color: #F0F8FF; min-height: 100vh; }
+.jarvis-glass { background: rgba(16, 30, 48, 0.78); backdrop-filter: blur(14px); border: 1px solid rgba(0, 217, 255, 0.24); }

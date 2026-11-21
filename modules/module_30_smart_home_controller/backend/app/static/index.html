@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Smart Home Controller (M30)</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8AA4C2;
+      --danger: #FF5C77;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, rgba(33,139,255,0.14), transparent 40%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 30, 48, 0.78);
+      backdrop-filter: blur(8px);
+    }
+    .brand h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.06em; color: var(--cyan); }
+    .brand p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+      background: rgba(0, 217, 255, 0.08);
+    }
+    .badge.sim { border-color: var(--purple); color: var(--purple); }
+    .badge.live { border-color: var(--green); color: var(--green); }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    @media (max-width: 900px) {
+      .col-8, .col-6, .col-4 { grid-column: span 12; }
+    }
+    h2 { margin: 0 0 12px; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cyan); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .stat { background: rgba(5, 11, 22, 0.65); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+    .stat .value { font-size: 1.4rem; font-weight: 700; color: var(--text); margin-top: 4px; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 10px; }
+    input, select {
+      background: #081224;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    button.secondary {
+      background: rgba(0, 217, 255, 0.12);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+    button.danger {
+      background: rgba(255, 92, 119, 0.16);
+      color: var(--danger);
+      border: 1px solid rgba(255, 92, 119, 0.45);
+    }
+    .device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .device-card {
+      background: rgba(5, 11, 22, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .device-head { display: flex; justify-content: space-between; align-items: center; }
+    .device-name { font-weight: 700; font-size: 0.95rem; }
+    .device-meta { font-size: 0.75rem; color: var(--muted); }
+    .state-box {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      background: #040914;
+      border-radius: 6px;
+      padding: 6px 8px;
+      color: var(--green);
+      overflow-x: auto;
+    }
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+    .list-item {
+      background: rgba(5, 11, 22, 0.65);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #101E30;
+      border: 1px solid var(--cyan);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: none;
+      font-size: 0.84rem;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS // SMART HOME CONTROLLER</h1>
+      <p>Module 30 • Unified IoT Control Plane, Scenes, Rules &amp; Energy Telemetry</p>
+    </div>
+    <div class="badges">
+      <span id="simBadge" class="badge sim">BRIDGE: LOADING</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card col-12">
+      <h2>System Telemetry</h2>
+      <div class="stats">
+        <div class="stat"><div class="label">Devices</div><div id="statDevices" class="value">0</div></div>
+        <div class="stat"><div class="label">Active Power</div><div id="statActive" class="value">0</div></div>
+        <div class="stat"><div class="label">Active Load</div><div id="statWatts" class="value">0 W</div></div>
+        <div class="stat"><div class="label">Scenes</div><div id="statScenes" class="value">0</div></div>
+        <div class="stat"><div class="label">Rules</div><div id="statRules" class="value">0</div></div>
+      </div>
+    </section>
+
+    <section class="card col-8">
+      <h2>Register Device</h2>
+      <div class="form-row">
+        <input id="devName" placeholder="Device Name (e.g. Living Room Lamp)" />
+        <input id="devRoom" placeholder="Room (e.g. Living Room)" />
+        <select id="devType">
+          <option value="light">Light</option>
+          <option value="thermostat">Thermostat</option>
+          <option value="smart_plug">Smart Plug</option>
+          <option value="lock">Smart Lock</option>
+          <option value="sensor">Sensor</option>
+        </select>
+        <input id="devWatts" type="number" min="0" max="5000" value="15" placeholder="Rated Watts" />
+        <button onclick="registerDevice()">Add Device</button>
+      </div>
+      <h2>Device Control Matrix</h2>
+      <div id="deviceGrid" class="device-grid"></div>
+    </section>
+
+    <section class="card col-4">
+      <h2>Room Energy Draw</h2>
+      <div id="energyList" class="list"></div>
+      <h2 style="margin-top:16px;">Scenes &amp; Automation</h2>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="secondary" onclick="evaluateRules()">Evaluate Rules Now</button>
+        <button class="secondary" onclick="refreshAll()">Refresh</button>
+      </div>
+      <div id="sceneList" class="list"></div>
+      <h2 style="margin-top:16px;">Audit Events</h2>
+      <div id="eventList" class="list"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = "/api/v1/smart-home";
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      clearTimeout(window._t);
+      window._t = setTimeout(() => { el.style.display = "none"; }, 3200);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || "Request failed";
+        toast("Error: " + msg);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function registerDevice() {
+      const name = document.getElementById("devName").value.trim();
+      const room = document.getElementById("devRoom").value.trim();
+      const device_type = document.getElementById("devType").value;
+      const rated_watts = parseFloat(document.getElementById("devWatts").value || "12");
+      if (name.length < 2 || room.length < 2) {
+        toast("Enter a valid device name and room.");
+        return;
+      }
+      await api("/devices", {
+        method: "POST",
+        body: JSON.stringify({ name, room, device_type, rated_watts })
+      });
+      document.getElementById("devName").value = "";
+      toast("Registered " + name);
+      refreshAll();
+    }
+
+    async function sendCmd(deviceId, command, value = null, confirm_unlock = false) {
+      await api(`/devices/${deviceId}/command`, {
+        method: "POST",
+        body: JSON.stringify({ command, value, confirm_unlock })
+      });
+      toast(`Command '${command}' executed.`);
+      refreshAll();
+    }
+
+    async function activateScene(sceneId) {
+      const res = await api(`/scenes/${sceneId}/activate`, { method: "POST" });
+      toast(`Activated scene '${res.scene}' (${res.applied_count} devices).`);
+      refreshAll();
+    }
+
+    async function evaluateRules() {
+      const res = await api("/rules/evaluate", { method: "POST" });
+      toast(`Rules evaluated: ${res.triggered_count} triggered.`);
+      refreshAll();
+    }
+
+    function renderDevices(devices) {
+      const grid = document.getElementById("deviceGrid");
+      if (!devices.length) {
+        grid.innerHTML = `<div class="device-meta">No devices registered yet. Add one above to begin.</div>`;
+        return;
+      }
+      grid.innerHTML = devices.map(d => {
+        let controls = "";
+        if (d.device_type === "lock") {
+          controls = `
+            <button class="secondary" onclick="sendCmd('${d.device_id}','lock')">Lock</button>
+            <button class="danger" onclick="sendCmd('${d.device_id}','unlock',null,true)">Confirm Unlock</button>
+          `;
+        } else if (d.device_type === "sensor") {
+          controls = `
+            <button class="secondary" onclick="sendCmd('${d.device_id}','update_reading',{temp_c:29.5})">Sim 29.5°C</button>
+          `;
+        } else {
+          controls = `
+            <button onclick="sendCmd('${d.device_id}','turn_on')">ON</button>
+            <button class="secondary" onclick="sendCmd('${d.device_id}','turn_off')">OFF</button>
+          `;
+          if (d.device_type === "light") {
+            controls += `<button class="secondary" onclick="sendCmd('${d.device_id}','set_brightness',50)">50%</button>`;
+          }
+          if (d.device_type === "thermostat") {
+            controls += `<button class="secondary" onclick="sendCmd('${d.device_id}','set_temp',21.5)">21.5°C</button>`;
+          }
+        }
+        return `
+          <div class="device-card">
+            <div class="device-head">
+              <div class="device-name">${d.name}</div>
+              <span class="badge">${d.device_type}</span>
+            </div>
+            <div class="device-meta">${d.room} • ${d.rated_watts}W rated</div>
+            <div class="state-box">${JSON.stringify(d.state)}</div>
+            <div class="btn-row">${controls}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function refreshAll() {
+      const [status, devs, energy, scenes, events] = await Promise.all([
+        api("/status"),
+        api("/devices"),
+        api("/energy"),
+        api("/scenes"),
+        api("/events")
+      ]);
+      document.getElementById("statDevices").textContent = status.devices_count;
+      document.getElementById("statActive").textContent = status.active_devices;
+      document.getElementById("statWatts").textContent = `${status.total_active_watts} W`;
+      document.getElementById("statScenes").textContent = status.scenes_count;
+      document.getElementById("statRules").textContent = status.rules_count;
+      const simBadge = document.getElementById("simBadge");
+      simBadge.textContent = status.simulated ? `SIMULATED (${status.adapter})` : `LIVE (${status.adapter})`;
+      simBadge.className = status.simulated ? "badge sim" : "badge live";
+
+      renderDevices(devs.devices);
+
+      const roomEntries = Object.entries(energy.by_room || {});
+      document.getElementById("energyList").innerHTML = roomEntries.length
+        ? roomEntries.map(([r, w]) => `<div class="list-item"><span>${r}</span><strong>${w} W</strong></div>`).join("")
+        : `<div class="device-meta">No active power draw.</div>`;
+
+      document.getElementById("sceneList").innerHTML = scenes.scenes.length
+        ? scenes.scenes.map(s => `
+            <div class="list-item">
+              <span>${s.name} (${s.actions.length} actions)</span>
+              <button class="secondary" onclick="activateScene('${s.scene_id}')">Run</button>
+            </div>`).join("")
+        : `<div class="device-meta">No scenes configured.</div>`;
+
+      document.getElementById("eventList").innerHTML = events.events.slice(0, 12).map(e => `
+        <div class="list-item"><span><strong>${e.event_type}</strong> — ${e.detail}</span></div>
+      `).join("") || `<div class="device-meta">No events yet.</div>`;
+    }
+
+    function connectWS() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/events`);
+      const badge = document.getElementById("wsBadge");
+      ws.onopen = () => { badge.textContent = "WS: CONNECTED"; badge.className = "badge live"; };
+      ws.onclose = () => { badge.textContent = "WS: RECONNECTING"; badge.className = "badge"; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => { refreshAll(); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

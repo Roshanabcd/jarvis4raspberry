@@ -67,6 +67,7 @@ def test_02_truthful_system_status_telemetry(shared_brain):
 def test_03_programming_disambiguation_python_script(shared_brain):
     """3. Programming request mentioning 'uptime' and 'memory' produces Python script, not telemetry."""
     sid = "core_test_03"
+    db.clear_session_messages(sid)
     res = shared_brain.chat("Write a Python script to display system uptime and memory.", session_id=sid)
     text = res.get("response", "")
     assert res.get("provider") in ("ollama", "nvidia", "gemini", "openai")

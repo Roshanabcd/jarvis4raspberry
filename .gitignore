@@ -57,6 +57,15 @@ data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal
 data/*.db
+modules/**/data/*.db
+modules/**/data/
 node_modules/
 package-lock.json
 
+
+# Ruflo local secrets and runtime data
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/

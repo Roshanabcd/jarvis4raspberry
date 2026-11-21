@@ -2,7 +2,7 @@
 import os
 import logging
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, ConfigDict, Field
 from apps.voice.service import voice_service
 from apps.voice.remote_control_policy import require_external_voice_control
@@ -228,6 +228,134 @@ def push_to_talk():
         raise HTTPException(409, "Not available: no active microphone owner")
     wake_word_engine.trigger_push_to_talk()
     return {"status": "accepted", "target": "backend"}
+
+
+@voice_router.post("/transcribe")
+async def transcribe_audio_file(
+    file: UploadFile = File(...),
+    process_command: bool = Form(True),
+    speak: bool = Form(True),
+):
+    """Transcribe client-recorded audio (from browser/laptop mic) and optionally execute command."""
+    import tempfile, subprocess, time, shutil
+    temp_dir = os.path.join(tempfile.gettempdir(), "jarvis_voice")
+    os.makedirs(temp_dir, exist_ok=True)
+    orig_name = file.filename or ""
+    suffix = os.path.splitext(orig_name)[1].lower() if "." in orig_name else ".webm"
+    if not suffix:
+        suffix = ".webm"
+    ts = int(time.time() * 1000)
+    raw_path = os.path.join(temp_dir, f"browser_raw_{ts}{suffix}")
+    wav_path = os.path.join(temp_dir, f"browser_proc_{ts}.wav")
+
+    try:
+        content = await file.read()
+        if not content or len(content) < 50:
+            return {"status": "empty", "transcribed": "", "message": "Uploaded audio is empty"}
+        with open(raw_path, "wb") as f:
+            f.write(content)
+
+        # Convert to 16kHz mono WAV via ffmpeg if needed
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if ffmpeg_bin:
+            conv = subprocess.run(
+                [ffmpeg_bin, "-y", "-i", raw_path, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav_path],
+                capture_output=True,
+                timeout=10,
+            )
+            target_wav = wav_path if (conv.returncode == 0 and os.path.isfile(wav_path) and os.path.getsize(wav_path) > 100) else raw_path
+        else:
+            target_wav = raw_path
+
+        text = voice_service.stt.transcribe(target_wav)
+        if not text or not text.strip():
+            return {"status": "empty", "transcribed": "", "message": "No audible speech recognized in audio"}
+
+        response = ""
+        staged = {}
+        if process_command:
+            response = voice_service.process_command(text, speak=speak)
+            staged = getattr(voice_service, "_last_staged", {}) or {}
+
+        return {
+            "status": "ok",
+            "transcribed": text,
+            "response": response,
+            "job_id": staged.get("job_id"),
+            "audio_url": staged.get("audio_url"),
+            "audio_id": staged.get("audio_id"),
+            "provider": staged.get("provider"),
+            "provider_label": staged.get("provider_label"),
+            "is_cloned": staged.get("is_cloned", False),
+        }
+    except Exception as e:
+        logger.error("Error transcribing uploaded audio: %s", e)
+        return {"status": "error", "message": str(e)}
+    finally:
+        for p in (raw_path, wav_path):
+            try:
+                if os.path.exists(p):
+                    os.unlink(p)
+            except Exception:
+                pass
+
+
+class WakeWordToggleRequest(BaseModel):
+    enabled: bool
+
+
+class WakeWordConfigRequest(BaseModel):
+    sensitivity: Optional[str] = None  # "low", "medium", "high"
+    silence_timeout_s: Optional[float] = None
+    follow_up_window_s: Optional[float] = None
+
+
+@voice_router.post("/wake_word/toggle")
+def toggle_wake_word(req: WakeWordToggleRequest):
+    """Enable or disable background wake-word activation."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        cmd = "wake_enable" if req.enabled else "wake_disable"
+        from apps.voice.daemon_control import send_daemon_command
+        send_daemon_command(cmd)
+    try:
+        from apps.voice.wake_word_engine import wake_word_engine
+        wake_word_engine.set_wake_word_enabled(req.enabled)
+    except Exception:
+        pass
+    return {"status": "ok", "wake_word_enabled": req.enabled}
+
+
+@voice_router.get("/wake_word/config")
+def get_wake_word_config():
+    """Retrieve current wake word configuration parameters."""
+    from apps.voice.wake_word_engine import wake_word_engine
+    return {
+        "status": "ok",
+        "wake_word_enabled": wake_word_engine.wake_word_enabled,
+        "silence_timeout_s": wake_word_engine.silence_timeout_s,
+        "follow_up_window_s": wake_word_engine.follow_up_window_s,
+        "adaptive_threshold": wake_word_engine.adaptive_threshold,
+        "ambient_noise_floor": wake_word_engine.ambient_noise_floor,
+    }
+
+
+@voice_router.post("/wake_word/config")
+def configure_wake_word(req: WakeWordConfigRequest):
+    """Configure wake-word VAD sensitivity, silence timeout, and follow-up window."""
+    from apps.voice.wake_word_engine import wake_word_engine
+    if req.sensitivity:
+        wake_word_engine.set_vad_sensitivity(req.sensitivity)
+    if req.silence_timeout_s is not None and 0.5 <= req.silence_timeout_s <= 15.0:
+        wake_word_engine.set_silence_timeout(req.silence_timeout_s)
+    if req.follow_up_window_s is not None and 1.0 <= req.follow_up_window_s <= 60.0:
+        wake_word_engine.follow_up_window_s = float(req.follow_up_window_s)
+    return {
+        "status": "ok",
+        "sensitivity": req.sensitivity,
+        "silence_timeout_s": wake_word_engine.silence_timeout_s,
+        "follow_up_window_s": wake_word_engine.follow_up_window_s,
+    }
 
 
 @voice_router.get("/jobs")

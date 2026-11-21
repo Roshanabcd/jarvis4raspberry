@@ -26,9 +26,11 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["apps", "hardware", "ai", "memory", "tools", "security", "config"]
+packages = ["apps", "hardware", "ai", "memory", "tools", "security", "config", "modules"]
 
 [tool.pytest.ini_options]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"
 markers = [
     "hardware: requires explicitly enabled attached hardware",
 ]

@@ -1,0 +1,20 @@
+{
+  "module_id": "jarvis-module-24-email-calendar-assistant",
+  "module_number": 24,
+  "name": "Email & Calendar Assistant",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "phase": "PHASE B — PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+  "description": "Smart email triage, draft reply composer with human-approval outbound send gates, overlap-checked calendar scheduling, free-slot finder, and RFC 5545 ICS export.",
+  "entrypoint": "backend.app.main:app",
+  "mount_hook": "backend.app.main:mount_module",
+  "default_port": 8124,
+  "ui_route": "/email-calendar",
+  "api_prefix": "/api/v1/email-calendar",
+  "health_endpoint": "/api/v1/email-calendar/health",
+  "ws_endpoint": "/api/v1/email-calendar/ws/events",
+  "simulated_default": true,
+  "database": "SQLite WAL (isolated per module)",
+  "compatible_with": ["jarvis-os-core", "modules-1-41"]
+}

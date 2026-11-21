@@ -842,7 +842,7 @@
             <button class="category-pill active" data-cat="ALL">ALL</button>
             <button class="category-pill" data-cat="USER">USER</button>
             <button class="category-pill" data-cat="PROJECT">PROJECT</button>
-            <button class="category-pill" data-cat="SYSTEM">SYSTEM</button>
+            <button class="category-pill" data-cat="security_analytics">SYSTEM</button>
             <button class="category-pill" data-cat="TASK">TASK</button>
             <button class="category-pill" data-cat="KNOWLEDGE">KNOWLEDGE</button>
             <button class="category-pill" data-cat="EVENT">EVENT</button>
@@ -1569,11 +1569,11 @@
           <input type="text" id="apps-search-input" class="input-futuristic flex-1" placeholder="Search application catalog by name or capability..." />
           <div class="ops-category-pills" id="apps-category-pills">
             <button class="category-pill active" data-cat="all">ALL</button>
-            <button class="category-pill" data-cat="AI">AI</button>
-            <button class="category-pill" data-cat="DEVELOPER">DEVELOPER</button>
-            <button class="category-pill" data-cat="PRODUCTIVITY">PRODUCTIVITY</button>
-            <button class="category-pill" data-cat="SYSTEM">SYSTEM</button>
-            <button class="category-pill" data-cat="ROBOTICS">ROBOTICS</button>
+            <button class="category-pill" data-cat="ai_agents">AI</button>
+            <button class="category-pill" data-cat="developer_tools">DEVELOPER</button>
+            <button class="category-pill" data-cat="productivity">PRODUCTIVITY</button>
+            <button class="category-pill" data-cat="security_analytics">SYSTEM</button>
+            <button class="category-pill" data-cat="experimental">ROBOTICS</button>
           </div>
         </div>
 
@@ -1646,6 +1646,7 @@
 
         grid.innerHTML = apps.map(app => {
           const isPlanned = (app.status || '').toLowerCase() === 'planned';
+          const canOpen = app.status === 'available';
           const isFav = Boolean(app.is_favorite);
 
           return `
@@ -1660,16 +1661,17 @@
               </div>
               <h4 class="app-title">${this.escapeHtml(app.name)}</h4>
               <p class="app-desc text-secondary text-sm">${this.escapeHtml(app.description || 'No description')}</p>
+              ${app.id.startsWith('extension-') ? `<p class="text-secondary text-sm">${this.escapeHtml(app.roadmap || '')}</p>` : ''}
               <div class="app-tags">
                 <span class="app-status-badge ${isPlanned ? 'badge-planned' : 'badge-available'}">
-                  ${isPlanned ? 'PLANNED' : 'AVAILABLE'}
+                  ${this.escapeHtml(app.id.startsWith('extension-') ? (app.status === 'available' ? 'INTERFACE REGISTERED' : 'UNAVAILABLE') : String(app.status || 'unavailable').toUpperCase())}
                 </span>
                 <span class="app-cat-badge">${this.escapeHtml(app.category || 'General')}</span>
                 <span class="app-version-badge">v${this.escapeHtml(app.version || '0.1.0')}</span>
               </div>
               <div class="app-actions">
-                <button class="btn-futuristic ${isPlanned ? 'btn-secondary' : 'btn-primary'} btn-sm btn-launch" data-id="${app.id}" data-planned="${isPlanned}" data-roadmap="${this.escapeHtml(app.roadmap || '')}">
-                  ${isPlanned ? 'View Roadmap' : 'Launch Application'}
+                <button class="btn-futuristic ${canOpen ? 'btn-primary' : 'btn-secondary'} btn-sm btn-launch" data-id="${app.id}" data-planned="${!canOpen}" data-roadmap="${this.escapeHtml(app.roadmap || '')}">
+                  ${canOpen ? 'Launch Application' : 'View Status'}
                 </button>
               </div>
             </div>
@@ -1702,7 +1704,7 @@
               // Surface honest roadmap explanation
               const modal = container.querySelector('#app-planned-modal');
               container.querySelector('#app-planned-desc').innerHTML = `
-                <strong>${this.escapeHtml(id)}</strong> is currently in the roadmap (Planned) and is not yet implemented.<br><br>
+                <strong>${this.escapeHtml(id)}</strong> cannot be opened in its current state.<br><br>
                 ${roadmap ? `<em>Roadmap note: ${this.escapeHtml(roadmap)}</em>` : 'Implementation scheduled in a future release.'}
               `;
               modal.classList.remove('hidden');
@@ -1716,6 +1718,10 @@
                 window.jarvisShell.showToast(res.message || `Launched ${id}`, 'success');
                 if (res.target_tab) {
                   window.location.hash = res.target_tab;
+                } else if (typeof res.route === 'string' && /^\/(?!\/)/.test(res.route) && !res.route.includes('\\')) {
+                  window.location.assign(res.route);
+                } else {
+                  window.jarvisShell.showToast('Not available: the application has no valid local interface route.', 'error');
                 }
               }
             } catch (err) {

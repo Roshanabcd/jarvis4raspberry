@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Permissions &amp; Approval Center (Module 40)</title>
+  <style>
+    :root {
+      --bg: #050B16; --panel: #101E30; --cyan: #00D9FF;
+      --blue: #218BFF; --purple: #9868FF; --green: #25E6A2; --text: #F0F8FF; --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top right, #0D223D, var(--bg) 60%);
+      color: var(--text); min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 28px; border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+      background: rgba(5, 11, 22, 0.85);
+    }
+    .brand { font-size: 1.15rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.04em; }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.78rem;
+      border: 1px solid rgba(37, 230, 162, 0.5); color: var(--green);
+      background: rgba(37, 230, 162, 0.1);
+    }
+    main { max-width: 1180px; margin: 24px auto; padding: 0 20px 40px; display: grid; gap: 20px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+    .kpi { background: #0A182B; padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.16); }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); }
+    .kpi .val { font-size: 1.3rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+    .card {
+      background: rgba(16, 30, 48, 0.9); border: 1px solid rgba(0, 217, 255, 0.22);
+      border-radius: 14px; padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: var(--cyan); }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04101E;
+      border: none; border-radius: 8px; padding: 9px 14px; font-weight: 700; cursor: pointer;
+    }
+    button.deny {
+      background: rgba(255, 90, 110, 0.2); color: #FFB3BE;
+      border: 1px solid rgba(255, 90, 110, 0.5);
+    }
+    button.secondary {
+      background: rgba(152, 104, 255, 0.2); color: var(--text);
+      border: 1px solid rgba(152, 104, 255, 0.5);
+    }
+    .req-list { display: grid; gap: 10px; }
+    .req-item {
+      background: #081424; border: 1px solid rgba(33, 139, 255, 0.3);
+      border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    pre {
+      background: #071222; border: 1px solid rgba(0, 217, 255, 0.16);
+      border-radius: 8px; padding: 12px; font-size: 0.82rem; overflow-x: auto; color: #CFE9FF; max-height: 220px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">JARVIS OS // MODULE 40 — PERMISSIONS &amp; APPROVAL CENTER</div>
+    <span id="ws-badge" class="badge">FAIL-CLOSED GATE | WS: CONNECTING</span>
+  </header>
+  <main>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Policies</div><div id="kpi-pol" class="val">0</div></div>
+      <div class="kpi"><div class="label">Pending Queue</div><div id="kpi-pend" class="val">0</div></div>
+      <div class="kpi"><div class="label">Total Requests</div><div id="kpi-req" class="val">0</div></div>
+      <div class="kpi"><div class="label">Audit Events</div><div id="kpi-aud" class="val">0</div></div>
+    </div>
+
+    <section class="card">
+      <h2>Human-in-the-Loop Approval Queue</h2>
+      <div class="controls">
+        <button id="btn-submit">Submit Sample High-Risk Request</button>
+        <button id="btn-refresh" class="secondary">Refresh Queue</button>
+      </div>
+      <div id="req-list" class="req-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Governance Decision Log</h2>
+      <pre id="out-box">Submit a high-risk action request to review, approve, or deny with full audit logging.</pre>
+    </section>
+  </main>
+
+  <script>
+    const out = document.getElementById("out-box");
+
+    async function refresh() {
+      const [sRes, rRes] = await Promise.all([fetch("/api/v1/approvals/status"), fetch("/api/v1/approvals/requests")]);
+      const st = await sRes.json();
+      document.getElementById("kpi-pol").textContent = st.policies_count;
+      document.getElementById("kpi-pend").textContent = st.pending_count;
+      document.getElementById("kpi-req").textContent = st.requests_count;
+      document.getElementById("kpi-aud").textContent = st.audit_events_count;
+
+      const list = document.getElementById("req-list");
+      list.innerHTML = "";
+      const data = await rRes.json();
+      (data.requests || []).forEach((req) => {
+        const div = document.createElement("div");
+        div.className = "req-item";
+        div.innerHTML = `<div><strong>${req.summary}</strong> [<code>${req.status.toUpperCase()}</code>]<br/><small style="color:#8FA8C8">${req.module_id}.${req.action} | Risk: ${req.risk_level} | Requester: ${req.requester}</small></div>`;
+        if (req.status === "pending") {
+          const actions = document.createElement("div");
+          actions.style.display = "flex";
+          actions.style.gap = "8px";
+          const btnA = document.createElement("button");
+          btnA.textContent = "Approve";
+          btnA.onclick = async () => {
+            const r = await fetch(`/api/v1/approvals/requests/${req.request_id}/decide`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ decision: "approve", reviewer: "Roshan Sharma", rationale: "Approved via HUD" })
+            });
+            out.textContent = JSON.stringify(await r.json(), null, 2);
+            refresh();
+          };
+          const btnD = document.createElement("button");
+          btnD.className = "deny";
+          btnD.textContent = "Deny";
+          btnD.onclick = async () => {
+            const r = await fetch(`/api/v1/approvals/requests/${req.request_id}/decide`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ decision: "deny", reviewer: "Roshan Sharma", rationale: "Denied via HUD" })
+            });
+            out.textContent = JSON.stringify(await r.json(), null, 2);
+            refresh();
+          };
+          actions.appendChild(btnA);
+          actions.appendChild(btnD);
+          div.appendChild(actions);
+        }
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById("btn-submit").onclick = async () => {
+      const r = await fetch("/api/v1/approvals/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requester: "agent-deploy-bot",
+          module_id: "module-27-github-cicd",
+          action: "deploy_production",
+          risk_level: "critical",
+          summary: "Deploy JARVIS release v1.0.0 to Raspberry Pi 5",
+          payload: { branch: "main" },
+          ttl_seconds: 600
+        })
+      });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+      refresh();
+    };
+
+    document.getElementById("btn-refresh").onclick = refresh;
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/api/v1/approvals/ws/requests`);
+    ws.onopen = () => { document.getElementById("ws-badge").textContent = "FAIL-CLOSED GATE | WS: LIVE"; };
+    ws.onclose = () => { document.getElementById("ws-badge").textContent = "FAIL-CLOSED GATE | WS: CLOSED"; };
+    refresh();
+  </script>
+</body>
+</html>

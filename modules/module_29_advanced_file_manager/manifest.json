@@ -1,0 +1,29 @@
+{
+  "module_id": "jarvis-module-29-advanced-file-manager",
+  "module_number": 29,
+  "name": "Advanced File Manager",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "system_productivity",
+  "description": "Sandboxed file management, SHA-256 duplicate detection, dry-run smart auto-organization, soft-delete trash & restore, tagging, content search, and audit logging for JARVIS OS.",
+  "default_port": 8129,
+  "ui_route": "/file-manager",
+  "api_prefix": "/api/v1/file-manager",
+  "ws_endpoint": "/api/v1/file-manager/ws/events",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M29_DB_PATH",
+    "default_path": "./data/jarvis_file_manager.db"
+  },
+  "capabilities": [
+    "sandboxed_file_crud",
+    "sha256_duplicate_scanner",
+    "smart_auto_organizer_with_dry_run",
+    "soft_delete_trash_and_restore",
+    "file_tagging_and_search",
+    "audit_trail"
+  ]
+}

@@ -6,7 +6,7 @@ user-isolated settings, shared AI inferences, resource telemetry, and admin cont
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from apps.apps_center.ai_service import shared_ai
@@ -19,6 +19,7 @@ from apps.apps_center.models import (
 )
 from apps.apps_center.permissions import AppRequestIdentity, apps_permissions
 from apps.apps_center.registry import app_registry
+from apps.apps_center.extension_catalog import extension_apps, extension_matches
 from apps.apps_center.resource_manager import resource_manager
 from apps.apps_center.task_manager import task_manager
 from tools.identity.user_manager import UserRole, user_manager
@@ -86,6 +87,13 @@ def get_active_app_identity() -> AppRequestIdentity:
     return apps_permissions.get_current_identity()
 
 
+def _resolve_app(app_id, request=None):
+    native = app_registry.get_app(app_id)
+    if native is not None:
+        return native
+    return next((app for app in extension_apps(request.app if request else None) if app.id == app_id), None)
+
+
 @apps_center_router.get("/catalog")
 def get_application_catalog(
     query: Optional[str] = Query(None, description="Search term for name or description"),
@@ -93,12 +101,15 @@ def get_application_catalog(
     status: Optional[str] = Query(None, description="Status filter"),
     capability: Optional[str] = Query(None, description="Capability filter"),
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """
     Search and filter application manifests in the central registry.
     Decorates results with user favorite flags.
     """
     apps = app_registry.search_apps(query=query, category=category, status=status, capability=capability)
+    apps += [app for app in extension_apps(request.app if request else None)
+             if extension_matches(app, query=query, category=category, status=status, capability=capability)]
     user_favs = set(apps_db.get_user_favorites(user_id=identity.user_id))
 
     out = []
@@ -127,9 +138,10 @@ def get_categories():
 def get_app_details(
     app_id: str,
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """Fetch complete metadata, resource requirements, and settings for a single app."""
-    manifest = app_registry.get_app(app_id)
+    manifest = _resolve_app(app_id, request)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found in registry.")
 
@@ -151,13 +163,14 @@ def launch_application(
     app_id: str,
     req: Optional[AppLaunchRequest] = None,
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """
     Attempt to open an application.
     Enforces that Planned applications cannot be launched and returns roadmap information.
     Available applications record launch telemetry and return target routes.
     """
-    manifest = app_registry.get_app(app_id)
+    manifest = _resolve_app(app_id, request)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
@@ -182,7 +195,7 @@ def launch_application(
         "name": manifest.name,
         "route": manifest.route,
         "target_tab": manifest.target_tab,
-        "message": f"Application '{manifest.name}' launched successfully.",
+        "message": f"Opening {manifest.name}. Actions require the module’s own readiness and permission checks.",
     }
 
 
@@ -190,9 +203,10 @@ def launch_application(
 def toggle_favorite(
     app_id: str,
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """Toggle starred / favorite state for an application."""
-    manifest = app_registry.get_app(app_id)
+    manifest = _resolve_app(app_id, request)
     if not manifest:
         raise HTTPException(status_code=404, detail=f"Application '{app_id}' not found.")
 
@@ -207,11 +221,12 @@ def toggle_favorite(
 @apps_center_router.get("/favorites")
 def get_user_favorites(
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """Retrieve list of starred application IDs for the specified user."""
     fav_ids = apps_db.get_user_favorites(user_id=identity.user_id)
     # Return manifest summaries
-    fav_apps = [app_registry.get_app(aid).model_dump() for aid in fav_ids if app_registry.get_app(aid)]
+    fav_apps = [_resolve_app(aid, request).model_dump() for aid in fav_ids if _resolve_app(aid, request)]
     return {
         "status": "ok",
         "favorites": fav_apps,
@@ -222,12 +237,13 @@ def get_user_favorites(
 def get_recent_apps(
     limit: Optional[int] = Query(6, ge=1, le=20),
     identity: AppRequestIdentity = Depends(get_active_app_identity),
+    request: Request = None,
 ):
     """Retrieve recently opened applications for the user."""
     recents = apps_db.get_recently_opened(user_id=identity.user_id, limit=limit or 6)
     out = []
     for r in recents:
-        manifest = app_registry.get_app(r["app_id"])
+        manifest = _resolve_app(r["app_id"], request)
         if manifest:
             d = manifest.model_dump()
             d["opened_at"] = r["opened_at"]

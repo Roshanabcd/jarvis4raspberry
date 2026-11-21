@@ -108,7 +108,27 @@ class ToolExecutor:
         except Exception as e:
             return {"error": str(e)}
 
-    # ── Camera ────────────────────────────────────────────────
+    # ── Camera & Screen Vision ────────────────────────────────
+
+    def _tool_screen_capture(self) -> Dict:
+        try:
+            from tools.desktop.desktop_perception import DesktopPerceptionService
+            dp = DesktopPerceptionService()
+            snap = dp.capture_fullscreen()
+            if snap.get("status") != "ok" or not snap.get("filepath"):
+                return {"error": "Failed to capture screen image", "description": "Screen capture was not successful."}
+            image_path = snap.get("filepath")
+            from apps.vision.service import vision_service
+            desc = vision_service.describe_scene(image_path)
+            return {
+                "status": "ok",
+                "image_path": image_path,
+                "description": desc or "Screen analyzed successfully.",
+                "width": snap.get("width"),
+                "height": snap.get("height"),
+            }
+        except Exception as e:
+            return {"error": str(e), "description": "Screen vision tool unavailable: " + str(e)}
 
     def _tool_camera_capture(self) -> Dict:
         try:

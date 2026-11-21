@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 18: Multi-Agent Task Orchestrator</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-glass: rgba(16, 30, 48, 0.78);
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #F5B041;
+      --red: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at 12% 10%, rgba(0, 217, 255, 0.11), transparent 38%),
+                  radial-gradient(circle at 88% 12%, rgba(152, 104, 255, 0.12), transparent 36%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.45;
+    }
+    .container { max-width: 1440px; margin: 0 auto; padding: 20px; }
+    .glass {
+      background: var(--panel-glass);
+      backdrop-filter: blur(14px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 22px; margin-bottom: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .orb {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--cyan), var(--blue) 55%, var(--purple));
+      box-shadow: 0 0 22px rgba(0, 217, 255, 0.55);
+      animation: pulse 2.6s infinite ease-in-out;
+    }
+    @keyframes pulse { 0%,100% { transform: scale(1); opacity: 0.95; } 50% { transform: scale(1.06); opacity: 1; } }
+    h1 { font-size: 1.25rem; letter-spacing: 0.04em; font-weight: 700; }
+    .subtitle { font-size: 0.82rem; color: var(--muted); }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px;
+      border-radius: 999px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em;
+      border: 1px solid var(--border); background: rgba(0, 217, 255, 0.09); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(152, 104, 255, 0.45); background: rgba(152, 104, 255, 0.14); color: #D2BDFF; }
+    .badge.ok { border-color: rgba(37, 230, 162, 0.45); background: rgba(37, 230, 162, 0.14); color: var(--green); }
+    .badge.warn { border-color: rgba(245, 176, 65, 0.45); background: rgba(245, 176, 65, 0.14); color: var(--amber); }
+    .badge.err { border-color: rgba(255, 92, 119, 0.45); background: rgba(255, 92, 119, 0.14); color: var(--red); }
+    button {
+      cursor: pointer; border-radius: 9px; border: 1px solid var(--border);
+      background: rgba(33, 139, 255, 0.16); color: var(--text); font-weight: 600;
+      padding: 8px 14px; font-size: 0.82rem; transition: all 0.18s ease;
+    }
+    button:hover { background: rgba(0, 217, 255, 0.25); border-color: var(--cyan); transform: translateY(-1px); }
+    button.primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04101f; border: none; }
+    button.danger { background: rgba(255, 92, 119, 0.18); border-color: rgba(255, 92, 119, 0.45); color: #FFB3C0; }
+    button.success { background: rgba(37, 230, 162, 0.18); border-color: rgba(37, 230, 162, 0.45); color: var(--green); }
+    button.sm { padding: 4px 9px; font-size: 0.74rem; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .metric-card { padding: 16px 18px; }
+    .metric-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .metric-val { font-size: 1.7rem; font-weight: 700; margin-top: 4px; color: var(--cyan); }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .tab-btn.active { background: rgba(0, 217, 255, 0.22); border-color: var(--cyan); color: var(--cyan); }
+    .grid-2 { display: grid; grid-template-columns: 1.45fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+    .panel { padding: 18px; margin-bottom: 16px; }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; }
+    .panel-title { font-size: 0.98rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.03em; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid rgba(255, 255, 255, 0.06); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, select, textarea {
+      width: 100%; padding: 8px 10px; border-radius: 8px; font-size: 0.82rem;
+      background: rgba(5, 11, 22, 0.85); color: var(--text); border: 1px solid rgba(0, 217, 255, 0.25);
+    }
+    label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 4px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .form-row { margin-bottom: 10px; }
+    .log-list, .msg-list { max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .log-item, .msg-item {
+      padding: 9px 12px; border-radius: 9px; background: rgba(5, 11, 22, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.8rem;
+    }
+    .dag-box {
+      min-height: 220px; overflow-x: auto; padding: 12px; border-radius: 10px;
+      background: rgba(5, 11, 22, 0.7); border: 1px solid rgba(0, 217, 255, 0.16);
+    }
+    .empty { color: var(--muted); text-align: center; padding: 24px; font-size: 0.85rem; }
+    .banner-err { background: rgba(255,92,119,0.16); border: 1px solid var(--red); padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="glass">
+      <div class="brand">
+        <div class="orb"></div>
+        <div>
+          <h1>JARVIS OS · MODULE 18 — MULTI-AGENT ORCHESTRATOR</h1>
+          <div class="subtitle">DAG Task Scheduler · Bounded Parallelism · Human Approval Checkpoints · SQLite WAL</div>
+        </div>
+      </div>
+      <div class="controls">
+        <span id="simBadge" class="badge sim">SIMULATION MODE: REFERENCE AGENTS</span>
+        <span id="engineBadge" class="badge ok">ENGINE: LOADING</span>
+        <label style="display:flex;align-items:center;gap:6px;margin:0;">
+          <span>Workers:</span>
+          <input id="limitInput" type="number" min="1" max="32" value="4" style="width:64px;padding:5px 8px;" />
+          <button class="sm" onclick="updateLimit()">Set</button>
+        </label>
+        <button id="pauseBtn" onclick="toggleEngine()">Pause</button>
+        <button class="primary" onclick="launchDemo()">Launch Demo DAG</button>
+      </div>
+    </header>
+
+    <div id="errorBanner" class="banner-err"></div>
+
+    <section class="metrics">
+      <div class="glass metric-card"><div class="metric-label">Registered Agents</div><div id="mAgents" class="metric-val">0</div></div>
+      <div class="glass metric-card"><div class="metric-label">Active / Max Workers</div><div id="mWorkers" class="metric-val">0 / 4</div></div>
+      <div class="glass metric-card"><div class="metric-label">Completed Tasks</div><div id="mCompleted" class="metric-val" style="color:var(--green)">0</div></div>
+      <div class="glass metric-card"><div class="metric-label">Pending Approvals</div><div id="mApprovals" class="metric-val" style="color:var(--amber)">0</div></div>
+      <div class="glass metric-card"><div class="metric-label">Agent Messages</div><div id="mMessages" class="metric-val" style="color:var(--purple)">0</div></div>
+    </section>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('tasks', this)">Tasks &amp; DAG</button>
+      <button class="tab-btn" onclick="showTab('agents', this)">Agent Registry</button>
+      <button class="tab-btn" onclick="showTab('approvals', this)">Approvals</button>
+      <button class="tab-btn" onclick="showTab('comms', this)">Agent Comms &amp; Logs</button>
+    </div>
+
+    <div id="tab-tasks" class="tab-view">
+      <div class="grid-2">
+        <div>
+          <div class="glass panel">
+            <div class="panel-head">
+              <div class="panel-title">TASK QUEUE &amp; EXECUTION CONTROL</div>
+              <button class="sm" onclick="refreshAll()">Refresh</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table>
+                <thead><tr><th>Task</th><th>Priority</th><th>Status</th><th>Agent</th><th>Controls</th></tr></thead>
+                <tbody id="taskBody"><tr><td colspan="5" class="empty">Loading tasks...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="glass panel">
+            <div class="panel-head"><div class="panel-title">DEPENDENCY GRAPH (DAG)</div></div>
+            <div id="dagContainer" class="dag-box"><div class="empty">No tasks in graph yet.</div></div>
+          </div>
+        </div>
+
+        <div class="glass panel">
+          <div class="panel-head"><div class="panel-title">CREATE ORCHESTRATED TASK</div></div>
+          <form onsubmit="createTask(event)">
+            <div class="form-row"><label>Title</label><input id="tTitle" required placeholder="e.g., Audit Robotics Controller" /></div>
+            <div class="form-row"><label>Description</label><textarea id="tDesc" rows="2" placeholder="Task instructions..."></textarea></div>
+            <div class="form-grid">
+              <div class="form-row"><label>Workflow ID</label><input id="tWf" value="custom-workflow" /></div>
+              <div class="form-row">
+                <label>Priority</label>
+                <select id="tPrio">
+                  <option value="1">LOW (1)</option>
+                  <option value="2" selected>NORMAL (2)</option>
+                  <option value="3">HIGH (3)</option>
+                  <option value="4">CRITICAL (4)</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label>Required Capability</label>
+                <select id="tCap">
+                  <option value="research">research (simulated)</option>
+                  <option value="code_analysis">code_analysis (local)</option>
+                  <option value="aggregation">aggregation (local)</option>
+                  <option value="deploy">deploy (simulated)</option>
+                </select>
+              </div>
+              <div class="form-row"><label>Timeout (sec)</label><input id="tTimeout" type="number" step="0.5" value="15" /></div>
+            </div>
+            <div class="form-row"><label>Depends On (comma-separated task IDs)</label><input id="tDeps" placeholder="tsk_abc123, tsk_def456" /></div>
+            <div class="form-row" style="display:flex;align-items:center;gap:8px;">
+              <input id="tApproval" type="checkbox" style="width:auto;" />
+              <label for="tApproval" style="margin:0;">Require Human Approval Checkpoint</label>
+            </div>
+            <button type="submit" class="primary" style="width:100%;">Submit Task to Queue</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-agents" class="tab-view" style="display:none;">
+      <div class="grid-2">
+        <div class="glass panel">
+          <div class="panel-head"><div class="panel-title">REGISTERED AGENTS</div></div>
+          <table>
+            <thead><tr><th>Agent</th><th>Capabilities</th><th>Load</th><th>Mode</th><th>Action</th></tr></thead>
+            <tbody id="agentBody"></tbody>
+          </table>
+        </div>
+        <div class="glass panel">
+          <div class="panel-head"><div class="panel-title">REGISTER NEW AGENT</div></div>
+          <form onsubmit="registerAgent(event)">
+            <div class="form-row"><label>Name</label><input id="aName" required placeholder="e.g., SENTINEL Code Watcher" /></div>
+            <div class="form-row"><label>Role</label><input id="aRole" required placeholder="e.g., Security Auditor" /></div>
+            <div class="form-row"><label>Capabilities (comma-separated)</label><input id="aCaps" value="code_analysis,security_scan" /></div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label>Handler Type</label>
+                <select id="aHandler">
+                  <option value="research">research</option>
+                  <option value="code_analysis">code_analysis</option>
+                  <option value="data_aggregator">data_aggregator</option>
+                  <option value="deploy">deploy</option>
+                </select>
+              </div>
+              <div class="form-row"><label>Max Concurrency</label><input id="aMax" type="number" min="1" max="16" value="2" /></div>
+            </div>
+            <button type="submit" class="primary" style="width:100%;">Register Agent</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-approvals" class="tab-view" style="display:none;">
+      <div class="glass panel">
+        <div class="panel-head"><div class="panel-title">HUMAN APPROVAL CHECKPOINTS</div></div>
+        <table>
+          <thead><tr><th>Approval ID</th><th>Task</th><th>Prompt</th><th>Status</th><th>Decision</th></tr></thead>
+          <tbody id="approvalBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-comms" class="tab-view" style="display:none;">
+      <div class="grid-2">
+        <div class="glass panel">
+          <div class="panel-head"><div class="panel-title">INTER-AGENT MESSAGE BUS</div></div>
+          <form onsubmit="sendMsg(event)" style="display:flex;gap:8px;margin-bottom:12px;">
+            <input id="mSender" value="operator" style="max-width:140px;" />
+            <input id="mContent" required placeholder="Broadcast coordination message..." />
+            <button type="submit" class="primary">Send</button>
+          </form>
+          <div id="msgList" class="msg-list"></div>
+        </div>
+        <div class="glass panel">
+          <div class="panel-head"><div class="panel-title">EXECUTION LOGS</div></div>
+          <div id="logList" class="log-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/orchestrator';
+    let enginePaused = false;
+
+    function showError(msg) {
+      const el = document.getElementById('errorBanner');
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 5000);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        ...opts,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || `HTTP ${res.status}`;
+        showError(msg);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function showTab(name, btn) {
+      document.querySelectorAll('.tab-view').forEach(v => v.style.display = 'none');
+      document.getElementById('tab-' + name).style.display = 'block';
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    function statusClass(s) {
+      if (s === 'completed' || s === 'approved' || s === 'online') return 'ok';
+      if (s === 'failed' || s === 'rejected' || s === 'cancelled') return 'err';
+      if (s === 'awaiting_approval' || s === 'paused' || s === 'retrying') return 'warn';
+      return '';
+    }
+
+    async function refreshAll() {
+      try {
+        const [status, agentsRes, tasksRes, approvalsRes, msgsRes, logsRes, dag] = await Promise.all([
+          api('/status'), api('/agents'), api('/tasks'), api('/approvals'), api('/messages?limit=40'), api('/logs?limit=50'), api('/dag')
+        ]);
+
+        enginePaused = status.paused;
+        const eb = document.getElementById('engineBadge');
+        eb.textContent = `ENGINE: ${status.engine_state.toUpperCase()}`;
+        eb.className = 'badge ' + (status.paused ? 'warn' : 'ok');
+        document.getElementById('pauseBtn').textContent = status.paused ? 'Resume' : 'Pause';
+        document.getElementById('limitInput').value = status.max_concurrency;
+
+        document.getElementById('mAgents').textContent = status.agent_count;
+        document.getElementById('mWorkers').textContent = `${status.active_workers} / ${status.max_concurrency}`;
+        document.getElementById('mCompleted').textContent = status.task_counts.completed || 0;
+        document.getElementById('mApprovals').textContent = status.pending_approvals;
+        document.getElementById('mMessages').textContent = status.total_messages;
+
+        const tb = document.getElementById('taskBody');
+        tb.innerHTML = tasksRes.tasks.length ? tasksRes.tasks.map(t => `
+          <tr>
+            <td><strong>${t.title}</strong><br><span style="color:var(--muted);font-size:0.74rem">${t.task_id} · ${t.workflow_id}</span></td>
+            <td>P${t.priority}</td>
+            <td><span class="badge ${statusClass(t.status)}">${t.status}</span></td>
+            <td>${t.assigned_agent_id || '—'}</td>
+            <td>
+              ${t.status === 'paused' ? `<button class="sm success" onclick="taskAction('${t.task_id}','resume')">Resume</button>` : ''}
+              ${['queued','running','pending'].includes(t.status) ? `<button class="sm" onclick="taskAction('${t.task_id}','pause')">Pause</button>` : ''}
+              ${!['completed','cancelled','failed'].includes(t.status) ? `<button class="sm danger" onclick="taskAction('${t.task_id}','cancel')">Cancel</button>` : ''}
+            </td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty">No tasks yet. Click "Launch Demo DAG" or submit a task.</td></tr>';
+
+        const ab = document.getElementById('agentBody');
+        ab.innerHTML = agentsRes.agents.map(a => `
+          <tr>
+            <td><strong>${a.name}</strong><br><span style="color:var(--muted);font-size:0.74rem">${a.agent_id} · ${a.role}</span></td>
+            <td>${a.capabilities.join(', ')}</td>
+            <td>${a.active_tasks}/${a.max_concurrency} (ok:${a.completed_tasks}, err:${a.failed_tasks})</td>
+            <td><span class="badge ${a.simulated ? 'sim' : 'ok'}">${a.simulated ? 'SIMULATED' : 'LOCAL'}</span></td>
+            <td><button class="sm" onclick="toggleAgent('${a.agent_id}','${a.status === 'paused' ? 'online' : 'paused'}')">${a.status === 'paused' ? 'Resume' : 'Pause'}</button></td>
+          </tr>`).join('');
+
+        const apb = document.getElementById('approvalBody');
+        apb.innerHTML = approvalsRes.approvals.length ? approvalsRes.approvals.map(ap => `
+          <tr>
+            <td>${ap.approval_id}</td>
+            <td>${ap.task_id}</td>
+            <td>${ap.prompt}</td>
+            <td><span class="badge ${statusClass(ap.status)}">${ap.status}</span></td>
+            <td>
+              ${ap.status === 'pending'
+                ? `<button class="sm success" onclick="decide('${ap.approval_id}', true)">Approve</button>
+                   <button class="sm danger" onclick="decide('${ap.approval_id}', false)">Reject</button>`
+                : `<span style="color:var(--muted)">${ap.decided_by || ''}</span>`}
+            </td>
+          </tr>`).join('') : '<tr><td colspan="5" class="empty">No approval checkpoints requested yet.</td></tr>';
+
+        document.getElementById('msgList').innerHTML = msgsRes.messages.length ? msgsRes.messages.map(m => `
+          <div class="msg-item">
+            <strong style="color:var(--cyan)">${m.sender_agent_id}</strong> &rarr; <span style="color:var(--purple)">${m.recipient_agent_id}</span>
+            <span style="color:var(--muted);float:right;font-size:0.72rem">${m.channel}</span>
+            <div style="margin-top:4px">${m.content}</div>
+          </div>`).join('') : '<div class="empty">No inter-agent messages yet.</div>';
+
+        document.getElementById('logList').innerHTML = logsRes.logs.map(l => `
+          <div class="log-item">
+            <span class="badge ${l.level === 'ERROR' ? 'err' : l.level === 'WARNING' ? 'warn' : ''}">${l.event_type}</span>
+            <span style="margin-left:6px">${l.message}</span>
+          </div>`).join('');
+
+        renderDag(dag);
+      } catch (_) {}
+    }
+
+    function renderDag(dag) {
+      const box = document.getElementById('dagContainer');
+      if (!dag.nodes || !dag.nodes.length) {
+        box.innerHTML = '<div class="empty">No tasks in DAG yet.</div>';
+        return;
+      }
+      const cols = Math.min(4, dag.nodes.length);
+      const pos = {};
+      dag.nodes.forEach((n, i) => {
+        pos[n.task_id] = { x: 20 + (i % cols) * 210, y: 20 + Math.floor(i / cols) * 86 };
+      });
+      const height = Math.max(160, (Math.ceil(dag.nodes.length / cols)) * 90 + 20);
+      const edgesSvg = dag.edges.map(e => {
+        const s = pos[e.source], t = pos[e.target];
+        if (!s || !t) return '';
+        return `<line x1="${s.x + 95}" y1="${s.y + 30}" x2="${t.x + 95}" y2="${t.y + 30}" stroke="#00D9FF" stroke-opacity="0.55" stroke-width="2" />`;
+      }).join('');
+      const nodesSvg = dag.nodes.map(n => {
+        const p = pos[n.task_id];
+        const col = n.status === 'completed' ? '#25E6A2' : n.status === 'awaiting_approval' ? '#F5B041' : n.status === 'failed' ? '#FF5C77' : '#00D9FF';
+        return `<g transform="translate(${p.x},${p.y})">
+          <rect width="190" height="58" rx="10" fill="#101E30" stroke="${col}" stroke-width="1.5"/>
+          <text x="10" y="22" fill="#F0F8FF" font-size="11" font-weight="700">${n.title.slice(0,22)}</text>
+          <text x="10" y="42" fill="${col}" font-size="10">${n.status.toUpperCase()} · P${n.priority}</text>
+        </g>`;
+      }).join('');
+      box.innerHTML = `<svg width="${cols * 215 + 20}" height="${height}">${edgesSvg}${nodesSvg}</svg>`;
+    }
+
+    async function toggleEngine() {
+      await api(enginePaused ? '/engine/resume' : '/engine/pause', { method: 'POST' });
+      refreshAll();
+    }
+    async function updateLimit() {
+      const val = parseInt(document.getElementById('limitInput').value, 10);
+      await api('/engine/limits', { method: 'PUT', body: JSON.stringify({ max_concurrency: val }) });
+      refreshAll();
+    }
+    async function launchDemo() {
+      await api('/demo/launch', { method: 'POST' });
+      refreshAll();
+    }
+    async function taskAction(id, action) {
+      await api(`/tasks/${id}/${action}`, { method: 'POST' });
+      refreshAll();
+    }
+    async function toggleAgent(id, status) {
+      await api(`/agents/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      refreshAll();
+    }
+    async function decide(id, approved) {
+      await api(`/approvals/${id}/decide`, { method: 'POST', body: JSON.stringify({ approved, decided_by: 'operator', comment: approved ? 'Approved via dashboard' : 'Rejected via dashboard' }) });
+      refreshAll();
+    }
+    async function createTask(e) {
+      e.preventDefault();
+      const deps = document.getElementById('tDeps').value.split(',').map(s => s.trim()).filter(Boolean);
+      await api('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: document.getElementById('tTitle').value,
+          description: document.getElementById('tDesc').value,
+          workflow_id: document.getElementById('tWf').value || 'custom-workflow',
+          priority: parseInt(document.getElementById('tPrio').value, 10),
+          required_capability: document.getElementById('tCap').value,
+          timeout_sec: parseFloat(document.getElementById('tTimeout').value),
+          depends_on: deps,
+          requires_approval: document.getElementById('tApproval').checked,
+        })
+      });
+      e.target.reset();
+      refreshAll();
+    }
+    async function registerAgent(e) {
+      e.preventDefault();
+      await api('/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: document.getElementById('aName').value,
+          role: document.getElementById('aRole').value,
+          capabilities: document.getElementById('aCaps').value.split(',').map(s => s.trim()).filter(Boolean),
+          handler_type: document.getElementById('aHandler').value,
+          max_concurrency: parseInt(document.getElementById('aMax').value, 10),
+        })
+      });
+      e.target.reset();
+      refreshAll();
+    }
+    async function sendMsg(e) {
+      e.preventDefault();
+      await api('/messages', {
+        method: 'POST',
+        body: JSON.stringify({
+          sender_agent_id: document.getElementById('mSender').value || 'operator',
+          recipient_agent_id: 'broadcast',
+          content: document.getElementById('mContent').value,
+        })
+      });
+      document.getElementById('mContent').value = '';
+      refreshAll();
+    }
+
+    refreshAll();
+    setInterval(refreshAll, 2500);
+  </script>
+</body>
+</html>

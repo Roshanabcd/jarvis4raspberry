@@ -913,7 +913,7 @@
   <button role="tab" aria-selected="false" aria-controls="tab-documents" id="nav-documents" data-tab="documents" onclick="showTab('documents')">📄 Document AI</button>
   <button role="tab" aria-selected="false" aria-controls="tab-research" id="nav-research" data-tab="research" onclick="showTab('research')">🔬 Research Assistant</button>
   <button role="tab" aria-selected="false" aria-controls="tab-settings" id="nav-settings" data-tab="settings" onclick="showTab('settings')">⚙️ Settings</button>
-  <a href="/suite" id="nav-suite" style="color: #00d2ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: 0.8rem; font-weight: 600; border-radius: 6px; transition: all 0.2s; border: 1px solid rgba(0, 210, 255, 0.35); background: rgba(0, 210, 255, 0.08); margin-left: 4px;" title="Open All-in-One AI Feature Suite (17 Modules)">⚡ AI Feature Suite</a>
+  <a href="/suite" id="nav-suite" style="color: #00d2ff; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 10px 14px; font-size: 0.8rem; font-weight: 600; border-radius: 6px; transition: all 0.2s; border: 1px solid rgba(0, 210, 255, 0.35); background: rgba(0, 210, 255, 0.08); margin-left: 4px;" title="Open All-in-One AI Feature Suite (42 Modules)">⚡ AI Feature Suite</a>
 </nav>
 
 <main id="main-content">
@@ -934,15 +934,17 @@
       </div>
       <section class="cc-hero" id="cc-hero" data-state="idle" aria-label="JARVIS assistant">
         <div class="cc-chips"><span id="cc-connection">Connecting</span><span id="cc-wake">Voice: checking</span><span id="cc-provider">Model: checking</span></div>
-        <div class="cc-avatar" role="img" aria-label="Blue holographic JARVIS character"></div>
+        <div class="cc-avatar" id="cc-avatar-box" role="img" aria-label="Animated Digital Human Character"><div id="cc-hero-avatar"></div></div>
         <div class="cc-wave" aria-hidden="true"><i style="--level:2"></i><i style="--level:4"></i><i style="--level:7"></i><i style="--level:3"></i><i style="--level:9"></i><i style="--level:14"></i><i style="--level:8"></i><i style="--level:18"></i><i style="--level:12"></i><i style="--level:7"></i><i style="--level:20"></i><i style="--level:15"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:8"></i><i style="--level:14"></i><i style="--level:20"></i><i style="--level:12"></i><i style="--level:17"></i><i style="--level:8"></i><i style="--level:13"></i><i style="--level:5"></i><i style="--level:9"></i><i style="--level:3"></i><i style="--level:7"></i><i style="--level:4"></i><i style="--level:2"></i></div>
         <button class="cc-mic" type="button" id="cc-speak" aria-label="Speak to JARVIS using the existing microphone"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button>
         <div class="cc-state" id="cc-state" role="status" aria-live="polite">Ready</div>
         <div class="cc-caption" id="cc-caption">Hello. What would you like to work on?</div>
         <div class="cc-controls"><button class="btn dark" onclick="showTab('chat');document.getElementById('active-desktop-start').focus()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
         <details class="cc-voice-settings"><summary>Voice &amp; conversation preferences</summary>
+          <div class="cc-controls"><label for="cc-character-select">Character</label><select id="cc-character-select"><option value="aria">ARIA (Female Assistant)</option><option value="atlas">ATLAS (Male Assistant)</option><option value="classic">Classic Mode</option></select></div>
           <div class="cc-controls"><label for="cc-ai-model">AI model</label><select id="cc-ai-model" aria-label="Home AI model"><option value="">Loading configured models…</option></select></div>
-          <div class="cc-controls"><label for="cc-voice-output">Reply voice</label><select id="cc-voice-output"><option value="server">JARVIS voice engine</option><option value="browser">Browser voice</option><option value="off">Silent</option></select></div>
+          <div class="cc-controls"><label for="cc-voice-output">Reply voice</label><select id="cc-voice-output"><option value="server">JARVIS voice engine (Neural)</option><option value="browser">Browser voice</option><option value="off">Silent</option></select></div>
+          <div class="cc-controls"><label for="cc-neural-voice">Neural voice</label><select id="cc-neural-voice"><option value="en-US-AriaNeural">Aria Neural (Clear &amp; Friendly)</option><option value="en-US-GuyNeural">Atlas / Guy Neural (Calm &amp; Intelligent)</option><option value="en-GB-RyanNeural">Ryan Neural (British)</option><option value="hi-IN-SwaraNeural">Swara Neural (Hindi)</option></select></div>
           <div class="cc-controls"><label for="cc-browser-voice">Browser voice</label><select id="cc-browser-voice"><option value="">Default voice</option></select></div>
           <div class="cc-controls"><label for="cc-voice-rate">Speed</label><input id="cc-voice-rate" type="range" min="0.6" max="1.5" step="0.05" value="1"><output id="cc-rate-value">1×</output><button class="btn dark" type="button" id="cc-preview-voice">Preview voice</button></div>
           <p id="cc-voice-feedback" class="cc-subtle" role="status">Browser voices depend on voices installed in this browser.</p>
@@ -1016,6 +1018,11 @@
       </section>
       <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages"></div>
       <div class="chat-compose">
+        <label for="voice-capture-source">Microphone</label>
+        <select id="voice-capture-source" aria-label="Microphone capture location">
+          <option value="host">JARVIS host (ReSpeaker)</option>
+          <option value="browser">This browser (explicit permission)</option>
+        </select>
         <button id="mic-btn" class="btn dark" style="border:1px solid var(--accent);color:var(--accent)" onclick="toggleVoiceRecord()" title="Capture ReSpeaker microphone" aria-label="Speak to JARVIS">
           <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
         </button>
@@ -1062,6 +1069,54 @@
           <h3>Voice Disk Cache</h3>
           <div class="val" id="voice-cache-count">0</div>
           <div class="sub">Instant replay cache (&lt;0.5ms)</div>
+        </div>
+      </div>
+
+      <!-- Digital Avatar Studio & Neural Voice Config -->
+      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:1.4rem">🎭</span>
+            <div>
+              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Digital Human Avatar & Neural Voice Studio</h3>
+              <div style="font-size:0.75rem;color:var(--muted)">Select persona, calibrate neural voice, and test real-time audio-reactive viseme lip-sync</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('aria')">🗣️ Preview ARIA</button>
+            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('atlas')">🗣️ Preview ATLAS</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-bottom:14px">
+          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Active Avatar Persona</label>
+            <select id="voice-tab-char-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncCharacterSelection(this.value)">
+              <option value="aria" selected>ARIA (Futuristic Cyber Assistant)</option>
+              <option value="atlas">ATLAS (Tactical Android Assistant)</option>
+              <option value="classic">Classic Mode (Matrix Hologram HUD)</option>
+            </select>
+          </div>
+
+          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Neural TTS Voice Model</label>
+            <select id="voice-tab-voice-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncVoiceSelection(this.value)">
+              <option value="en-US-AriaNeural" selected>Microsoft Aria (Expressive Female)</option>
+              <option value="en-US-GuyNeural">Microsoft Guy (Authoritative Male)</option>
+              <option value="en-US-JennyNeural">Microsoft Jenny (Friendly Female)</option>
+              <option value="en-GB-SoniaNeural">Microsoft Sonia (British Female)</option>
+              <option value="en-US-ChristopherNeural">Microsoft Christopher (Deep Male)</option>
+              <option value="espeak-ng">eSpeak-NG (Local Offline Fallback)</option>
+            </select>
+          </div>
+
+          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Wake Word Engine ("Jarvis")</label>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+              <span id="voice-tab-wake-status" style="font-size:0.82rem;color:var(--green)">🟢 ARMED</span>
+              <button id="voice-tab-wake-toggle" class="btn dark" style="padding:3px 10px;font-size:0.75rem" onclick="toggleWakeWordEngine()">Disable Wake Word</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1954,7 +2009,7 @@
         </p>
         <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <a href="/suite" target="_blank" class="btn primary" style="padding:6px 14px;font-size:0.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">⚡ Open Unified Feature Suite (/suite)</a>
-          <span style="font-size:0.75rem;color:var(--muted)">All 17 modular AI feature engines active &amp; mounted on Raspberry Pi 5</span>
+          <span style="font-size:0.75rem;color:var(--muted)">All 42 modular AI feature engines registered &amp; mounted on Raspberry Pi 5</span>
         </div>
       </div>
       <div class="apps-stats-pills">
@@ -3355,7 +3410,7 @@ function renderAppsCenter() {
         <div class="app-card-header">
           <div class="app-icon-badge">${app.icon || '📦'}</div>
           <div class="app-badges">
-            <span class="app-badge ${statusClass}">${app.status.toUpperCase()}</span>
+            <span class="app-badge ${statusClass}">${app.id.startsWith('extension-') ? (isAvail ? 'INTERFACE REGISTERED' : 'UNAVAILABLE') : app.status.toUpperCase()}</span>
             <span class="app-res-badge ${resClass}">${(app.resource_profile || 'medium').toUpperCase()}</span>
           </div>
         </div>
@@ -3365,6 +3420,7 @@ function renderAppsCenter() {
         </div>
         <div class="app-category-tag">${formatCategory(app.category)}</div>
         <p class="app-desc">${app.description}</p>
+        ${app.id.startsWith('extension-') ? `<p class="app-desc">${escapeHtml(app.roadmap || '')}</p>` : ''}
         <div class="app-footer-actions">
           <button class="btn dark" style="padding:4px 8px;font-size:0.75rem;" onclick="showAppDetails('${app.id}')">ℹ️ Details</button>
           ${isAvail ? `
@@ -4020,6 +4076,9 @@ function clearChat() {
 }
 
 async function stopSpeech() {
+  browserCaptureGeneration++;
+  activeBrowserCapture?.getTracks().forEach(track => track.stop());
+  activeBrowserRecorder?.state === 'recording' && activeBrowserRecorder.stop();
   globalThis.jarvisHome?.stopBrowserSpeech();
   const player = document.getElementById('jarvis-audio-player');
   if (player) {
@@ -4032,8 +4091,10 @@ async function stopSpeech() {
 }
 
 let isVoiceRecording = false;
+let activeBrowserCapture = null, activeBrowserRecorder = null, browserCaptureGeneration = 0;
 async function toggleVoiceRecord() {
   if (isVoiceRecording) return {status: 'busy', message: 'A voice request is already in progress.'};
+  if (document.getElementById('voice-capture-source')?.value === 'browser') return captureBrowserVoice();
   const btn = document.getElementById('mic-btn');
   const icon = document.getElementById('mic-icon');
   const lbl = document.getElementById('mic-label');
@@ -4088,6 +4149,75 @@ async function toggleVoiceRecord() {
     btn.disabled = false;
     icon.textContent = '🎤';
     lbl.textContent = 'Speak';
+  }
+}
+
+// Explicit browser capture remains available for remote clients. The native
+// owner must acknowledge mute first; permission failure never switches devices.
+async function captureBrowserVoice() {
+  isVoiceRecording = true;
+  const generation = ++browserCaptureGeneration;
+  const report = (status, message) => {
+    const badge = document.getElementById('chat-status-badge');
+    if (badge) { badge.textContent = message; badge.className = 'badge ' + (status === 'error' ? 'offline' : 'warning'); }
+    return {status, message};
+  };
+  try {
+    if (!globalThis.isSecureContext || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      return report('error', 'Browser microphone unavailable. Use HTTPS or localhost, or select the JARVIS host microphone.');
+    }
+    report('pending', 'Pausing the host microphone before browser capture…');
+    const mute = await fetch('/api/voice/mute', {method:'POST', headers:{'X-Jarvis-Client':'dashboard'}, signal:AbortSignal.timeout(6000)});
+    if (!mute.ok) return report('error', 'Host microphone could not be paused. Browser capture was not started.');
+    let paused = false;
+    for (let i=0;i<15;i++) {
+      if (generation !== browserCaptureGeneration) return report('cancelled','Voice capture cancelled.');
+      const res = await fetch('/api/voice/status', {signal:AbortSignal.timeout(6000)});
+      const state = res.ok ? await res.json() : {};
+      if (state.muted === true) { paused = true; break; }
+      await new Promise(resolve=>setTimeout(resolve,200));
+    }
+    if (!paused) return report('error','Host microphone pause was not confirmed. No browser recording started.');
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    activeBrowserCapture = stream;
+    if (generation !== browserCaptureGeneration) return report('cancelled','Voice capture cancelled.');
+    const recorder = new MediaRecorder(stream);
+    activeBrowserRecorder = recorder;
+    const chunks=[];
+    const recorded = new Promise((resolve,reject)=>{
+      recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      recorder.onstop=()=>resolve(new Blob(chunks,{type:recorder.mimeType||'audio/webm'}));
+      recorder.onerror=()=>reject(new Error('recording_failed'));
+    });
+    // Attach rejection handler before capture can emit an error.
+    const boundedRecording = Promise.race([recorded,new Promise((_,reject)=>setTimeout(()=>reject(new Error('recording_timeout')),10000))]);
+    recorder.start();
+    report('listening','Listening through this browser for 3 seconds…');
+    const stopTimer=setTimeout(()=>{if(recorder.state==='recording')recorder.stop();},3200);
+    let audio;
+    try { audio=await boundedRecording; } finally { clearTimeout(stopTimer); stream.getTracks().forEach(track=>track.stop()); }
+    if (generation !== browserCaptureGeneration) return report('cancelled','Voice capture cancelled.');
+    if (audio.size < 50) return report('empty','No microphone audio captured.');
+    report('processing','Transcribing browser audio…');
+    const form=new FormData();form.append('file',audio,'browser_mic.webm');form.append('process_command','false');form.append('speak','false');
+    const response=await fetch('/api/voice/transcribe',{method:'POST',body:form,signal:AbortSignal.timeout(90000)});
+    if (generation !== browserCaptureGeneration) return report('cancelled','Voice capture cancelled.');
+    if (!response.ok) return report('error','Browser transcription failed.');
+    const result=await response.json();
+    if(result.status==='empty')return report('empty','No speech recognized.');
+    if(result.status!=='ok'||!result.transcribed)return report('error','Speech recognition failed.');
+    // Use the existing chat pipeline for inference, permissions and selected
+    // output. The transcription endpoint must not execute or speak a second time.
+    if(document.getElementById('chat-send-btn')?.disabled)return report('error','Speech recognized, but Chat is busy. Please finish or stop the active reply.');
+    document.getElementById('chat-in').value=result.transcribed;
+    await sendChat();
+    return {status:'submitted',message:document.getElementById('chat-status-badge')?.textContent||'Speech sent to Chat; completion unconfirmed.'};
+  } catch (error) {
+    return report('error',error.name==='NotAllowedError'?'Microphone permission required.':error.name==='NotFoundError'?'No browser microphone detected.':'Browser voice capture or transcription failed. No automatic retry.');
+  } finally {
+    activeBrowserCapture?.getTracks().forEach(track=>track.stop());
+    if(activeBrowserRecorder?.state==='recording')activeBrowserRecorder.stop();
+    activeBrowserCapture=null;activeBrowserRecorder=null;isVoiceRecording=false;
   }
 }
 
@@ -8494,6 +8624,7 @@ setTimeout(updateStatusCenter, 500);
 <script src="/active-desktop.js"></script>
 <script src="/provider-settings.js"></script>
 <script src="/background-tasks.js"></script>
+<script src="/avatar.js"></script>
 <script src="/control-center.js"></script>
 <script>
 window.jarvisProviderSettings = JarvisProviderSettings.mount(document.getElementById('provider-settings-panel'), {

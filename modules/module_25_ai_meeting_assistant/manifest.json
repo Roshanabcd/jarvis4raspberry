@@ -1,0 +1,20 @@
+{
+  "module_id": "jarvis-module-25-ai-meeting-assistant",
+  "module_number": 25,
+  "name": "AI Meeting Assistant",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "phase": "PHASE B — PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+  "description": "Meeting intelligence module with live/bulk speaker-diarized transcript ingestion, talk-share analytics, automated action item/decision/risk extraction, transcript search, and Markdown minutes export.",
+  "entrypoint": "backend.app.main:app",
+  "mount_hook": "backend.app.main:mount_module",
+  "default_port": 8125,
+  "ui_route": "/meeting-assistant",
+  "api_prefix": "/api/v1/meeting-assistant",
+  "health_endpoint": "/api/v1/meeting-assistant/health",
+  "ws_endpoint": "/api/v1/meeting-assistant/ws/events",
+  "simulated_default": true,
+  "database": "SQLite WAL (isolated per module)",
+  "compatible_with": ["jarvis-os-core", "modules-1-41"]
+}

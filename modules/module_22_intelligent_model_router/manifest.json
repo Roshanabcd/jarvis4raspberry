@@ -1,0 +1,20 @@
+{
+  "module_id": "jarvis-module-22-intelligent-model-router",
+  "module_number": 22,
+  "name": "Intelligent AI Model Router",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "CRITICAL",
+  "phase": "PHASE A — CORE AI OPERATING SYSTEM",
+  "description": "Task-aware multi-model AI routing engine with explainable scoring, automatic failover, circuit breakers, cost/budget guardrails, response caching, and benchmarking.",
+  "entrypoint": "backend.app.main:app",
+  "mount_hook": "backend.app.main:mount_module",
+  "default_port": 8122,
+  "ui_route": "/model-router",
+  "api_prefix": "/api/v1/model-router",
+  "health_endpoint": "/api/v1/model-router/health",
+  "ws_endpoint": "/api/v1/model-router/ws/events",
+  "simulated_default": true,
+  "database": "SQLite WAL (isolated per module)",
+  "compatible_with": ["jarvis-os-core", "modules-1-41"]
+}

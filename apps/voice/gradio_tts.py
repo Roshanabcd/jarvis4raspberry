@@ -575,8 +575,6 @@ class GradioVoiceCloner:
                         pass
 
         # 3. Optional cloud neural TTS, then local espeak saved to cache_path.
-        # Edge TTS transmits the requested text, so it remains disabled unless
-        # the operator has explicitly enabled cloud_tts_enabled.
         logger.info("[Gradio Offline/Fallback] Synthesizing via neural/local TTS: '%s'", clean_text[:50])
         if self.cloud_tts_enabled:
             try:
@@ -585,10 +583,25 @@ class GradioVoiceCloner:
                     shutil.which("edge-tts")
                     or os.path.join(os.path.dirname(sys.executable), "edge-tts")
                 )
-                if edge_bin and os.path.exists(edge_bin):
-                    cmd = [edge_bin, "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+                voice_cfg = config.get("voice", {}) if hasattr(config, "get") else {}
+                char_sel = str(v_dict.get("character") or v_dict.get("avatar") or voice_cfg.get("character", "aria")).lower().strip()
+                if v_dict.get("voice_name"):
+                    chosen_voice = str(v_dict["voice_name"])
+                elif char_sel in ("atlas", "male"):
+                    chosen_voice = "en-US-GuyNeural"
+                elif char_sel in ("aria", "female"):
+                    chosen_voice = "en-US-AriaNeural"
                 else:
-                    cmd = [sys.executable, "-m", "edge_tts", "--text", clean_text, "--voice", "en-GB-RyanNeural", "--write-media", cache_path]
+                    chosen_voice = voice_cfg.get("neural_voice") or voice_cfg.get("fallback_voice", "en-US-AriaNeural")
+
+                rate_pct = int(round((speed - 1.0) * 100))
+                rate_str = f"+{rate_pct}%" if rate_pct >= 0 else f"{rate_pct}%"
+
+                base_args = ["--text", clean_text, "--voice", chosen_voice, "--rate", rate_str, "--write-media", cache_path]
+                if edge_bin and os.path.exists(edge_bin):
+                    cmd = [edge_bin] + base_args
+                else:
+                    cmd = [sys.executable, "-m", "edge_tts"] + base_args
 
                 res = subprocess.run(cmd, capture_output=True, timeout=25)
                 if res.returncode == 0 and os.path.exists(cache_path) and os.path.getsize(cache_path) > 100:

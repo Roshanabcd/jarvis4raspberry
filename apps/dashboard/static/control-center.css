@@ -45,7 +45,10 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 .cc-hero { text-align:center; min-width:0; position:relative; padding:0 0 8px; }
 .cc-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:8px; }
 .cc-chips span { font-size:.74rem; border:1px solid #215c6b; padding:7px 10px; border-radius:20px; color:#a7e3e9; background:#06202a80; }
-.cc-avatar { position:relative; width:100%; aspect-ratio:1.9; overflow:hidden; border-radius:30%; background-image:url('/assets/jarvis-design-reference.png'); background-size:304% auto; background-position:52.2% 27%; filter:saturate(.92); mask-image:radial-gradient(ellipse at 50% 52%,black 55%,transparent 78%); }
+.cc-avatar { position:relative; width:100%; min-height:280px; max-height:380px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:24px; transition:all 0.3s ease; }
+.cc-avatar.classic-mode { aspect-ratio:1.9; border-radius:30%; background-image:url('/assets/jarvis-design-reference.png'); background-size:304% auto; background-position:52.2% 27%; filter:saturate(.92); mask-image:radial-gradient(ellipse at 50% 52%,black 55%,transparent 78%); }
+#cc-hero-avatar { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+#cc-hero-avatar svg { max-height:340px; width:100%; height:auto; filter:drop-shadow(0 0 20px rgba(0,217,255,0.25)); }
 .cc-wave { height:50px; display:flex; gap:4px; align-items:center; justify-content:center; margin-top:-15px; position:relative; }
 .cc-wave i { width:4px; height:calc(8px + var(--level)*2px); background:linear-gradient(#2fefff,#3ab4fd); border-radius:3px; box-shadow:0 0 8px #11dcff90; opacity:.5; }
 .cc-hero[data-state=speaking] .cc-wave i { animation:cc-wave .6s ease-in-out infinite alternate; animation-delay:calc(var(--level)*-.09s); opacity:1; }
