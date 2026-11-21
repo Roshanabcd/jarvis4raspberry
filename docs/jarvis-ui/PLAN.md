@@ -230,3 +230,22 @@ Gate: FEATURES.md fully verified or each exception documented with a reason; fin
 7. Source software checkpoint complete; full Phase 6 gate and project acceptance remain unverified.
 
 - Reloaded the existing user voice service successfully (active/running); kept system core active. Core administrator restart remains pending. No additional recorder or backend was started.
+
+### Audit follow-up · implementation, awaiting live verification
+
+Repaired four nested routes, neutralized initial account role labels, updated sidebar keyboard navigation and catalog filters, made chat height responsive, and added inline settings and launch feedback. Added optional loopback FreeLLMAPI registration using an operator-supplied key and model. Static HTML inspection found 23 panels and zero nested tab panels. Python compilation and account JavaScript syntax checks passed. Gateway port 3001 refused the local connection. No live model or phase gate verified. See docs/FREELLMAPI_SETUP.md.
+
+Audit handoff follow-up: isolated connected Chromium verified 23 panels and keyboard checks at both viewport sizes. Local Chromium launch in this sandbox hit a socket restriction. Focused provider tests: 3 passed. Original live AI task and role verification remain pending.
+
+AI-001: added model availability labels, retry on discovery failure, and draft preservation in Conversation mode. Ran node tests/frontend/realtime-chat.test.cjs: 8 passed. Live inference remains unverified.
+
+Apps Center (UX-006): replaced hardcoded catalog and host status with measured values, added recoverable catalog failure and protected against stale responses. Isolated Chromium verified a 503, Retry and populated-filter counts with three synthetic apps. No production service restart.
+
+### Handoff consistency review · 21 November 2026
+- Operator approved preserving current edits and revising all supplied audit/handoff documents.
+- Synchronized renamed/root handoff copies; clarified authoritative files, status meanings, real versus fixture evidence, and project-specific commands without removing existing rules or tools.
+- Preserved original audit observations and issue statuses; added BUG-003 from live restart verification. Five focused tests passed for its correction, now integrated into source; deployment verification remains pending.
+- No phase was promoted to verified. No hardware capture, provider call, installation or service restart performed for this documentation revision.
+- Next: deploy and verify integrated BUG-003; run the remaining audit checks within the recorded phase exceptions. Keep voice, avatar and full-delivery gates open.
+
+- Current-source verification: five bridge tests passed; six document pairs synchronized; ten unique issue IDs. Evidence: evidence/phase-6/corrective/handoff-review.txt.

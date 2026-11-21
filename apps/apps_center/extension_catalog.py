@@ -21,8 +21,15 @@ def extension_apps(host_app):
     if host_app is None:
         return []
     from jarvis_feature_suite_loader.loader import FEATURE_REGISTRY, _DISABLED_MODULES
-    paths = {route.path for route in host_app.routes
-             if hasattr(route, 'path') and 'GET' in (getattr(route, 'methods', None) or ())}
+    paths = set()
+    for route in host_app.routes:
+        # Newer FastAPI retains included routers instead of flattening them.
+        # Resolve their prefixed metadata without invoking any handler/engine.
+        contexts = getattr(route, 'effective_route_contexts', None)
+        candidates = contexts() if callable(contexts) else (route,)
+        for candidate in candidates:
+            if hasattr(candidate, 'path') and 'GET' in (getattr(candidate, 'methods', None) or ()):
+                paths.add(candidate.path)
     result = []
     for spec in FEATURE_REGISTRY:
         number = spec.get('module_number')

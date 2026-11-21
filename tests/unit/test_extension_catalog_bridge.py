@@ -68,3 +68,21 @@ def test_catalog_and_launch_share_server_permissions_without_modifying_registry(
     assert len(opened) == 1
     assert len(api.app_registry.get_all_apps()) == before
     assert client.post('/api/apps/launch/extension-99',json={}).status_code == 404
+
+
+def test_nested_included_router_prefixes_are_resolved_without_running_handlers():
+    from fastapi import APIRouter
+    from starlette.staticfiles import StaticFiles
+    host = FastAPI()
+    called = []
+    host.add_api_route('/ai-data-analyst', lambda: called.append('ui'))
+    child = APIRouter(prefix='/ai-data-analyst')
+    child.add_api_route('/health', lambda: called.append('health'))
+    parent = APIRouter(prefix='/v1')
+    parent.include_router(child)
+    host.include_router(parent, prefix='/api')
+    host.mount('/', StaticFiles(directory='.'))
+    apps = extension_apps(host)
+    assert next(a for a in apps if a.id == 'extension-28').status == AppStatus.AVAILABLE
+    assert next(a for a in apps if a.id == 'extension-29').status == AppStatus.IN_DEVELOPMENT
+    assert called == []

@@ -1,0 +1,259 @@
+[
+  {
+    "id": "UX-001",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Shell",
+    "selector": "nav[role=tablist]",
+    "source_files": [
+      "apps/dashboard/static/index.html:3784"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Sidebar keyboard handler supports Left and Right but omits Up and Down for vertical navigation.",
+    "detailed_description": "Sidebar keyboard handler supports Left and Right but omits Up and Down for vertical navigation.",
+    "repro_steps": [
+      "Focus a sidebar tab",
+      "Press ArrowDown"
+    ],
+    "expected_behavior": "Focus and selection advance one row.",
+    "recommended_fix": "Support vertical arrow keys and expose the orientation.",
+    "verification_test": "Focus Dashboard, press ArrowDown, expect Apps to be focused and selected.",
+    "status": "verified_offline",
+    "evidence_type": "source inspection",
+    "implementation_note": "Focused Home and pressed ArrowDown. Apps received focus at both viewport sizes.",
+    "verification_scope": "offline_only",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "UX-002",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#tab-apps",
+    "source_files": [
+      "apps/dashboard/static/index.html:4006"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "When the notification service is unavailable, launch denial uses a blocking native dialog in the launch handler.",
+    "detailed_description": "When the notification service is unavailable, launch denial uses a blocking native dialog in the launch handler.",
+    "repro_steps": [
+      "Exercise an adapter denial using a test fixture."
+    ],
+    "expected_behavior": "Denial reason stays in app context.",
+    "recommended_fix": "Render a persistent inline error and restore focus to Launch.",
+    "verification_test": "Assert zero dialog events and an accessible denial reason.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "source inspection",
+    "implementation_note": "Launch failure fallback writes to #apps-launch-status. Verify the denial path with notifications disabled.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "UX-003",
+    "category": "ui_ux",
+    "severity": "P3-Polish",
+    "page": "Settings",
+    "selector": "#tab-settings",
+    "source_files": [
+      "apps/dashboard/static/index.html:6231"
+    ],
+    "screenshot": "docs/audit-screenshots/settings-1280.png",
+    "summary": "Saving settings uses a blocking native alert for success.",
+    "detailed_description": "Saving settings uses a blocking native alert for success.",
+    "repro_steps": [
+      "In an isolated test profile save a reversible preference."
+    ],
+    "expected_behavior": "Save confirmation permits continued keyboard interaction.",
+    "recommended_fix": "Use the shared status notification.",
+    "verification_test": "Wait for success status and assert no native dialog.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "source inspection",
+    "implementation_note": "Settings save writes success and failure to #settings-save-status. Exercise a reversible setting in a disposable operator profile.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "UX-004",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Global shell",
+    "selector": "#sidebar-operator-card",
+    "source_files": [
+      "apps/dashboard/static/index.html:1010"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Sidebar account shortcut is a clickable div without native keyboard activation.",
+    "detailed_description": "Sidebar account shortcut is a clickable div without native keyboard activation.",
+    "repro_steps": [
+      "Navigate the dashboard shortcuts with Tab",
+      "Try activating the sidebar operator card using Enter."
+    ],
+    "expected_behavior": "Keyboard users can open the same profile shortcut.",
+    "recommended_fix": "Use a button with a visible focus indicator.",
+    "verification_test": "Locate the shortcut by button role, focus, press Enter and assert profile is visible.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "source inspection",
+    "implementation_note": "Operator shortcut is a native button. Verify activation using Enter from focus.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "BUG-001",
+    "category": "security",
+    "severity": "P1-High",
+    "page": "Account",
+    "selector": "#account-role-badge",
+    "source_files": [
+      "apps/dashboard/static/index.html:3299"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Account markup announces ADMIN before the identity service confirms the role. This is a misleading display, with no evidence of a backend privilege grant.",
+    "detailed_description": "Account markup announces ADMIN before the identity service confirms the role. This is a misleading display, with no evidence of a backend privilege grant.",
+    "repro_steps": [
+      "Inspect initial account HTML before profile hydration."
+    ],
+    "expected_behavior": "Unknown role displays Pending or Unavailable.",
+    "recommended_fix": "Render a neutral initial badge and enable privileged controls only after confirmation.",
+    "verification_test": "Delay the identity response and verify no ADMIN badge appears for an unverified operator.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "source inspection",
+    "implementation_note": "Removed initial and fallback ADMIN role labels from the profile. Verify guest, delayed identity and authorized operator hydration.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "UX-005",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#apps-category-pills",
+    "source_files": [
+      "apps/dashboard/static/index.html:2215"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "Category filters use clickable divs without keyboard semantics.",
+    "detailed_description": "Category filters use clickable divs without keyboard semantics.",
+    "repro_steps": [
+      "Tab through the catalog filters and try selecting a category."
+    ],
+    "expected_behavior": "Every category is keyboard operable.",
+    "recommended_fix": "Use buttons with aria-pressed.",
+    "verification_test": "Focus a category by role, press Space and check filtered results.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "source inspection",
+    "implementation_note": "Focused a category and pressed Space. aria-pressed changed to true at both sizes. Confirm filtering against a populated catalog.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "BUG-002",
+    "category": "bug",
+    "severity": "P1-High",
+    "page": "Shell",
+    "selector": "nav [data-tab]",
+    "source_files": [
+      "apps/dashboard/static/index.html:3736"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "YouTube, Documents, Research and Account failed to display during both viewport passes. Cause under investigation.",
+    "detailed_description": "The live DOM placed YouTube, Documents and Research inside hidden #tab-developer. The initial live document lacked #tab-account. The later source checkout includes Account. Recheck after pinning the served revision.",
+    "repro_steps": [
+      "Click the named sidebar button and wait for the matching panel."
+    ],
+    "expected_behavior": "Selected panel becomes visible and usable.",
+    "recommended_fix": "Inspect panel ancestry and the selected state alongside service health.",
+    "verification_test": "For every nav button click and expect the matching panel to be visible.",
+    "status": "verified_offline",
+    "evidence_type": "live DOM and navigation",
+    "implementation_note": "All 23 navigation destinations opened at both viewport sizes from the current shell with isolated backend responses.",
+    "verification_scope": "offline_only",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "UX-006",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#apps-status-select",
+    "source_files": [
+      "apps/dashboard/static/index.html:2204"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "Catalog counts in static filter labels disagree with the live grid of 45 Details buttons, including 20 under Available.",
+    "detailed_description": "Catalog counts in static filter labels disagree with the live grid of 45 Details buttons, including 20 under Available.",
+    "repro_steps": [
+      "Count visible Details buttons with All and Available selected."
+    ],
+    "expected_behavior": "Filter counts match the current catalog.",
+    "recommended_fix": "Derive counts and search placeholder from manifest data.",
+    "verification_test": "Assert filter count equals matching grid card count.",
+    "status": "verified_offline",
+    "evidence_type": "live catalog and inspected source",
+    "implementation_note": "Connected Chromium loaded the working tree shell with an intercepted 503 and a three-app MOCK catalog. Retry restored total 3, Available Only (2) displayed two cards and Planned showed 1. Missing catalog displayed a dash. Deployment catalog remains unverified.",
+    "verification_scope": "offline_only",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "AI-001",
+    "category": "ai_quality",
+    "severity": "P1-High",
+    "page": "Chat",
+    "selector": "#chat-model-select",
+    "source_files": [
+      "apps/dashboard/static/index.html:4369",
+      "apps/api/chat_api.py:123"
+    ],
+    "screenshot": null,
+    "summary": "Local Ollama conversation route returns provider errors after more than 20 seconds.",
+    "detailed_description": "Selected ollama:moondream:latest. Two memory prompts ended with explicit provider errors at 22.065 s and 23.130 s. Code generation still pending at 25 s. Model uptime and hardware cause unknown.",
+    "repro_steps": [
+      "Select the local Moondream model in Conversation mode.",
+      "Send Remember the audit word violet. Reply with only the word.",
+      "Ask What was the audit word?"
+    ],
+    "expected_behavior": "A capable available model answers or an unavailable route is identified promptly.",
+    "recommended_fix": "Verify model readiness and task suitability, expose timeout and cancellation state, and offer an explicitly chosen alternative.",
+    "verification_test": "Test a warm available route and an unavailable fixture. Check reply content and terminal UI state separately, and record first-token and completion latency.",
+    "status": "implemented_pending_verification",
+    "evidence_type": "live browser",
+    "implementation_note": "Focused tests confirm empty installed-model lists are unavailable and explicit model choice is preserved. A rejected model switch now surfaces an error. Live inference latency and recall remain unverified. Chat exposes provider availability and a refresh control. A focused test confirms an unavailable conversation model leaves the draft intact and makes zero requests.",
+    "verification_scope": "pending",
+    "evidence_paths": [],
+    "verified_revision": null
+  },
+  {
+    "id": "BUG-003",
+    "category": "integration",
+    "severity": "P1-High",
+    "page": "Apps",
+    "selector": "#apps-grid",
+    "source_files": [
+      "apps/apps_center/extension_catalog.py"
+    ],
+    "screenshot": null,
+    "summary": "Mounted extension APIs are incorrectly marked unavailable when FastAPI retains nested included routers.",
+    "detailed_description": "After the authorized core restart, the live catalog returned 45 apps with 25 extension entries in_development; the suite registered 42 modules and all 25 extension UI/health route pairs returned HTTP 200. The catalog inspected only top-level route metadata.",
+    "repro_steps": [
+      "Load the restarted backend catalog.",
+      "Compare extension states with registered UI and health routes."
+    ],
+    "expected_behavior": "Registered enabled module interfaces can be opened; absent or disabled interfaces remain unavailable. Interface availability does not imply provider or hardware readiness.",
+    "recommended_fix": "Resolve prefixed included-router metadata without executing handlers or importing module engines.",
+    "verification_test": "Test nested router prefixes and catch-all exclusion; after authorized deployment confirm registered extension cards can open while missing/disabled entries remain blocked.",
+    "status": "implemented_pending_verification",
+    "implementation_note": "Nested-router correction integrated into the current source; five focused bridge tests passed in isolation. Live deployment verification remains pending.",
+    "verification_scope": "unit_only_pending_integration",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/phase-6/corrective/handoff-review.txt"
+    ],
+    "verified_revision": null
+  }
+]
