@@ -1,0 +1,106 @@
+{
+  "module_id": "jarvis-module-18-multi-agent-orchestrator",
+  "module_number": 18,
+  "name": "Multi-Agent Task Orchestrator",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "phase": "PHASE_A_CORE_AI_OS",
+  "priority": "CRITICAL",
+  "category": "Core AI Operating System",
+  "description": "Unified multi-agent execution engine with dependency-aware DAG scheduling, priority queuing, bounded parallel execution, persistent SQLite state, pause/resume/cancel controls, retry & timeout handling, human approval checkpoints, inter-agent messaging, and result aggregation.",
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "fastapi>=0.92.0",
+      "uvicorn>=0.17.6",
+      "pydantic>=1.10.4",
+      "httpx>=0.23.3"
+    ],
+    "optional_packages": [
+      "pytest>=7.4.0",
+      "pytest-asyncio>=0.21.0"
+    ],
+    "jarvis_modules": []
+  },
+  "permissions": [
+    "orchestrator:agent:register",
+    "orchestrator:task:create",
+    "orchestrator:task:control",
+    "orchestrator:approval:decide",
+    "orchestrator:message:send",
+    "storage:sqlite:local"
+  ],
+  "resource_requirements": {
+    "min_ram_mb": 128,
+    "recommended_ram_mb": 256,
+    "cpu_cores": 1,
+    "gpu_required": false,
+    "default_max_concurrency": 4,
+    "storage_type": "sqlite_wal"
+  },
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_mount": "backend.app.main:mount_module",
+    "frontend_dev": "frontend/src/main.tsx",
+    "frontend_standalone_url": "/orchestrator",
+    "health_check": "/api/v1/orchestrator/health",
+    "manifest_endpoint": "/api/v1/orchestrator/manifest",
+    "openapi_prefix": "/api/v1/orchestrator",
+    "websocket_stream": "/api/v1/orchestrator/ws/events"
+  },
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "JARVIS_M18_HOST": { "type": "string", "default": "0.0.0.0" },
+      "JARVIS_M18_PORT": { "type": "integer", "default": 8118 },
+      "JARVIS_M18_DB_PATH": { "type": "string", "default": "./data/jarvis_orchestrator.db" },
+      "JARVIS_M18_MAX_CONCURRENCY": { "type": "integer", "minimum": 1, "maximum": 32, "default": 4 },
+      "JARVIS_M18_DEFAULT_TIMEOUT_SEC": { "type": "number", "minimum": 1.0, "default": 30.0 },
+      "JARVIS_M18_POLL_INTERVAL_SEC": { "type": "number", "minimum": 0.02, "default": 0.1 },
+      "JARVIS_M18_SIMULATION_MODE": { "type": "boolean", "default": true }
+    }
+  },
+  "events": {
+    "published": [
+      "agent.registered",
+      "agent.updated",
+      "agent.removed",
+      "task.created",
+      "task.queued",
+      "task.started",
+      "task.retrying",
+      "task.awaiting_approval",
+      "task.paused",
+      "task.resumed",
+      "task.completed",
+      "task.failed",
+      "task.cancelled",
+      "approval.requested",
+      "approval.decided",
+      "message.sent",
+      "engine.paused",
+      "engine.resumed"
+    ],
+    "subscribed": [
+      "approval.external_decision",
+      "system.shutdown"
+    ]
+  },
+  "error_format": {
+    "schema": {
+      "error": {
+        "code": "string",
+        "message": "string",
+        "details": "object|null",
+        "timestamp": "ISO-8601 UTC string"
+      }
+    }
+  },
+  "simulation_disclosure": {
+    "uses_simulation_by_default": true,
+    "simulated_components": [
+      "Reference local agents (ResearchAgent, CodeAnalysisAgent, DataAggregatorAgent, HumanGatedDeployAgent) run deterministic local logic without external LLM or cloud credentials.",
+      "Standalone compatibility harness provides in-memory EventBus and local Approval/ModelProvider adapters when running outside JARVIS Core."
+    ]
+  }
+}

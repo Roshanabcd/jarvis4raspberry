@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-36-screen-vision-assistant",
+  "module_number": 36,
+  "name": "Screen Vision Assistant",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "computer_vision",
+  "description": "Local-first screen capture inspector, UI bounding-box region analyzer, spatial hit-tester, and grounded screen Q&A assistant with SVG overlay HUD for JARVIS OS.",
+  "default_port": 8136,
+  "ui_route": "/vision",
+  "api_prefix": "/api/v1/vision",
+  "ws_endpoint": "/api/v1/vision/ws/captures",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M36_DB_PATH",
+    "default_path": "./data/jarvis_vision.db"
+  },
+  "capabilities": [
+    "local_image_header_and_hash_inspection",
+    "ui_bounding_box_region_indexing",
+    "spatial_coordinate_hit_testing",
+    "grounded_screen_qa_search",
+    "interactive_svg_vision_hud"
+  ]
+}

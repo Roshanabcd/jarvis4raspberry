@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-39-backup-recovery-manager",
+  "module_number": 39,
+  "name": "Backup & Recovery Manager",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "backup_recovery",
+  "description": "Local-first sandboxed ZIP snapshot backup manager with SHA-256 integrity verification, Zip-Slip-safe restore, SQLite WAL catalog, and HUD for JARVIS OS.",
+  "default_port": 8139,
+  "ui_route": "/backups",
+  "api_prefix": "/api/v1/backups",
+  "ws_endpoint": "/api/v1/backups/ws/snapshots",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M39_DB_PATH",
+    "default_path": "./data/jarvis_backups.db"
+  },
+  "capabilities": [
+    "sandboxed_zip_snapshot_creation",
+    "sha256_and_zip_integrity_verification",
+    "zip_slip_protected_restoration",
+    "sqlite_wal_snapshot_and_restore_catalog",
+    "live_backup_hud_and_websocket"
+  ]
+}

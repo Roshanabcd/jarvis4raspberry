@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 25: AI Meeting Assistant</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --warn: #FFB84D;
+      --danger: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FAAC8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top right, rgba(33, 139, 255, 0.14), transparent 42%),
+                  radial-gradient(circle at bottom left, rgba(152, 104, 255, 0.12), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: rgba(16, 30, 48, 0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .orb {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan), var(--blue) 60%, var(--purple));
+      box-shadow: 0 0 18px rgba(0, 217, 255, 0.65);
+    }
+    h1 { margin: 0; font-size: 1.12rem; letter-spacing: 0.04em; }
+    .subtitle { font-size: 0.78rem; color: var(--muted); }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0, 217, 255, 0.1); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255, 184, 77, 0.45); background: rgba(255, 184, 77, 0.12); color: var(--warn); }
+    .badge.ok { border-color: rgba(37, 230, 162, 0.45); background: rgba(37, 230, 162, 0.12); color: var(--green); }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 20px 24px 40px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 14px 16px;
+    }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi .val { font-size: 1.65rem; font-weight: 700; margin-top: 6px; color: var(--cyan); }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+    .panel {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 0.96rem; color: var(--cyan); letter-spacing: 0.03em; }
+    label { display: block; font-size: 0.76rem; color: var(--muted); margin: 8px 0 4px; }
+    input, textarea, select {
+      width: 100%; background: var(--panel-alt); color: var(--text);
+      border: 1px solid rgba(143, 170, 200, 0.25); border-radius: 8px;
+      padding: 8px 10px; font-size: 0.86rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 78px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button, a.btn {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 14px; cursor: pointer; font-size: 0.82rem; text-decoration: none; display: inline-block;
+    }
+    button.secondary, a.btn.secondary {
+      background: rgba(152, 104, 255, 0.16); color: var(--text); border: 1px solid rgba(152, 104, 255, 0.45);
+    }
+    button.success {
+      background: rgba(37, 230, 162, 0.18); color: var(--green); border: 1px solid rgba(37, 230, 162, 0.45);
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto; }
+    .card {
+      background: var(--panel-alt); border: 1px solid rgba(0, 217, 255, 0.16);
+      border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: border-color 0.15s;
+    }
+    .card.active, .card:hover { border-color: var(--cyan); }
+    .card-title { font-weight: 600; font-size: 0.88rem; }
+    .card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .seg { padding: 8px 10px; border-left: 3px solid var(--blue); background: rgba(5, 11, 22, 0.55); border-radius: 6px; margin-bottom: 6px; font-size: 0.84rem; }
+    .seg strong { color: var(--cyan); }
+    .bar-wrap { background: rgba(255, 255, 255, 0.08); height: 8px; border-radius: 6px; overflow: hidden; margin-top: 4px; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--purple)); }
+    .action-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel-alt); border-radius: 8px; border: 1px solid rgba(0,217,255,0.14); margin-bottom: 6px; }
+    .done { text-decoration: line-through; color: var(--muted); }
+    .pill-list { margin: 0; padding-left: 18px; font-size: 0.85rem; }
+    .pill-list li { margin-bottom: 5px; }
+    #toast { font-size: 0.82rem; color: var(--green); min-height: 20px; margin-bottom: 8px; }
+    @media (max-width: 960px) { .kpi-grid, .layout, .cols { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <h1>JARVIS OS · Module 25 — AI Meeting Assistant</h1>
+        <div class="subtitle">Transcript Diarization · Talk-Share Analytics · Action &amp; Risk Extraction · Markdown Minutes</div>
+      </div>
+    </div>
+    <div class="row">
+      <span id="simBadge" class="badge sim">SIMULATED SYNTHESIS</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="toast"></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Meetings Recorded</div><div id="kMeetings" class="val">0</div></div>
+      <div class="kpi"><div class="label">Open Action Items</div><div id="kOpen" class="val" style="color:var(--warn)">0</div></div>
+      <div class="kpi"><div class="label">Completed Actions</div><div id="kDone" class="val" style="color:var(--green)">0</div></div>
+      <div class="kpi"><div class="label">Synthesis Adapter</div><div id="kAdapter" class="val" style="font-size:1.0rem;color:var(--purple)">local</div></div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="panel">
+          <h2>New Meeting Session</h2>
+          <label>Title</label>
+          <input id="mTitle" placeholder="e.g. Q4 Architecture & Release Sync" />
+          <label>Date</label>
+          <input id="mDate" value="2026-11-20" />
+          <label>Participants (comma-separated)</label>
+          <input id="mParts" placeholder="Roshan, Maya, Dev" />
+          <label>Agenda</label>
+          <input id="mAgenda" placeholder="Module integration & milestones" />
+          <div style="margin-top:10px" class="row">
+            <button onclick="createMeeting()">+ Create Meeting</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Meetings</h2>
+          <div id="meetingList" class="list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Cross-Meeting Search</h2>
+          <div class="row">
+            <input id="searchQ" placeholder="Search transcripts..." style="flex:1" />
+            <button class="secondary" onclick="runSearch()">Search</button>
+          </div>
+          <div id="searchResults" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2 id="activeTitle" style="margin:0">Select or Create a Meeting</h2>
+            <div class="row">
+              <button onclick="analyzeActive()">Analyze &amp; Generate Minutes</button>
+              <a id="exportLink" class="btn secondary" href="#" target="_blank">Export .md Minutes</a>
+            </div>
+          </div>
+          <div id="activeMeta" class="card-meta" style="margin-top:6px">No active meeting selected.</div>
+        </div>
+
+        <div class="cols">
+          <div class="panel">
+            <h2>Live &amp; Bulk Transcript Ingestion</h2>
+            <div class="row">
+              <input id="segSpeaker" placeholder="Speaker" style="width:32%" />
+              <input id="segText" placeholder="Spoken line..." style="flex:1" />
+              <button onclick="addSegment()">Add</button>
+            </div>
+            <label>Bulk Transcript (`Speaker: text` per line)</label>
+            <textarea id="bulkText" placeholder="Roshan: We agreed to ship Module 25 on Friday.&#10;Maya: Action: I will finalize the deployment checklist by Thursday.&#10;Dev: Risk: Staging DB backup latency needs review."></textarea>
+            <div style="margin-top:8px">
+              <button class="secondary" onclick="ingestBulk()">Ingest Bulk Transcript</button>
+            </div>
+            <h2 style="margin-top:14px">Transcript Feed</h2>
+            <div id="segmentFeed" class="list" style="max-height:220px"></div>
+          </div>
+
+          <div class="panel">
+            <h2>Executive Summary &amp; Talk-Share</h2>
+            <p id="execOverview" style="font-size:0.86rem;line-height:1.45;color:var(--text)">Run analysis to generate an executive overview, speaker analytics, decisions, risks, and action items.</p>
+            <div id="speakerStats" style="margin:12px 0"></div>
+            <h2 style="margin-top:12px">Key Decisions</h2>
+            <ul id="decisionList" class="pill-list"></ul>
+            <h2 style="margin-top:12px">Risks &amp; Blockers</h2>
+            <ul id="riskList" class="pill-list"></ul>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Extracted Action Items</h2>
+          <div id="actionList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/meeting-assistant';
+    let activeMeetingId = null;
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function refreshStatus() {
+      const s = await api('/status');
+      document.getElementById('kMeetings').textContent = s.meetings_count;
+      document.getElementById('kOpen').textContent = s.open_action_items;
+      document.getElementById('kDone').textContent = s.completed_action_items;
+      document.getElementById('kAdapter').textContent = s.adapter;
+      const badge = document.getElementById('simBadge');
+      badge.textContent = s.simulated ? 'SIMULATED LOCAL SYNTHESIS' : 'LIVE PROVIDER';
+    }
+
+    async function loadMeetings() {
+      const data = await api('/meetings');
+      const box = document.getElementById('meetingList');
+      box.innerHTML = '';
+      if (!data.meetings.length) {
+        box.innerHTML = '<div class="card-meta">No meetings yet. Create one above.</div>';
+        return;
+      }
+      data.meetings.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'card' + (m.meeting_id === activeMeetingId ? ' active' : '');
+        div.innerHTML = `<div class="card-title">${m.title}</div><div class="card-meta">${m.meeting_date} · ${m.status}</div>`;
+        div.onclick = () => selectMeeting(m.meeting_id);
+        box.appendChild(div);
+      });
+      if (!activeMeetingId && data.meetings.length) {
+        selectMeeting(data.meetings[0].meeting_id);
+      }
+    }
+
+    async function selectMeeting(id) {
+      activeMeetingId = id;
+      const data = await api('/meetings/' + id);
+      const m = data.meeting;
+      document.getElementById('activeTitle').textContent = m.title;
+      document.getElementById('activeMeta').textContent = `ID: ${m.meeting_id} · Date: ${m.meeting_date} · Participants: ${(m.participants || []).join(', ') || 'TBD'} · Agenda: ${m.agenda || 'General'}`;
+      document.getElementById('exportLink').href = `${API}/meetings/${id}/minutes.md`;
+
+      const feed = document.getElementById('segmentFeed');
+      feed.innerHTML = data.segments.map(s => `<div class="seg"><strong>${s.speaker}</strong> [${s.timestamp_sec}s]: ${s.text}</div>`).join('') || '<div class="card-meta">No transcript segments yet.</div>';
+
+      renderSummary(m.summary, data.action_items);
+      loadMeetings();
+    }
+
+    function renderSummary(summary, actions) {
+      document.getElementById('execOverview').textContent = summary ? summary.executive_overview : 'Run analysis to generate executive summary.';
+      const statsBox = document.getElementById('speakerStats');
+      statsBox.innerHTML = (summary && summary.speaker_stats ? summary.speaker_stats : []).map(st => `
+        <div style="margin-bottom:8px">
+          <div class="row" style="justify-content:space-between;font-size:0.8rem"><span>${st.speaker}</span><span>${st.word_count} words (${st.share_pct}%)</span></div>
+          <div class="bar-wrap"><div class="bar-fill" style="width:${st.share_pct}%"></div></div>
+        </div>
+      `).join('');
+
+      document.getElementById('decisionList').innerHTML = (summary && summary.decisions && summary.decisions.length)
+        ? summary.decisions.map(d => `<li>${d}</li>`).join('') : '<li style="color:var(--muted)">None extracted yet.</li>';
+      document.getElementById('riskList').innerHTML = (summary && summary.risks && summary.risks.length)
+        ? summary.risks.map(r => `<li>${r}</li>`).join('') : '<li style="color:var(--muted)">None extracted yet.</li>';
+
+      const actBox = document.getElementById('actionList');
+      actBox.innerHTML = (actions && actions.length) ? actions.map(a => `
+        <div class="action-row">
+          <div class="${a.status === 'done' ? 'done' : ''}">
+            <strong>${a.owner}</strong>: ${a.description} ${a.due_hint ? `<span class="badge">${a.due_hint}</span>` : ''}
+          </div>
+          <button class="success" onclick="toggleAction('${a.item_id}', '${a.status === 'done' ? 'open' : 'done'}')">${a.status === 'done' ? 'Reopen' : 'Mark Done'}</button>
+        </div>
+      `).join('') : '<div class="card-meta">No action items extracted yet.</div>';
+    }
+
+    async function createMeeting() {
+      const title = document.getElementById('mTitle').value.trim();
+      if (!title) return toast('Please enter a meeting title.');
+      const participants = document.getElementById('mParts').value.split(',').map(s => s.trim()).filter(Boolean);
+      const m = await api('/meetings', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          meeting_date: document.getElementById('mDate').value || '2026-11-20',
+          participants,
+          agenda: document.getElementById('mAgenda').value.trim(),
+        }),
+      });
+      document.getElementById('mTitle').value = '';
+      toast('Created meeting ' + m.title);
+      await refreshStatus();
+      await selectMeeting(m.meeting_id);
+    }
+
+    async function addSegment() {
+      if (!activeMeetingId) return toast('Select a meeting first.');
+      const speaker = document.getElementById('segSpeaker').value.trim() || 'Speaker';
+      const text = document.getElementById('segText').value.trim();
+      if (!text) return;
+      await api(`/meetings/${activeMeetingId}/transcript`, {
+        method: 'POST',
+        body: JSON.stringify({ speaker, text, timestamp_sec: 0 }),
+      });
+      document.getElementById('segText').value = '';
+      await selectMeeting(activeMeetingId);
+    }
+
+    async function ingestBulk() {
+      if (!activeMeetingId) return toast('Select a meeting first.');
+      const raw_transcript = document.getElementById('bulkText').value.trim();
+      if (!raw_transcript) return;
+      const res = await api(`/meetings/${activeMeetingId}/transcript/bulk`, {
+        method: 'POST',
+        body: JSON.stringify({ raw_transcript }),
+      });
+      document.getElementById('bulkText').value = '';
+      toast(`Ingested ${res.ingested_count} transcript segments.`);
+      await selectMeeting(activeMeetingId);
+    }
+
+    async function analyzeActive() {
+      if (!activeMeetingId) return toast('Select a meeting first.');
+      await api(`/meetings/${activeMeetingId}/analyze`, { method: 'POST' });
+      toast('Meeting analyzed & minutes updated.');
+      await refreshStatus();
+      await selectMeeting(activeMeetingId);
+    }
+
+    async function toggleAction(itemId, status) {
+      await api(`/action-items/${itemId}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      await refreshStatus();
+      if (activeMeetingId) await selectMeeting(activeMeetingId);
+    }
+
+    async function runSearch() {
+      const q = document.getElementById('searchQ').value.trim();
+      if (!q) return;
+      const res = await api('/search?q=' + encodeURIComponent(q));
+      const box = document.getElementById('searchResults');
+      box.innerHTML = res.results.length
+        ? res.results.map(r => `<div class="seg"><strong>${r.speaker}</strong> (${r.meeting_title}): ${r.text}</div>`).join('')
+        : 'No matching transcript segments.';
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}${API}/ws/events`);
+      const b = document.getElementById('wsBadge');
+      ws.onopen = () => { b.textContent = 'WS: LIVE'; b.className = 'badge ok'; };
+      ws.onclose = () => { b.textContent = 'WS: RECONNECTING'; b.className = 'badge'; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => refreshStatus();
+    }
+
+    refreshStatus();
+    loadMeetings();
+    connectWS();
+  </script>
+</body>
+</html>

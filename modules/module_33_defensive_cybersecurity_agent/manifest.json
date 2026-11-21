@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-33-defensive-cybersecurity-agent",
+  "module_number": 33,
+  "name": "Defensive Cybersecurity Agent",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "defensive_security",
+  "description": "Local-first defensive security operations agent providing sandboxed secret scanning with automatic redaction, SHA-256 file integrity monitoring (FIM), auth/HTTP log anomaly detection, incident triage, and posture scoring for JARVIS OS.",
+  "default_port": 8133,
+  "ui_route": "/cybersecurity",
+  "api_prefix": "/api/v1/cybersecurity",
+  "ws_endpoint": "/api/v1/cybersecurity/ws/alerts",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M33_DB_PATH",
+    "default_path": "./data/jarvis_cybersecurity.db"
+  },
+  "capabilities": [
+    "sandboxed_secret_and_permission_scan",
+    "sha256_file_integrity_monitoring",
+    "auth_and_http_log_anomaly_detection",
+    "incident_triage_and_playbooks",
+    "security_posture_scoring"
+  ]
+}

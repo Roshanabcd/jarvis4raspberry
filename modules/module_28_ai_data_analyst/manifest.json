@@ -1,0 +1,29 @@
+{
+  "module_id": "jarvis-module-28-ai-data-analyst",
+  "module_number": 28,
+  "name": "AI Data Analyst",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "analytics_intelligence",
+  "description": "CSV/JSON dataset ingestion, automated statistical profiling, Z-score anomaly detection, group-by aggregations, natural-language Q&A with chart-ready series, and Markdown report export for JARVIS OS.",
+  "default_port": 8128,
+  "ui_route": "/ai-data-analyst",
+  "api_prefix": "/api/v1/ai-data-analyst",
+  "ws_endpoint": "/api/v1/ai-data-analyst/ws/events",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M28_DB_PATH",
+    "default_path": "./data/jarvis_ai_data_analyst.db"
+  },
+  "capabilities": [
+    "csv_and_json_ingestion",
+    "statistical_profiling",
+    "zscore_anomaly_detection",
+    "group_by_aggregation",
+    "natural_language_data_qa",
+    "markdown_report_export"
+  ]
+}

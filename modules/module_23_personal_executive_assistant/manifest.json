@@ -1,0 +1,20 @@
+{
+  "module_id": "jarvis-module-23-personal-executive-assistant",
+  "module_number": 23,
+  "name": "Personal Executive Assistant",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "phase": "PHASE B — PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+  "description": "Executive productivity engine with daily briefings, Eisenhower priority matrix, overlap-checked time blocking, smart day auto-planning, goal/OKR tracking, habit streaks, and delegation follow-ups.",
+  "entrypoint": "backend.app.main:app",
+  "mount_hook": "backend.app.main:mount_module",
+  "default_port": 8123,
+  "ui_route": "/executive-assistant",
+  "api_prefix": "/api/v1/executive-assistant",
+  "health_endpoint": "/api/v1/executive-assistant/health",
+  "ws_endpoint": "/api/v1/executive-assistant/ws/events",
+  "simulated_default": true,
+  "database": "SQLite WAL (isolated per module)",
+  "compatible_with": ["jarvis-os-core", "modules-1-41"]
+}

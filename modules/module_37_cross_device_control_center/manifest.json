@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-37-cross-device-control-center",
+  "module_number": 37,
+  "name": "Cross-Device Control Center",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "device_mesh",
+  "description": "Unified cross-device mesh registry, capability-guarded remote command bridge (simulated: true), and shared clipboard sync bus with live HUD for JARVIS OS.",
+  "default_port": 8137,
+  "ui_route": "/devices",
+  "api_prefix": "/api/v1/devices",
+  "ws_endpoint": "/api/v1/devices/ws/mesh",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M37_DB_PATH",
+    "default_path": "./data/jarvis_devices.db"
+  },
+  "capabilities": [
+    "device_mesh_registry_and_heartbeat",
+    "capability_guarded_command_dispatch",
+    "cross_device_clipboard_sync",
+    "simulated_remote_device_bridge",
+    "live_mesh_hud_and_websocket"
+  ]
+}

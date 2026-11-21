@@ -1,0 +1,1831 @@
+{
+  "total_archives": 25,
+  "modules": [
+    {
+      "archive_file": "JARVIS_Module_18_Multi_Agent_Orchestrator_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_18_Multi_Agent_Orchestrator_v1.0.0.zip",
+      "size_bytes": 74253,
+      "sha256": "8cd0c7c037c40263cdfbe2bc7b8cab4381d9a87a4ef50020047c5e85d7002089",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 18,
+      "module_id": "jarvis-module-18-multi-agent-orchestrator",
+      "name": "Multi-Agent Task Orchestrator",
+      "version": "1.0.0",
+      "category": "Core AI Operating System",
+      "description": "Unified multi-agent execution engine with dependency-aware DAG scheduling, priority queuing, bounded parallel execution, persistent SQLite state, pause/resume/cancel controls, retry & timeout handling, human approval checkpoints, inter-agent messaging, and result aggregation.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-18-multi-agent-orchestrator",
+        "module_number": 18,
+        "name": "Multi-Agent Task Orchestrator",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "phase": "PHASE_A_CORE_AI_OS",
+        "priority": "CRITICAL",
+        "category": "Core AI Operating System",
+        "description": "Unified multi-agent execution engine with dependency-aware DAG scheduling, priority queuing, bounded parallel execution, persistent SQLite state, pause/resume/cancel controls, retry & timeout handling, human approval checkpoints, inter-agent messaging, and result aggregation.",
+        "dependencies": {
+          "python": ">=3.10",
+          "python_packages": [
+            "fastapi>=0.92.0",
+            "uvicorn>=0.17.6",
+            "pydantic>=1.10.4",
+            "httpx>=0.23.3"
+          ],
+          "optional_packages": [
+            "pytest>=7.4.0",
+            "pytest-asyncio>=0.21.0"
+          ],
+          "jarvis_modules": []
+        },
+        "permissions": [
+          "orchestrator:agent:register",
+          "orchestrator:task:create",
+          "orchestrator:task:control",
+          "orchestrator:approval:decide",
+          "orchestrator:message:send",
+          "storage:sqlite:local"
+        ],
+        "resource_requirements": {
+          "min_ram_mb": 128,
+          "recommended_ram_mb": 256,
+          "cpu_cores": 1,
+          "gpu_required": false,
+          "default_max_concurrency": 4,
+          "storage_type": "sqlite_wal"
+        },
+        "entrypoints": {
+          "backend_app": "backend.app.main:app",
+          "backend_mount": "backend.app.main:mount_module",
+          "frontend_dev": "frontend/src/main.tsx",
+          "frontend_standalone_url": "/orchestrator",
+          "health_check": "/api/v1/orchestrator/health",
+          "manifest_endpoint": "/api/v1/orchestrator/manifest",
+          "openapi_prefix": "/api/v1/orchestrator",
+          "websocket_stream": "/api/v1/orchestrator/ws/events"
+        },
+        "configuration_schema": {
+          "type": "object",
+          "properties": {
+            "JARVIS_M18_HOST": {
+              "type": "string",
+              "default": "0.0.0.0"
+            },
+            "JARVIS_M18_PORT": {
+              "type": "integer",
+              "default": 8118
+            },
+            "JARVIS_M18_DB_PATH": {
+              "type": "string",
+              "default": "./data/jarvis_orchestrator.db"
+            },
+            "JARVIS_M18_MAX_CONCURRENCY": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32,
+              "default": 4
+            },
+            "JARVIS_M18_DEFAULT_TIMEOUT_SEC": {
+              "type": "number",
+              "minimum": 1.0,
+              "default": 30.0
+            },
+            "JARVIS_M18_POLL_INTERVAL_SEC": {
+              "type": "number",
+              "minimum": 0.02,
+              "default": 0.1
+            },
+            "JARVIS_M18_SIMULATION_MODE": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "events": {
+          "published": [
+            "agent.registered",
+            "agent.updated",
+            "agent.removed",
+            "task.created",
+            "task.queued",
+            "task.started",
+            "task.retrying",
+            "task.awaiting_approval",
+            "task.paused",
+            "task.resumed",
+            "task.completed",
+            "task.failed",
+            "task.cancelled",
+            "approval.requested",
+            "approval.decided",
+            "message.sent",
+            "engine.paused",
+            "engine.resumed"
+          ],
+          "subscribed": [
+            "approval.external_decision",
+            "system.shutdown"
+          ]
+        },
+        "error_format": {
+          "schema": {
+            "error": {
+              "code": "string",
+              "message": "string",
+              "details": "object|null",
+              "timestamp": "ISO-8601 UTC string"
+            }
+          }
+        },
+        "simulation_disclosure": {
+          "uses_simulation_by_default": true,
+          "simulated_components": [
+            "Reference local agents (ResearchAgent, CodeAnalysisAgent, DataAggregatorAgent, HumanGatedDeployAgent) run deterministic local logic without external LLM or cloud credentials.",
+            "Standalone compatibility harness provides in-memory EventBus and local Approval/ModelProvider adapters when running outside JARVIS Core."
+          ]
+        }
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.4.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-18-multi-agent-orchestrator-ui",
+      "total_files": 57
+    },
+    {
+      "archive_file": "JARVIS_Module_19_Autonomous_Computer_Assistant_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_19_Autonomous_Computer_Assistant_v1.0.0.zip",
+      "size_bytes": 46939,
+      "sha256": "90368a27889f1c98b01ab0470d772aae6654a65a8b9f40d197d7106f25020de1",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 19,
+      "module_id": "jarvis-module-19-autonomous-computer-assistant",
+      "name": "Autonomous Computer Assistant",
+      "version": "1.0.0",
+      "category": "Core AI Operating System",
+      "description": "Permission-controlled desktop automation module featuring application discovery, permitted screenshot capture, window selection, keyboard/mouse actions, sandboxed file interaction, application launch, human approval gates, Emergency Stop (E-STOP), dry-run mode, action replay, and diagnostics.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-19-autonomous-computer-assistant",
+        "module_number": 19,
+        "name": "Autonomous Computer Assistant",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "phase": "PHASE_A_CORE_AI_OS",
+        "priority": "CRITICAL",
+        "category": "Core AI Operating System",
+        "description": "Permission-controlled desktop automation module featuring application discovery, permitted screenshot capture, window selection, keyboard/mouse actions, sandboxed file interaction, application launch, human approval gates, Emergency Stop (E-STOP), dry-run mode, action replay, and diagnostics.",
+        "dependencies": {
+          "python": ">=3.10",
+          "python_packages": [
+            "fastapi>=0.92.0",
+            "uvicorn>=0.17.6",
+            "pydantic>=1.10.4",
+            "httpx>=0.23.3",
+            "Pillow>=10.0.0"
+          ],
+          "optional_packages": [
+            "pytest>=7.4.0",
+            "pytest-asyncio>=0.21.0"
+          ],
+          "jarvis_modules": [
+            "jarvis-module-18-multi-agent-orchestrator (optional)"
+          ]
+        },
+        "permissions": [
+          "computer:app:discover",
+          "computer:screenshot:capture",
+          "computer:window:select",
+          "computer:input:keyboard_mouse",
+          "computer:file:sandboxed_io",
+          "computer:app:launch",
+          "computer:safety:estop",
+          "computer:approval:decide",
+          "storage:sqlite:local"
+        ],
+        "resource_requirements": {
+          "min_ram_mb": 128,
+          "recommended_ram_mb": 256,
+          "cpu_cores": 1,
+          "gpu_required": false,
+          "storage_type": "sqlite_wal"
+        },
+        "entrypoints": {
+          "backend_app": "backend.app.main:app",
+          "backend_mount": "backend.app.main:mount_module",
+          "frontend_dev": "frontend/src/main.tsx",
+          "frontend_standalone_url": "/computer-assistant",
+          "health_check": "/api/v1/computer-assistant/health",
+          "manifest_endpoint": "/api/v1/computer-assistant/manifest",
+          "openapi_prefix": "/api/v1/computer-assistant",
+          "websocket_stream": "/api/v1/computer-assistant/ws/events"
+        },
+        "configuration_schema": {
+          "type": "object",
+          "properties": {
+            "JARVIS_M19_HOST": {
+              "type": "string",
+              "default": "0.0.0.0"
+            },
+            "JARVIS_M19_PORT": {
+              "type": "integer",
+              "default": 8119
+            },
+            "JARVIS_M19_DB_PATH": {
+              "type": "string",
+              "default": "./data/jarvis_computer_assistant.db"
+            },
+            "JARVIS_M19_SANDBOX_DIR": {
+              "type": "string",
+              "default": "./data/sandbox_files"
+            },
+            "JARVIS_M19_ADAPTER_MODE": {
+              "type": "string",
+              "enum": [
+                "safe_demo"
+              ],
+              "default": "safe_demo"
+            },
+            "JARVIS_M19_DRY_RUN_DEFAULT": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "events": {
+          "published": [
+            "computer.action.submitted",
+            "computer.action.awaiting_approval",
+            "computer.action.executed",
+            "computer.action.dry_run",
+            "computer.action.failed",
+            "computer.action.replayed",
+            "computer.approval.decided",
+            "computer.estop.engaged",
+            "computer.estop.reset",
+            "computer.screenshot.captured"
+          ],
+          "subscribed": [
+            "orchestrator.task.dispatch",
+            "approval.external_decision",
+            "system.estop"
+          ]
+        },
+        "error_format": {
+          "schema": {
+            "error": {
+              "code": "string",
+              "message": "string",
+              "details": "object|null",
+              "timestamp": "ISO-8601 UTC string"
+            }
+          }
+        },
+        "simulation_disclosure": {
+          "uses_simulation_by_default": true,
+          "simulated_components": [
+            "SafeDemoDesktopAdapter simulates desktop applications, windows, cursor/keyboard state, and renders synthetic Pillow PNG screenshots without controlling the real host OS.",
+            "File interaction is strictly confined to the configured JARVIS_M19_SANDBOX_DIR directory with path-traversal protection."
+          ]
+        }
+      },
+      "requirements": [
+        "Pillow>=10.0.0",
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.4.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-19-autonomous-computer-assistant-ui",
+      "total_files": 48
+    },
+    {
+      "archive_file": "JARVIS_Module_20_Realtime_Conversational_AI_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_20_Realtime_Conversational_AI_v1.0.0.zip",
+      "size_bytes": 37852,
+      "sha256": "c4c345f1b3d7d76c2471d29a9b1963e5fcacf3e2caec4316fce9df56c7074b53",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 20,
+      "module_id": "jarvis-module-20-realtime-conversational-ai",
+      "name": "Real-Time Conversational AI",
+      "version": "1.0.0",
+      "category": "Core AI Operating System",
+      "description": "Voice-first real-time conversational assistant for JARVIS OS featuring configurable AI provider adapters with automatic error recovery, streaming token & viseme timelines, voice interruption (barge-in), ARIA & ATLAS animated holographic avatars, blinking/facial states, subtitles, and SQLite conversation history.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-20-realtime-conversational-ai",
+        "module_number": 20,
+        "name": "Real-Time Conversational AI",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "phase": "PHASE_A_CORE_AI_OS",
+        "priority": "CRITICAL",
+        "category": "Core AI Operating System",
+        "description": "Voice-first real-time conversational assistant for JARVIS OS featuring configurable AI provider adapters with automatic error recovery, streaming token & viseme timelines, voice interruption (barge-in), ARIA & ATLAS animated holographic avatars, blinking/facial states, subtitles, and SQLite conversation history.",
+        "dependencies": {
+          "python": ">=3.10",
+          "python_packages": [
+            "fastapi>=0.92.0",
+            "uvicorn>=0.17.6",
+            "pydantic>=1.10.4",
+            "httpx>=0.23.3"
+          ],
+          "optional_packages": [
+            "pytest>=7.4.0",
+            "pytest-asyncio>=0.21.0"
+          ],
+          "jarvis_modules": [
+            "jarvis-module-22-intelligent-model-router (optional future adapter)"
+          ]
+        },
+        "permissions": [
+          "voice:microphone:browser_permission",
+          "voice:tts:playback",
+          "ai:provider:chat",
+          "storage:sqlite:local"
+        ],
+        "resource_requirements": {
+          "min_ram_mb": 128,
+          "recommended_ram_mb": 256,
+          "cpu_cores": 1,
+          "gpu_required": false,
+          "storage_type": "sqlite_wal"
+        },
+        "entrypoints": {
+          "backend_app": "backend.app.main:app",
+          "backend_mount": "backend.app.main:mount_module",
+          "frontend_dev": "frontend/src/main.tsx",
+          "frontend_standalone_url": "/conversational-ai",
+          "health_check": "/api/v1/conversational-ai/health",
+          "manifest_endpoint": "/api/v1/conversational-ai/manifest",
+          "openapi_prefix": "/api/v1/conversational-ai",
+          "websocket_stream": "/api/v1/conversational-ai/ws/chat"
+        },
+        "configuration_schema": {
+          "type": "object",
+          "properties": {
+            "JARVIS_M20_HOST": {
+              "type": "string",
+              "default": "0.0.0.0"
+            },
+            "JARVIS_M20_PORT": {
+              "type": "integer",
+              "default": 8120
+            },
+            "JARVIS_M20_DB_PATH": {
+              "type": "string",
+              "default": "./data/jarvis_conversational_ai.db"
+            },
+            "JARVIS_M20_PROVIDER": {
+              "type": "string",
+              "enum": [
+                "simulated_local",
+                "ollama",
+                "openai_compatible"
+              ],
+              "default": "simulated_local"
+            },
+            "JARVIS_M20_PROVIDER_URL": {
+              "type": "string",
+              "default": ""
+            },
+            "JARVIS_M20_PROVIDER_MODEL": {
+              "type": "string",
+              "default": "jarvis-local-sim-v1"
+            },
+            "JARVIS_M20_CONTEXT_WINDOW": {
+              "type": "integer",
+              "default": 12
+            }
+          }
+        },
+        "events": {
+          "published": [
+            "conversation.session.created",
+            "conversation.turn.started",
+            "conversation.turn.token",
+            "conversation.turn.completed",
+            "conversation.turn.interrupted",
+            "conversation.provider.fallback"
+          ],
+          "subscribed": [
+            "orchestrator.voice.briefing"
+          ]
+        },
+        "error_format": {
+          "schema": {
+            "error": {
+              "code": "string",
+              "message": "string",
+              "details": "object|null",
+              "timestamp": "ISO-8601 UTC string"
+            }
+          }
+        },
+        "simulation_disclosure": {
+          "uses_simulation_by_default": true,
+          "lip_sync_accuracy": "approximate_syllable_viseme_browser_fallback",
+          "simulated_components": [
+            "Default provider is SimulatedLocalProvider until JARVIS_M20_PROVIDER and credentials/URL are configured.",
+            "Browser-native Web Speech API TTS/STT uses approximate syllable/viseme lip-sync rather than phoneme-accurate audio forced alignment."
+          ]
+        }
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.4.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-20-realtime-conversational-ai-ui",
+      "total_files": 47
+    },
+    {
+      "archive_file": "JARVIS_Module_21_Intelligent_Browser_Agent_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_21_Intelligent_Browser_Agent_v1.0.0.zip",
+      "size_bytes": 46417,
+      "sha256": "23abfcdb7094bd18fee3c0d40dd553a27fd59ef846962e4e632d3e05b0234d2c",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 21,
+      "module_id": "jarvis-module-21-intelligent-browser-agent",
+      "name": "Intelligent Browser Agent",
+      "version": "1.0.0",
+      "category": "Core AI Operating System",
+      "description": "Authorized, policy-governed browser automation agent featuring session management, site allowlist/SSRF protection, real HTML DOM extraction, page inspection, screenshot analysis, form interaction with mandatory human approval for submissions, multi-page task workflows, task cancellation, download management, and persistent automation logs.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-21-intelligent-browser-agent",
+        "module_number": 21,
+        "name": "Intelligent Browser Agent",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "phase": "PHASE_A_CORE_AI_OS",
+        "priority": "HIGH",
+        "category": "Core AI Operating System",
+        "description": "Authorized, policy-governed browser automation agent featuring session management, site allowlist/SSRF protection, real HTML DOM extraction, page inspection, screenshot analysis, form interaction with mandatory human approval for submissions, multi-page task workflows, task cancellation, download management, and persistent automation logs.",
+        "dependencies": {
+          "python": ">=3.10",
+          "python_packages": [
+            "fastapi>=0.92.0",
+            "uvicorn>=0.17.6",
+            "pydantic>=1.10.4",
+            "httpx>=0.23.3",
+            "Pillow>=10.0.0"
+          ],
+          "optional_packages": [
+            "playwright>=1.43.0",
+            "pytest>=7.4.0",
+            "pytest-asyncio>=0.21.0"
+          ],
+          "jarvis_modules": [
+            "jarvis-module-18-multi-agent-orchestrator (optional)"
+          ]
+        },
+        "permissions": [
+          "browser:session:manage",
+          "browser:navigate:policy_checked",
+          "browser:dom:extract",
+          "browser:form:submit_approved",
+          "browser:download:sandboxed",
+          "storage:sqlite:local"
+        ],
+        "resource_requirements": {
+          "min_ram_mb": 128,
+          "recommended_ram_mb": 384,
+          "cpu_cores": 1,
+          "gpu_required": false,
+          "storage_type": "sqlite_wal"
+        },
+        "entrypoints": {
+          "backend_app": "backend.app.main:app",
+          "backend_mount": "backend.app.main:mount_module",
+          "frontend_dev": "frontend/src/main.tsx",
+          "frontend_standalone_url": "/browser-agent",
+          "health_check": "/api/v1/browser-agent/health",
+          "manifest_endpoint": "/api/v1/browser-agent/manifest",
+          "openapi_prefix": "/api/v1/browser-agent",
+          "websocket_stream": "/api/v1/browser-agent/ws/events"
+        },
+        "configuration_schema": {
+          "type": "object",
+          "properties": {
+            "JARVIS_M21_HOST": {
+              "type": "string",
+              "default": "0.0.0.0"
+            },
+            "JARVIS_M21_PORT": {
+              "type": "integer",
+              "default": 8121
+            },
+            "JARVIS_M21_DB_PATH": {
+              "type": "string",
+              "default": "./data/jarvis_browser_agent.db"
+            },
+            "JARVIS_M21_DOWNLOADS_DIR": {
+              "type": "string",
+              "default": "./data/downloads"
+            },
+            "JARVIS_M21_ADAPTER_MODE": {
+              "type": "string",
+              "enum": [
+                "safe_simulated"
+              ],
+              "default": "safe_simulated"
+            }
+          }
+        },
+        "events": {
+          "published": [
+            "browser.session.created",
+            "browser.page.navigated",
+            "browser.dom.extracted",
+            "browser.form.awaiting_approval",
+            "browser.form.submitted",
+            "browser.download.completed",
+            "browser.workflow.completed",
+            "browser.workflow.cancelled"
+          ],
+          "subscribed": [
+            "orchestrator.task.dispatch",
+            "approval.external_decision"
+          ]
+        },
+        "error_format": {
+          "schema": {
+            "error": {
+              "code": "string",
+              "message": "string",
+              "details": "object|null",
+              "timestamp": "ISO-8601 UTC string"
+            }
+          }
+        },
+        "simulation_disclosure": {
+          "uses_simulation_by_default": true,
+          "simulated_components": [
+            "SafeSimulatedBrowserAdapter serves local HTML fixtures for *.jarvis.local domains and renders Pillow PNG viewport previews without making unauthorized live web requests.",
+            "Real Playwright/Chromium automation can be bound by implementing BrowserAutomationAdapter and configuring site allowlists."
+          ]
+        }
+      },
+      "requirements": [
+        "Pillow>=10.0.0",
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.4.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-21-intelligent-browser-agent-ui",
+      "total_files": 46
+    },
+    {
+      "archive_file": "JARVIS_Module_22_Intelligent_AI_Model_Router_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_22_Intelligent_AI_Model_Router_v1.0.0.zip",
+      "size_bytes": 40202,
+      "sha256": "6040776bfd6b0f82ee3da3eba2bd398f850a51be4c3902f18c4ddcf660355b1b",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 22,
+      "module_id": "jarvis-module-22-intelligent-model-router",
+      "name": "Intelligent AI Model Router",
+      "version": "1.0.0",
+      "category": "General",
+      "description": "Task-aware multi-model AI routing engine with explainable scoring, automatic failover, circuit breakers, cost/budget guardrails, response caching, and benchmarking.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-22-intelligent-model-router",
+        "module_number": 22,
+        "name": "Intelligent AI Model Router",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "CRITICAL",
+        "phase": "PHASE A \u2014 CORE AI OPERATING SYSTEM",
+        "description": "Task-aware multi-model AI routing engine with explainable scoring, automatic failover, circuit breakers, cost/budget guardrails, response caching, and benchmarking.",
+        "entrypoint": "backend.app.main:app",
+        "mount_hook": "backend.app.main:mount_module",
+        "default_port": 8122,
+        "ui_route": "/model-router",
+        "api_prefix": "/api/v1/model-router",
+        "health_endpoint": "/api/v1/model-router/health",
+        "ws_endpoint": "/api/v1/model-router/ws/events",
+        "simulated_default": true,
+        "database": "SQLite WAL (isolated per module)",
+        "compatible_with": [
+          "jarvis-os-core",
+          "modules-1-41"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.0.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-22-intelligent-model-router-ui",
+      "total_files": 46
+    },
+    {
+      "archive_file": "JARVIS_Module_23_Personal_Executive_Assistant_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_23_Personal_Executive_Assistant_v1.0.0.zip",
+      "size_bytes": 37564,
+      "sha256": "a8b414d70176d584477b7851a1d64d9bc34c090f8b1cf9aa6494a2cedf5cfb80",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 23,
+      "module_id": "jarvis-module-23-personal-executive-assistant",
+      "name": "Personal Executive Assistant",
+      "version": "1.0.0",
+      "category": "General",
+      "description": "Executive productivity engine with daily briefings, Eisenhower priority matrix, overlap-checked time blocking, smart day auto-planning, goal/OKR tracking, habit streaks, and delegation follow-ups.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-23-personal-executive-assistant",
+        "module_number": 23,
+        "name": "Personal Executive Assistant",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "phase": "PHASE B \u2014 PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+        "description": "Executive productivity engine with daily briefings, Eisenhower priority matrix, overlap-checked time blocking, smart day auto-planning, goal/OKR tracking, habit streaks, and delegation follow-ups.",
+        "entrypoint": "backend.app.main:app",
+        "mount_hook": "backend.app.main:mount_module",
+        "default_port": 8123,
+        "ui_route": "/executive-assistant",
+        "api_prefix": "/api/v1/executive-assistant",
+        "health_endpoint": "/api/v1/executive-assistant/health",
+        "ws_endpoint": "/api/v1/executive-assistant/ws/events",
+        "simulated_default": true,
+        "database": "SQLite WAL (isolated per module)",
+        "compatible_with": [
+          "jarvis-os-core",
+          "modules-1-41"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.0.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-23-personal-executive-assistant-ui",
+      "total_files": 46
+    },
+    {
+      "archive_file": "JARVIS_Module_24_Email_Calendar_Assistant_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_24_Email_Calendar_Assistant_v1.0.0.zip",
+      "size_bytes": 36604,
+      "sha256": "ca6a8c98c1b73b29b7daa8a4972fe925b5b809b705bb2f8cf23cc4e30627eea4",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 24,
+      "module_id": "jarvis-module-24-email-calendar-assistant",
+      "name": "Email & Calendar Assistant",
+      "version": "1.0.0",
+      "category": "General",
+      "description": "Smart email triage, draft reply composer with human-approval outbound send gates, overlap-checked calendar scheduling, free-slot finder, and RFC 5545 ICS export.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-24-email-calendar-assistant",
+        "module_number": 24,
+        "name": "Email & Calendar Assistant",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "phase": "PHASE B \u2014 PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+        "description": "Smart email triage, draft reply composer with human-approval outbound send gates, overlap-checked calendar scheduling, free-slot finder, and RFC 5545 ICS export.",
+        "entrypoint": "backend.app.main:app",
+        "mount_hook": "backend.app.main:mount_module",
+        "default_port": 8124,
+        "ui_route": "/email-calendar",
+        "api_prefix": "/api/v1/email-calendar",
+        "health_endpoint": "/api/v1/email-calendar/health",
+        "ws_endpoint": "/api/v1/email-calendar/ws/events",
+        "simulated_default": true,
+        "database": "SQLite WAL (isolated per module)",
+        "compatible_with": [
+          "jarvis-os-core",
+          "modules-1-41"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.0.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-24-email-calendar-assistant-ui",
+      "total_files": 46
+    },
+    {
+      "archive_file": "JARVIS_Module_25_AI_Meeting_Assistant_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_25_AI_Meeting_Assistant_v1.0.0.zip",
+      "size_bytes": 37336,
+      "sha256": "14a35cfe7e50f370ab879ec2c88778e09ba395ade9ab689d62c629a5ef8dbec0",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 25,
+      "module_id": "jarvis-module-25-ai-meeting-assistant",
+      "name": "AI Meeting Assistant",
+      "version": "1.0.0",
+      "category": "General",
+      "description": "Meeting intelligence module with live/bulk speaker-diarized transcript ingestion, talk-share analytics, automated action item/decision/risk extraction, transcript search, and Markdown minutes export.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-25-ai-meeting-assistant",
+        "module_number": 25,
+        "name": "AI Meeting Assistant",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "phase": "PHASE B \u2014 PERSONAL PRODUCTIVITY & EXECUTIVE SUITE",
+        "description": "Meeting intelligence module with live/bulk speaker-diarized transcript ingestion, talk-share analytics, automated action item/decision/risk extraction, transcript search, and Markdown minutes export.",
+        "entrypoint": "backend.app.main:app",
+        "mount_hook": "backend.app.main:mount_module",
+        "default_port": 8125,
+        "ui_route": "/meeting-assistant",
+        "api_prefix": "/api/v1/meeting-assistant",
+        "health_endpoint": "/api/v1/meeting-assistant/health",
+        "ws_endpoint": "/api/v1/meeting-assistant/ws/events",
+        "simulated_default": true,
+        "database": "SQLite WAL (isolated per module)",
+        "compatible_with": [
+          "jarvis-os-core",
+          "modules-1-41"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "pytest-asyncio>=0.21.0",
+        "pytest>=7.0.0",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-25-ai-meeting-assistant-ui",
+      "total_files": 46
+    },
+    {
+      "archive_file": "JARVIS_Module_26_Project_Autopilot_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_26_Project_Autopilot_v1.0.0.zip",
+      "size_bytes": 38496,
+      "sha256": "de0b2fece6310f32657b2f8cb9168e7d0a8ccf104f1f1e273614800232188ba5",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 26,
+      "module_id": "jarvis-module-26-project-autopilot",
+      "name": "Project Autopilot",
+      "version": "1.0.0",
+      "category": "autonomous_engineering",
+      "description": "Autonomous project planning, milestone decomposition, dependency-aware task execution, human approval checkpoints, and sandboxed starter scaffolding for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-26-project-autopilot",
+        "module_number": 26,
+        "name": "Project Autopilot",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "CRITICAL",
+        "category": "autonomous_engineering",
+        "description": "Autonomous project planning, milestone decomposition, dependency-aware task execution, human approval checkpoints, and sandboxed starter scaffolding for JARVIS OS.",
+        "default_port": 8126,
+        "ui_route": "/project-autopilot",
+        "api_prefix": "/api/v1/project-autopilot",
+        "ws_endpoint": "/api/v1/project-autopilot/ws/events",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M26_DB_PATH",
+          "default_path": "./data/jarvis_project_autopilot.db"
+        },
+        "capabilities": [
+          "goal_to_milestone_decomposition",
+          "dependency_aware_task_execution",
+          "human_approval_checkpoints",
+          "dry_run_execution",
+          "sandboxed_workspace_scaffolding",
+          "markdown_blueprint_export"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6",
+        "websockets>=10.0"
+      ],
+      "package_json_name": "jarvis-module-26-project-autopilot-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_27_GitHub_CICD_Manager_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_27_GitHub_CICD_Manager_v1.0.0.zip",
+      "size_bytes": 35581,
+      "sha256": "1695e5947277103a20c64e2b994ab72cef12ef48c01f5f66b7cce23e9bc810d5",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 27,
+      "module_id": "jarvis-module-27-github-cicd-manager",
+      "name": "GitHub & CI/CD Manager",
+      "version": "1.0.0",
+      "category": "devops_engineering",
+      "description": "Repository registry, pull request lifecycle with branch-protection merge gates, CI/CD pipeline runs with structured logs, release tracking, and HMAC-SHA256 webhook verification for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-27-github-cicd-manager",
+        "module_number": 27,
+        "name": "GitHub & CI/CD Manager",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "devops_engineering",
+        "description": "Repository registry, pull request lifecycle with branch-protection merge gates, CI/CD pipeline runs with structured logs, release tracking, and HMAC-SHA256 webhook verification for JARVIS OS.",
+        "default_port": 8127,
+        "ui_route": "/github-cicd",
+        "api_prefix": "/api/v1/github-cicd",
+        "ws_endpoint": "/api/v1/github-cicd/ws/events",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M27_DB_PATH",
+          "default_path": "./data/jarvis_github_cicd.db"
+        },
+        "capabilities": [
+          "repository_registry",
+          "pull_request_merge_gates",
+          "cicd_pipeline_orchestration",
+          "release_and_rollback_tracking",
+          "github_webhook_hmac_verification"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6",
+        "websockets>=10.0"
+      ],
+      "package_json_name": "jarvis-module-27-github-cicd-manager-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_28_AI_Data_Analyst_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_28_AI_Data_Analyst_v1.0.0.zip",
+      "size_bytes": 34648,
+      "sha256": "8e8c64a295cdc847724612616e929d3418eed5bd3387b6cf5a4096572d07c798",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 28,
+      "module_id": "jarvis-module-28-ai-data-analyst",
+      "name": "AI Data Analyst",
+      "version": "1.0.0",
+      "category": "analytics_intelligence",
+      "description": "CSV/JSON dataset ingestion, automated statistical profiling, Z-score anomaly detection, group-by aggregations, natural-language Q&A with chart-ready series, and Markdown report export for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-28-ai-data-analyst",
+        "module_number": 28,
+        "name": "AI Data Analyst",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "analytics_intelligence",
+        "description": "CSV/JSON dataset ingestion, automated statistical profiling, Z-score anomaly detection, group-by aggregations, natural-language Q&A with chart-ready series, and Markdown report export for JARVIS OS.",
+        "default_port": 8128,
+        "ui_route": "/ai-data-analyst",
+        "api_prefix": "/api/v1/ai-data-analyst",
+        "ws_endpoint": "/api/v1/ai-data-analyst/ws/events",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M28_DB_PATH",
+          "default_path": "./data/jarvis_ai_data_analyst.db"
+        },
+        "capabilities": [
+          "csv_and_json_ingestion",
+          "statistical_profiling",
+          "zscore_anomaly_detection",
+          "group_by_aggregation",
+          "natural_language_data_qa",
+          "markdown_report_export"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6",
+        "websockets>=10.0"
+      ],
+      "package_json_name": "jarvis-module-28-ai-data-analyst-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_29_Advanced_File_Manager_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_29_Advanced_File_Manager_v1.0.0.zip",
+      "size_bytes": 32968,
+      "sha256": "1a98551418ec0501b645a0a79f52b2a02f7eb9d5b77ed97390c9bfee8cdd5f19",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 29,
+      "module_id": "jarvis-module-29-advanced-file-manager",
+      "name": "Advanced File Manager",
+      "version": "1.0.0",
+      "category": "system_productivity",
+      "description": "Sandboxed file management, SHA-256 duplicate detection, dry-run smart auto-organization, soft-delete trash & restore, tagging, content search, and audit logging for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-29-advanced-file-manager",
+        "module_number": 29,
+        "name": "Advanced File Manager",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "system_productivity",
+        "description": "Sandboxed file management, SHA-256 duplicate detection, dry-run smart auto-organization, soft-delete trash & restore, tagging, content search, and audit logging for JARVIS OS.",
+        "default_port": 8129,
+        "ui_route": "/file-manager",
+        "api_prefix": "/api/v1/file-manager",
+        "ws_endpoint": "/api/v1/file-manager/ws/events",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M29_DB_PATH",
+          "default_path": "./data/jarvis_file_manager.db"
+        },
+        "capabilities": [
+          "sandboxed_file_crud",
+          "sha256_duplicate_scanner",
+          "smart_auto_organizer_with_dry_run",
+          "soft_delete_trash_and_restore",
+          "file_tagging_and_search",
+          "audit_trail"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6",
+        "websockets>=10.0"
+      ],
+      "package_json_name": "jarvis-module-29-advanced-file-manager-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_30_Smart_Home_Controller_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_30_Smart_Home_Controller_v1.0.0.zip",
+      "size_bytes": 37799,
+      "sha256": "77df70fdc783b76870c679a499056f278c325258b3ff1856b7b6227c223f1bb9",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 30,
+      "module_id": "jarvis-module-30-smart-home-controller",
+      "name": "Smart Home Controller",
+      "version": "1.0.0",
+      "category": "iot_home_automation",
+      "description": "Room and device registry, lock-safe command dispatch, multi-device scenes, automation rules engine, and energy telemetry with a pluggable IoT bridge adapter for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-30-smart-home-controller",
+        "module_number": 30,
+        "name": "Smart Home Controller",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "iot_home_automation",
+        "description": "Room and device registry, lock-safe command dispatch, multi-device scenes, automation rules engine, and energy telemetry with a pluggable IoT bridge adapter for JARVIS OS.",
+        "default_port": 8130,
+        "ui_route": "/smart-home",
+        "api_prefix": "/api/v1/smart-home",
+        "ws_endpoint": "/api/v1/smart-home/ws/events",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M30_DB_PATH",
+          "default_path": "./data/jarvis_smart_home.db"
+        },
+        "capabilities": [
+          "device_registry_and_control",
+          "lock_safety_confirmation",
+          "multi_device_scenes",
+          "automation_rules_engine",
+          "room_energy_telemetry"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6",
+        "websockets>=10.0"
+      ],
+      "package_json_name": "jarvis-module-30-smart-home-controller-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_31_JARVIS_Robot_Brain_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_31_JARVIS_Robot_Brain_v1.0.0.zip",
+      "size_bytes": 34313,
+      "sha256": "9de1aba0f4f17552b830e9836d916cce6ad3189eb41a37cb927fe42c2bd6684c",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 31,
+      "module_id": "jarvis-module-31-robot-brain",
+      "name": "JARVIS Robot Brain",
+      "version": "1.0.0",
+      "category": "robotics_autonomy",
+      "description": "Safety-first robotics control plane with E-STOP interlock, obstacle & battery guards, differential-drive kinematics, waypoint registry, autonomous mission execution, and a pluggable ROS2/GPIO hardware bridge for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-31-robot-brain",
+        "module_number": 31,
+        "name": "JARVIS Robot Brain",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "robotics_autonomy",
+        "description": "Safety-first robotics control plane with E-STOP interlock, obstacle & battery guards, differential-drive kinematics, waypoint registry, autonomous mission execution, and a pluggable ROS2/GPIO hardware bridge for JARVIS OS.",
+        "default_port": 8131,
+        "ui_route": "/robot-brain",
+        "api_prefix": "/api/v1/robot-brain",
+        "ws_endpoint": "/api/v1/robot-brain/ws/telemetry",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M31_DB_PATH",
+          "default_path": "./data/jarvis_robot_brain.db"
+        },
+        "capabilities": [
+          "estop_safety_interlock",
+          "kinematics_motion_control",
+          "obstacle_and_battery_guards",
+          "waypoint_navigation",
+          "autonomous_mission_execution"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-31-robot-brain-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_32_System_Health_Diagnostics_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_32_System_Health_Diagnostics_v1.0.0.zip",
+      "size_bytes": 33428,
+      "sha256": "bdccc2b06dcc5ad2d4c13a99b91b779c1c9eae65710985d332423a34816aad8c",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 32,
+      "module_id": "jarvis-module-32-system-health-diagnostics",
+      "name": "System Health & Diagnostics",
+      "version": "1.0.0",
+      "category": "system_observability",
+      "description": "Real-time local host CPU, memory, disk, thermal, and uptime telemetry, threshold alerting, localhost TCP service reachability probes, and diagnostic health scoring for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-32-system-health-diagnostics",
+        "module_number": 32,
+        "name": "System Health & Diagnostics",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "system_observability",
+        "description": "Real-time local host CPU, memory, disk, thermal, and uptime telemetry, threshold alerting, localhost TCP service reachability probes, and diagnostic health scoring for JARVIS OS.",
+        "default_port": 8132,
+        "ui_route": "/system-health",
+        "api_prefix": "/api/v1/system-health",
+        "ws_endpoint": "/api/v1/system-health/ws/metrics",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M32_DB_PATH",
+          "default_path": "./data/jarvis_system_health.db"
+        },
+        "capabilities": [
+          "real_host_telemetry",
+          "historical_metric_snapshots",
+          "threshold_alerting_and_ack",
+          "localhost_tcp_service_probes",
+          "diagnostic_health_scoring"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-32-system-health-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_33_Defensive_Cybersecurity_Agent_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_33_Defensive_Cybersecurity_Agent_v1.0.0.zip",
+      "size_bytes": 34538,
+      "sha256": "39852ab790b002d499765eb7d0d0b10abb2500893195fc2fab051281967ac1d7",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 33,
+      "module_id": "jarvis-module-33-defensive-cybersecurity-agent",
+      "name": "Defensive Cybersecurity Agent",
+      "version": "1.0.0",
+      "category": "defensive_security",
+      "description": "Local-first defensive security operations agent providing sandboxed secret scanning with automatic redaction, SHA-256 file integrity monitoring (FIM), auth/HTTP log anomaly detection, incident triage, and posture scoring for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-33-defensive-cybersecurity-agent",
+        "module_number": 33,
+        "name": "Defensive Cybersecurity Agent",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "defensive_security",
+        "description": "Local-first defensive security operations agent providing sandboxed secret scanning with automatic redaction, SHA-256 file integrity monitoring (FIM), auth/HTTP log anomaly detection, incident triage, and posture scoring for JARVIS OS.",
+        "default_port": 8133,
+        "ui_route": "/cybersecurity",
+        "api_prefix": "/api/v1/cybersecurity",
+        "ws_endpoint": "/api/v1/cybersecurity/ws/alerts",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M33_DB_PATH",
+          "default_path": "./data/jarvis_cybersecurity.db"
+        },
+        "capabilities": [
+          "sandboxed_secret_and_permission_scan",
+          "sha256_file_integrity_monitoring",
+          "auth_and_http_log_anomaly_detection",
+          "incident_triage_and_playbooks",
+          "security_posture_scoring"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-33-cybersecurity-ui",
+      "total_files": 43
+    },
+    {
+      "archive_file": "JARVIS_Module_34_Personal_Finance_Manager_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_34_Personal_Finance_Manager_v1.0.0.zip",
+      "size_bytes": 31428,
+      "sha256": "3c510a905c411bc1ac0f636f561b63acd20f57b9bd2fe224f8c9036bb0edbcbf",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 34,
+      "module_id": "jarvis-module-34-personal-finance-manager",
+      "name": "Personal Finance Manager",
+      "version": "1.0.0",
+      "category": "personal_finance",
+      "description": "Local-first personal finance ledger with multi-account balances, categorized income/expense tracking, monthly budget burn monitoring, savings goals, net worth & cashflow analytics, and CSV export for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-34-personal-finance-manager",
+        "module_number": 34,
+        "name": "Personal Finance Manager",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "personal_finance",
+        "description": "Local-first personal finance ledger with multi-account balances, categorized income/expense tracking, monthly budget burn monitoring, savings goals, net worth & cashflow analytics, and CSV export for JARVIS OS.",
+        "default_port": 8134,
+        "ui_route": "/finance",
+        "api_prefix": "/api/v1/finance",
+        "ws_endpoint": "/api/v1/finance/ws/updates",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M34_DB_PATH",
+          "default_path": "./data/jarvis_finance.db"
+        },
+        "capabilities": [
+          "multi_account_ledger",
+          "categorized_transactions",
+          "monthly_budget_burn_alerts",
+          "savings_goals_tracking",
+          "cashflow_summary_and_csv_export"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-34-finance-ui",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_35_Visual_Workflow_Builder_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_35_Visual_Workflow_Builder_v1.0.0.zip",
+      "size_bytes": 31727,
+      "sha256": "8a5d1a8a45f518e88755544fbfc3aa42925d884eb06922ccb02849f81ef75846",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 35,
+      "module_id": "jarvis-module-35-visual-workflow-builder",
+      "name": "Visual Workflow Builder",
+      "version": "1.0.0",
+      "category": "workflow_automation",
+      "description": "DAG-based visual workflow builder and deterministic topological execution engine with cycle detection, typed automation nodes (trigger, transform, condition, math, notify), run tracing, and SVG graph HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-35-visual-workflow-builder",
+        "module_number": 35,
+        "name": "Visual Workflow Builder",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "CRITICAL",
+        "category": "workflow_automation",
+        "description": "DAG-based visual workflow builder and deterministic topological execution engine with cycle detection, typed automation nodes (trigger, transform, condition, math, notify), run tracing, and SVG graph HUD for JARVIS OS.",
+        "default_port": 8135,
+        "ui_route": "/workflows",
+        "api_prefix": "/api/v1/workflows",
+        "ws_endpoint": "/api/v1/workflows/ws/runs",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M35_DB_PATH",
+          "default_path": "./data/jarvis_workflows.db"
+        },
+        "capabilities": [
+          "visual_dag_graph_persistence",
+          "kahn_cycle_detection_and_validation",
+          "deterministic_topological_execution",
+          "conditional_branching_and_transforms",
+          "per_node_run_tracing"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-35-workflow-ui",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_36_Screen_Vision_Assistant_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_36_Screen_Vision_Assistant_v1.0.0.zip",
+      "size_bytes": 32062,
+      "sha256": "69a208802e2a3f7dcaeeb8df55102625333a1208af55c338f22307d17b998260",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 36,
+      "module_id": "jarvis-module-36-screen-vision-assistant",
+      "name": "Screen Vision Assistant",
+      "version": "1.0.0",
+      "category": "computer_vision",
+      "description": "Local-first screen capture inspector, UI bounding-box region analyzer, spatial hit-tester, and grounded screen Q&A assistant with SVG overlay HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-36-screen-vision-assistant",
+        "module_number": 36,
+        "name": "Screen Vision Assistant",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "computer_vision",
+        "description": "Local-first screen capture inspector, UI bounding-box region analyzer, spatial hit-tester, and grounded screen Q&A assistant with SVG overlay HUD for JARVIS OS.",
+        "default_port": 8136,
+        "ui_route": "/vision",
+        "api_prefix": "/api/v1/vision",
+        "ws_endpoint": "/api/v1/vision/ws/captures",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M36_DB_PATH",
+          "default_path": "./data/jarvis_vision.db"
+        },
+        "capabilities": [
+          "local_image_header_and_hash_inspection",
+          "ui_bounding_box_region_indexing",
+          "spatial_coordinate_hit_testing",
+          "grounded_screen_qa_search",
+          "interactive_svg_vision_hud"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-36-screen-vision-assistant-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_37_Cross_Device_Control_Center_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_37_Cross_Device_Control_Center_v1.0.0.zip",
+      "size_bytes": 29893,
+      "sha256": "50a3eed5abc16a93f23a44b14e26d935c8b276d780be4998b4f9c6c517fb270e",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 37,
+      "module_id": "jarvis-module-37-cross-device-control-center",
+      "name": "Cross-Device Control Center",
+      "version": "1.0.0",
+      "category": "device_mesh",
+      "description": "Unified cross-device mesh registry, capability-guarded remote command bridge (simulated: true), and shared clipboard sync bus with live HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-37-cross-device-control-center",
+        "module_number": 37,
+        "name": "Cross-Device Control Center",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "device_mesh",
+        "description": "Unified cross-device mesh registry, capability-guarded remote command bridge (simulated: true), and shared clipboard sync bus with live HUD for JARVIS OS.",
+        "default_port": 8137,
+        "ui_route": "/devices",
+        "api_prefix": "/api/v1/devices",
+        "ws_endpoint": "/api/v1/devices/ws/mesh",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M37_DB_PATH",
+          "default_path": "./data/jarvis_devices.db"
+        },
+        "capabilities": [
+          "device_mesh_registry_and_heartbeat",
+          "capability_guarded_command_dispatch",
+          "cross_device_clipboard_sync",
+          "simulated_remote_device_bridge",
+          "live_mesh_hud_and_websocket"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-37-cross-device-control-center-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_38_Plugin_Skills_Marketplace_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_38_Plugin_Skills_Marketplace_v1.0.0.zip",
+      "size_bytes": 29931,
+      "sha256": "ef34dbff96a2b9e7d5834fe748bbe1c311899a102cff1dbf259d26e0034dc45d",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 38,
+      "module_id": "jarvis-module-38-plugin-skills-marketplace",
+      "name": "Plugin & Skills Marketplace",
+      "version": "1.0.0",
+      "category": "extensibility",
+      "description": "Local-first plugin and skills registry with SemVer validation, SHA-256 checksum verification, permission allowlisting, install/toggle lifecycle, and HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-38-plugin-skills-marketplace",
+        "module_number": 38,
+        "name": "Plugin & Skills Marketplace",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "MEDIUM",
+        "category": "extensibility",
+        "description": "Local-first plugin and skills registry with SemVer validation, SHA-256 checksum verification, permission allowlisting, install/toggle lifecycle, and HUD for JARVIS OS.",
+        "default_port": 8138,
+        "ui_route": "/marketplace",
+        "api_prefix": "/api/v1/marketplace",
+        "ws_endpoint": "/api/v1/marketplace/ws/registry",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M38_DB_PATH",
+          "default_path": "./data/jarvis_marketplace.db"
+        },
+        "capabilities": [
+          "semver_plugin_catalog_registry",
+          "sha256_integrity_verification",
+          "permission_scope_allowlist",
+          "install_enable_disable_uninstall_lifecycle",
+          "marketplace_audit_log_and_hud"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-38-plugin-skills-marketplace-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_39_Backup_Recovery_Manager_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_39_Backup_Recovery_Manager_v1.0.0.zip",
+      "size_bytes": 28923,
+      "sha256": "4db9160e3a36eaaa85033274d09713ad0917c6a0266e39d0d0cdb2ece9499588",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 39,
+      "module_id": "jarvis-module-39-backup-recovery-manager",
+      "name": "Backup & Recovery Manager",
+      "version": "1.0.0",
+      "category": "backup_recovery",
+      "description": "Local-first sandboxed ZIP snapshot backup manager with SHA-256 integrity verification, Zip-Slip-safe restore, SQLite WAL catalog, and HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-39-backup-recovery-manager",
+        "module_number": 39,
+        "name": "Backup & Recovery Manager",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "backup_recovery",
+        "description": "Local-first sandboxed ZIP snapshot backup manager with SHA-256 integrity verification, Zip-Slip-safe restore, SQLite WAL catalog, and HUD for JARVIS OS.",
+        "default_port": 8139,
+        "ui_route": "/backups",
+        "api_prefix": "/api/v1/backups",
+        "ws_endpoint": "/api/v1/backups/ws/snapshots",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M39_DB_PATH",
+          "default_path": "./data/jarvis_backups.db"
+        },
+        "capabilities": [
+          "sandboxed_zip_snapshot_creation",
+          "sha256_and_zip_integrity_verification",
+          "zip_slip_protected_restoration",
+          "sqlite_wal_snapshot_and_restore_catalog",
+          "live_backup_hud_and_websocket"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-39-backup-recovery-manager-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_40_Permissions_Approval_Center_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_40_Permissions_Approval_Center_v1.0.0.zip",
+      "size_bytes": 29727,
+      "sha256": "c957dd8f42398991dfcb34a14625e581fd7e078e9302577d645b1267ad32f43e",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 40,
+      "module_id": "jarvis-module-40-permissions-approval-center",
+      "name": "Permissions & Approval Center",
+      "version": "1.0.0",
+      "category": "security_governance",
+      "description": "Fail-closed policy evaluator, human-in-the-loop approval queue with TTL expiration, immutable decision audit log, and live governance HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-40-permissions-approval-center",
+        "module_number": 40,
+        "name": "Permissions & Approval Center",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "CRITICAL",
+        "category": "security_governance",
+        "description": "Fail-closed policy evaluator, human-in-the-loop approval queue with TTL expiration, immutable decision audit log, and live governance HUD for JARVIS OS.",
+        "default_port": 8140,
+        "ui_route": "/approvals",
+        "api_prefix": "/api/v1/approvals",
+        "ws_endpoint": "/api/v1/approvals/ws/requests",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M40_DB_PATH",
+          "default_path": "./data/jarvis_approvals.db"
+        },
+        "capabilities": [
+          "fail_closed_policy_evaluation",
+          "human_in_the_loop_approval_queue",
+          "ttl_expiration_and_single_decision_lock",
+          "immutable_governance_audit_log",
+          "live_approval_hud_and_websocket"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-40-permissions-approval-center-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_41_Universal_Notification_Center_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_41_Universal_Notification_Center_v1.0.0.zip",
+      "size_bytes": 30399,
+      "sha256": "ec4d077459bcd8d671703924f66da5e895dd40a2e78682f8c6f3e29dd65e3464",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 41,
+      "module_id": "jarvis-module-41-universal-notification-center",
+      "name": "Universal Notification Center",
+      "version": "1.0.0",
+      "category": "notifications",
+      "description": "Local-first universal notification hub with priority routing, Do-Not-Disturb critical override, deduplication, ack/dismiss lifecycle, SQLite WAL storage, and live HUD for JARVIS OS.",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-41-universal-notification-center",
+        "module_number": 41,
+        "name": "Universal Notification Center",
+        "version": "1.0.0",
+        "contract_version": "1.0.0",
+        "priority": "HIGH",
+        "category": "notifications",
+        "description": "Local-first universal notification hub with priority routing, Do-Not-Disturb critical override, deduplication, ack/dismiss lifecycle, SQLite WAL storage, and live HUD for JARVIS OS.",
+        "default_port": 8141,
+        "ui_route": "/notifications",
+        "api_prefix": "/api/v1/notifications",
+        "ws_endpoint": "/api/v1/notifications/ws/stream",
+        "entrypoint": "backend.app.main:app",
+        "mount_function": "backend.app.main:mount_module",
+        "database": {
+          "engine": "sqlite_wal",
+          "env_var": "JARVIS_M41_DB_PATH",
+          "default_path": "./data/jarvis_notifications.db"
+        },
+        "capabilities": [
+          "multi_channel_notification_routing",
+          "dnd_quiet_hours_with_critical_override",
+          "dedupe_key_idempotency",
+          "acknowledge_and_dismiss_lifecycle",
+          "live_notification_hud_and_websocket"
+        ]
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-41-universal-notification-center-frontend",
+      "total_files": 41
+    },
+    {
+      "archive_file": "JARVIS_Module_42_Unified_Extension_Manager_v1.0.0.zip",
+      "archive_path": "/home/roshan/Downloads/module-jarvis/JARVIS_Module_42_Unified_Extension_Manager_v1.0.0.zip",
+      "size_bytes": 63885,
+      "sha256": "11948102376abdb69642163537d9cac93c57f54b72eea43b3888cae802704c78",
+      "is_valid_zip": true,
+      "corrupt_file": null,
+      "suspicious_paths": [],
+      "module_number": 42,
+      "module_id": "jarvis-module-42-unified-extension-manager",
+      "name": "Unified Extension Manager, Module SDK & Integration Compatibility Engine",
+      "version": "1.0.0",
+      "category": "platform_management",
+      "description": "Standalone archive scanner, compatibility analyzer, persistent SQLite module registry, dry-run installation planner, health monitor, shared integration SDK, and reference event bus for managing JARVIS extension modules (18-41+).",
+      "has_backend": true,
+      "has_frontend": true,
+      "has_manifest": true,
+      "has_docs": true,
+      "manifest": {
+        "module_id": "jarvis-module-42-unified-extension-manager",
+        "name": "Unified Extension Manager, Module SDK & Integration Compatibility Engine",
+        "version": "1.0.0",
+        "description": "Standalone archive scanner, compatibility analyzer, persistent SQLite module registry, dry-run installation planner, health monitor, shared integration SDK, and reference event bus for managing JARVIS extension modules (18-41+).",
+        "category": "platform_management",
+        "priority": "CRITICAL",
+        "compatible_api_version": "1.0.0",
+        "entrypoints": {
+          "backend_app": "backend.app.main:app",
+          "backend_factory": "backend.app.main:create_app",
+          "host_mount": "backend.app.main:mount_module",
+          "sdk_package": "sdk/jarvis_sdk",
+          "sample_extension": "sample_extension/extension.py",
+          "frontend_dev": "frontend/src/main.tsx",
+          "standalone_hud": "/extensions",
+          "api_prefix": "/api/v1/extensions",
+          "ws_endpoint": "/api/v1/extensions/ws/events",
+          "default_port": 8142
+        },
+        "required_permissions": [
+          "extensions.archives.scan",
+          "extensions.registry.read",
+          "extensions.registry.write",
+          "extensions.install.plan",
+          "extensions.install.approve",
+          "extensions.health.probe"
+        ],
+        "dependencies": {
+          "python": ">=3.10",
+          "packages": [
+            "fastapi>=0.92.0",
+            "uvicorn>=0.17.6",
+            "pydantic>=1.10.4",
+            "httpx>=0.23.3"
+          ],
+          "jarvis_modules": []
+        },
+        "resource_requirements": {
+          "min_ram_mb": 96,
+          "recommended_ram_mb": 192,
+          "disk_mb": 40,
+          "gpu_required": false,
+          "arm64_compatible": true,
+          "raspberry_pi_5_compatible": true
+        },
+        "configuration_schema": {
+          "JARVIS_M42_HOST": {
+            "type": "string",
+            "default": "0.0.0.0"
+          },
+          "JARVIS_M42_PORT": {
+            "type": "integer",
+            "default": 8142
+          },
+          "JARVIS_M42_DB_PATH": {
+            "type": "string",
+            "default": "./data/jarvis_extensions.db"
+          },
+          "JARVIS_M42_ARCHIVES_DIR": {
+            "type": "string",
+            "default": "/home/roshan/Downloads/module-jarvis"
+          },
+          "JARVIS_M42_MAX_UNCOMPRESSED_MB": {
+            "type": "integer",
+            "default": 200
+          },
+          "JARVIS_M42_MAX_COMPRESSION_RATIO": {
+            "type": "number",
+            "default": 100.0
+          },
+          "JARVIS_M42_MAX_ARCHIVE_FILES": {
+            "type": "integer",
+            "default": 2500
+          },
+          "JARVIS_M42_HEALTH_TIMEOUT": {
+            "type": "number",
+            "default": 3.0
+          },
+          "JARVIS_M42_API_TOKEN": {
+            "type": "string",
+            "default": "",
+            "secret": true
+          },
+          "JARVIS_M42_CORS_ORIGINS": {
+            "type": "string",
+            "default": "*"
+          }
+        },
+        "health_check": {
+          "endpoint": "/api/v1/extensions/health",
+          "method": "GET",
+          "expected_status": 200,
+          "interval_seconds": 30
+        }
+      },
+      "requirements": [
+        "fastapi>=0.92.0",
+        "httpx>=0.23.3",
+        "pydantic>=1.10.4",
+        "uvicorn>=0.17.6"
+      ],
+      "package_json_name": "jarvis-module-42-unified-extension-manager-ui",
+      "total_files": 54
+    }
+  ]
+}

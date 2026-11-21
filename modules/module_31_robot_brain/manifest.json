@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-31-robot-brain",
+  "module_number": 31,
+  "name": "JARVIS Robot Brain",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "robotics_autonomy",
+  "description": "Safety-first robotics control plane with E-STOP interlock, obstacle & battery guards, differential-drive kinematics, waypoint registry, autonomous mission execution, and a pluggable ROS2/GPIO hardware bridge for JARVIS OS.",
+  "default_port": 8131,
+  "ui_route": "/robot-brain",
+  "api_prefix": "/api/v1/robot-brain",
+  "ws_endpoint": "/api/v1/robot-brain/ws/telemetry",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M31_DB_PATH",
+    "default_path": "./data/jarvis_robot_brain.db"
+  },
+  "capabilities": [
+    "estop_safety_interlock",
+    "kinematics_motion_control",
+    "obstacle_and_battery_guards",
+    "waypoint_navigation",
+    "autonomous_mission_execution"
+  ]
+}

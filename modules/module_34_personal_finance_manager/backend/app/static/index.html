@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Personal Finance Manager (M34)</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8AA4C2;
+      --danger: #FF5C77;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, rgba(37,230,162,0.11), transparent 42%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 30, 48, 0.8);
+    }
+    .brand h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.06em; color: var(--cyan); }
+    .brand p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+      background: rgba(0, 217, 255, 0.08);
+    }
+    .badge.live { border-color: var(--green); color: var(--green); }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .col-12 { grid-column: span 12; }
+    .col-6 { grid-column: span 6; }
+    @media (max-width: 900px) { .col-6 { grid-column: span 12; } }
+    h2 { margin: 0 0 12px; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cyan); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .stat { background: rgba(5, 11, 22, 0.7); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+    .stat .value { font-size: 1.35rem; font-weight: 700; margin-top: 4px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    input, select {
+      background: #081224;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+    button, a.btn {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.82rem;
+      text-decoration: none;
+      display: inline-block;
+    }
+    a.btn.secondary {
+      background: rgba(0, 217, 255, 0.12);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .list-item {
+      background: rgba(5, 11, 22, 0.68);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #101E30;
+      border: 1px solid var(--cyan);
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: none;
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS // PERSONAL FINANCE MANAGER</h1>
+      <p>Module 34 • Multi-Account Ledger, Budgets, Savings Goals &amp; Cashflow Analytics</p>
+    </div>
+    <div class="badges">
+      <span class="badge live">LOCAL SQLITE LEDGER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card col-12">
+      <h2>Monthly Cashflow &amp; Net Worth</h2>
+      <div class="row">
+        <a class="btn secondary" href="/api/v1/finance/transactions/export.csv" download="jarvis_transactions.csv">Export CSV</a>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="label">Net Worth</div><div id="stNetWorth" class="value">0.00</div></div>
+        <div class="stat"><div class="label">Monthly Income</div><div id="stInc" class="value">0.00</div></div>
+        <div class="stat"><div class="label">Monthly Expense</div><div id="stExp" class="value">0.00</div></div>
+        <div class="stat"><div class="label">Savings Rate</div><div id="stRate" class="value">0%</div></div>
+      </div>
+    </section>
+
+    <section class="card col-6">
+      <h2>Add Account</h2>
+      <div class="row">
+        <input id="accName" placeholder="Account Name" />
+        <select id="accType">
+          <option value="checking">Checking</option>
+          <option value="savings">Savings</option>
+          <option value="cash">Cash</option>
+          <option value="credit">Credit</option>
+          <option value="investment">Investment</option>
+        </select>
+        <input id="accBal" type="number" step="0.01" value="1000" placeholder="Opening Balance" />
+        <button onclick="addAccount()">Create</button>
+      </div>
+      <div id="accList" class="list"></div>
+
+      <h2 style="margin-top:16px;">Record Transaction</h2>
+      <div class="row">
+        <select id="txAcc"></select>
+        <select id="txType">
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </select>
+        <input id="txAmt" type="number" step="0.01" placeholder="Amount" />
+        <input id="txCat" placeholder="Category (e.g. Groceries)" />
+        <button onclick="addTx()">Record</button>
+      </div>
+    </section>
+
+    <section class="card col-6">
+      <h2>Monthly Budgets &amp; Savings Goals</h2>
+      <div id="budgetList" class="list"></div>
+      <h2 style="margin-top:16px;">Recent Transactions</h2>
+      <div id="txList" class="list"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = "/api/v1/finance";
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      clearTimeout(window._t);
+      window._t = setTimeout(() => { el.style.display = "none"; }, 3200);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || "Request failed";
+        toast("Error: " + msg);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function addAccount() {
+      const name = document.getElementById("accName").value.trim();
+      const account_type = document.getElementById("accType").value;
+      const opening_balance = parseFloat(document.getElementById("accBal").value || "0");
+      if (name.length < 2) { toast("Enter an account name."); return; }
+      await api("/accounts", { method: "POST", body: JSON.stringify({ name, account_type, opening_balance }) });
+      document.getElementById("accName").value = "";
+      toast("Account created.");
+      refreshAll();
+    }
+
+    async function addTx() {
+      const account_id = document.getElementById("txAcc").value;
+      const tx_type = document.getElementById("txType").value;
+      const amount = parseFloat(document.getElementById("txAmt").value || "0");
+      const category = document.getElementById("txCat").value.trim();
+      if (!account_id || amount <= 0 || category.length < 2) { toast("Fill account, positive amount, and category."); return; }
+      await api("/transactions", { method: "POST", body: JSON.stringify({ account_id, tx_type, amount, category }) });
+      document.getElementById("txAmt").value = "";
+      toast("Transaction recorded.");
+      refreshAll();
+    }
+
+    async function refreshAll() {
+      const [summary, accs, txs] = await Promise.all([
+        api("/summary"),
+        api("/accounts"),
+        api("/transactions")
+      ]);
+      document.getElementById("stNetWorth").textContent = summary.net_worth.toFixed(2);
+      document.getElementById("stInc").textContent = summary.total_income.toFixed(2);
+      document.getElementById("stExp").textContent = summary.total_expense.toFixed(2);
+      document.getElementById("stRate").textContent = `${summary.savings_rate_pct}%`;
+
+      document.getElementById("accList").innerHTML = accs.accounts.length
+        ? accs.accounts.map(a => `<div class="list-item"><span><strong>${a.name}</strong> (${a.account_type})</span><span>${a.currency} ${a.balance.toFixed(2)}</span></div>`).join("")
+        : `<div class="list-item"><span>No accounts yet.</span></div>`;
+
+      const sel = document.getElementById("txAcc");
+      sel.innerHTML = accs.accounts.map(a => `<option value="${a.account_id}">${a.name}</option>`).join("");
+
+      document.getElementById("budgetList").innerHTML = summary.budget_status.length
+        ? summary.budget_status.map(b => `<div class="list-item"><span><strong>${b.category}</strong> (${b.status})</span><span>${b.spent_amount}/${b.limit_amount} (${b.utilization_pct}%)</span></div>`).join("")
+        : `<div class="list-item"><span>No budgets set for ${summary.month}.</span></div>`;
+
+      document.getElementById("txList").innerHTML = txs.transactions.slice(0, 12).map(t => `
+        <div class="list-item"><span>${t.tx_date} • <strong>${t.category}</strong></span><span>${t.tx_type === "income" ? "+" : "-"}${t.amount.toFixed(2)}</span></div>
+      `).join("") || `<div class="list-item"><span>No transactions yet.</span></div>`;
+    }
+
+    function connectWS() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/updates`);
+      const badge = document.getElementById("wsBadge");
+      ws.onopen = () => { badge.textContent = "WS: CONNECTED"; badge.className = "badge live"; };
+      ws.onclose = () => { badge.textContent = "WS: RECONNECTING"; badge.className = "badge"; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => { refreshAll(); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

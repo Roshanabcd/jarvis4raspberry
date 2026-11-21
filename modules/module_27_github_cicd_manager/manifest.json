@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-27-github-cicd-manager",
+  "module_number": 27,
+  "name": "GitHub & CI/CD Manager",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "devops_engineering",
+  "description": "Repository registry, pull request lifecycle with branch-protection merge gates, CI/CD pipeline runs with structured logs, release tracking, and HMAC-SHA256 webhook verification for JARVIS OS.",
+  "default_port": 8127,
+  "ui_route": "/github-cicd",
+  "api_prefix": "/api/v1/github-cicd",
+  "ws_endpoint": "/api/v1/github-cicd/ws/events",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M27_DB_PATH",
+    "default_path": "./data/jarvis_github_cicd.db"
+  },
+  "capabilities": [
+    "repository_registry",
+    "pull_request_merge_gates",
+    "cicd_pipeline_orchestration",
+    "release_and_rollback_tracking",
+    "github_webhook_hmac_verification"
+  ]
+}
