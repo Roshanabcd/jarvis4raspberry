@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS // Extension Center & Unified Feature Suite</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --bg-panel: rgba(11, 23, 44, 0.75);
+      --bg-panel-hover: rgba(16, 32, 60, 0.85);
+      --border: rgba(33, 139, 255, 0.22);
+      --border-glow: rgba(0, 217, 255, 0.45);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --warning: #F5A623;
+      --danger: #FF4757;
+      --text: #F0F6FC;
+      --text-muted: #8B949E;
+      --font-mono: "SF Mono", "Fira Code", Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: radial-gradient(circle at 85% 10%, #0d2242 0%, var(--bg) 65%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Scanline overlay */
+    body::before {
+      content: " ";
+      position: fixed;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%);
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 999;
+      opacity: 0.25;
+    }
+
+    header {
+      background: rgba(5, 11, 22, 0.88);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 14px 28px;
+    }
+
+    .header-content {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-ring {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--cyan);
+      box-shadow: 0 0 15px var(--cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 14px;
+      color: var(--cyan);
+      animation: pulse-ring 3s infinite alternate;
+    }
+
+    @keyframes pulse-ring {
+      0% { box-shadow: 0 0 8px var(--cyan); transform: scale(0.98); }
+      100% { box-shadow: 0 0 18px var(--blue); transform: scale(1.02); }
+    }
+
+    .brand-title {
+      font-size: 17px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      color: #fff;
+    }
+
+    .brand-title span {
+      color: var(--cyan);
+      font-weight: 400;
+      font-size: 13px;
+      margin-left: 8px;
+      letter-spacing: 0.8px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      transition: all 0.2s ease;
+    }
+
+    .nav-btn:hover {
+      color: var(--cyan);
+      border-color: var(--cyan);
+      background: rgba(0, 217, 255, 0.08);
+    }
+
+    .nav-btn.primary {
+      color: #050B16;
+      background: var(--cyan);
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 217, 255, 0.35);
+    }
+
+    .nav-btn.primary:hover {
+      background: #38e1ff;
+    }
+
+    main {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px 28px 60px;
+      flex: 1;
+      width: 100%;
+    }
+
+    /* Metric Counters HUD */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s, border-color 0.2s;
+    }
+
+    .metric-card:hover {
+      border-color: var(--border-glow);
+      transform: translateY(-2px);
+    }
+
+    .metric-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 900;
+      font-family: var(--font-mono);
+      color: var(--text);
+    }
+
+    .metric-value.cyan { color: var(--cyan); text-shadow: 0 0 10px rgba(0, 217, 255, 0.3); }
+    .metric-value.green { color: var(--green); text-shadow: 0 0 10px rgba(37, 230, 162, 0.3); }
+    .metric-value.blue { color: var(--blue); }
+    .metric-value.purple { color: var(--purple); }
+    .metric-value.warning { color: var(--warning); }
+    .metric-value.danger { color: var(--danger); }
+
+    /* Controls Bar: Search & Filters */
+    .controls-bar {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .search-row {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .search-input-wrap {
+      flex: 1;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(5, 11, 22, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px 10px 38px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(0, 217, 255, 0.25);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      color: var(--text-muted);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+
+    .pill:hover {
+      color: var(--text);
+      border-color: var(--blue);
+    }
+
+    .pill.active {
+      background: rgba(0, 217, 255, 0.15);
+      border-color: var(--cyan);
+      color: var(--cyan);
+      font-weight: 700;
+      box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
+    }
+
+    /* Modules Grid */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+      gap: 18px;
+    }
+
+    .module-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .module-card:hover {
+      background: var(--bg-panel-hover);
+      border-color: var(--border-glow);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .mod-number {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--cyan);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 217, 255, 0.1);
+      border: 1px solid rgba(0, 217, 255, 0.25);
+    }
+
+    .mod-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+      margin-top: 4px;
+    }
+
+    .mod-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tier-badge {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .tier-LIGHTWEIGHT { background: rgba(37, 230, 162, 0.15); color: var(--green); }
+    .tier-MEDIUM { background: rgba(33, 139, 255, 0.15); color: var(--blue); }
+    .tier-HEAVY { background: rgba(152, 104, 255, 0.15); color: var(--purple); }
+
+    .status-badge {
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+    }
+
+    .status-operational, .status-available {
+      background: rgba(37, 230, 162, 0.12);
+      color: var(--green);
+      border: 1px solid rgba(37, 230, 162, 0.4);
+    }
+
+    .status-degraded {
+      background: rgba(245, 166, 35, 0.12);
+      color: var(--warning);
+      border: 1px solid rgba(245, 166, 35, 0.4);
+    }
+
+    .status-blocked, .status-not_installed {
+      background: rgba(255, 71, 87, 0.12);
+      color: var(--danger);
+      border: 1px solid rgba(255, 71, 87, 0.4);
+    }
+
+    .status-disabled {
+      background: rgba(139, 148, 158, 0.12);
+      color: var(--text-muted);
+      border: 1px solid rgba(139, 148, 158, 0.3);
+    }
+
+    .mod-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin: 10px 0 16px;
+      min-height: 38px;
+    }
+
+    .perms-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .perm-tag {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: #79c0ff;
+      background: rgba(56, 139, 253, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(56, 139, 253, 0.2);
+    }
+
+    .card-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 14px;
+    }
+
+    .btn-launch {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border-radius: 7px;
+      font-weight: 700;
+      font-size: 13px;
+      text-decoration: none;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #031318;
+      box-shadow: 0 0 14px rgba(0, 217, 255, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .btn-launch:hover {
+      box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+      filter: brightness(1.08);
+    }
+
+    .btn-details {
+      padding: 9px 12px;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-details:hover {
+      border-color: var(--cyan);
+      color: var(--cyan);
+    }
+
+    .fav-star {
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .fav-star.active {
+      color: #f1e05a;
+      text-shadow: 0 0 8px #f1e05a;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(5, 11, 22, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal-box {
+      background: #0b172c;
+      border: 1px solid var(--cyan);
+      box-shadow: 0 0 35px rgba(0, 217, 255, 0.25);
+      border-radius: 14px;
+      max-width: 620px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 28px;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 22px;
+      cursor: pointer;
+    }
+
+    .modal-close:hover { color: #fff; }
+
+    /* Telemetry footer */
+    footer {
+      border-top: 1px solid var(--border);
+      background: rgba(5, 11, 22, 0.95);
+      padding: 14px 28px;
+      font-size: 12px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .footer-content {
+      max-width: 1480px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <div class="brand">
+        <div class="logo-ring">J</div>
+        <div>
+          <div class="brand-title">JARVIS OS <span>// UNIFIED EXTENSION CENTER</span></div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <a class="nav-btn" href="/">Dashboard</a>
+        <a class="nav-btn" href="/futuristic/">Futuristic HUD</a>
+        <a class="nav-btn" href="/orchestrator">Multi-Agent</a>
+        <a class="nav-btn" href="/screen-guardian">Screen Guardian</a>
+        <a class="nav-btn" href="/extensions">Extension Manager</a>
+        <a class="nav-btn primary" href="#refresh" onclick="loadSuite(); return false;">↻ Refresh State</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Dynamic Real-Time Metric Counters HUD -->
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total Registered</div>
+        <div id="cntTotal" class="metric-value cyan">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Operational</div>
+        <div id="cntOperational" class="metric-value green">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Discovered</div>
+        <div id="cntDiscovered" class="metric-value blue">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Installed</div>
+        <div id="cntInstalled" class="metric-value purple">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Configured</div>
+        <div id="cntConfigured" class="metric-value green">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Enabled</div>
+        <div id="cntEnabled" class="metric-value cyan">--</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Degraded</div>
+        <div id="cntDegraded" class="metric-value warning">0</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Blocked / Failed</div>
+        <div id="cntFailed" class="metric-value danger">0</div>
+      </div>
+    </div>
+
+    <!-- Search & Category Filters -->
+    <div class="controls-bar">
+      <div class="search-row">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input id="searchInput" type="text" class="search-input" placeholder="Search modules by name, description, permission, or package..." oninput="filterModules()" />
+        </div>
+      </div>
+      <div class="filter-pills" id="categoryPills">
+        <div class="pill active" data-cat="all" onclick="selectCat('all')">All Categories (43)</div>
+        <div class="pill" data-cat="core_ai" onclick="selectCat('core_ai')">Core AI &amp; Agents (8)</div>
+        <div class="pill" data-cat="productivity" onclick="selectCat('productivity')">Productivity &amp; Office (12)</div>
+        <div class="pill" data-cat="engineering" onclick="selectCat('engineering')">Engineering &amp; DevOps (4)</div>
+        <div class="pill" data-cat="security" onclick="selectCat('security')">Security &amp; Governance (5)</div>
+        <div class="pill" data-cat="analytics" onclick="selectCat('analytics')">Analytics &amp; Finance (3)</div>
+        <div class="pill" data-cat="vision" onclick="selectCat('vision')">Vision &amp; Multimodal (7)</div>
+        <div class="pill" data-cat="robotics" onclick="selectCat('robotics')">Robotics &amp; IoT (4)</div>
+        <div class="pill" data-cat="favorites" onclick="selectCat('favorites')">★ Favorites (0)</div>
+      </div>
+    </div>
+
+    <!-- Modules Grid -->
+    <div id="moduleGrid" class="module-grid"></div>
+  </main>
+
+  <!-- Module Details Modal -->
+  <div id="detailsModal" class="modal-backdrop" onclick="closeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-content">
+      <div>JARVIS OS v0.1.0 // Unified Modular Subsystem Architecture</div>
+      <div id="sysTelemetry">Raspberry Pi 5 ARM64 // Bounded Concurrency // Sandbox Enabled</div>
+    </div>
+  </footer>
+
+  <script>
+    let allModules = [];
+    let currentCategory = "all";
+    let favorites = new Set(JSON.parse(localStorage.getItem("jarvis_favs") || "[]"));
+
+    const categoryMapping = {
+      core_ai: ["Core AI OS", "Extensibility", "Management", "Notifications"],
+      productivity: ["Productivity", "Business & Support", "Education & Learning"],
+      engineering: ["Engineering", "DevOps", "Developer Tools", "Automation"],
+      security: ["Security", "Security & Analytics", "Governance", "Resilience"],
+      analytics: ["Analytics", "Finance", "Experimental"],
+      vision: ["Computer Vision", "Media & Content", "Research & Knowledge"],
+      robotics: ["Robotics", "IoT Automation", "Device Mesh", "Observability"]
+    };
+
+    function updatePillCounts() {
+      const counts = { all: allModules.length, favorites: 0 };
+      for (const key of Object.keys(categoryMapping)) counts[key] = 0;
+
+      for (const m of allModules) {
+        if (favorites.has(m.id)) counts.favorites++;
+        for (const [key, cats] of Object.entries(categoryMapping)) {
+          if (cats.includes(m.category)) counts[key]++;
+        }
+      }
+
+      document.querySelectorAll("#categoryPills .pill").forEach(p => {
+        const cat = p.getAttribute("data-cat");
+        const count = counts[cat] !== undefined ? counts[cat] : 0;
+        const labels = {
+          all: `All Categories (${count})`,
+          core_ai: `Core AI & Agents (${count})`,
+          productivity: `Productivity & Office (${count})`,
+          engineering: `Engineering & DevOps (${count})`,
+          security: `Security & Governance (${count})`,
+          analytics: `Analytics & Finance (${count})`,
+          vision: `Vision & Multimodal (${count})`,
+          robotics: `Robotics & IoT (${count})`,
+          favorites: `★ Favorites (${count})`
+        };
+        if (labels[cat]) p.textContent = labels[cat];
+      });
+    }
+
+    async function loadSuite() {
+      try {
+        const res = await fetch("/api/suite/health");
+        const data = await res.json();
+        allModules = data.features || [];
+
+        document.getElementById("cntTotal").textContent = data.total_registered;
+        document.getElementById("cntOperational").textContent = data.operational_count;
+        document.getElementById("cntDiscovered").textContent = data.discovered_count;
+        document.getElementById("cntInstalled").textContent = data.installed_count;
+        document.getElementById("cntConfigured").textContent = data.configured_count;
+        document.getElementById("cntEnabled").textContent = data.enabled_count;
+        document.getElementById("cntDegraded").textContent = data.degraded_count || 0;
+        document.getElementById("cntFailed").textContent = (data.blocked_count || 0) + (data.failed_count || 0);
+
+        updatePillCounts();
+        filterModules();
+        loadDiagnostics();
+      } catch (err) {
+        console.error("Failed to load suite state:", err);
+      }
+    }
+
+    async function loadDiagnostics() {
+      try {
+        const res = await fetch("/api/suite/diagnostics");
+        if (res.ok) {
+          const d = await res.json();
+          document.getElementById("sysTelemetry").textContent = 
+            `Host CPU: ${d.cpu_percent}% | RAM: ${d.ram_used_mb}MB / ${d.ram_total_mb}MB (${d.ram_percent}%) | PID: ${d.pid} | Sandboxed`;
+        }
+      } catch (e) {}
+    }
+
+    function selectCat(cat) {
+      currentCategory = cat;
+      document.querySelectorAll("#categoryPills .pill").forEach(p => {
+        p.classList.toggle("active", p.getAttribute("data-cat") === cat);
+      });
+      filterModules();
+    }
+
+    function toggleFavorite(id, e) {
+      e.stopPropagation();
+      if (favorites.has(id)) {
+        favorites.delete(id);
+      } else {
+        favorites.add(id);
+      }
+      localStorage.setItem("jarvis_favs", JSON.stringify(Array.from(favorites)));
+      updatePillCounts();
+      filterModules();
+    }
+
+    function filterModules() {
+      const q = document.getElementById("searchInput").value.toLowerCase().trim();
+      const filtered = allModules.filter(m => {
+        const matchQuery = !q || 
+          m.name.toLowerCase().includes(q) || 
+          m.description.toLowerCase().includes(q) || 
+          (m.category && m.category.toLowerCase().includes(q)) ||
+          (m.permissions && m.permissions.some(p => p.toLowerCase().includes(q)));
+
+        let matchCat = true;
+        if (currentCategory === "favorites") {
+          matchCat = favorites.has(m.id);
+        } else if (categoryMapping[currentCategory]) {
+          matchCat = categoryMapping[currentCategory].includes(m.category);
+        } else if (currentCategory !== "all") {
+          matchCat = m.category === currentCategory;
+        }
+
+        return matchQuery && matchCat;
+      });
+
+      renderModules(filtered);
+    }
+
+    function renderModules(modules) {
+      const grid = document.getElementById("moduleGrid");
+      if (modules.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">No modules match the selected filter.</div>`;
+        return;
+      }
+
+      grid.innerHTML = modules.map(m => {
+        const isFav = favorites.has(m.id);
+        const statusClass = `status-${m.operational_status || m.status}`;
+        const perms = (m.permissions || []).slice(0, 3).map(p => `<span class="perm-tag">${p}</span>`).join("");
+        
+        return `
+          <div class="module-card">
+            <div>
+              <div class="card-top">
+                <span class="mod-number">#${m.module_number ? String(m.module_number).padStart(2, '0') : '--'}</span>
+                <span class="status-badge ${statusClass}">${(m.operational_status || m.status).toUpperCase()}</span>
+                <span class="fav-star ${isFav ? 'active' : ''}" onclick="toggleFavorite('${m.id}', event)">★</span>
+              </div>
+              <h3 class="mod-title">${m.name}</h3>
+              <div class="mod-meta">
+                <span>${m.category}</span> · 
+                <span class="tier-badge tier-${m.tier}">${m.tier}</span>
+              </div>
+              <p class="mod-desc">${m.description}</p>
+              ${perms ? `<div class="perms-list">${perms}</div>` : ''}
+            </div>
+            <div class="card-actions">
+              <a class="btn-launch" href="${m.ui_path}" target="_blank">Launch Module ↗</a>
+              <button class="btn-details" onclick="openDetails('${m.id}')">Inspect</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function openDetails(id) {
+      const m = allModules.find(x => x.id === id);
+      if (!m) return;
+
+      const modalContent = document.getElementById("modalContent");
+      modalContent.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span class="mod-number">Module #${m.module_number || '--'}</span>
+          <span class="status-badge status-${m.operational_status || m.status}">${(m.operational_status || m.status).toUpperCase()}</span>
+        </div>
+        <h2 style="font-size: 20px; color: #fff; margin-bottom: 6px;">${m.name}</h2>
+        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          ${m.category} · Tier: <span class="tier-badge tier-${m.tier}">${m.tier}</span> · ID: <code>${m.id}</code>
+        </div>
+        <p style="font-size: 14px; line-height: 1.5; color: var(--text); margin-bottom: 20px;">${m.description}</p>
+        
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+          <div style="font-size: 12px; font-weight:700; color:var(--cyan); margin-bottom: 8px;">INTEGRATION CONTRACTS</div>
+          <div style="font-size: 12px; color: var(--text-muted); line-height: 1.7; font-family: var(--font-mono);">
+            <div><strong>Package:</strong> ${m.package}</div>
+            <div><strong>UI Route:</strong> <a href="${m.ui_path}" target="_blank" style="color:var(--cyan);">${m.ui_path}</a></div>
+            <div><strong>Health Endpoint:</strong> <a href="${m.health_path}" target="_blank" style="color:var(--blue);">${m.health_path}</a></div>
+            <div><strong>Permissions:</strong> ${(m.permissions || []).join(", ") || "None"}</div>
+            <div><strong>Configured:</strong> ${m.configured ? "Yes (Active)" : "No"}</div>
+            <div><strong>Enabled:</strong> ${m.enabled ? "Yes" : "Disabled"}</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <a class="btn-launch" href="${m.ui_path}" target="_blank" style="text-align:center;">Launch Module HUD ↗</a>
+          <button class="btn-details" onclick="toggleModuleState('${m.id}')">
+            ${m.enabled ? "Disable Module" : "Enable Module"}
+          </button>
+        </div>
+      `;
+      document.getElementById("detailsModal").classList.add("open");
+    }
+
+    async function toggleModuleState(id) {
+      try {
+        const res = await fetch(`/api/suite/modules/${id}/toggle`, { method: "POST" });
+        if (res.ok) {
+          closeModal();
+          loadSuite();
+        }
+      } catch (e) {
+        alert("Failed to toggle module: " + e);
+      }
+    }
+
+    function closeModal() {
+      document.getElementById("detailsModal").classList.remove("open");
+    }
+
+    loadSuite();
+    setInterval(loadDiagnostics, 5000);
+  </script>
+</body>
+</html>

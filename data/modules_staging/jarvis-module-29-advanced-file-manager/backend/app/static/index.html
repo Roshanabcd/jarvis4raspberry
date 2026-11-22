@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 29: Advanced File Manager</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --warn: #FFB84D;
+      --danger: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FAAC8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top right, rgba(33, 139, 255, 0.14), transparent 42%),
+                  radial-gradient(circle at bottom left, rgba(152, 104, 255, 0.12), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px; background: rgba(16, 30, 48, 0.9);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .orb {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan), var(--blue) 60%, var(--purple));
+      box-shadow: 0 0 18px rgba(0, 217, 255, 0.65);
+    }
+    h1 { margin: 0; font-size: 1.12rem; letter-spacing: 0.04em; }
+    .subtitle { font-size: 0.78rem; color: var(--muted); }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0, 217, 255, 0.1); color: var(--cyan);
+    }
+    .badge.ok { border-color: rgba(37, 230, 162, 0.45); background: rgba(37, 230, 162, 0.12); color: var(--green); }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 20px 24px 40px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi .val { font-size: 1.65rem; font-weight: 700; margin-top: 6px; color: var(--cyan); }
+    .layout { display: grid; grid-template-columns: 350px 1fr; gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .panel h2 { margin: 0 0 12px; font-size: 0.96rem; color: var(--cyan); letter-spacing: 0.03em; }
+    label { display: block; font-size: 0.76rem; color: var(--muted); margin: 8px 0 4px; }
+    input, textarea {
+      width: 100%; background: var(--panel-alt); color: var(--text);
+      border: 1px solid rgba(143, 170, 200, 0.25); border-radius: 8px;
+      padding: 8px 10px; font-size: 0.86rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 80px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 14px; cursor: pointer; font-size: 0.82rem;
+    }
+    button.secondary { background: rgba(152, 104, 255, 0.16); color: var(--text); border: 1px solid rgba(152, 104, 255, 0.45); }
+    button.ok { background: rgba(37, 230, 162, 0.18); color: var(--green); border: 1px solid rgba(37, 230, 162, 0.45); }
+    button.danger { background: rgba(255, 92, 119, 0.16); color: var(--danger); border: 1px solid rgba(255, 92, 119, 0.45); }
+    .item-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 12px; background: var(--panel-alt); border-radius: 10px; border: 1px solid rgba(0,217,255,0.14); margin-bottom: 8px; }
+    .card-title { font-weight: 600; font-size: 0.88rem; }
+    .card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    #toast { font-size: 0.82rem; color: var(--green); min-height: 20px; margin-bottom: 8px; }
+    @media (max-width: 960px) { .kpi-grid, .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <h1>JARVIS OS · Module 29 — Advanced File Manager</h1>
+        <div class="subtitle">Sandboxed CRUD · SHA-256 Duplicate Scanner · Smart Auto-Organizer · Trash &amp; Restore</div>
+      </div>
+    </div>
+    <div class="row">
+      <span class="badge ok">LOCAL SANDBOXED FS</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="toast"></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Managed Files</div><div id="kFiles" class="val">0</div></div>
+      <div class="kpi"><div class="label">Total Bytes</div><div id="kBytes" class="val" style="color:var(--green)">0</div></div>
+      <div class="kpi"><div class="label">Trash Items</div><div id="kTrash" class="val" style="color:var(--warn)">0</div></div>
+      <div class="kpi"><div class="label">Classifier</div><div id="kAdapter" class="val" style="font-size:0.9rem;color:var(--purple)">local</div></div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="panel">
+          <h2>Create / Write File</h2>
+          <label>Relative Path (inside sandbox)</label>
+          <input id="fPath" placeholder="e.g. notes.md or scripts/hello.py" />
+          <label>File Content</label>
+          <textarea id="fContent" placeholder="File text content..."></textarea>
+          <div style="margin-top:10px"><button onclick="writeFile()">Save File</button></div>
+        </div>
+
+        <div class="panel">
+          <h2>Search Files &amp; Content</h2>
+          <div class="row">
+            <input id="sQuery" placeholder="Keyword..." style="flex:1" />
+            <button class="secondary" onclick="runSearch()">Search</button>
+          </div>
+          <div id="searchOut" style="margin-top:10px;font-size:0.82rem;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2 id="dirTitle" style="margin:0">Directory: /</h2>
+            <div class="row">
+              <button class="secondary" onclick="loadDir('')">Root</button>
+              <button class="secondary" onclick="scanDuplicates()">Scan Duplicates</button>
+              <button class="secondary" onclick="organize(true)">Dry-Run Organize</button>
+              <button onclick="organize(false)">Auto-Organize</button>
+            </div>
+          </div>
+          <div id="fileList" style="margin-top:12px"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Diagnostics (Duplicates / Organize Plan / Preview)</h2>
+          <pre id="diagOut" style="white-space:pre-wrap;font-size:0.8rem;color:var(--text);background:var(--panel-alt);padding:10px;border-radius:8px;margin:0">Run a scan, preview a file, or test auto-organization.</pre>
+        </div>
+
+        <div class="panel">
+          <h2>Soft-Delete Trash</h2>
+          <div id="trashList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/file-manager';
+    let currentDir = '';
+
+    function toast(msg, isErr = false) {
+      const el = document.getElementById('toast');
+      el.style.color = isErr ? 'var(--danger)' : 'var(--green)';
+      el.textContent = msg;
+      setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ? data.error.message : JSON.stringify(data));
+      return data;
+    }
+
+    async function refreshStatus() {
+      const s = await api('/status');
+      document.getElementById('kFiles').textContent = s.files_count;
+      document.getElementById('kBytes').textContent = s.total_bytes;
+      document.getElementById('kTrash').textContent = s.trash_count;
+      document.getElementById('kAdapter').textContent = s.adapter;
+    }
+
+    async function loadDir(dir = '') {
+      currentDir = dir;
+      document.getElementById('dirTitle').textContent = 'Directory: /' + dir;
+      const data = await api('/files?dir=' + encodeURIComponent(dir));
+      document.getElementById('fileList').innerHTML = data.entries.map(e => `
+        <div class="item-row">
+          <div>
+            <div class="card-title">${e.is_dir ? '📁' : '📄'} ${e.name}</div>
+            <div class="card-meta">${e.category} · ${e.size_bytes} bytes ${e.tags.length ? '· tags: ' + e.tags.join(', ') : ''}</div>
+          </div>
+          <div class="row">
+            ${e.is_dir
+              ? `<button class="secondary" onclick="loadDir('${e.rel_path}')">Open</button>`
+              : `<button class="secondary" onclick="readFile('${e.rel_path}')">Read</button><button class="danger" onclick="delFile('${e.rel_path}')">Trash</button>`}
+          </div>
+        </div>
+      `).join('') || '<div class="card-meta">Directory is empty.</div>';
+    }
+
+    async function loadTrash() {
+      const data = await api('/trash');
+      document.getElementById('trashList').innerHTML = data.trash.map(t => `
+        <div class="item-row">
+          <div><div class="card-title">${t.original_rel_path}</div><div class="card-meta">Deleted: ${t.deleted_at}</div></div>
+          <button class="ok" onclick="restoreItem('${t.trash_id}')">Restore</button>
+        </div>
+      `).join('') || '<div class="card-meta">Trash is empty.</div>';
+    }
+
+    async function writeFile() {
+      try {
+        const rel_path = document.getElementById('fPath').value.trim();
+        const content = document.getElementById('fContent').value;
+        await api('/files', { method: 'POST', body: JSON.stringify({ rel_path, content }) });
+        toast('Saved ' + rel_path);
+        await Promise.all([refreshStatus(), loadDir(currentDir)]);
+      } catch (e) { toast(e.message, true); }
+    }
+
+    async function readFile(path) {
+      const data = await api('/files/read?path=' + encodeURIComponent(path));
+      document.getElementById('diagOut').textContent = `--- ${data.rel_path} (${data.size_bytes} bytes) ---\n${data.content}`;
+    }
+
+    async function delFile(path) {
+      await api('/files?path=' + encodeURIComponent(path), { method: 'DELETE' });
+      toast('Moved to trash: ' + path);
+      await Promise.all([refreshStatus(), loadDir(currentDir), loadTrash()]);
+    }
+
+    async function restoreItem(id) {
+      await api(`/trash/${id}/restore`, { method: 'POST' });
+      toast('Restored from trash.');
+      await Promise.all([refreshStatus(), loadDir(currentDir), loadTrash()]);
+    }
+
+    async function scanDuplicates() {
+      const data = await api('/duplicates');
+      document.getElementById('diagOut').textContent = JSON.stringify(data, null, 2);
+      toast(`Duplicate groups: ${data.groups_count} (reclaimable ${data.reclaimable_bytes} bytes)`);
+    }
+
+    async function organize(dry_run) {
+      const data = await api('/organize', { method: 'POST', body: JSON.stringify({ dry_run }) });
+      document.getElementById('diagOut').textContent = JSON.stringify(data, null, 2);
+      toast(dry_run ? `Dry-run: ${data.count} planned move(s)` : `Organized ${data.count} file(s)`);
+      await Promise.all([refreshStatus(), loadDir('')]);
+    }
+
+    async function runSearch() {
+      const q = document.getElementById('sQuery').value.trim();
+      if (!q) return;
+      const data = await api('/search?q=' + encodeURIComponent(q));
+      document.getElementById('searchOut').innerHTML = data.results.map(r => `<div>• ${r.rel_path} (${r.matched_on.join(', ')})</div>`).join('') || 'No matches.';
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}${API}/ws/events`);
+      const b = document.getElementById('wsBadge');
+      ws.onopen = () => { b.textContent = 'WS: LIVE'; b.className = 'badge ok'; };
+      ws.onclose = () => { b.textContent = 'WS: RECONNECTING'; b.className = 'badge'; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => refreshStatus();
+    }
+
+    refreshStatus();
+    loadDir('');
+    loadTrash();
+    connectWS();
+  </script>
+</body>
+</html>

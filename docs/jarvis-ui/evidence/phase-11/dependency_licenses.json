@@ -1,0 +1,29 @@
+{
+  "timestamp": "2026-11-21T06:43:00.504Z",
+  "dependencies": [
+    {
+      "name": "openai",
+      "version": "^7.62.0",
+      "license": "Approved Open Source",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "windsurf-agent-cli",
+      "version": "^1.2.2",
+      "license": "MIT",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "axe-core",
+      "version": "^4.14.1",
+      "license": "MPL-2.0",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "playwright",
+      "version": "^1.65.1",
+      "license": "Apache-2.0",
+      "status": "VERIFIED"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-11-21T06:40:49.721Z",
+  "tests_passed": 6,
+  "tests_total": 6,
+  "screenshots": [
+    "01_connected_devices_status.png",
+    "02_sensors_telemetry_grid.png",
+    "03_robot_safe_disarmed_baseline.png",
+    "04_robot_estop_latched.png",
+    "05_robot_authorization_modal.png"
+  ],
+  "gate_requirements": {
+    "simulation_mode_enforced": true,
+    "estop_tested_in_simulation": true,
+    "distinct_visual_states": true,
+    "motion_disabled_by_default": true,
+    "hardware_checklist_created": true
+  }
+}

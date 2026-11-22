@@ -1,0 +1,148 @@
+{
+  "suite": "Dashboard Center Avatar Orb Verification",
+  "live_url": "http://127.0.0.1:8000",
+  "viewports": {
+    "1440x900": {
+      "aria_metrics": {
+        "orb": {
+          "left": 620.640625,
+          "top": 243.59375,
+          "width": 320,
+          "height": 320,
+          "center": {
+            "x": 780.640625,
+            "y": 403.59375
+          }
+        },
+        "avatarBox": {
+          "left": 640.640625,
+          "top": 263.59375,
+          "width": 280,
+          "height": 280
+        },
+        "char": {
+          "left": 640.6392211914062,
+          "top": 263.588134765625,
+          "width": 280.0028076171875,
+          "height": 280.0028076171875,
+          "center": {
+            "x": 780.640625,
+            "y": 403.58953857421875
+          }
+        },
+        "hud": {
+          "left": 640.640625,
+          "top": 263.59375,
+          "width": 280,
+          "height": 280,
+          "center": {
+            "x": 780.640625,
+            "y": 403.59375
+          }
+        },
+        "dx": 0,
+        "dy": 0.00421142578125,
+        "dx_hud": 0,
+        "dy_hud": 0,
+        "charFillsOrbPct": 88,
+        "headroomPx": 20,
+        "bottomClearancePx": 20
+      },
+      "atlas_metrics": {
+        "dx": 0,
+        "dy": 0.0216064453125,
+        "charFillsOrbPct": 88,
+        "headroomPx": 20
+      },
+      "layout_gaps": {
+        "chips_to_orb_gap": 10,
+        "orb_to_wave_gap": 14,
+        "wave_to_mic_gap": 14,
+        "mic_to_state_gap": 10,
+        "state_to_caption_gap": 14,
+        "caption_to_quick_gap": 14,
+        "quick_to_controls_gap": 10,
+        "all_positive_gaps": true
+      }
+    },
+    "1280x720": {
+      "aria_metrics": {
+        "orb": {
+          "left": 544.015625,
+          "top": 237.859375,
+          "width": 320,
+          "height": 320,
+          "center": {
+            "x": 704.015625,
+            "y": 397.859375
+          }
+        },
+        "avatarBox": {
+          "left": 564.015625,
+          "top": 257.859375,
+          "width": 280,
+          "height": 280
+        },
+        "char": {
+          "left": 564.015625,
+          "top": 257.859375,
+          "width": 280,
+          "height": 280,
+          "center": {
+            "x": 704.015625,
+            "y": 397.859375
+          }
+        },
+        "hud": {
+          "left": 564.015625,
+          "top": 257.859375,
+          "width": 280,
+          "height": 280,
+          "center": {
+            "x": 704.015625,
+            "y": 397.859375
+          }
+        },
+        "dx": 0,
+        "dy": 0,
+        "dx_hud": 0,
+        "dy_hud": 0,
+        "charFillsOrbPct": 88,
+        "headroomPx": 20,
+        "bottomClearancePx": 20
+      },
+      "atlas_metrics": {
+        "dx": 0,
+        "dy": 0.002349853515625,
+        "charFillsOrbPct": 88,
+        "headroomPx": 20
+      },
+      "layout_gaps": {
+        "chips_to_orb_gap": 10,
+        "orb_to_wave_gap": 14,
+        "wave_to_mic_gap": 14,
+        "mic_to_state_gap": 10,
+        "state_to_caption_gap": 14,
+        "caption_to_quick_gap": 14,
+        "quick_to_controls_gap": 10,
+        "all_positive_gaps": true
+      }
+    }
+  },
+  "safety_checks": {
+    "estop_visible_and_enabled": true,
+    "estop_never_clicked": true,
+    "zero_native_dialogs": true,
+    "zero_console_errors": true,
+    "zero_page_errors": true
+  },
+  "screenshots": [
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1440x900_aria_crop.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1440x900_atlas_crop.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1440x900_fullpage.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1280x720_aria_crop.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1280x720_atlas_crop.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/avatar-orb/avatar_orb_1280x720_fullpage.png"
+  ],
+  "passed": true
+}

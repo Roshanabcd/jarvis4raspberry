@@ -1,5 +1,44 @@
 # JARVIS real-time recovery architecture
 
+## Latest increment — 20 November 2026
+
+This section supersedes the older live-acceptance table below.
+
+- User confirmed actual wake phrase produces an audible answer and shared-window
+  OCR returns the correct text. These two acceptance checks are complete; noisy
+  speech, interruption, screen stop/restart and model vision are separate checks.
+- NVIDIA key/model stored privately. Selected free hosted model:
+  `nvidia/nemotron-3.5-bolt-e4b`. Direct live probes passed: text 0.523s,
+  valid synthetic tool call 0.91s, streaming first token 0.563s / total 0.637s.
+  The old Llama endpoint returned HTTP 410. Discovery now uses a cached catalog;
+  catalog membership alone is not proof of task/vision capability.
+- Explicit conversation-only mode streams answer tokens without tools, closes HTTP
+  streams on cancellation, and reports truncation/length limits as incomplete.
+- Voice reply metadata persists privately with an exclusive owner lock. Restart
+  interrupts pending work without replay. Text/audio stay out of the metadata file.
+- Background jobs expose immediate acceptance, polling, cancellation and scoped
+  idempotency. One worker, four outstanding slots, 100 retained metadata records.
+  The same identity must still authorize execution at dispatch/tool boundaries.
+  No automatic restart resume; replies remain in memory. Reply readiness is not
+  proof that a requested real-world action succeeded.
+- Home control center uses the supplied image/TSX visual direction, real APIs,
+  safe text rendering, selectable browser voices/rate and existing chat/microphone
+  paths. Prototype simulated agents and telemetry were not imported. Avatar art
+  is illustrative; waveform animation follows actual playback/speech events.
+- Verification: 174 affected Python tests, 65 frontend tests, one new Chromium
+  workflow with synthetic APIs covering home chat, voice-mode routing, task
+  display, conversation mode and responsive widths. Browser speech was stubbed;
+  actual selected browser-voice audibility is not claimed.
+- Deployment: both services were found stopped. The user voice service was started.
+  Core restart requires local sudo authentication; user was asked to restart it.
+  New backend changes are not yet recorded as deployed. See the handoff for the
+  exact next live checks after restart.
+
+Official NVIDIA references consulted: [model catalog](https://build.nvidia.com/models),
+[Nemotron Bolt model card](https://build.nvidia.com/nvidia/nemotron-3.5-bolt-e4b/modelcard),
+and [hosted endpoint FAQ](https://build.nvidia.com/nvidia/nemotron-voicechat/systemcard).
+Free prototype access is rate-limited, not unlimited or a production capacity guarantee.
+
 ## Acceptance contract
 
 JARVIS is a local assistant application, not a replacement operating system.

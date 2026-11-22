@@ -3,12 +3,16 @@
   "private": true,
   "scripts": {
     "test:desktop": "node --test tests/frontend/*.test.cjs",
-    "test:browser": "node --test tests/browser/browser_verification.cjs"
+    "test:browser": "node --test tests/browser/browser_verification.cjs",
+    "test:smoke": "node --test tests/browser/phase1_smoke_suite.cjs",
+    "test:shell": "node --test tests/browser/phase2_design_shell.cjs"
   },
   "devDependencies": {
+    "axe-core": "^4.14.1",
     "playwright": "^1.65.1"
   },
   "dependencies": {
+    "openai": "^7.62.0",
     "windsurf-agent-cli": "^1.2.2"
   }
 }

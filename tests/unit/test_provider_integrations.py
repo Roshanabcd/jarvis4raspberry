@@ -295,3 +295,19 @@ def test_brain_never_silently_switches_provider_on_explicit_selection(monkeypatc
     assert result.get("provider") != "ollama"
     assert "error" in result or result.get("response", "").startswith("⚠️")
 
+
+
+def test_ollama_empty_manifest_and_chat_model_choice(monkeypatch):
+    from ai.providers.base import OllamaProvider
+
+    response = MagicMock(status_code=200)
+    monkeypatch.setattr("ai.providers.base.requests.get", lambda *args, **kwargs: response)
+    response.json.return_value = {"models": []}
+    assert not OllamaProvider().is_available()
+    response.json.return_value = {"models": [{"name": "moondream:latest"}, {"name": "gemma:2b"}]}
+    provider = OllamaProvider(model="missing")
+    assert provider.is_available()
+    assert provider.model == "gemma:2b"
+    explicitly_selected = OllamaProvider(model="moondream:latest")
+    assert explicitly_selected.is_available()
+    assert explicitly_selected.model == "moondream:latest"

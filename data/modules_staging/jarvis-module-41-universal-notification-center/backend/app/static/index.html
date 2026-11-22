@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Universal Notification Center (Module 41)</title>
+  <style>
+    :root {
+      --bg: #050B16; --panel: #101E30; --cyan: #00D9FF;
+      --blue: #218BFF; --purple: #9868FF; --green: #25E6A2; --text: #F0F8FF; --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top right, #0D223D, var(--bg) 60%);
+      color: var(--text); min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 28px; border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+      background: rgba(5, 11, 22, 0.85);
+    }
+    .brand { font-size: 1.15rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.04em; }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.78rem;
+      border: 1px solid rgba(37, 230, 162, 0.5); color: var(--green);
+      background: rgba(37, 230, 162, 0.1);
+    }
+    main { max-width: 1180px; margin: 24px auto; padding: 0 20px 40px; display: grid; gap: 20px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 800px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+    .kpi { background: #0A182B; padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.16); }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); }
+    .kpi .val { font-size: 1.3rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+    .card {
+      background: rgba(16, 30, 48, 0.9); border: 1px solid rgba(0, 217, 255, 0.22);
+      border-radius: 14px; padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: var(--cyan); }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04101E;
+      border: none; border-radius: 8px; padding: 9px 14px; font-weight: 700; cursor: pointer;
+    }
+    button.secondary {
+      background: rgba(152, 104, 255, 0.2); color: var(--text);
+      border: 1px solid rgba(152, 104, 255, 0.5);
+    }
+    .ntf-list { display: grid; gap: 10px; }
+    .ntf-item {
+      background: #081424; border: 1px solid rgba(33, 139, 255, 0.3);
+      border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    pre {
+      background: #071222; border: 1px solid rgba(0, 217, 255, 0.16);
+      border-radius: 8px; padding: 12px; font-size: 0.82rem; overflow-x: auto; color: #CFE9FF; max-height: 220px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">JARVIS OS // MODULE 41 — UNIVERSAL NOTIFICATION CENTER</div>
+    <span id="ws-badge" class="badge">NOTIFICATION HUB | WS: CONNECTING</span>
+  </header>
+  <main>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Total Alerts</div><div id="kpi-total" class="val">0</div></div>
+      <div class="kpi"><div class="label">Unread</div><div id="kpi-unread" class="val">0</div></div>
+      <div class="kpi"><div class="label">DND Suppressed</div><div id="kpi-supp" class="val">0</div></div>
+      <div class="kpi"><div class="label">Do Not Disturb</div><div id="kpi-dnd" class="val">OFF</div></div>
+    </div>
+
+    <section class="card">
+      <h2>Unified Alert Stream</h2>
+      <div class="controls">
+        <button id="btn-send">Send Sample Alert</button>
+        <button id="btn-dnd" class="secondary">Toggle DND</button>
+        <button id="btn-refresh" class="secondary">Refresh</button>
+      </div>
+      <div id="ntf-list" class="ntf-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Dispatch Telemetry</h2>
+      <pre id="out-box">Send an alert or toggle Do-Not-Disturb to test priority routing and acknowledgement.</pre>
+    </section>
+  </main>
+
+  <script>
+    const out = document.getElementById("out-box");
+    let currentDnd = false;
+
+    async function refresh() {
+      const [sRes, lRes] = await Promise.all([fetch("/api/v1/notifications/status"), fetch("/api/v1/notifications/items")]);
+      const st = await sRes.json();
+      currentDnd = Boolean(st.dnd_enabled);
+      document.getElementById("kpi-total").textContent = st.total_count;
+      document.getElementById("kpi-unread").textContent = st.unread_count;
+      document.getElementById("kpi-supp").textContent = st.suppressed_count;
+      document.getElementById("kpi-dnd").textContent = currentDnd ? "ON" : "OFF";
+
+      const list = document.getElementById("ntf-list");
+      list.innerHTML = "";
+      const data = await lRes.json();
+      (data.notifications || []).forEach((n) => {
+        const div = document.createElement("div");
+        div.className = "ntf-item";
+        div.innerHTML = `<div><strong>${n.title}</strong> [<code>${n.priority.toUpperCase()}</code> / ${n.status}]<br/><small style="color:#8FA8C8">${n.source_module}: ${n.message}</small></div>`;
+        const actions = document.createElement("div");
+        actions.style.display = "flex";
+        actions.style.gap = "8px";
+        if (n.status === "unread") {
+          const btnA = document.createElement("button");
+          btnA.textContent = "Ack";
+          btnA.onclick = async () => {
+            const r = await fetch(`/api/v1/notifications/items/${n.notification_id}/ack`, { method: "POST" });
+            out.textContent = JSON.stringify(await r.json(), null, 2);
+            refresh();
+          };
+          actions.appendChild(btnA);
+        }
+        const btnD = document.createElement("button");
+        btnD.className = "secondary";
+        btnD.textContent = "Dismiss";
+        btnD.onclick = async () => {
+          const r = await fetch(`/api/v1/notifications/items/${n.notification_id}/dismiss`, { method: "POST" });
+          out.textContent = JSON.stringify(await r.json(), null, 2);
+          refresh();
+        };
+        actions.appendChild(btnD);
+        div.appendChild(actions);
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById("btn-send").onclick = async () => {
+      const r = await fetch("/api/v1/notifications/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source_module: "module-32-health",
+          title: "Pi 5 Thermal Check",
+          message: "All JARVIS OS core services healthy at 45C.",
+          priority: "high",
+          channels: ["hud", "desktop"]
+        })
+      });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+      refresh();
+    };
+
+    document.getElementById("btn-dnd").onclick = async () => {
+      const r = await fetch("/api/v1/notifications/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dnd_enabled: !currentDnd,
+          allow_critical_during_dnd: true,
+          enabled_channels: ["hud", "desktop", "voice"]
+        })
+      });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+      refresh();
+    };
+
+    document.getElementById("btn-refresh").onclick = refresh;
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/api/v1/notifications/ws/stream`);
+    ws.onopen = () => { document.getElementById("ws-badge").textContent = "NOTIFICATION HUB | WS: LIVE"; };
+    ws.onclose = () => { document.getElementById("ws-badge").textContent = "NOTIFICATION HUB | WS: CLOSED"; };
+    refresh();
+  </script>
+</body>
+</html>

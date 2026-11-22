@@ -1,0 +1,157 @@
+{
+  "source_revision": "c25be13",
+  "verification": "Live read-only catalog and interface reachability; no actions, inference or hardware exercised",
+  "catalog_count": 45,
+  "extensions": [
+    {
+      "id": "extension-18",
+      "state": "available",
+      "route": "/orchestrator",
+      "http_status": 200
+    },
+    {
+      "id": "extension-19",
+      "state": "available",
+      "route": "/computer-assistant",
+      "http_status": 200
+    },
+    {
+      "id": "extension-20",
+      "state": "available",
+      "route": "/conversational-ai",
+      "http_status": 200
+    },
+    {
+      "id": "extension-21",
+      "state": "available",
+      "route": "/browser-agent",
+      "http_status": 200
+    },
+    {
+      "id": "extension-22",
+      "state": "available",
+      "route": "/model-router",
+      "http_status": 200
+    },
+    {
+      "id": "extension-23",
+      "state": "available",
+      "route": "/executive-assistant",
+      "http_status": 200
+    },
+    {
+      "id": "extension-24",
+      "state": "available",
+      "route": "/email-calendar",
+      "http_status": 200
+    },
+    {
+      "id": "extension-25",
+      "state": "available",
+      "route": "/meeting-assistant",
+      "http_status": 200
+    },
+    {
+      "id": "extension-26",
+      "state": "available",
+      "route": "/project-autopilot",
+      "http_status": 200
+    },
+    {
+      "id": "extension-27",
+      "state": "available",
+      "route": "/github-cicd",
+      "http_status": 200
+    },
+    {
+      "id": "extension-28",
+      "state": "available",
+      "route": "/ai-data-analyst",
+      "http_status": 200
+    },
+    {
+      "id": "extension-29",
+      "state": "available",
+      "route": "/file-manager",
+      "http_status": 200
+    },
+    {
+      "id": "extension-30",
+      "state": "available",
+      "route": "/smart-home",
+      "http_status": 200
+    },
+    {
+      "id": "extension-31",
+      "state": "available",
+      "route": "/robot-brain",
+      "http_status": 200
+    },
+    {
+      "id": "extension-32",
+      "state": "available",
+      "route": "/system-health",
+      "http_status": 200
+    },
+    {
+      "id": "extension-33",
+      "state": "available",
+      "route": "/cybersecurity",
+      "http_status": 200
+    },
+    {
+      "id": "extension-34",
+      "state": "available",
+      "route": "/finance",
+      "http_status": 200
+    },
+    {
+      "id": "extension-35",
+      "state": "available",
+      "route": "/workflows",
+      "http_status": 200
+    },
+    {
+      "id": "extension-36",
+      "state": "available",
+      "route": "/vision",
+      "http_status": 200
+    },
+    {
+      "id": "extension-37",
+      "state": "available",
+      "route": "/devices",
+      "http_status": 200
+    },
+    {
+      "id": "extension-38",
+      "state": "available",
+      "route": "/marketplace",
+      "http_status": 200
+    },
+    {
+      "id": "extension-39",
+      "state": "available",
+      "route": "/backups",
+      "http_status": 200
+    },
+    {
+      "id": "extension-40",
+      "state": "available",
+      "route": "/approvals",
+      "http_status": 200
+    },
+    {
+      "id": "extension-41",
+      "state": "available",
+      "route": "/notifications",
+      "http_status": 200
+    },
+    {
+      "id": "extension-42",
+      "state": "available",
+      "route": "/extensions",
+      "http_status": 200
+    }
+  ]
+}

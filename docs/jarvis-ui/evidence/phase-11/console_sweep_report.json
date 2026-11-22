@@ -1,0 +1,81 @@
+{
+  "timestamp": "2026-11-21T06:42:58.339Z",
+  "totalDestinationsTested": 18,
+  "destinations": {
+    "dashboard": {
+      "visited": true,
+      "errors": 0
+    },
+    "chat": {
+      "visited": true,
+      "errors": 0
+    },
+    "voice": {
+      "visited": true,
+      "errors": 0
+    },
+    "agents": {
+      "visited": true,
+      "errors": 0
+    },
+    "tasks": {
+      "visited": true,
+      "errors": 0
+    },
+    "automation": {
+      "visited": true,
+      "errors": 0
+    },
+    "workspace": {
+      "visited": true,
+      "errors": 0
+    },
+    "terminal": {
+      "visited": true,
+      "errors": 0
+    },
+    "calendar": {
+      "visited": true,
+      "errors": 0
+    },
+    "memory": {
+      "visited": true,
+      "errors": 0
+    },
+    "knowledge": {
+      "visited": true,
+      "errors": 0
+    },
+    "devices": {
+      "visited": true,
+      "errors": 0
+    },
+    "robot": {
+      "visited": true,
+      "errors": 0
+    },
+    "integrations": {
+      "visited": true,
+      "errors": 0
+    },
+    "apps": {
+      "visited": true,
+      "errors": 0
+    },
+    "youtube": {
+      "visited": true,
+      "errors": 0
+    },
+    "research": {
+      "visited": true,
+      "errors": 0
+    },
+    "settings": {
+      "visited": true,
+      "errors": 0
+    }
+  },
+  "consoleErrors": [],
+  "pageErrors": [],
+  "passZeroErrors": true
+}

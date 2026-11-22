@@ -68,8 +68,8 @@ class MultiAgentOrchestrator:
         is_complex = bool(context.traceback or "AssertionError" in context.error_message or context.file_contents)
 
         if is_complex:
-            # Prefer Antigravity or Codex
-            for preferred in [AgentId.ANTIGRAVITY.value, AgentId.CODEX.value, AgentId.OLLAMA.value]:
+            # Prefer Antigravity, Codex, or Copilot
+            for preferred in [AgentId.ANTIGRAVITY.value, AgentId.CODEX.value, AgentId.COPILOT.value, AgentId.OLLAMA.value]:
                 for c in candidates:
                     if c.id == preferred:
                         return c

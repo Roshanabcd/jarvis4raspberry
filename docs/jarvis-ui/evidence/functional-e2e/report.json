@@ -1,0 +1,150 @@
+{
+  "timestamp": 1795348836.5466259,
+  "date": "2026-11-22 12:00:36 UTC",
+  "base_url": "http://127.0.0.1:8000",
+  "viewports": {
+    "1440x900": {
+      "passed": true,
+      "errors": []
+    },
+    "1280x720": {
+      "passed": true,
+      "errors": []
+    }
+  },
+  "tests": {
+    "estop_safety": {
+      "passed": true,
+      "details": [
+        "1440x900: #estop-btn visible and enabled (NEVER clicked).",
+        "1280x720: #estop-btn visible and enabled (NEVER clicked)."
+      ]
+    },
+    "test1_chat_streaming_pc_process": {
+      "passed": true,
+      "details": {
+        "1440x900": {
+          "has_freellmapi_model": true,
+          "response_length": 5467,
+          "contains_process_info": true
+        },
+        "1280x720": {
+          "has_freellmapi_model": true,
+          "response_length": 5467,
+          "contains_process_info": true
+        }
+      }
+    },
+    "test2_apps_center_ux_favorites": {
+      "passed": true,
+      "details": {
+        "1440x900": {
+          "card_count": 45,
+          "category_pills_count": 11,
+          "favorites_toggle_working": true
+        },
+        "1280x720": {
+          "card_count": 45,
+          "category_pills_count": 11,
+          "favorites_toggle_working": true
+        }
+      }
+    },
+    "test3_developer_hub_freellmapi": {
+      "passed": true,
+      "details": {
+        "1440x900": {
+          "gateway_status": "ONLINE (PORT 3001)",
+          "model_count": "314 models",
+          "zero_fake_cards": true
+        },
+        "1280x720": {
+          "gateway_status": "ONLINE (PORT 3001)",
+          "model_count": "314 models",
+          "zero_fake_cards": true
+        }
+      }
+    },
+    "test4_voice_above_fold_preemption": {
+      "passed": true,
+      "details": {
+        "1440x900": {
+          "panel_height_px": 598,
+          "controls_above_fold": true,
+          "drawers_collapsed": true
+        },
+        "1280x720": {
+          "panel_height_px": 640,
+          "controls_above_fold": true,
+          "drawers_collapsed": true
+        }
+      }
+    },
+    "test5_all_tabs_api_hydration": {
+      "passed": true,
+      "details": {
+        "1440x900": {
+          "home": "PASSED",
+          "chat": "PASSED",
+          "voice": "PASSED",
+          "aistudio": "PASSED",
+          "vision": "PASSED",
+          "robot": "PASSED",
+          "sensors": "PASSED",
+          "memory": "PASSED",
+          "automations": "PASSED",
+          "tools": "PASSED",
+          "integrations": "PASSED",
+          "system": "PASSED",
+          "logs": "PASSED",
+          "desktop": "PASSED",
+          "computer": "PASSED",
+          "agents": "PASSED",
+          "apps": "PASSED",
+          "developer": "PASSED",
+          "youtube": "PASSED",
+          "documents": "PASSED",
+          "research": "PASSED",
+          "settings": "PASSED"
+        },
+        "1280x720": {
+          "home": "PASSED",
+          "chat": "PASSED",
+          "voice": "PASSED",
+          "aistudio": "PASSED",
+          "vision": "PASSED",
+          "robot": "PASSED",
+          "sensors": "PASSED",
+          "memory": "PASSED",
+          "automations": "PASSED",
+          "tools": "PASSED",
+          "integrations": "PASSED",
+          "system": "PASSED",
+          "logs": "PASSED",
+          "desktop": "PASSED",
+          "computer": "PASSED",
+          "agents": "PASSED",
+          "apps": "PASSED",
+          "developer": "PASSED",
+          "youtube": "PASSED",
+          "documents": "PASSED",
+          "research": "PASSED",
+          "settings": "PASSED"
+        }
+      }
+    }
+  },
+  "screenshots": [
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1440x900.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1440x900.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1440x900.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1440x900.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1440x900.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1280x720.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1280x720.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1280x720.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1280x720.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1280x720.png"
+  ],
+  "overall_passed": true
+}

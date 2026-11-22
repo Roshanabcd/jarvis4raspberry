@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Autonomous Web Scraping Agent</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --blue: #38bdf8;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.med { border-color: var(--blue); color: #7dd3fc; }
+
+    main { padding: 18px 22px; max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 180px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, textarea {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--mono); font-size: 0.84rem;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer; text-decoration: none;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    pre {
+      margin: 0; background: #04080f; border: 1px solid #182a40; border-radius: 8px;
+      padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 0.8rem;
+      line-height: 1.45; white-space: pre-wrap; word-break: break-word;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #182a40; text-align: left; }
+    th { color: var(--accent); }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — AUTONOMOUS WEB SCRAPING AGENT</div>
+      <div class="brand-sub">Research &amp; Knowledge • Policy-Compliant Extraction, Change Monitoring &amp; JSON Export</div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend OK</span>
+      <span class="pill med">robots.txt + SSRF Guard</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('extract', this)">Extract &amp; Parse</button>
+      <button class="tab-btn" onclick="switchTab('monitors', this)">Change Monitors</button>
+      <button class="tab-btn" onclick="switchTab('snapshots', this)">Snapshots &amp; JSON Export</button>
+    </div>
+
+    <!-- TAB 1: EXTRACT -->
+    <section id="tab-extract" class="card">
+      <strong style="color:var(--accent);">Policy-Compliant HTML Structure Extractor</strong>
+      <div class="row">
+        <div class="field" style="flex:2;">
+          <label>Public URL (http/https)</label>
+          <input id="ex-url" placeholder="https://example.com" />
+        </div>
+        <div class="field">
+          <label>Optional Target Tag (e.g., h2, article, p)</label>
+          <input id="ex-tag" placeholder="optional" />
+        </div>
+      </div>
+      <div>
+        <label>Or Paste Raw HTML (Offline Parse Mode)</label>
+        <textarea id="ex-html" placeholder="<html><head><title>Demo</title></head><body><h1>Status</h1></body></html>"></textarea>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="runExtract()">Extract Structured JSON</button>
+        <a id="ex-export" class="btn secondary hidden" href="#">Download JSON</a>
+      </div>
+      <pre id="ex-out">// Structured extraction output (title, headings, links, tables, SHA-256 hash)</pre>
+    </section>
+
+    <!-- TAB 2: MONITORS -->
+    <section id="tab-monitors" class="card hidden">
+      <strong style="color:var(--accent);">Register Website Change Monitor</strong>
+      <div class="row">
+        <div class="field"><label>Monitor Name</label><input id="m-name" placeholder="Release Notes Watcher" /></div>
+        <div class="field" style="flex:2;"><label>URL</label><input id="m-url" placeholder="https://example.com/releases" /></div>
+        <div class="field"><label>Interval (min)</label><input id="m-int" type="number" value="60" min="5" /></div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="createMonitor()">Create Monitor</button>
+        <button class="btn secondary" onclick="loadMonitors()">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>URL</th><th>Changes</th><th>Last Checked</th><th>Action</th></tr></thead>
+        <tbody id="mon-tbody"></tbody>
+      </table>
+      <pre id="mon-diff">// Change check diff output will appear here</pre>
+    </section>
+
+    <!-- TAB 3: SNAPSHOTS -->
+    <section id="tab-snapshots" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Saved Extraction Snapshots</strong>
+        <button class="btn secondary" onclick="loadSnapshots()">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Source</th><th>Title</th><th>Words</th><th>Changed</th><th>Export</th></tr></thead>
+        <tbody id="snap-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/web-scraper";
+
+    function switchTab(name, btn) {
+      ["extract", "monitors", "snapshots"].forEach(t => document.getElementById("tab-" + t).classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+      if (name === "monitors") loadMonitors();
+      if (name === "snapshots") loadSnapshots();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...options });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function runExtract() {
+      try {
+        const data = await apiFetch("/extract", {
+          method: "POST",
+          body: JSON.stringify({
+            url: document.getElementById("ex-url").value.trim() || null,
+            raw_html: document.getElementById("ex-html").value.trim() || null,
+            target_tag: document.getElementById("ex-tag").value.trim() || null,
+            save_snapshot: true
+          })
+        });
+        document.getElementById("ex-out").textContent = JSON.stringify(data, null, 2);
+        if (data.snapshot_id) {
+          const link = document.getElementById("ex-export");
+          link.href = `${API}/snapshots/${data.snapshot_id}/export`;
+          link.classList.remove("hidden");
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function createMonitor() {
+      try {
+        await apiFetch("/monitors", {
+          method: "POST",
+          body: JSON.stringify({
+            name: document.getElementById("m-name").value,
+            url: document.getElementById("m-url").value,
+            interval_minutes: Number(document.getElementById("m-int").value)
+          })
+        });
+        loadMonitors();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function loadMonitors() {
+      const data = await apiFetch("/monitors");
+      document.getElementById("mon-tbody").innerHTML = data.monitors.map(m => `
+        <tr>
+          <td>#${m.id}</td><td>${m.name}</td><td>${m.url}</td><td>${m.change_count}</td>
+          <td>${m.last_checked_at || "Never"}</td>
+          <td><button class="btn secondary" onclick="checkMon(${m.id})">Check Now</button></td>
+        </tr>
+      `).join("") || "<tr><td colspan='6' class='small-muted'>No monitors registered.</td></tr>";
+    }
+
+    async function checkMon(id) {
+      try {
+        const res = await apiFetch(`/monitors/${id}/check`, { method: "POST", body: JSON.stringify({}) });
+        document.getElementById("mon-diff").textContent =
+          `Monitor #${res.monitor_id} • Changed: ${res.changed} • Hash: ${res.current_hash}\n\n${res.unified_diff || "(No text diff)"}`;
+        loadMonitors();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function loadSnapshots() {
+      const data = await apiFetch("/snapshots");
+      document.getElementById("snap-tbody").innerHTML = data.snapshots.map(s => `
+        <tr>
+          <td>#${s.id}</td><td>${s.source}</td><td>${s.title}</td><td>${s.word_count}</td>
+          <td>${s.changed ? "YES" : "No"}</td>
+          <td><a class="btn secondary" href="${API}/snapshots/${s.id}/export">JSON</a></td>
+        </tr>
+      `).join("") || "<tr><td colspan='6' class='small-muted'>No snapshots yet.</td></tr>";
+    }
+  </script>
+</body>
+</html>

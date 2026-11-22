@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-11-21T06:42:25.977Z",
+  "files": [
+    {
+      "file": "api.js",
+      "rawBytes": 28320,
+      "rawKb": 27.66,
+      "gzipBytes": 5985,
+      "gzipKb": 5.84
+    },
+    {
+      "file": "avatar.js",
+      "rawBytes": 23500,
+      "rawKb": 22.95,
+      "gzipBytes": 5898,
+      "gzipKb": 5.76
+    },
+    {
+      "file": "chat.js",
+      "rawBytes": 35270,
+      "rawKb": 34.44,
+      "gzipBytes": 8843,
+      "gzipKb": 8.64
+    },
+    {
+      "file": "components.css",
+      "rawBytes": 62170,
+      "rawKb": 60.71,
+      "gzipBytes": 10415,
+      "gzipKb": 10.17
+    },
+    {
+      "file": "developer.js",
+      "rawBytes": 39073,
+      "rawKb": 38.16,
+      "gzipBytes": 8490,
+      "gzipKb": 8.29
+    },
+    {
+      "file": "index.html",
+      "rawBytes": 20261,
+      "rawKb": 19.79,
+      "gzipBytes": 4145,
+      "gzipKb": 4.05
+    },
+    {
+      "file": "operations.js",
+      "rawBytes": 83695,
+      "rawKb": 81.73,
+      "gzipBytes": 14789,
+      "gzipKb": 14.44
+    },
+    {
+      "file": "robot_devices.js",
+      "rawBytes": 34596,
+      "rawKb": 33.79,
+      "gzipBytes": 7814,
+      "gzipKb": 7.63
+    },
+    {
+      "file": "shell.js",
+      "rawBytes": 34300,
+      "rawKb": 33.5,
+      "gzipBytes": 7785,
+      "gzipKb": 7.6
+    },
+    {
+      "file": "theme.css",
+      "rawBytes": 5242,
+      "rawKb": 5.12,
+      "gzipBytes": 1641,
+      "gzipKb": 1.6
+    },
+    {
+      "file": "voice.js",
+      "rawBytes": 49913,
+      "rawKb": 48.74,
+      "gzipBytes": 11416,
+      "gzipKb": 11.15
+    }
+  ],
+  "totalRawKb": 406.58,
+  "totalGzipKb": 85.18,
+  "gzipTargetLimitKb": 250,
+  "passLimit": true,
+  "zeroMockData": true,
+  "modularArchitecture": true
+}

@@ -22,7 +22,16 @@ async def broadcast_event(event_dict: Dict[str, Any]) -> None:
         _active_connections.discard(ws)
 
 
-def broadcast_chat_message(role: str, text: str, audio_url: Optional[str] = None) -> None:
+def broadcast_chat_message(
+    role: str,
+    text: str,
+    audio_url: Optional[str] = None,
+    message_id: Optional[str] = None,
+    turn_id: Optional[str] = None,
+    playback_target: str = "browser",
+    provider_label: Optional[str] = None,
+    is_cloned: bool = False,
+) -> None:
     """Thread-safe trigger to broadcast dialogue turn to connected dashboard web clients."""
     global _main_loop
     payload = {
@@ -30,6 +39,11 @@ def broadcast_chat_message(role: str, text: str, audio_url: Optional[str] = None
         "role": role,
         "text": text,
         "audio_url": audio_url,
+        "message_id": message_id or turn_id,
+        "turn_id": turn_id or message_id,
+        "playback_target": playback_target,
+        "provider_label": provider_label,
+        "is_cloned": is_cloned,
         "timestamp": time.time(),
     }
     if _main_loop and _main_loop.is_running():

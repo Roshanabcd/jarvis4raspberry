@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS Module 42 — Unified Extension Manager & SDK</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: rgba(16, 30, 48, 0.86);
+      --border: rgba(0, 217, 255, 0.24);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8CA6C5;
+      --danger: #FF5C77;
+      --warn: #FFB84D;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at 12% 8%, rgba(0, 217, 255, 0.14), transparent 40%),
+                  radial-gradient(circle at 86% 10%, rgba(152, 104, 255, 0.14), transparent 40%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 20px; }
+    header {
+      display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 16px 20px; border-radius: 14px; background: var(--panel);
+      border: 1px solid var(--border); backdrop-filter: blur(12px); margin-bottom: 16px;
+    }
+    h1 { margin: 0; font-size: 1.25rem; color: var(--cyan); letter-spacing: 0.03em; }
+    .sub { color: var(--muted); font-size: 0.83rem; margin-top: 2px; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; backdrop-filter: blur(10px); }
+    .kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+    .kpi-val { font-size: 1.55rem; font-weight: 700; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    h2 { margin: 0 0 12px; font-size: 0.92rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.05em; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    input, select {
+      background: rgba(5, 11, 22, 0.85); color: var(--text); border: 1px solid rgba(140, 166, 197, 0.3);
+      border-radius: 8px; padding: 8px 10px; font-size: 0.86rem;
+    }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #050B16; border: none;
+      border-radius: 8px; padding: 8px 13px; font-weight: 700; font-size: 0.8rem; cursor: pointer;
+    }
+    button.sec { background: rgba(33, 139, 255, 0.18); color: var(--text); border: 1px solid var(--border); }
+    button.ok { background: rgba(37, 230, 162, 0.18); color: var(--green); border: 1px solid rgba(37, 230, 162, 0.4); }
+    button.danger { background: rgba(255, 92, 119, 0.18); color: var(--danger); border: 1px solid rgba(255, 92, 119, 0.4); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid rgba(140, 166, 197, 0.14); }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+    .badge { padding: 2px 8px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+    .h-healthy { background: rgba(37, 230, 162, 0.18); color: var(--green); }
+    .h-degraded, .h-not_configured, .h-not_verified { background: rgba(152, 104, 255, 0.2); color: var(--purple); }
+    .h-unavailable, .h-rejected { background: rgba(255, 92, 119, 0.2); color: var(--danger); }
+    .h-disabled { background: rgba(140, 166, 197, 0.18); color: var(--muted); }
+    pre {
+      background: rgba(5, 11, 22, 0.8); border: 1px solid rgba(0, 217, 255, 0.15); border-radius: 8px;
+      padding: 10px; font-size: 0.76rem; overflow: auto; max-height: 230px; color: #C8E1FF;
+    }
+    .err { color: var(--danger); font-size: 0.82rem; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>JARVIS MODULE 42 — UNIFIED EXTENSION MANAGER & SDK</h1>
+        <div class="sub">Safe Archive Scanner (Zero Execution) · ARM64 Compatibility Engine · Dry-Run Planner · Shared Event Bus</div>
+      </div>
+      <div class="row">
+        <button class="sec" onclick="generatePlan()">Dry-Run Install Plan</button>
+        <button class="sec" onclick="refreshAll()">Refresh</button>
+      </div>
+    </header>
+
+    <section class="kpis">
+      <div class="card"><div class="kpi-label">Registered Modules</div><div class="kpi-val" id="k-total">0</div></div>
+      <div class="card"><div class="kpi-label">Enabled Modules</div><div class="kpi-val" style="color:var(--green)" id="k-enabled">0</div></div>
+      <div class="card"><div class="kpi-label">Cross-Module Conflicts</div><div class="kpi-val" style="color:var(--warn)" id="k-conflicts">0</div></div>
+      <div class="card"><div class="kpi-label">Pending Approvals</div><div class="kpi-val" style="color:var(--purple)" id="k-approvals">0</div></div>
+    </section>
+
+    <div class="card" style="margin-bottom:16px">
+      <h2>Archive Folder Scanner (Safe Read-Only Inspection)</h2>
+      <div class="row">
+        <input id="scan-folder" style="flex:1;min-width:260px" value="/home/roshan/Downloads/module-jarvis" />
+        <select id="scan-arch">
+          <option value="arm64">Target: Linux ARM64 (Raspberry Pi 5)</option>
+          <option value="x86_64">Target: Linux/x86_64 (Ryzen Laptop)</option>
+        </select>
+        <button id="scan-btn" onclick="scanFolder()">Scan Archives</button>
+      </div>
+      <div id="scan-msg" class="err"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Module Registry</h2>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Module</th><th>Status</th><th>Health</th><th>Controls</th></tr></thead>
+            <tbody id="mod-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Compatibility / Install Plan Inspector</h2>
+        <pre id="inspector">Select a module or click "Dry-Run Install Plan" to inspect compatibility, permissions, conflicts, and rollback steps.</pre>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Approval Queue (Required Before Mutating Installs)</h2>
+        <div id="approvals-list"></div>
+      </div>
+      <div class="card">
+        <h2>Audit Logs & Event Bus History</h2>
+        <pre id="logs-box"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = "/api/v1/extensions";
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...opts });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || data?.detail?.message || "Request failed");
+      return data;
+    }
+
+    async function refreshAll() {
+      try {
+        const [st, mods, appr, logs] = await Promise.all([
+          apiFetch("/status"), apiFetch("/modules"), apiFetch("/approvals"), apiFetch("/logs?limit=25")
+        ]);
+        document.getElementById("k-total").textContent = st.total_modules;
+        document.getElementById("k-enabled").textContent = st.enabled_modules;
+        document.getElementById("k-conflicts").textContent = st.cross_module_conflicts;
+        document.getElementById("k-approvals").textContent = st.pending_approvals;
+
+        document.getElementById("mod-rows").innerHTML = (mods.modules || []).map(m => `
+          <tr>
+            <td><strong>${m.name}</strong><div style="color:var(--muted);font-size:0.72rem">${m.module_id} · v${m.version}</div></td>
+            <td><span class="badge h-${m.integration_status === 'rejected' ? 'rejected' : 'not_verified'}">${m.integration_status}</span></td>
+            <td><span class="badge h-${m.health_status}">${m.health_status}</span></td>
+            <td class="row">
+              <button class="sec" onclick="inspectModule('${m.module_id}')">Inspect</button>
+              <button class="${m.enabled ? 'danger' : 'ok'}" onclick="toggleMod('${m.module_id}', ${!m.enabled})">${m.enabled ? 'Disable' : 'Enable'}</button>
+              <button class="sec" onclick="probeHealth('${m.module_id}')">Probe</button>
+            </td>
+          </tr>
+        `).join("") || '<tr><td colspan="4" style="color:var(--muted)">No modules registered yet. Scan a ZIP folder to begin.</td></tr>';
+
+        document.getElementById("approvals-list").innerHTML = (appr.approvals || []).map(a => `
+          <div style="padding:8px 0;border-bottom:1px solid rgba(140,166,197,0.14)">
+            <strong>${a.module_id}</strong> · ${a.action} (${a.status})
+            <div style="color:var(--muted);font-size:0.78rem">${a.summary}</div>
+            ${a.status === 'pending' ? `<div class="row" style="margin-top:6px"><button class="ok" onclick="decide('${a.request_id}','approve')">Approve</button><button class="danger" onclick="decide('${a.request_id}','reject')">Reject</button></div>` : ''}
+          </div>
+        `).join("") || '<div style="color:var(--muted);font-size:0.82rem">No approval requests pending.</div>';
+
+        document.getElementById("logs-box").textContent = (logs.logs || []).map(l => `[${l.event_type}] ${l.message}`).join("\n") || "No logs yet.";
+      } catch (e) {
+        document.getElementById("scan-msg").textContent = e.message;
+      }
+    }
+
+    async function scanFolder() {
+      const msg = document.getElementById("scan-msg");
+      msg.textContent = "";
+      try {
+        const res = await apiFetch("/scan", {
+          method: "POST",
+          body: JSON.stringify({
+            folder_path: document.getElementById("scan-folder").value,
+            register_discovered: true,
+            target_arch: document.getElementById("scan-arch").value
+          })
+        });
+        document.getElementById("inspector").textContent = JSON.stringify(res, null, 2);
+        await refreshAll();
+      } catch (e) {
+        msg.textContent = e.message;
+      }
+    }
+
+    async function inspectModule(id) {
+      const mod = await apiFetch(`/modules/${id}`);
+      document.getElementById("inspector").textContent = JSON.stringify(mod, null, 2);
+    }
+
+    async function toggleMod(id, enabled) {
+      await apiFetch(`/modules/${id}/toggle`, { method: "POST", body: JSON.stringify({ enabled }) });
+      await refreshAll();
+    }
+
+    async function probeHealth(id) {
+      const res = await apiFetch(`/modules/${id}/health-check`, { method: "POST" });
+      document.getElementById("inspector").textContent = JSON.stringify(res, null, 2);
+      await refreshAll();
+    }
+
+    async function generatePlan() {
+      const plan = await apiFetch("/plan", { method: "POST", body: JSON.stringify({ module_ids: [] }) });
+      document.getElementById("inspector").textContent = JSON.stringify(plan, null, 2);
+    }
+
+    async function decide(id, decision) {
+      await apiFetch(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, reviewer: "hud-operator" }) });
+      await refreshAll();
+    }
+
+    refreshAll();
+  </script>
+</body>
+</html>

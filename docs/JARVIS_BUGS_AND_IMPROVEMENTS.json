@@ -1,0 +1,356 @@
+[
+  {
+    "id": "UX-001",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Shell",
+    "selector": "nav[role=tablist]",
+    "source_files": [
+      "apps/dashboard/static/index.html:3784"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Sidebar keyboard handler supports Left and Right but omits Up and Down for vertical navigation.",
+    "detailed_description": "Sidebar keyboard handler supports Left and Right but omits Up and Down for vertical navigation.",
+    "repro_steps": [
+      "Focus a sidebar tab",
+      "Press ArrowDown"
+    ],
+    "expected_behavior": "Focus and selection advance one row.",
+    "recommended_fix": "Support vertical arrow keys and expose the orientation.",
+    "verification_test": "Focus Dashboard, press ArrowDown, expect Apps to be focused and selected.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright test and source inspection",
+    "implementation_note": "Focused Dashboard (#nav-home), pressed ArrowDown and ArrowUp; confirmed focus, aria-selected='true', and panel visibility advance cleanly across both 1440x900 and 1280x720 in the live running server.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux001_keyboard_nav_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux001_keyboard_nav_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "UX-002",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#tab-apps",
+    "source_files": [
+      "apps/dashboard/static/index.html:4006"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "When the notification service is unavailable, launch denial uses a blocking native dialog in the launch handler.",
+    "detailed_description": "When the notification service is unavailable, launch denial uses a blocking native dialog in the launch handler.",
+    "repro_steps": [
+      "Exercise an adapter denial using a test fixture."
+    ],
+    "expected_behavior": "Denial reason stays in app context.",
+    "recommended_fix": "Render a persistent inline error and restore focus to Launch.",
+    "verification_test": "Assert zero dialog events and an accessible denial reason.",
+    "status": "verified_offline",
+    "evidence_type": "live Playwright test and source inspection",
+    "implementation_note": "At 1440×900 and 1280×720, missing notification service plus MOCK 403 produced persistent inline denial, restored focus to Open, and zero native dialogs. No real app launch or role change.",
+    "verification_scope": "isolated_browser_mock_403",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-audit-result.json",
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-denial-1440.png",
+      "docs/jarvis-ui/evidence/phase-6/corrective/launch-denial-review/jarvis-launch-denial-1280.png"
+    ],
+    "verified_revision": "266c316"
+  },
+  {
+    "id": "UX-003",
+    "category": "ui_ux",
+    "severity": "P3-Polish",
+    "page": "Settings",
+    "selector": "#tab-settings",
+    "source_files": [
+      "apps/dashboard/static/index.html:6231"
+    ],
+    "screenshot": "docs/audit-screenshots/settings-1280.png",
+    "summary": "Saving settings uses a blocking native alert for success.",
+    "detailed_description": "Saving settings uses a blocking native alert for success.",
+    "repro_steps": [
+      "In an isolated test profile save a reversible preference."
+    ],
+    "expected_behavior": "Save confirmation permits continued keyboard interaction.",
+    "recommended_fix": "Use the shared status notification.",
+    "verification_test": "Wait for success status and assert no native dialog.",
+    "status": "verified_offline",
+    "evidence_type": "playwright test and source inspection",
+    "implementation_note": "Settings save writes success and failure to #settings-save-status. Verified reversible setting toggle and save confirmation with zero native alerts across 1440x900 and 1280x720. Kept isolated offline to prevent live production settings mutation.",
+    "verification_scope": "offline_only",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step3-offline-ui-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/ux003_settings_inline_status_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/ux003_settings_inline_status_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "UX-004",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Global shell",
+    "selector": "#sidebar-operator-card",
+    "source_files": [
+      "apps/dashboard/static/index.html:1010"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Sidebar account shortcut is a clickable div without native keyboard activation.",
+    "detailed_description": "Sidebar account shortcut is a clickable div without native keyboard activation.",
+    "repro_steps": [
+      "Navigate the dashboard shortcuts with Tab",
+      "Try activating the sidebar operator card using Enter."
+    ],
+    "expected_behavior": "Keyboard users can open the same profile shortcut.",
+    "recommended_fix": "Use a button with a visible focus indicator.",
+    "verification_test": "Locate the shortcut by button role, focus, press Enter and assert profile is visible.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright test and source inspection",
+    "implementation_note": "Operator shortcut is a native button. Verified keyboard focus and Enter key activation rendering #tab-account active across 1440x900 and 1280x720 on live server.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step3-offline-ui-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux004_live_sidebar_operator_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux004_live_sidebar_operator_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "BUG-001",
+    "category": "security",
+    "severity": "P1-High",
+    "page": "Account",
+    "selector": "#account-role-badge",
+    "source_files": [
+      "apps/dashboard/static/index.html:3299"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "Account markup announces ADMIN before the identity service confirms the role. This is a misleading display, with no evidence of a backend privilege grant.",
+    "detailed_description": "Account markup announces ADMIN before the identity service confirms the role. This is a misleading display, with no evidence of a backend privilege grant.",
+    "repro_steps": [
+      "Inspect initial account HTML before profile hydration."
+    ],
+    "expected_behavior": "Unknown role displays Pending or Unavailable.",
+    "recommended_fix": "Render a neutral initial badge and enable privileged controls only after confirmation.",
+    "verification_test": "Delay the identity response and verify no ADMIN badge appears for an unverified operator.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright test and source inspection",
+    "implementation_note": "Removed initial and fallback ADMIN role labels. Verified live guest session displays neutral/guest badge (never ADMIN prematurely), and verified delayed hydration offline across 1440x900 and 1280x720.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step3-offline-ui-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug001_live_guest_role_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug001_live_guest_role_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "UX-005",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#apps-category-pills",
+    "source_files": [
+      "apps/dashboard/static/index.html:2215"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "Category filters use clickable divs without keyboard semantics.",
+    "detailed_description": "Category filters use clickable divs without keyboard semantics.",
+    "repro_steps": [
+      "Tab through the catalog filters and try selecting a category."
+    ],
+    "expected_behavior": "Every category is keyboard operable.",
+    "recommended_fix": "Use buttons with aria-pressed.",
+    "verification_test": "Focus a category by role, press Space and check filtered results.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright test and source inspection",
+    "implementation_note": "Focused AI Agents category button by role, pressed Space; confirmed aria-pressed='true' and verified live catalog filters from 45 cards to 6 AI Agents cards, and resets to 45 cards across 1440x900 and 1280x720.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux005_apps_category_filtered_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux005_apps_category_filtered_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "BUG-002",
+    "category": "bug",
+    "severity": "P1-High",
+    "page": "Shell",
+    "selector": "nav [data-tab]",
+    "source_files": [
+      "apps/dashboard/static/index.html:3736"
+    ],
+    "screenshot": "docs/audit-screenshots/home-1280.png",
+    "summary": "YouTube, Documents, Research and Account failed to display during both viewport passes. Cause under investigation.",
+    "detailed_description": "The live DOM placed YouTube, Documents and Research inside hidden #tab-developer. The initial live document lacked #tab-account. The later source checkout includes Account. Recheck after pinning the served revision.",
+    "repro_steps": [
+      "Click the named sidebar button and wait for the matching panel."
+    ],
+    "expected_behavior": "Selected panel becomes visible and usable.",
+    "recommended_fix": "Inspect panel ancestry and the selected state alongside service health.",
+    "verification_test": "For every nav button click and expect the matching panel to be visible.",
+    "status": "verified_live",
+    "evidence_type": "live DOM and navigation",
+    "implementation_note": "All 23 navigation destinations clicked and verified active/visible with zero panel overflow and zero DOM nesting traps on the live server. Explicitly verified YouTube, Documents, Research, and Account.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_youtube_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_youtube_1280.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_documents_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_documents_1280.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_research_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_research_1280.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_account_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_account_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "UX-006",
+    "category": "ui_ux",
+    "severity": "P2-Medium",
+    "page": "Apps",
+    "selector": "#apps-status-select",
+    "source_files": [
+      "apps/dashboard/static/index.html:2204"
+    ],
+    "screenshot": "docs/audit-screenshots/apps-1280.png",
+    "summary": "Catalog counts in static filter labels disagree with the live grid of 45 Details buttons, including 20 under Available.",
+    "detailed_description": "Catalog counts in static filter labels disagree with the live grid of 45 Details buttons, including 20 under Available.",
+    "repro_steps": [
+      "Count visible Details buttons with All and Available selected."
+    ],
+    "expected_behavior": "Filter counts match the current catalog.",
+    "recommended_fix": "Derive counts and search placeholder from manifest data.",
+    "verification_test": "Assert filter count equals matching grid card count.",
+    "status": "verified_live",
+    "evidence_type": "live catalog and inspected source",
+    "implementation_note": "Filter dropdown labels All Statuses (45), Available Only (45), Roadmap / Planned (0), In Development (0) and hero stats 45/45/0 exact match the 45 live rendered cards on the live running server across both viewports.",
+    "verification_scope": "live_and_offline",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/step4-live-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux006_apps_status_counts_1440.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step4-live/ux006_apps_status_counts_1280.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "AI-001",
+    "category": "ai_quality",
+    "severity": "P1-High",
+    "page": "Chat",
+    "selector": "#chat-model-select",
+    "source_files": [
+      "apps/dashboard/static/index.html:4369",
+      "apps/api/chat_api.py:123"
+    ],
+    "screenshot": null,
+    "summary": "Local Ollama conversation route returns provider errors after more than 20 seconds.",
+    "detailed_description": "Selected ollama:moondream:latest. Two memory prompts ended with explicit provider errors at 22.065 s and 23.130 s. Code generation still pending at 25 s. Model uptime and hardware cause unknown.",
+    "repro_steps": [
+      "Select the local Moondream model in Conversation mode.",
+      "Send Remember the audit word violet. Reply with only the word.",
+      "Ask What was the audit word?"
+    ],
+    "expected_behavior": "A capable available model answers or an unavailable route is identified promptly.",
+    "recommended_fix": "Verify model readiness and task suitability, expose timeout and cancellation state, and offer an explicitly chosen alternative.",
+    "verification_test": "Test a warm available route and an unavailable fixture. Check reply content and terminal UI state separately, and record first-token and completion latency.",
+    "status": "verified_live",
+    "evidence_type": "live browser",
+    "implementation_note": "Verified offline and live against warm local llama3.2:1b (1.3 GB) on port 8000 across 1440x900 and 1280x720. Focused provider unit tests: 3/3 passed. Offline suite confirmed: draft preservation on unavailable model in conversation mode (0 stream requests), model refresh control re-querying providers, rejected model switch surfacing inline error, and cancellation unlocking inputs with status 'Stopped'. Live benchmark confirmed two-turn memory recall ('violet' recalled accurately, TTFT 4.3-5.5s, completion 7.0-7.6s) and code generation ('def is_even(n)', TTFT 4.2-5.1s, completion 20.3-21.3s) with 100% CPU inference on Pi 5 and zero paid cloud calls.",
+    "verification_scope": "browser_live",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/step5-ai-001-verification.json",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_draft_preserved.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_rejected_switch.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_offline_cancelled.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1440x900.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1440x900.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1440x900.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn1_seed_1280x720.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn2_recall_1280x720.png",
+      "docs/jarvis-ui/evidence/audit-remediation/step5-ai-001/ai001_live_turn3_code_gen_1280x720.png"
+    ],
+    "verified_revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d"
+  },
+  {
+    "id": "BUG-003",
+    "category": "integration",
+    "severity": "P1-High",
+    "page": "Apps",
+    "selector": "#apps-grid",
+    "source_files": [
+      "apps/apps_center/extension_catalog.py"
+    ],
+    "screenshot": null,
+    "summary": "Mounted extension APIs are incorrectly marked unavailable when FastAPI retains nested included routers.",
+    "detailed_description": "After the authorized core restart, the live catalog returned 45 apps with 25 extension entries in_development; the suite registered 42 modules and all 25 extension UI/health route pairs returned HTTP 200. The catalog inspected only top-level route metadata.",
+    "repro_steps": [
+      "Load the restarted backend catalog.",
+      "Compare extension states with registered UI and health routes."
+    ],
+    "expected_behavior": "Registered enabled module interfaces can be opened; absent or disabled interfaces remain unavailable. Interface availability does not imply provider or hardware readiness.",
+    "recommended_fix": "Resolve prefixed included-router metadata without executing handlers or importing module engines.",
+    "verification_test": "Test nested router prefixes and catch-all exclusion; after authorized deployment confirm registered extension cards can open while missing/disabled entries remain blocked.",
+    "status": "verified_live",
+    "evidence_type": "live catalog and route verification",
+    "implementation_note": "After operator restart: 45 catalog entries, all 25 extensions available; all 25 interface GETs returned HTTP 200. This verifies route discovery and reachability, not module action/provider/hardware readiness.",
+    "verification_scope": "live_catalog_and_interface_reachability",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/phase-6/corrective/handoff-review.txt",
+      "docs/jarvis-ui/evidence/audit-remediation/bug-003-live-verification.json",
+      "docs/jarvis-ui/evidence/phase-6/corrective/catalog-restart-verification.json"
+    ],
+    "verified_revision": "c25be13"
+  },
+  {
+    "id": "UX-007",
+    "category": "ui_ux",
+    "severity": "P1-High",
+    "page": "Shell / Cross-Tab",
+    "selector": "#tab-chat, #tab-voice, #tab-apps, #tab-memory, #tab-logs, #tab-system, #tab-developer",
+    "source_files": [
+      "apps/dashboard/static/index.html",
+      "tools/developer/cli_bridge.py",
+      "apps/api/hybrid_developer_api.py"
+    ],
+    "screenshot": "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1440x900.png",
+    "summary": "Pillars 1–4 ergonomics, voice preemption, multi-task loop, and developer hub repairs across 1440x900 and 1280x720 viewports.",
+    "detailed_description": "Remediated major Codex audit flaws: eliminated 2,117px Voice tab scroll wall by grouping active hardware controls above the fold and collapsing persona/daemon panels; pinned Chat composer to viewport bottom with collapsible background tasks; added sticky filters, roadmap warning notices, and persistent favorites to Apps; added non-blocking accessible modals and pagination to Memory; added severity filters and stream pause to Logs; added summary cards to System; injected FreeLLMAPI credentials in-memory with zero disk leakage, filtered leaked CLI metadata, and added 60s CLI discovery cache.",
+    "repro_steps": [
+      "Load dashboard at 1440x900 and 1280x720 viewports.",
+      "Check Chat composer position while scrolling messages.",
+      "Check Voice panel height and verify controls are above fold.",
+      "Verify Apps favorites persistence and category filter navigation.",
+      "Verify FreeLLMAPI gateway status, model count, and CLI cards without leaked metadata."
+    ],
+    "expected_behavior": "Compact vertical layout, pinned composer, sticky controls, accessible modals, truthful telemetry, and fast response times across viewports without E-STOP compromise.",
+    "recommended_fix": "Implement responsive layout restructuring, collapsible details drawers, in-memory credential injection, and in-memory CLI discovery cache.",
+    "verification_test": "tests/browser/test_jarvis_functional_e2e.py testing all 5 functional suites and 22 tabs with DOM and API assertions.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright E2E verification across 1440x900 and 1280x720 viewports",
+    "implementation_note": "Verified live against running jarvis-backend on port 8000 and jarvis-voice on PipeWire: Test 1 (Chat dialogue & PC processes), Test 2 (Apps UX & Favorites), Test 3 (Developer Hub & FreeLLMAPI Gateway), Test 4 (Voice ergonomics & preemption, height ~600px), Test 5 (All 22 tabs API hydration & E-STOP check). Overall Passed: True.",
+    "verification_scope": "live_browser_playwright",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/functional-e2e/report.json",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1280x720.png"
+    ],
+    "verified_revision": "HEAD"
+  }
+]

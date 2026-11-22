@@ -1,0 +1,49 @@
+{
+  "suite": "Step 4 \u2014 Live Deployment & Populated-Catalog Verification",
+  "live_url": "http://127.0.0.1:8000",
+  "git": {
+    "revision": "813c1111833eea1c54a5e4265eb21a5e1cac212a",
+    "is_dirty": true,
+    "diff_stat": ".claude/helpers/.helpers-version                   |   2 +-\n .claude/helpers/helpers.manifest.json              |   4 ++--\n .claude/helpers/memory.cjs                         |   0\n .claude/helpers/session.cjs                        |   0\n .claude/helpers/statusline.cjs                     |   4 ++--\n .../screenshots/baseline_desktop_1920x1080.png     | Bin 953586 -> 1008725 bytes\n .../screenshots/baseline_laptop_1366x768.png       | Bin 588817 -> 628848 bytes\n .../screenshots/baseline_mobile_375x667.png        | Bin 146492 -> 185579 bytes\n .../screenshots/baseline_tablet_768x1024.png       | Bin 463472 -> 511208 bytes\n docs/jarvis-ui/evidence/phase-1/smoke_report.json  |  16 +++++-----------\n .../evidence/phase-6/bargein_latency.json          |   6 +++---\n .../screenshots/01_voice_destination_baseline.png  | Bin 284327 -> 283622 bytes\n .../phase-6/screenshots/02_voice_muted_state.png   | Bin 261399 -> 261621 bytes\n .../screenshots/03_voice_speaking_subtitles.png    | Bin 275864 -> 278608 bytes\n .../screenshots/04_voice_bargein_cancelled.png     | Bin 259018 -> 258815 bytes\n .../screenshots/05_voice_permission_denied.png     | Bin 264193 -> 264090 bytes\n .../phase-6/screenshots/06_voice_offline_state.png | Bin 263079 -> 262872 bytes\n .../screenshots/07_voice_mobile_viewport.png       | Bin 85109 -> 85047 bytes\n 18 files changed, 13 insertions(+), 19 deletions(-)"
+  },
+  "viewports": {
+    "1440x900": "PASSED",
+    "1280x720": "PASSED"
+  },
+  "issues_verified": {
+    "UX-005": true,
+    "UX-006": true,
+    "BUG-002": true,
+    "UX-001": true,
+    "BUG-001": true,
+    "UX-002": true,
+    "UX-004": true
+  },
+  "safety_checks": {
+    "estop_visible_and_enabled": true,
+    "estop_never_clicked": true,
+    "zero_native_alerts": true
+  },
+  "screenshots": [
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux001_keyboard_nav_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_youtube_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_documents_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_research_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_account_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux005_apps_category_filtered_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux006_apps_status_counts_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug001_live_guest_role_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux002_live_launch_denial_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux004_live_sidebar_operator_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux001_keyboard_nav_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_youtube_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_documents_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_research_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug002_tab_account_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux005_apps_category_filtered_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux006_apps_status_counts_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/bug001_live_guest_role_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux002_live_launch_denial_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/step4-live/ux004_live_sidebar_operator_1280.png"
+  ]
+}

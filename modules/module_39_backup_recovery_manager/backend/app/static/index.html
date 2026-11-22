@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Backup &amp; Recovery Manager (Module 39)</title>
+  <style>
+    :root {
+      --bg: #050B16; --panel: #101E30; --cyan: #00D9FF;
+      --blue: #218BFF; --purple: #9868FF; --green: #25E6A2; --text: #F0F8FF; --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: "Inter", system-ui, sans-serif;
+      background: radial-gradient(circle at top right, #0D223D, var(--bg) 60%);
+      color: var(--text); min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 28px; border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+      background: rgba(5, 11, 22, 0.85);
+    }
+    .brand { font-size: 1.15rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.04em; }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.78rem;
+      border: 1px solid rgba(37, 230, 162, 0.5); color: var(--green);
+      background: rgba(37, 230, 162, 0.1);
+    }
+    main { max-width: 1180px; margin: 24px auto; padding: 0 20px 40px; display: grid; gap: 20px; }
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .kpi { background: #0A182B; padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.16); }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); }
+    .kpi .val { font-size: 1.3rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+    .card {
+      background: rgba(16, 30, 48, 0.9); border: 1px solid rgba(0, 217, 255, 0.22);
+      border-radius: 14px; padding: 18px;
+    }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: var(--cyan); }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04101E;
+      border: none; border-radius: 8px; padding: 9px 14px; font-weight: 700; cursor: pointer;
+    }
+    button.secondary {
+      background: rgba(152, 104, 255, 0.2); color: var(--text);
+      border: 1px solid rgba(152, 104, 255, 0.5);
+    }
+    .snap-list { display: grid; gap: 10px; }
+    .snap-item {
+      background: #081424; border: 1px solid rgba(33, 139, 255, 0.3);
+      border-radius: 10px; padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    }
+    pre {
+      background: #071222; border: 1px solid rgba(0, 217, 255, 0.16);
+      border-radius: 8px; padding: 12px; font-size: 0.82rem; overflow-x: auto; color: #CFE9FF; max-height: 220px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">JARVIS OS // MODULE 39 — BACKUP &amp; RECOVERY MANAGER</div>
+    <span id="ws-badge" class="badge">LOCAL SNAPSHOTS | WS: CONNECTING</span>
+  </header>
+  <main>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Snapshots Stored</div><div id="kpi-snaps" class="val">0</div></div>
+      <div class="kpi"><div class="label">Restores Completed</div><div id="kpi-rest" class="val">0</div></div>
+      <div class="kpi"><div class="label">Archive Bytes</div><div id="kpi-bytes" class="val">0</div></div>
+    </div>
+
+    <section class="card">
+      <h2>Sandboxed Snapshot Vault</h2>
+      <div class="controls">
+        <button id="btn-snap">Create Workspace Snapshot</button>
+        <button id="btn-refresh" class="secondary">Refresh Vault</button>
+      </div>
+      <div id="snap-list" class="snap-list"></div>
+    </section>
+
+    <section class="card">
+      <h2>Integrity &amp; Restore Telemetry</h2>
+      <pre id="out-box">Create a snapshot to archive sandboxed workspace files with SHA-256 verification.</pre>
+    </section>
+  </main>
+
+  <script>
+    const out = document.getElementById("out-box");
+
+    async function refresh() {
+      const [sRes, lRes] = await Promise.all([fetch("/api/v1/backups/status"), fetch("/api/v1/backups/snapshots")]);
+      const st = await sRes.json();
+      document.getElementById("kpi-snaps").textContent = st.snapshots_count;
+      document.getElementById("kpi-rest").textContent = st.restores_count;
+      document.getElementById("kpi-bytes").textContent = st.total_archive_bytes;
+
+      const list = document.getElementById("snap-list");
+      list.innerHTML = "";
+      const data = await lRes.json();
+      (data.snapshots || []).forEach((s) => {
+        const div = document.createElement("div");
+        div.className = "snap-item";
+        div.innerHTML = `<div><strong>${s.name}</strong> (<code>${s.snapshot_id}</code>)<br/><small style="color:#8FA8C8">Files: ${s.file_count} | Bytes: ${s.byte_size} | SHA256: ${s.sha256.slice(0, 12)}...</small></div>`;
+        const actions = document.createElement("div");
+        actions.style.display = "flex";
+        actions.style.gap = "8px";
+
+        const btnV = document.createElement("button");
+        btnV.className = "secondary";
+        btnV.textContent = "Verify";
+        btnV.onclick = async () => {
+          const r = await fetch(`/api/v1/backups/snapshots/${s.snapshot_id}/verify`, { method: "POST" });
+          out.textContent = JSON.stringify(await r.json(), null, 2);
+        };
+
+        const btnR = document.createElement("button");
+        btnR.textContent = "Restore";
+        btnR.onclick = async () => {
+          const r = await fetch(`/api/v1/backups/snapshots/${s.snapshot_id}/restore`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ target_rel_path: `restored_${s.snapshot_id}` })
+          });
+          out.textContent = JSON.stringify(await r.json(), null, 2);
+          refresh();
+        };
+
+        actions.appendChild(btnV);
+        actions.appendChild(btnR);
+        div.appendChild(actions);
+        list.appendChild(div);
+      });
+    }
+
+    document.getElementById("btn-snap").onclick = async () => {
+      const r = await fetch("/api/v1/backups/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Workspace Snapshot", source_rel_path: ".", notes: "Triggered from HUD" })
+      });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+      refresh();
+    };
+
+    document.getElementById("btn-refresh").onclick = refresh;
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/api/v1/backups/ws/snapshots`);
+    ws.onopen = () => { document.getElementById("ws-badge").textContent = "LOCAL SNAPSHOTS | WS: LIVE"; };
+    ws.onclose = () => { document.getElementById("ws-badge").textContent = "LOCAL SNAPSHOTS | WS: CLOSED"; };
+    refresh();
+  </script>
+</body>
+</html>

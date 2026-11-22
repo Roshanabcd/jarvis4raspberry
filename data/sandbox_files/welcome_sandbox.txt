@@ -1,0 +1,2 @@
+JARVIS OS Module 19 — Sandboxed File Workspace
+Safe local file interaction boundary.

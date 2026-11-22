@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const active = new Set(['accepted', 'running']);
-  const labels = {accepted:'Accepted — waiting to start', running:'Working…', succeeded:'Completed', failed:'Failed', cancelled:'Cancelled', interrupted:'Interrupted by restart — not replayed'};
+  const labels = {accepted:'Accepted — waiting to start', running:'Working…', succeeded:'Reply ready — review result', failed:'Failed', cancelled:'Cancelled', interrupted:'Interrupted by restart — not replayed'};
 
   function mount(doc, options = {}) {
     const form = doc.getElementById('background-task-form');
@@ -16,7 +16,7 @@
     let pending = null, timer = null, loading = false, sending = false, disposed = false;
 
     async function api(path, init) {
-      const response = await request('/api/task-jobs' + path, {...init, signal: root.AbortSignal.timeout(10000)});
+      const response = await request('/api/task-jobs' + path, {...init, headers:{'X-Jarvis-Client':'dashboard', ...init?.headers}, signal: root.AbortSignal.timeout(10000)});
       if (!response.ok) throw new Error(String(response.status));
       return response.json();
     }
@@ -37,12 +37,47 @@
         }
         if (job.status === 'failed') {
           const note = doc.createElement('p');
-          note.textContent = 'This task did not finish successfully. Review the result before trying again.';
+          note.textContent = job.error_detail || job.error_reason || 'This task did not finish successfully. Review the result before trying again.';
           row.appendChild(note);
+
+          const actions = doc.createElement('div');
+          actions.style.cssText = 'display:flex;gap:6px;margin-top:6px';
+          const retryBtn = doc.createElement('button');
+          retryBtn.type = 'button'; retryBtn.className = 'btn dark'; retryBtn.textContent = 'Retry task';
+          retryBtn.addEventListener('click', async () => {
+            retryBtn.disabled = true;
+            try {
+              await api('/' + encodeURIComponent(job.job_id) + '/retry', {method:'POST'});
+              feedback.textContent = 'Task retry requested.';
+              await refresh();
+            } catch (_) {
+              feedback.textContent = 'Retry could not be confirmed.';
+              retryBtn.disabled = false;
+            }
+          });
+          const dismissBtn = doc.createElement('button');
+          dismissBtn.type = 'button'; dismissBtn.className = 'btn dark'; dismissBtn.textContent = 'Dismiss task';
+          dismissBtn.addEventListener('click', async () => {
+            dismissBtn.disabled = true;
+            try {
+              await api('/' + encodeURIComponent(job.job_id), {method:'DELETE'});
+              feedback.textContent = 'Task dismissed.';
+              await refresh();
+            } catch (_) {
+              feedback.textContent = 'Dismissal could not be confirmed.';
+              dismissBtn.disabled = false;
+            }
+          });
+          actions.appendChild(retryBtn);
+          actions.appendChild(dismissBtn);
+          row.appendChild(actions);
         }
         if (job.result_available && typeof job.response === 'string') {
           const reply = doc.createElement('p');
           reply.style.whiteSpace = 'pre-wrap';
+          if (job.status === 'failed') {
+            reply.style.cssText = 'white-space:pre-wrap;background:rgba(255,75,75,0.08);padding:8px 10px;border-radius:4px;border-left:3px solid #ff5555;margin-top:6px;font-family:monospace;font-size:0.9em;';
+          }
           reply.textContent = job.response;
           row.appendChild(reply);
         } else if (job.status === 'succeeded') {

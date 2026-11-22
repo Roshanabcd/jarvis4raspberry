@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 19: Autonomous Computer Assistant</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: rgba(16, 30, 48, 0.8);
+      --border: rgba(0, 217, 255, 0.24);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #F5B041;
+      --red: #FF4D6D;
+      --text: #F0F8FF;
+      --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at 12% 10%, rgba(0,217,255,0.11), transparent 38%),
+                  radial-gradient(circle at 86% 10%, rgba(152,104,255,0.12), transparent 35%),
+                  var(--bg);
+      color: var(--text); min-height: 100vh;
+    }
+    .wrap { max-width: 1440px; margin: 0 auto; padding: 20px; }
+    .glass {
+      background: var(--panel); backdrop-filter: blur(14px);
+      border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+    }
+    header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; padding: 18px 22px; margin-bottom: 16px; }
+    h1 { font-size: 1.2rem; letter-spacing: 0.04em; }
+    .sub { font-size: 0.8rem; color: var(--muted); }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .badge {
+      padding: 5px 11px; border-radius: 999px; font-size: 0.74rem; font-weight: 700;
+      border: 1px solid var(--border); background: rgba(0,217,255,0.1); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(152,104,255,0.5); background: rgba(152,104,255,0.16); color: #D4C0FF; }
+    .badge.ok { border-color: rgba(37,230,162,0.45); background: rgba(37,230,162,0.15); color: var(--green); }
+    .badge.warn { border-color: rgba(245,176,65,0.5); background: rgba(245,176,65,0.16); color: var(--amber); }
+    .badge.err { border-color: rgba(255,77,109,0.6); background: rgba(255,77,109,0.2); color: #FFB3C1; }
+    button {
+      cursor: pointer; border-radius: 9px; border: 1px solid var(--border);
+      background: rgba(33,139,255,0.18); color: var(--text); font-weight: 600;
+      padding: 8px 13px; font-size: 0.8rem; transition: 0.16s ease;
+    }
+    button:hover { border-color: var(--cyan); background: rgba(0,217,255,0.24); }
+    button.primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #04101f; border: none; }
+    button.estop { background: linear-gradient(135deg, #FF4D6D, #C9184A); color: #fff; border: none; font-weight: 800; letter-spacing: 0.04em; }
+    button.ok { background: rgba(37,230,162,0.18); border-color: rgba(37,230,162,0.5); color: var(--green); }
+    button.sm { padding: 4px 9px; font-size: 0.74rem; }
+    .grid-2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid-2 { grid-template-columns: 1fr; } }
+    .panel { padding: 18px; margin-bottom: 16px; }
+    .ptitle { font-size: 0.94rem; font-weight: 700; color: var(--cyan); margin-bottom: 12px; letter-spacing: 0.04em; }
+    .screen-box { border-radius: 10px; overflow: hidden; border: 1px solid rgba(0,217,255,0.25); background: #030710; min-height: 220px; display: flex; align-items: center; justify-content: center; }
+    .screen-box img { width: 100%; height: auto; display: block; }
+    input, select, textarea {
+      width: 100%; padding: 8px 10px; border-radius: 8px; font-size: 0.8rem;
+      background: rgba(5,11,22,0.88); color: var(--text); border: 1px solid rgba(0,217,255,0.25);
+    }
+    label { display: block; font-size: 0.74rem; color: var(--muted); margin-bottom: 4px; }
+    .frow { margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+    .err-banner { display: none; padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; background: rgba(255,77,109,0.18); border: 1px solid var(--red); font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="glass">
+      <div>
+        <h1>JARVIS OS · MODULE 19 — AUTONOMOUS COMPUTER ASSISTANT</h1>
+        <div class="sub">Permission-Controlled Automation · SafeDemoDesktopAdapter · E-STOP · Dry-Run · Action Replay</div>
+      </div>
+      <div class="row">
+        <span class="badge sim">SAFE DEMO ADAPTER (NO HOST OS CONTROL)</span>
+        <span id="dryBadge" class="badge">DRY-RUN: OFF</span>
+        <span id="estopBadge" class="badge ok">E-STOP: CLEAR</span>
+        <button id="dryBtn" onclick="toggleDryRun()">Toggle Dry-Run</button>
+        <button id="estopBtn" class="estop" onclick="toggleEstop()">EMERGENCY STOP</button>
+      </div>
+    </header>
+
+    <div id="errBanner" class="err-banner"></div>
+
+    <div class="grid-2">
+      <div>
+        <div class="glass panel">
+          <div class="row" style="justify-content:space-between;margin-bottom:10px;">
+            <div class="ptitle" style="margin:0;">PERMITTED DESKTOP VIEWPORT (SIMULATED)</div>
+            <button class="primary sm" onclick="captureShot()">Capture Screenshot</button>
+          </div>
+          <div id="screenBox" class="screen-box">
+            <span style="color:var(--muted);font-size:0.84rem;">Click "Capture Screenshot" to render the simulated desktop state.</span>
+          </div>
+        </div>
+
+        <div class="glass panel">
+          <div class="ptitle">ACTION HISTORY &amp; REPLAY</div>
+          <div style="overflow-x:auto;">
+            <table>
+              <thead><tr><th>Action</th><th>Risk</th><th>Status</th><th>Duration</th><th>Replay</th></tr></thead>
+              <tbody id="actBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="glass panel">
+          <div class="ptitle">DISPATCH CONTROLLED ACTION</div>
+          <form onsubmit="submitAction(event)">
+            <div class="frow">
+              <label>Action Type</label>
+              <select id="aType" onchange="updateParamHint()">
+                <option value="discover_apps">discover_apps (LOW)</option>
+                <option value="capture_screenshot">capture_screenshot (LOW)</option>
+                <option value="select_window">select_window (LOW)</option>
+                <option value="mouse_click">mouse_click (MEDIUM)</option>
+                <option value="keyboard_type">keyboard_type (MEDIUM)</option>
+                <option value="keyboard_hotkey">keyboard_hotkey (HIGH — Approval)</option>
+                <option value="launch_app">launch_app (HIGH — Approval)</option>
+                <option value="file_list">file_list (LOW — Sandboxed)</option>
+                <option value="file_read">file_read (LOW — Sandboxed)</option>
+                <option value="file_write">file_write (HIGH — Approval &amp; Sandboxed)</option>
+              </select>
+            </div>
+            <div class="frow">
+              <label>Parameters (JSON)</label>
+              <textarea id="aParams" rows="3">{}</textarea>
+            </div>
+            <button type="submit" class="primary" style="width:100%;">Execute / Queue Action</button>
+          </form>
+        </div>
+
+        <div class="glass panel">
+          <div class="ptitle">HUMAN APPROVAL REQUESTS</div>
+          <table>
+            <thead><tr><th>Action</th><th>Status</th><th>Decision</th></tr></thead>
+            <tbody id="aprBody"></tbody>
+          </table>
+        </div>
+
+        <div class="glass panel">
+          <div class="ptitle">VIRTUAL WINDOWS</div>
+          <div id="winList" class="row"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/computer-assistant';
+    let state = { estop_active: false, dry_run_mode: false };
+
+    const HINTS = {
+      discover_apps: '{}',
+      capture_screenshot: '{}',
+      select_window: '{"window_id": "win-02"}',
+      mouse_click: '{"x": 360, "y": 240, "button": "left", "clicks": 1}',
+      keyboard_type: '{"text": "echo JARVIS_OK"}',
+      keyboard_hotkey: '{"keys": ["ctrl", "s"]}',
+      launch_app: '{"app_id": "notes-pad"}',
+      file_list: '{}',
+      file_read: '{"path": "welcome_sandbox.txt"}',
+      file_write: '{"path": "notes/demo.txt", "content": "Hello from JARVIS Module 19"}',
+    };
+
+    function updateParamHint() {
+      document.getElementById('aParams').value = HINTS[document.getElementById('aType').value] || '{}';
+    }
+
+    function showErr(m) {
+      const e = document.getElementById('errBanner');
+      e.textContent = m; e.style.display = 'block';
+      setTimeout(() => e.style.display = 'none', 5000);
+    }
+
+    async function api(path, opts = {}) {
+      const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { const msg = d?.error?.message || d?.detail || `HTTP ${r.status}`; showErr(msg); throw new Error(msg); }
+      return d;
+    }
+
+    async function refresh() {
+      try {
+        const [st, acts, aprs, wins] = await Promise.all([api('/status'), api('/actions?limit=30'), api('/approvals'), api('/windows')]);
+        state = st;
+        const eb = document.getElementById('estopBadge');
+        eb.textContent = st.estop_active ? 'E-STOP: ENGAGED' : 'E-STOP: CLEAR';
+        eb.className = 'badge ' + (st.estop_active ? 'err' : 'ok');
+        document.getElementById('estopBtn').textContent = st.estop_active ? 'RESET E-STOP' : 'EMERGENCY STOP';
+        document.getElementById('dryBadge').textContent = 'DRY-RUN: ' + (st.dry_run_mode ? 'ON' : 'OFF');
+        document.getElementById('dryBadge').className = 'badge ' + (st.dry_run_mode ? 'warn' : '');
+
+        document.getElementById('actBody').innerHTML = acts.actions.length ? acts.actions.map(a => `
+          <tr>
+            <td><strong>${a.action_type}</strong><br><span style="color:var(--muted);font-size:0.72rem">${a.action_id}${a.dry_run ? ' · DRY-RUN' : ''}</span></td>
+            <td>${a.risk_level.toUpperCase()}</td>
+            <td><span class="badge ${a.status === 'executed' ? 'ok' : a.status === 'awaiting_approval' ? 'warn' : a.status === 'dry_run' ? '' : 'err'}">${a.status}</span></td>
+            <td>${a.duration_ms}ms</td>
+            <td><button class="sm" onclick="replay('${a.action_id}')">Dry Replay</button></td>
+          </tr>`).join('') : '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:18px;">No actions recorded yet.</td></tr>';
+
+        document.getElementById('aprBody').innerHTML = aprs.approvals.length ? aprs.approvals.map(ap => `
+          <tr>
+            <td><strong>${ap.action_type}</strong><br><span style="color:var(--muted);font-size:0.72rem">${ap.prompt.slice(0, 75)}</span></td>
+            <td><span class="badge ${ap.status === 'approved' ? 'ok' : ap.status === 'pending' ? 'warn' : 'err'}">${ap.status}</span></td>
+            <td>${ap.status === 'pending' ? `<button class="sm ok" onclick="decide('${ap.approval_id}', true)">Approve</button> <button class="sm" onclick="decide('${ap.approval_id}', false)">Reject</button>` : (ap.decided_by || '')}</td>
+          </tr>`).join('') : '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px;">No pending approvals.</td></tr>';
+
+        document.getElementById('winList').innerHTML = wins.windows.map(w => `
+          <button class="sm ${w.focused ? 'ok' : ''}" onclick="focusWin('${w.window_id}')">${w.title}</button>`).join('');
+      } catch (_) {}
+    }
+
+    async function captureShot() {
+      const act = await api('/actions', { method: 'POST', body: JSON.stringify({ action_type: 'capture_screenshot', params: {} }) });
+      if (act?.result?.screenshot_id) {
+        const shot = await api('/screenshots/' + act.result.screenshot_id);
+        document.getElementById('screenBox').innerHTML = `<img alt="Simulated desktop screenshot" src="data:image/png;base64,${shot.image_b64}" />`;
+      }
+      refresh();
+    }
+    async function submitAction(e) {
+      e.preventDefault();
+      let params = {};
+      try { params = JSON.parse(document.getElementById('aParams').value || '{}'); } catch { showErr('Invalid JSON in params'); return; }
+      await api('/actions', { method: 'POST', body: JSON.stringify({ action_type: document.getElementById('aType').value, params }) });
+      refresh();
+    }
+    async function toggleEstop() {
+      if (state.estop_active) await api('/safety/estop/reset', { method: 'POST' });
+      else await api('/safety/estop', { method: 'POST', body: JSON.stringify({ reason: 'Dashboard operator E-STOP' }) });
+      refresh();
+    }
+    async function toggleDryRun() {
+      await api('/safety/dry-run', { method: 'PUT', body: JSON.stringify({ enabled: !state.dry_run_mode }) });
+      refresh();
+    }
+    async function decide(id, approved) {
+      await api(`/approvals/${id}/decide`, { method: 'POST', body: JSON.stringify({ approved, decided_by: 'operator' }) });
+      refresh();
+    }
+    async function replay(id) {
+      await api('/actions/replay', { method: 'POST', body: JSON.stringify({ action_ids: [id], dry_run: true }) });
+      refresh();
+    }
+    async function focusWin(wid) {
+      await api('/actions', { method: 'POST', body: JSON.stringify({ action_type: 'select_window', params: { window_id: wid } }) });
+      captureShot();
+    }
+
+    refresh();
+  </script>
+</body>
+</html>

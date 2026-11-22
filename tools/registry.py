@@ -786,6 +786,80 @@ class ToolRegistry:
             "execute": _fn_get_process_info,
         })
 
+        def _fn_get_running_apps_processes(limit: int = 10, **_):
+            from tools.system.process_inspector import process_inspector
+            overview = process_inspector.get_running_overview(limit=limit)
+            return overview.get("markdown", str(overview))
+
+        def _fn_inspect_screen(**_):
+            from tools.desktop.desktop_perception import desktop_perception
+            from tools.desktop.screen_intelligence import screen_intelligence
+            res = desktop_perception.get_screen_resolution()
+            active = desktop_perception.get_active_window()
+            windows = desktop_perception.list_open_windows()
+            err_check = screen_intelligence.check_screen_errors()
+            lines = [
+                "🖥️ **Screen & Desktop Inspection**",
+                f"- **Resolution:** {res.get('width', 1360)}x{res.get('height', 768)}",
+                f"- **Active Window:** `{active.get('title', 'Unknown')}` (Class: `{active.get('class', 'N/A')}`, ID: `{active.get('id', 'N/A')}`)",
+                f"- **Open Windows Count:** {len(windows)}",
+            ]
+            if err_check.get("error_found"):
+                lines.append(f"- **Screen Errors Detected:** ⚠️ {err_check.get('message')}")
+            else:
+                lines.append("- **Screen Errors:** None detected")
+            if windows:
+                lines.append("### Open Windows:")
+                for w in windows[:6]:
+                    lines.append(f"- `[{w.get('id')}]` {w.get('title')} ({w.get('app')})")
+            return "\n".join(lines)
+
+        def _fn_diagnose_system_status(**_):
+            from tools.developer.cli_bridge import developer_cli_bridge
+            diag = developer_cli_bridge.diagnose_system()
+            return diag.get("markdown_report", str(diag))
+
+        self.register_tool({
+            "name": "get_running_apps_processes",
+            "description": "Inspect running applications, open desktop windows, core service states, and top CPU/RAM processes (safe read-only)",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_running_apps_processes,
+        })
+        self.register_tool({
+            "name": "running_apps_processes",
+            "description": "Alias for get_running_apps_processes",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_running_apps_processes,
+        })
+        self.register_tool({
+            "name": "inspect_screen",
+            "description": "Capture and inspect current desktop screen, active window, resolution, open windows, and visible errors",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": _fn_inspect_screen,
+        })
+        self.register_tool({
+            "name": "screen_observe",
+            "description": "Alias for inspect_screen",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": _fn_inspect_screen,
+        })
+        self.register_tool({
+            "name": "diagnose_system_status",
+            "description": "Run safe read-only diagnostics across core services, audio sink/streams, git state, and installed developer CLIs",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_diagnose_system_status,
+        })
+
         # ── Category A2: Calculator Tools ─────────────────────
         self.register_tool({
             "name": "calculate",
@@ -1302,6 +1376,57 @@ class ToolRegistry:
         from tools.desktop.action_engine import desktop_action_engine
         from tools.terminal.terminal_manager import terminal_engine
 
+        def _exec_open_url(url: str, browser: str = "chrome", **kwargs):
+            from tools.browser.browser_agent import browser_agent
+            clean = (url or "").strip()
+            if clean.lower() in ("youtube", "youtube.com"):
+                clean = "https://www.youtube.com"
+            elif clean.lower() in ("google", "google.com"):
+                clean = "https://www.google.com"
+            elif not clean.startswith(("http://", "https://", "about:", "chrome://")):
+                clean = f"https://{clean}"
+            return browser_agent.open_url(clean, browser=browser, new_tab=True)
+
+        def _exec_open_youtube(query: str = "", url: str = "", **kwargs):
+            from tools.browser.youtube_controller import youtube_controller
+            from tools.browser.browser_agent import browser_agent
+            if url:
+                return browser_agent.open_url(url, browser="chrome", new_tab=True)
+            clean_q = (query or "").strip()
+            if clean_q and clean_q.lower() not in ("youtube", "none", "null", "all"):
+                return youtube_controller.play_direct_query(clean_q, browser="chrome")
+            return browser_agent.open_url("https://www.youtube.com", browser="chrome", new_tab=True)
+
+        def _exec_open_desktop_app(app_name: str, target=None, new_window: bool = False, **kwargs):
+            return desktop_action_engine.open_application(app_name, target=target, new_window=new_window)
+
+        self.register_tool({
+            "name": "open_url",
+            "description": "Open a web URL or website in Google Chrome on the local desktop display (DISPLAY=:0)",
+            "schema": {"url": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:open"],
+            "execute": _exec_open_url,
+        })
+
+        self.register_tool({
+            "name": "open_youtube",
+            "description": "Open YouTube or search and play a video query in Google Chrome on DISPLAY=:0",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:youtube"],
+            "execute": _exec_open_youtube,
+        })
+
+        self.register_tool({
+            "name": "open_desktop_app",
+            "description": "Launch an allowlisted desktop application (Chrome, VS Code, Terminal, etc.) on DISPLAY=:0",
+            "schema": {"app_name": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:launch"],
+            "execute": _exec_open_desktop_app,
+        })
+
         self.register_tool({
             "name": "desktop_open_app",
             "description": "Launch installed desktop application (Chrome, Firefox, VS Code, Antigravity, LXTerminal, PCManFM)",
@@ -1400,6 +1525,93 @@ class ToolRegistry:
             "permissions": ["terminal:execute"],
             "execute": lambda command, session_id="default", confirm=False, confirmation_token=None, **_: terminal_engine.execute_command(command, session_id=session_id, confirm=confirm, confirmation_token=confirmation_token),
         })
+
+        # ── Intelligent Computer Control Tools ─────────────────────────
+        from tools.desktop.unified_computer_service import unified_computer_service
+        from tools.desktop.browser_backend import browser_backend
+        from tools.desktop.native_backend import native_backend
+
+        self.register_tool({
+            "name": "computer_execute",
+            "description": "Execute natural language computer automation command with verification (e.g. 'Select option 1 and click Submit')",
+            "schema": {"instruction": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:execute"],
+            "execute": lambda instruction, **_: unified_computer_service.execute_natural_instruction(instruction),
+        })
+
+        self.register_tool({
+            "name": "computer_move_mouse",
+            "description": "Move desktop mouse pointer smoothly to target element or coordinates",
+            "schema": {"x": "int", "y": "int"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda x, y, smooth=True, **_: native_backend.move_cursor(x, y, duration=0.25, smooth=smooth),
+        })
+
+        self.register_tool({
+            "name": "computer_click",
+            "description": "Click mouse button at specified coordinates or target element",
+            "schema": {"button": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda button="left", x=None, y=None, clicks=1, **_: native_backend.click(x=x, y=y, button=button, clicks=clicks),
+        })
+
+        self.register_tool({
+            "name": "computer_select_option",
+            "description": "Select radio button, checkbox, or dropdown option in browser or desktop interface",
+            "schema": {"option": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:input"],
+            "execute": lambda option, verify=True, **_: browser_backend.select_option(option, verify=verify),
+        })
+
+        self.register_tool({
+            "name": "computer_type",
+            "description": "Type text into currently focused field or target window",
+            "schema": {"text": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda text, target_window=None, **_: native_backend.type_text(text, target_window=target_window),
+        })
+
+        self.register_tool({
+            "name": "computer_press_key",
+            "description": "Press a keyboard key or hotkey combination (e.g. 'ctrl+a', 'Return', 'Escape')",
+            "schema": {"key": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda key, **_: native_backend.press_hotkey(key),
+        })
+
+        self.register_tool({
+            "name": "computer_scroll",
+            "description": "Scroll mouse wheel up or down",
+            "schema": {"direction": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda direction="down", clicks=5, **_: native_backend.scroll(direction=direction, clicks=clicks),
+        })
+
+        self.register_tool({
+            "name": "computer_stop",
+            "description": "Emergency stop computer automation immediately and release held inputs",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:execute"],
+            "execute": lambda **_: unified_computer_service.emergency_stop(),
+        })
+
+        self.register_tool({
+            "name": "browser_open",
+            "description": "Open or navigate Playwright browser to target URL",
+            "schema": {"url": "str"},
+            "risk_level": 1,
+            "permissions": ["browser:navigate"],
+            "execute": lambda url, **_: browser_backend.navigate(url),
+        })
+
 
 
 # Global tool registry instances for compatibility

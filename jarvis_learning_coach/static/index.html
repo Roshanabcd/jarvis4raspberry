@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Personalized Learning AI Coach</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f1b2d;
+      --border: #173b3a;
+      --accent: #00f5d4;
+      --accent-2: #10b981;
+      --text: #e6f1ff;
+      --muted: #8aa4bf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: radial-gradient(circle at top right, #0b1d2e 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 19, 32, 0.92);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.5px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(0, 245, 212, 0.1);
+      color: var(--accent);
+    }
+    main { max-width: 1180px; margin: 22px auto; padding: 0 20px 40px; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background: rgba(0, 245, 212, 0.14);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .panel.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #031318;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .chat-box { max-height: 360px; overflow-y: auto; margin: 14px 0; }
+    .turn-coach { border-left: 3px solid var(--accent); }
+    .turn-learner { border-left: 3px solid var(--accent-2); }
+    .bar-bg { background: #132238; border-radius: 999px; height: 10px; overflow: hidden; margin-top: 6px; }
+    .bar-fill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); height: 100%; }
+    .status { font-size: 13px; color: var(--accent); margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS OS // Personalized Learning AI Coach</h1>
+      <span class="badge">SOCRATIC TUTOR · MASTERY · ADAPTIVE EXERCISES</span>
+    </div>
+    <div id="healthBadge" class="badge">Loading...</div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('tutor', this)">Socratic Tutor</button>
+      <button class="tab-btn" onclick="showTab('exercises', this)">Adaptive Exercises</button>
+      <button class="tab-btn" onclick="showTab('mastery', this)">Mastery Diagnostics</button>
+    </div>
+
+    <section id="tab-tutor" class="panel active">
+      <div class="grid">
+        <div>
+          <label>Learner ID</label>
+          <input id="learnerId" value="roshan" />
+        </div>
+        <div>
+          <label>Subject</label>
+          <input id="subject" value="Robotics & Backend" />
+        </div>
+        <div>
+          <label>Concept</label>
+          <input id="concept" value="FastAPI" />
+        </div>
+      </div>
+      <button class="primary" onclick="startSession()">Start Socratic Session</button>
+      <div id="sessionStatus" class="status"></div>
+      <div id="chatBox" class="chat-box"></div>
+      <textarea id="learnerReply" rows="3" placeholder="Type your reasoning or explanation..."></textarea>
+      <button class="primary" onclick="sendReply(false)">Submit Reasoning</button>
+      <button class="secondary" onclick="sendReply(true)">Ask for a Hint</button>
+    </section>
+
+    <section id="tab-exercises" class="panel">
+      <div class="grid">
+        <div>
+          <label>Learner ID</label>
+          <input id="exLearner" value="roshan" />
+        </div>
+        <div>
+          <label>Subject</label>
+          <input id="exSubject" value="Databases" />
+        </div>
+        <div>
+          <label>Concept</label>
+          <input id="exConcept" value="SQLite WAL" />
+        </div>
+      </div>
+      <button class="primary" onclick="genExercise()">Generate Adaptive Exercise</button>
+      <div id="exCard"></div>
+      <textarea id="exAnswer" rows="4" placeholder="Write your answer here..."></textarea>
+      <button class="primary" onclick="submitExercise()">Grade Submission</button>
+      <div id="exFeedback"></div>
+    </section>
+
+    <section id="tab-mastery" class="panel">
+      <div class="grid">
+        <div>
+          <label>Learner ID</label>
+          <input id="diagLearner" value="roshan" />
+        </div>
+      </div>
+      <button class="primary" onclick="loadDiagnostics()">Load Mastery Diagnostics</button>
+      <div id="diagOutput"></div>
+    </section>
+  </main>
+
+  <script>
+    let activeSessionId = null;
+    let activeExerciseId = null;
+
+    function showTab(name, btn) {
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.add("active");
+      btn.classList.add("active");
+      if (name === "mastery") loadDiagnostics();
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/learning-coach/health");
+        const d = await res.json();
+        document.getElementById("healthBadge").textContent =
+          `OK | ${d.total_sessions} sessions | ${d.total_exercises} exercises | ${d.tracked_concepts} concepts`;
+      } catch (e) {
+        document.getElementById("healthBadge").textContent = "Backend unreachable";
+      }
+    }
+
+    function appendTurn(role, text) {
+      const box = document.getElementById("chatBox");
+      box.innerHTML += `<div class="card turn-${role}"><strong>${role.toUpperCase()}:</strong> ${text}</div>`;
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function startSession() {
+      const res = await fetch("/api/learning-coach/sessions", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          learner_id: document.getElementById("learnerId").value.trim(),
+          subject: document.getElementById("subject").value.trim(),
+          concept: document.getElementById("concept").value.trim(),
+        }),
+      });
+      const d = await res.json();
+      activeSessionId = d.session_id;
+      document.getElementById("chatBox").innerHTML = "";
+      document.getElementById("sessionStatus").textContent =
+        `Session ${d.session_id} | Tier: ${d.difficulty_tier} | Mastery: ${d.mastery_score}%`;
+      d.turns.forEach(t => appendTurn(t.role, t.message));
+      refreshHealth();
+    }
+
+    async function sendReply(requestHint) {
+      if (!activeSessionId) {
+        document.getElementById("sessionStatus").textContent = "Start a session first.";
+        return;
+      }
+      const msg = document.getElementById("learnerReply").value.trim() || (requestHint ? "I need a hint" : "");
+      if (!msg) return;
+      appendTurn("learner", msg);
+      document.getElementById("learnerReply").value = "";
+      const res = await fetch(`/api/learning-coach/sessions/${activeSessionId}/respond`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ message: msg, request_hint: requestHint }),
+      });
+      const d = await res.json();
+      appendTurn("coach", d.coach_reply);
+      document.getElementById("sessionStatus").textContent =
+        `Mastery: ${d.mastery_score}% (${d.mastery_delta >= 0 ? "+" : ""}${d.mastery_delta}) | Tier: ${d.difficulty_tier} | Signal: ${d.understanding_signal}`;
+      refreshHealth();
+    }
+
+    async function genExercise() {
+      const res = await fetch("/api/learning-coach/exercises/generate", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          learner_id: document.getElementById("exLearner").value.trim(),
+          subject: document.getElementById("exSubject").value.trim(),
+          concept: document.getElementById("exConcept").value.trim(),
+        }),
+      });
+      const d = await res.json();
+      activeExerciseId = d.exercise_id;
+      document.getElementById("exCard").innerHTML = `
+        <div class="card">
+          <div><strong>${d.difficulty_tier.toUpperCase()} EXERCISE</strong> (${d.exercise_id})</div>
+          <div style="margin-top:8px;">${d.prompt}</div>
+          <div style="margin-top:6px;font-size:12px;color:#8aa4bf;">Hint: ${d.hint}</div>
+        </div>
+      `;
+      refreshHealth();
+    }
+
+    async function submitExercise() {
+      if (!activeExerciseId) return;
+      const res = await fetch(`/api/learning-coach/exercises/${activeExerciseId}/submit`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ answer: document.getElementById("exAnswer").value.trim() }),
+      });
+      const d = await res.json();
+      document.getElementById("exFeedback").innerHTML = `
+        <div class="card">
+          <strong>Score: ${d.score}/100 (${d.passed ? "PASSED" : "NEEDS REVIEW"})</strong>
+          <div style="margin-top:6px;">${d.feedback}</div>
+          <div style="margin-top:6px;font-size:12px;color:#8aa4bf;">
+            Updated Mastery: ${d.updated_mastery}% (${d.difficulty_tier}) | Covered: ${d.covered_concepts.join(", ") || "none"}
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadDiagnostics() {
+      const lid = encodeURIComponent(document.getElementById("diagLearner").value.trim());
+      const res = await fetch(`/api/learning-coach/mastery/${lid}`);
+      const d = await res.json();
+      const rows = (d.concepts || []).map(c => `
+        <div class="card">
+          <strong>${c.subject} — ${c.concept}</strong> (${c.difficulty_tier} | ${c.mastery_score}% | streak ${c.streak})
+          <div class="bar-bg"><div class="bar-fill" style="width:${c.mastery_score}%"></div></div>
+        </div>
+      `).join("") || `<div class="card">No tracked concepts yet.</div>`;
+      document.getElementById("diagOutput").innerHTML = `
+        <div class="card">
+          <div>Overall Mastery: <strong>${d.overall_mastery}%</strong></div>
+          <div style="margin-top:6px;color:#8aa4bf;">Recommended Next Focus: <strong>${d.recommended_next_concept || "Start any concept"}</strong></div>
+        </div>
+        ${rows}
+      `;
+    }
+
+    refreshHealth();
+  </script>
+</body>
+</html>

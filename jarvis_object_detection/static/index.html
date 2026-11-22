@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Real-Time Object Detection</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f1b2d;
+      --border: #173b3a;
+      --accent: #00f5d4;
+      --accent-2: #10b981;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --text: #e6f1ff;
+      --muted: #8aa4bf;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: radial-gradient(circle at top right, #0b1d2e 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(11, 19, 32, 0.92);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand h1 { margin: 0; font-size: 18px; color: var(--accent); letter-spacing: 0.5px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: rgba(0, 245, 212, 0.1);
+      color: var(--accent);
+    }
+    main { max-width: 1220px; margin: 22px auto; padding: 0 20px 40px; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .tab-btn.active {
+      background: rgba(0, 245, 212, 0.14);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .panel.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 9px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 12px;
+    }
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #031318;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-right: 8px;
+    }
+    button.danger {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .stage {
+      position: relative;
+      width: 100%;
+      max-width: 760px;
+      background: #02060c;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 14px;
+    }
+    video, canvas { width: 100%; display: block; }
+    #overlayCanvas { position: absolute; top: 0; left: 0; height: 100%; pointer-events: none; }
+    .card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 12px;
+    }
+    .status { font-size: 13px; color: var(--accent); margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS OS // Real-Time Object Detection</h1>
+      <span class="badge">YOLO · CENTROID TRACKER · ROI ZONES · WEBSOCKET HUD</span>
+    </div>
+    <div id="healthBadge" class="badge">Loading...</div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="showTab('live', this)">Live Camera HUD</button>
+      <button class="tab-btn" onclick="showTab('upload', this)">Image Upload</button>
+      <button class="tab-btn" onclick="showTab('zones', this)">ROI Intrusion Zones</button>
+      <button class="tab-btn" onclick="showTab('alerts', this)">Alerts &amp; Analytics</button>
+    </div>
+
+    <section id="tab-live" class="panel active">
+      <div class="grid">
+        <div>
+          <label>Confidence Threshold</label>
+          <input id="confInput" type="number" step="0.05" value="0.35" min="0.1" max="0.95" />
+        </div>
+        <div>
+          <label>Target Classes (comma-separated, blank = all)</label>
+          <input id="classFilter" placeholder="e.g. person, bottle, laptop" />
+        </div>
+        <div>
+          <label>Target Stream FPS</label>
+          <input id="fpsInput" type="number" value="4" min="1" max="15" />
+        </div>
+      </div>
+      <button class="primary" onclick="startCamera()">Start Live Detection</button>
+      <button class="danger" onclick="stopCamera()">Stop Camera</button>
+      <div id="liveStats" class="status">Idle — click Start Live Detection to stream webcam/Pi camera frames.</div>
+      <div class="stage">
+        <video id="videoEl" autoplay playsinline muted></video>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+      <canvas id="captureCanvas" style="display:none;"></canvas>
+    </section>
+
+    <section id="tab-upload" class="panel">
+      <label>Select Image (PNG/JPG/WEBP)</label>
+      <input id="imgFile" type="file" accept="image/*" />
+      <button class="primary" onclick="detectUpload()">Run Object Detection</button>
+      <div id="uploadStatus" class="status"></div>
+      <div id="uploadOutput"></div>
+    </section>
+
+    <section id="tab-zones" class="panel">
+      <div class="grid">
+        <div><label>Zone Name</label><input id="zName" placeholder="Restricted Doorway" /></div>
+        <div><label>Watch Classes (blank = any)</label><input id="zClasses" placeholder="person, salient_object" /></div>
+        <div><label>x1 (0..1)</label><input id="zX1" type="number" step="0.05" value="0.1" /></div>
+        <div><label>y1 (0..1)</label><input id="zY1" type="number" step="0.05" value="0.1" /></div>
+        <div><label>x2 (0..1)</label><input id="zX2" type="number" step="0.05" value="0.9" /></div>
+        <div><label>y2 (0..1)</label><input id="zY2" type="number" step="0.05" value="0.9" /></div>
+      </div>
+      <button class="primary" onclick="saveZone()">Save ROI Intrusion Zone</button>
+      <div id="zoneStatus" class="status"></div>
+      <div id="zonesList"></div>
+    </section>
+
+    <section id="tab-alerts" class="panel">
+      <button class="primary" onclick="loadAlertsAndAnalytics()">Refresh</button>
+      <div id="analyticsBox"></div>
+      <div id="alertsList"></div>
+    </section>
+  </main>
+
+  <script>
+    let stream = null;
+    let ws = null;
+    let timer = null;
+    let cachedZones = [];
+
+    function showTab(name, btn) {
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.add("active");
+      btn.classList.add("active");
+      if (name === "zones") loadZones();
+      if (name === "alerts") loadAlertsAndAnalytics();
+    }
+
+    async function refreshHealth() {
+      try {
+        const res = await fetch("/api/object-detection/health");
+        const d = await res.json();
+        document.getElementById("healthBadge").textContent =
+          `OK | ${d.active_backend} | ${d.total_zones} zones | ${d.total_alerts} alerts`;
+      } catch (e) {
+        document.getElementById("healthBadge").textContent = "Backend unreachable";
+      }
+    }
+
+    async function loadZones() {
+      const res = await fetch("/api/object-detection/zones");
+      const d = await res.json();
+      cachedZones = d.zones || [];
+      document.getElementById("zonesList").innerHTML = cachedZones.map(z => `
+        <div class="card">
+          <strong>${z.name}</strong> — Box [${z.x1}, ${z.y1}, ${z.x2}, ${z.y2}] | Watch: ${z.watch_classes.join(", ") || "ANY"}
+        </div>
+      `).join("") || `<div class="card">No ROI zones defined yet.</div>`;
+    }
+
+    function drawOverlay(detections) {
+      const video = document.getElementById("videoEl");
+      const canvas = document.getElementById("overlayCanvas");
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw ROI zones
+      cachedZones.forEach(z => {
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(z.x1 * canvas.width, z.y1 * canvas.height, (z.x2 - z.x1) * canvas.width, (z.y2 - z.y1) * canvas.height);
+        ctx.setLineDash([]);
+        ctx.fillStyle = "#f59e0b";
+        ctx.font = "12px monospace";
+        ctx.fillText(`ZONE: ${z.name}`, z.x1 * canvas.width + 4, z.y1 * canvas.height + 14);
+      });
+
+      // Draw tracked detections
+      (detections || []).forEach(det => {
+        const b = det.bbox;
+        const x = b.x1 * canvas.width;
+        const y = b.y1 * canvas.height;
+        const w = (b.x2 - b.x1) * canvas.width;
+        const h = (b.y2 - b.y1) * canvas.height;
+        const alertHit = det.in_zones && det.in_zones.length > 0;
+        ctx.strokeStyle = alertHit ? "#ef4444" : "#00f5d4";
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = alertHit ? "#ef4444" : "#00f5d4";
+        ctx.font = "bold 13px monospace";
+        ctx.fillText(`#${det.track_id} ${det.label} ${(det.confidence * 100).toFixed(0)}%`, x + 4, Math.max(16, y - 6));
+      });
+    }
+
+    async function startCamera() {
+      await loadZones();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+      } catch (e) {
+        document.getElementById("liveStats").textContent = "Camera access denied or unavailable — use Image Upload tab.";
+        return;
+      }
+      const video = document.getElementById("videoEl");
+      video.srcObject = stream;
+
+      const proto = location.protocol === "https:" ? "wss" : "ws";
+      ws = new WebSocket(`${proto}://${location.host}/api/object-detection/ws/stream`);
+      ws.onmessage = (ev) => {
+        const d = JSON.parse(ev.data);
+        if (d.detections) {
+          drawOverlay(d.detections);
+          document.getElementById("liveStats").textContent =
+            `${d.backend} | ${d.object_count} objects | ${d.latency_ms} ms (~${d.estimated_fps} FPS) | Alerts: ${d.triggered_alerts.length}`;
+        }
+      };
+
+      const cap = document.getElementById("captureCanvas");
+      const capCtx = cap.getContext("2d");
+      const fps = Math.max(1, Math.min(15, Number(document.getElementById("fpsInput").value) || 4));
+      timer = setInterval(() => {
+        if (!ws || ws.readyState !== WebSocket.OPEN || video.readyState < 2) return;
+        cap.width = 480;
+        cap.height = 360;
+        capCtx.drawImage(video, 0, 0, cap.width, cap.height);
+        const classes = document.getElementById("classFilter").value.split(",").map(s => s.trim()).filter(Boolean);
+        ws.send(JSON.stringify({
+          image_base64: cap.toDataURL("image/jpeg", 0.72),
+          confidence_threshold: Number(document.getElementById("confInput").value) || 0.35,
+          target_classes: classes,
+          stream_id: "live_cam",
+        }));
+      }, Math.round(1000 / fps));
+    }
+
+    function stopCamera() {
+      if (timer) { clearInterval(timer); timer = null; }
+      if (ws) { ws.close(); ws = null; }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      document.getElementById("liveStats").textContent = "Camera stopped.";
+    }
+
+    async function detectUpload() {
+      const f = document.getElementById("imgFile").files[0];
+      if (!f) return;
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(r.result);
+        r.onerror = rej;
+        r.readAsDataURL(f);
+      });
+      const resp = await fetch("/api/object-detection/detect", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ image_base64: b64, stream_id: "upload" }),
+      });
+      const d = await resp.json();
+      document.getElementById("uploadStatus").textContent =
+        `${d.object_count} objects detected via ${d.backend} in ${d.latency_ms} ms.`;
+      document.getElementById("uploadOutput").innerHTML = (d.detections || []).map(o => `
+        <div class="card">
+          <strong>#${o.track_id} ${o.label}</strong> — Confidence: ${(o.confidence * 100).toFixed(1)}% |
+          Box: [${o.bbox.x1}, ${o.bbox.y1}, ${o.bbox.x2}, ${o.bbox.y2}] | Zones: ${o.in_zones.join(", ") || "none"}
+        </div>
+      `).join("") || `<div class="card">No objects above threshold.</div>`;
+      refreshHealth();
+    }
+
+    async function saveZone() {
+      const res = await fetch("/api/object-detection/zones", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          name: document.getElementById("zName").value.trim(),
+          x1: Number(document.getElementById("zX1").value),
+          y1: Number(document.getElementById("zY1").value),
+          x2: Number(document.getElementById("zX2").value),
+          y2: Number(document.getElementById("zY2").value),
+          watch_classes: document.getElementById("zClasses").value.split(",").map(s => s.trim()).filter(Boolean),
+        }),
+      });
+      const d = await res.json();
+      document.getElementById("zoneStatus").textContent = res.ok ? `Saved zone '${d.name}'.` : `Error: ${d.detail}`;
+      loadZones();
+      refreshHealth();
+    }
+
+    async function loadAlertsAndAnalytics() {
+      const [aRes, alRes] = await Promise.all([
+        fetch("/api/object-detection/analytics"),
+        fetch("/api/object-detection/alerts"),
+      ]);
+      const an = await aRes.json();
+      const al = await alRes.json();
+      document.getElementById("analyticsBox").innerHTML = `
+        <div class="card">
+          Frames: <strong>${an.total_frames_processed}</strong> | Detections: <strong>${an.total_detections}</strong> |
+          Alerts: <strong>${an.total_alerts}</strong> | Avg Latency: <strong>${an.avg_latency_ms} ms</strong>
+          <div style="margin-top:6px;color:#8aa4bf;">Classes: ${JSON.stringify(an.class_distribution)}</div>
+        </div>
+      `;
+      document.getElementById("alertsList").innerHTML = (al.alerts || []).map(x => `
+        <div class="card">
+          <strong style="color:#ef4444;">ZONE ALERT: ${x.zone_name}</strong> — #${x.track_id} ${x.label} (${(x.confidence * 100).toFixed(0)}%) on ${x.stream_id}
+        </div>
+      `).join("") || `<div class="card">No zone alerts triggered yet.</div>`;
+    }
+
+    refreshHealth();
+    loadZones();
+  </script>
+</body>
+</html>

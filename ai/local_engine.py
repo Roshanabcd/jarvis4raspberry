@@ -17,6 +17,10 @@ logger = logging.getLogger("JARVIS.LocalEngine")
 
 # Intent patterns → (intent_name, tool_to_call, template_response)
 INTENTS = [
+    # Speech playback stop / silence
+    (r"\b(?:stop|halt|cancel|cease)\s+(?:speaking|talking|speech|audio\s+output)\b", "stop_speech", None),
+    (r"\b(?:be\s+quiet|shut\s+up|silence|mute\s+speech)\b", "stop_speech", None),
+
     # Media controls (high priority so 'stop music' is not caught by robot stop)
     (r"\b(pause)\s+(?:the\s+)?(?:music|song|track|audio|playback)\b", "pause_media", None),
     (r"\b(stop|halt|kill|end)\s+(?:the\s+)?(?:music|song|track|audio|playback|playing)\b", "stop_media", None),
@@ -53,8 +57,9 @@ INTENTS = [
     (r"\bservo\s+(\d+)\s+(?:to\s+)?(\d+)\b", "servo_set", None),
 
     # System (before sensors to take priority)
-    (r"\b(system\s+status|cpu\s+usage|processor\s+usage|ram\s+usage|memory\s+usage|disk\s+usage|system\s+info|system\s+health|hardware\s+status)\b", "system_status", None),
-    (r"\b(?:check|show|get|display|report)\s+(?:the\s+)?(?:system|cpu|ram|memory|disk|hardware)(?:\s+(?:status|usage|info|health))?\b", "system_status", None),
+    (r"\b(system\s+status|cpu\s+usage|cpu\s+temp(?:erature)?|processor\s+usage|processor\s+temp(?:erature)?|ram\s+usage|memory\s+usage|disk\s+usage|system\s+info|system\s+health|hardware\s+status)\b", "system_status", None),
+    (r"\b(?:check|show|get|display|report|what\s+is\s+(?:the\s+)?)\s*(?:system|cpu|ram|memory|disk|hardware)(?:\s+(?:status|usage|info|health|temp(?:erature)?))?\b", "system_status", None),
+    (r"\b(?:what\s+is\s+(?:the\s+)?(?:current\s+)?cpu\s+temp(?:erature)?)\b", "system_status", None),
     (r"^(?:status|health|system info)$", "system_status", None),
     (r"\b(how much (memory|ram)|memory available|free (memory|ram|disk)|disk space|uptime)\b", "system_status", None),
 
@@ -63,8 +68,7 @@ INTENTS = [
     (r"\b(what.*(temp|hot|cold|warm)|how warm|how cold)\b", "read_sensors", None),
 
     # Camera
-    (r"\b(camera|capture|photo|picture|image|take a (photo|picture)|what (do you see|can you see))\b", "camera_capture", None),
-    (r"\b(look|see|observe|describe (what|the|around))\b", "camera_capture", None),
+    (r"\b(?:take\s+(?:a\s+)?(?:photo|picture|snapshot)|snap\s+(?:a\s+)?photo|capture\s+(?:a\s+)?(?:photo|picture|image)|camera\s+capture|camera\s+snapshot)\b", "camera_capture", None),
 
     # Memory
     (r"\b(remember|store|save|note|record)\s+(.+)", "memory_store", None),
@@ -74,7 +78,7 @@ INTENTS = [
     (r"\b(?:write|create|code|make)\b.*python\b.*calculator.*(?:vs\s*code|vscode)", "create_calculator", None),
 
     # Desktop Apps & Editors
-    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
+    (r"\b(open|launch|start)\s+(vs\s*code|vscode|code\s+editor|visual\s+studio\s+code|terminal|browser|chromium|chrome|firefox|mousepad|lxterminal|calculator|galculator|text\s+editor)\b", "open_app", None),
     (r"\b(open\s+.*in\s+(?:vs\s*code|vscode|editor|mousepad))\b", "open_app", None),
     (r"\b(run|execute)\s+(?:the\s+)?(?:python\s+)?(?:program|script|code|file)\b", "run_code", None),
 
@@ -105,6 +109,18 @@ INTENTS = [
 ]
 
 
+def strip_command_noise(text: str) -> str:
+    """Strip leading/trailing greetings, wake phrases, and polite filler from commands."""
+    if not text:
+        return ""
+    cleaned = text.strip()
+    leading_pat = r"^(?:(?:hey|hello|hi|ok)\s+jarvis[,\s]*|(?:hey|hello|hi)[,\s]+|jarvis[,\s]+|please\s+)+"
+    cleaned = re.sub(leading_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    trailing_pat = r"[,\s]+(?:hello|hi|please|thank\s+you|thanks)\s*$"
+    cleaned = re.sub(trailing_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    return cleaned or text.strip()
+
+
 class LocalIntelligenceEngine:
     """
     Full JARVIS intelligence without an LLM.
@@ -117,7 +133,9 @@ class LocalIntelligenceEngine:
 
     def classify_intent(self, text: str) -> Tuple[str, Dict]:
         """Returns (intent_name, extracted_args)"""
-        text_lower = text.lower().strip()
+        clean_text = strip_command_noise(text)
+        text_lower = clean_text.lower().strip()
+        cmd_clean = text_lower
 
         # 0. Standalone number check (Test 5: "2020")
         if re.match(r"^\s*\d+(?:\.\d+)?\s*$", text.strip()):
@@ -130,6 +148,46 @@ class LocalIntelligenceEngine:
         # 2b. Phase 3: Theme Customization
         if re.search(r'\b(?:change|set|make|switch)\s+(?:the\s+)?(?:background|accent|theme)\b', text_lower) or re.search(r'\b(?:reset\s+theme|default\s+theme)\b', text_lower):
             return "theme_control", {"text": text}
+
+        # 2b-ii. Intelligent Computer Control Intents (Mouse, Keyboard, Browser, Desktop Automation)
+        # Antigravity IDE Auto-Approver & Command Auto-Accept
+        if re.search(r'\b(?:auto\s+accept|auto\s+approve|accept\s+option\s*1|allow\s+running\s+this\s+command|allow\s+antigravity|antigravity\s+auto)\b', text_lower):
+            return "antigravity_auto_approve", {"instruction": text, "text": text}
+
+        # 1. Computer Control Session Toggles & Emergency Stop
+        if re.search(r'\b(?:enable|start|resume)\s+(?:computer\s+control|desktop\s+control|controlling\s+(?:the\s+|my\s+)?computer)\b', cmd_clean) or re.search(r'\b(?:start|begin)\s+(?:a\s+)?computer\s+session\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        if re.search(r'\b(?:stop|halt|cancel)\s+(?:controlling\s+(?:my\s+|the\s+)?computer|computer\s+control|desktop\s+control|automation)\b', cmd_clean) or re.search(r'\b(?:stop|halt)\s+(?:the\s+)?(?:computer|mouse|browser|screen)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 2. Compound "select option ... and click submit"
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option|[a-z0-9_\-\s]+)\s+and\s+(?:then\s+)?(?:click|press|submit)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 3. Form control selection (select option 1, select option 2, select the first option) when not mentioning video/song
+        if re.search(r'\bselect\s+(?:the\s+)?(option\s*\d+|option\s*one|option\s*two|option\s*three|first\s*option|second\s*option|third\s*option)\b', cmd_clean) and not re.search(r'\b(?:video|movie|film|song|track)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 4. Move mouse pointer
+        if re.search(r'\bmove\s+(?:the\s+)?mouse\s+(?:pointer\s+)?to\s+', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 5. Right click / double click
+        if re.search(r'\b(?:right[\s\-]click|double[\s\-]click)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 6. Click submit / button / field / target
+        if re.search(r'\bclick\s+(?:on\s+)?(?:the\s+)?(.+?)[\.\?!]*$', cmd_clean) and not re.search(r'\b(?:video|movie|song|forward|backward|left|right)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 7. Press keyboard hotkey/key
+        if re.search(r'\bpress\s+(?:the\s+)?(?:keys?\s+)?(ctrl\+[a-z]|alt\+[a-z]|shift\+[a-z]|enter|return|escape|tab|backspace|delete|space)\b', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
+
+        # 8. Type text
+        if re.search(r'^(?:jarvis\s*,?\s*)?type\s+["\']?([^"\'\n]+)', text_lower) or re.search(r'^type\s+["\']?([^"\'\n]+)', cmd_clean):
+            return "computer_command", {"instruction": text, "text": text}
 
         # 2c. YouTube Player Controls & Playback
         # Video volume (must precede generic volume)
@@ -226,6 +284,21 @@ class LocalIntelligenceEngine:
             target = m_res_inv.group(1).strip()
             return "research_investigate", {"topic": target, "text": text}
 
+        # 2c-iv. Phase 10: Document Question Answering (Document AI) Intents
+        if re.search(r'\b(?:open|launch|show)\s+(?:the\s+)?(?:document\s+(?:ai|assistant|qa)|documents\s+tab|documents\s+app)\b', text_lower):
+            return "document_open", {"text": text}
+
+        if re.search(r'\b(?:list|show|what\s+are)\s+(?:my\s+)?documents\b', text_lower):
+            return "document_list", {"text": text}
+
+        m_doc_sum = re.search(r'\bsummarize\s+(?:the\s+)?document\s+(.+)', text_lower)
+        if m_doc_sum:
+            return "document_summarize", {"title": m_doc_sum.group(1).strip(), "text": text}
+
+        m_doc_ask = re.search(r'\b(?:ask\s+(?:my\s+)?documents?|search\s+(?:my\s+)?documents?\s+for)\s+(.+)', text_lower)
+        if m_doc_ask:
+            return "document_ask", {"question": m_doc_ask.group(1).strip(), "text": text}
+
         # YouTube Unified Search ("Open a horror video in YouTube", "Search YouTube for a horror movie", "Find ... on YouTube")
         m_yt_search = (
             re.search(r'\b(?:search|find|open|look\s+up)\s+(?:a\s+|for\s+)?(.+?)\s+(?:in|on)\s+youtube\b', text_lower)
@@ -278,7 +351,7 @@ class LocalIntelligenceEngine:
 
         # 3. Phase 2 Desktop Intents
         # 3a. Specific App Opening ("Open Google Chrome", "Open Chrome", "Open Firefox", "Open VS Code", "Open Antigravity")
-        m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', text_lower)
+        m_app = re.search(r'^\s*(?:open|launch|start)\s+(google\s+chrome|chrome|firefox|vs\s*code|vscode|code|antigravity|antigravity\s+ide|terminal|lxterminal|calculator|galculator|browser)(?:\s+(?:in\s+)?(?:a\s+)?new\s+window)?[\.\?!]*\s*$', cmd_clean)
         if m_app:
             return "desktop_open_app", {"app": m_app.group(1).strip(), "text": text}
 
@@ -321,7 +394,21 @@ class LocalIntelligenceEngine:
             loc_arg = m_prog.group(2).strip() if m_prog.lastindex >= 2 and m_prog.group(2) else None
             return "desktop_run_program", {"program": prog_arg, "location": loc_arg, "text": text}
 
-        # 3g. Desktop Awareness
+        # 3g. Running Software & Desktop Processes Inspection
+        if re.search(
+            r'\b(?:'
+            r'what\s+(?:are\s+|is\s+)?(?:the\s+)?(?:things\s+|software\s+|apps\s+|applications\s+|programs\s+|processes\s+)(?:are\s+)?running(?:\s+on\s+(?:my\s+)?(?:pc|computer|system|machine))?|'
+            r'can\s+you\s+(?:see|tell\s+me|list)\s+what\s+(?:are\s+)?(?:the\s+things\s+)?(?:is\s+|are\s+)?running\s+on\s+(?:my\s+)?(?:pc|computer|system|machine)|'
+            r'what\s+is\s+running\s+on\s+(?:my\s+)?(?:pc|computer|system|machine)|'
+            r'what\s+(?:apps|applications|software|programs|processes)\s+are\s+running|'
+            r'running\s+(?:software|apps|applications|processes|programs)(?:\s+on\s+(?:my\s+)?(?:pc|computer))?|'
+            r'list\s+running\s+(?:software|apps|applications|processes|programs)'
+            r')\b',
+            text_lower
+        ):
+            return "running_apps_processes", {"text": text}
+
+        # 3h. Desktop Awareness
         if re.search(r'\b(which application is open|what is the active window|show the current active window|active window|running applications)\b', text_lower) or re.search(r'\bis\s+(vs\s*code|vscode|chrome|firefox|antigravity)\s+running\b', text_lower):
             return "desktop_awareness", {"text": text}
 
@@ -330,9 +417,35 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:which|what)\s+(?:browser\s+)?tab\s+is\s+(?:currently\s+)?active\b', text_lower):
             return "screen_active_tab", {"text": text}
 
-        # Screen observation ("look at my screen", "observe screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
-        if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
+        # Screen observation ("inspect the current screen and tell me what is displayed", "look at my screen", "observe screen", "what is on my screen", "describe what you see on my screen")
+        if re.search(
+            r'\b(?:'
+            r'(?:inspect|examine|analyze|check|view|observe|look\s+at)\s+(?:the\s+|my\s+)?(?:current\s+)?screen(?:\s+and\s+tell\s+me\s+what\s+(?:is\s+)?(?:displayed|shown|on\s+it))?|'
+            r'what\s+(?:is\s+)?(?:currently\s+)?(?:displayed|shown|open|visible)\s+(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
+            r'what\s+is\s+(?:currently\s+)?(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
+            r'what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|'
+            r'describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window)|'
+            r'screen\s+inspect(?:ion)?'
+            r')\b',
+            text_lower
+        ):
             return "screen_observe", {"text": text}
+
+        # Check displayed errors ("check whether any errors are displayed", "are there any errors on screen", "inspect errors")
+        if re.search(r'\b(?:check|inspect|find|are\s+there|see\s+if)\s+(?:whether\s+)?(?:any\s+)?(?:errors?|exceptions?|warnings?|bugs?)\s+(?:are\s+)?(?:displayed|shown|visible|on\s+(?:the\s+|my\s+)?screen|in\s+(?:the\s+)?(?:browser|page|dashboard))\b', text_lower):
+            return "screen_check_errors", {"text": text}
+
+        # Explain error ("if there is an error, explain it", "explain the error", "analyze the error")
+        if re.search(r'\b(?:(?:if\s+there\s+is\s+(?:an?\s+)?error[,\s]+)?explain\s+(?:it|the\s+error|this\s+error)|analyze\s+(?:the\s+|this\s+)?error|what\s+caused\s+(?:the\s+|this\s+)?error)\b', text_lower):
+            return "screen_explain_error", {"text": text}
+
+        # Fix error using coding agent ("fix it using my available coding agent", "fix the error using my coding agent", "repair it with coding agent")
+        if re.search(r'\b(?:fix\s+(?:it|the\s+error|this\s+error)|repair\s+(?:it|the\s+error|the\s+bug))\s*(?:using|with)?\s*(?:my\s+|the\s+)?(?:available\s+)?(?:coding\s+agent|coder|ai\s+agent)?\b', text_lower):
+            return "agent_repair_error", {"text": text}
+
+        # Tell me what changed ("tell me what changed", "what changed", "show me what changed", "summarize what changed")
+        if re.search(r'\b(?:tell\s+me\s+what\s+changed|what\s+changed|show\s+(?:me\s+)?what\s+changed|summarize\s+(?:the\s+)?changes?)\b', text_lower):
+            return "agent_explain_changes", {"text": text}
 
         # Take screenshot ("take a screenshot", "capture screen", "capture my screen", "capture active window")
         if re.search(r'\b(?:take\s+(?:a\s+)?screenshot|capture\s+(?:the\s+|my\s+)?(?:screen|desktop|active\s+window))\b', text_lower):
@@ -422,6 +535,33 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:capture\s+(?:my\s+)?photo|take\s+a\s+(?:photo|picture)|take\s+(?:a\s+)?picture|capture\s+(?:a\s+)?(?:frame|image)|camera\s+capture)\b', text_lower):
             return "camera_capture", {"text": text}
 
+        # Audio Diagnostics & Sound Troubleshooting Intent
+        # Disambiguates queries like "can you able to see why sound is not listening that you played video right now",
+        # "why is sound not working", "why is audio not playing", "no sound from video", "diagnose audio", "sound troubleshooting"
+        if re.search(
+            r'\b(?:why\s+(?:is\s+)?(?:the\s+)?(?:sound|audio|video\s+sound|playback)\s+(?:is\s+)?(?:not\s+|blocked|failing|silent|muted|missing)|'
+            r'(?:why\s+)?sound\s+is\s+not\s+(?:listening|playing|working|audible)|'
+            r'why\s+can[\'’]?t\s+i\s+hear|can[\'’]?t\s+hear\s+(?:anything|sound|audio|the\s+video)|'
+            r'no\s+(?:sound|audio)\s+(?:from\s+(?:the\s+)?(?:video|youtube|speaker)|playing)?|'
+            r'(?:diagnose|troubleshoot|check|inspect)\s+(?:the\s+)?(?:audio|sound|speaker|playback|pipewire))\b',
+            text_lower
+        ) or re.search(r'\b(?:sound|audio)\s+(?:is\s+)?(?:broken|down|not\s+working|failing)\b', text_lower):
+            return "audio_diagnostics", {"text": text}
+
+        # Developer CLI Escalation Bridge ("escalate to developer cli", "diagnose with agy", "developer diagnosis", "run developer fix")
+        if re.search(
+            r'\b(?:escalate\s+(?:to\s+)?(?:developer|cli|agy|claude)|'
+            r'(?:developer|cli|system)\s+diagnos(?:is|e)|'
+            r'diagnose\s+with\s+(?:agy|antigravity|claude)|'
+            r'(?:propose|run)\s+(?:developer\s+)?fix)\b',
+            text_lower
+        ):
+            action = "diagnose"
+            if "fix" in text_lower or "repair" in text_lower or "run" in text_lower:
+                action = "propose_or_run_fix"
+            cli_target = "agy" if ("agy" in text_lower or "antigravity" in text_lower) else ("claude" if "claude" in text_lower else "auto")
+            return "developer_escalation", {"action": action, "cli": cli_target, "text": text}
+
         # Phase 8: Apps Center Intent Routing
         if re.search(r'\b(?:open\s+(?:my\s+)?apps|show\s+(?:all\s+)?applications|list\s+applications|apps\s+center|what\s+ai\s+apps|what\s+applications\s+are\s+available|show\s+apps)\b', text_lower):
             return "apps_list", {"text": text}
@@ -458,7 +598,7 @@ class LocalIntelligenceEngine:
             r"how\s+(?:does|do|can|could|would|to|is|are|should|come)|"
             r"what\s+(?:is|are)\s+(?:the\s+)?(?:difference|meaning|definition|concept|theory|function|purpose|role|history|architecture|benefit|flaw|use)|"
             r"what\s+(?:does|do)\s+.*\s+(?:mean|stand\s+for|do)|"
-            r"what\s+is\s+(?:a|an|the|cpu|ram|rom|gpu|ai|os|stt|tts|vad|pipewire|pid|systemd|linux|python|hardware|software|firmware|memory|cache|recursion|decorator|algorithm|neural\s+network)|"
+            r"what\s+is\s+(?:(?:a|an|the)\s+)?(?:cpu|ram|rom|gpu|ai|os|stt|tts|vad|pipewire|pid|systemd|linux|python|hardware|software|firmware|memory|cache|recursion|decorator|algorithm|neural\s+network)\b(?!\s+(?:temperature|temp|usage|status|load|percent|gb|mb|info|health))|"
             r"tell\s+me\s+about\s+(?:the\s+)?(?:history|concept|theory|meaning|background|difference|future|story)|"
             r"(?:can|could|would)\s+you\s+(?:explain|describe|clarify|elaborate|tell\s+me\s+about)|"
             r"difference\s+between|meaning\s+of|definition\s+of|"
@@ -519,11 +659,58 @@ class LocalIntelligenceEngine:
         tools_used = []
 
         try:
-            if intent == "standalone_number":
+            if intent == "stop_speech":
+                try:
+                    from apps.voice.speech_manager import speech_manager
+                    speech_manager.stop()
+                except Exception:
+                    pass
+                return {
+                    "response": "I have stopped speaking.",
+                    "tools_used": ["stop_speech"],
+                    "raw": {"status": "stopped"},
+                }
+
+            elif intent == "standalone_number":
                 num = ctx.get("number", text)
                 return {
                     "response": f"You mentioned the number {num}. How would you like me to use it? (e.g., perform a calculation, look up records, or store it in memory?)",
                     "tools_used": [],
+                }
+
+            elif intent == "antigravity_auto_approve":
+                from tools.desktop.antigravity_approver import apply_antigravity_settings, scan_and_auto_approve_cdp
+                import asyncio
+                set_res = apply_antigravity_settings()
+                try:
+                    scan_res = asyncio.run(scan_and_auto_approve_cdp())
+                except Exception as e:
+                    scan_res = {"error": str(e), "actions": []}
+                actions = scan_res.get("actions", [])
+                if actions:
+                    resp = f"JARVIS has automatically selected Option 1 and submitted in {len(actions)} Antigravity conversation(s)."
+                else:
+                    resp = "JARVIS has applied Antigravity auto-execution settings. Option 1 will always be accepted and commands will proceed automatically."
+                return {
+                    "response": resp,
+                    "tools_used": ["antigravity_auto_approve"],
+                    "raw": {"settings": set_res, "scan": scan_res},
+                }
+
+            elif intent == "computer_command":
+                from tools.desktop.unified_computer_service import unified_computer_service
+                if ctx.get("action") == "enable_session":
+                    unified_computer_service.enable_session()
+                    return {
+                        "response": "Computer control session has been enabled. I can now perform desktop and browser actions.",
+                        "tools_used": ["computer_enable_session"],
+                        "raw": {"status": "enabled"},
+                    }
+                res = unified_computer_service.execute_natural_instruction(ctx.get("instruction", text))
+                return {
+                    "response": res.get("response", "Computer action executed."),
+                    "tools_used": res.get("tools_used", ["computer_command"]),
+                    "raw": res,
                 }
 
             elif intent == "identity":
@@ -603,6 +790,12 @@ class LocalIntelligenceEngine:
             elif intent == "youtube_volume":
                 return self._respond_youtube_volume(ctx)
 
+            elif intent == "audio_diagnostics":
+                return self._respond_audio_diagnostics(ctx)
+
+            elif intent == "developer_escalation":
+                return self._respond_developer_escalation(ctx)
+
             # Phase 11 YouTube AI Dispatches
             elif intent == "youtube_summarize_command":
                 return self._respond_youtube_summarize(ctx)
@@ -630,6 +823,16 @@ class LocalIntelligenceEngine:
             elif intent == "research_sources":
                 return self._respond_research_sources(ctx)
 
+            # Phase 10 Document AI Dispatches
+            elif intent == "document_open":
+                return self._respond_document_open(ctx)
+            elif intent == "document_list":
+                return self._respond_document_list(ctx)
+            elif intent == "document_summarize":
+                return self._respond_document_summarize(ctx)
+            elif intent == "document_ask":
+                return self._respond_document_ask(ctx)
+
             elif intent == "stream_volume_control":
                 return self._respond_stream_volume_control(ctx)
 
@@ -638,6 +841,9 @@ class LocalIntelligenceEngine:
 
             elif intent == "theme_control":
                 return self._respond_theme_control(ctx)
+
+            elif intent == "running_apps_processes":
+                return self._respond_running_apps_processes(ctx)
 
             # Phase 4 Visual Computer-Use Dispatches
             elif intent == "screen_observe":
@@ -658,6 +864,14 @@ class LocalIntelligenceEngine:
                 return self._respond_screen_active_tab(ctx)
             elif intent == "screen_type_text":
                 return self._respond_screen_type_text(ctx)
+            elif intent == "screen_check_errors":
+                return self._respond_screen_check_errors(ctx)
+            elif intent == "screen_explain_error":
+                return self._respond_screen_explain_error(ctx)
+            elif intent == "agent_repair_error":
+                return self._respond_agent_repair_error(ctx)
+            elif intent == "agent_explain_changes":
+                return self._respond_agent_explain_changes(ctx)
 
             # Phase 5 Multi-AI Agent Orchestration Dispatches
             elif intent == "agents_discover":
@@ -1298,11 +1512,28 @@ if __name__ == "__main__":
     def _respond_desktop_open_app(self, ctx: Dict) -> Dict:
         from tools.desktop.action_engine import desktop_action_engine
         app = ctx.get("app", "code")
-        res = desktop_action_engine.open_application(app, new_window=True)
+        raw_text = ctx.get("text", "")
+        target = None
+        if re.search(r'\b(?:jarvis\s+)?dashboard\b', raw_text, re.I):
+            target = "http://127.0.0.1:8000"
+        elif re.search(r'\b(?:go\s+to|navigate\s+to|open)\s+(https?://\S+|localhost:\d+|127\.0\.0\.1:\d+)', raw_text, re.I):
+            m_url = re.search(r'\b(?:go\s+to|navigate\s+to|open)\s+(https?://\S+|localhost:\d+|127\.0\.0\.1:\d+)', raw_text, re.I)
+            if m_url:
+                target = m_url.group(1)
+                if not target.startswith("http"):
+                    target = "http://" + target
+
+        res = desktop_action_engine.open_application(app, target=target, new_window=True)
         ar = res["actual_result"]
         if ar.get("success"):
+            try:
+                from tools.desktop.unified_computer_service import unified_computer_service
+                unified_computer_service.set_target_window(app)
+            except Exception:
+                pass
+            target_disp = f" to `{target}`" if target else ""
             return {
-                "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`) on desktop session (PID: {ar.get('pid')}).",
+                "response": f"🚀 Launched **{ar.get('app')}** (`{ar.get('executable')}`){target_disp} on desktop session (PID: {ar.get('pid')}).",
                 "tools_used": ["desktop_open_app", "open_app"],
                 "raw": res,
             }
@@ -1587,15 +1818,34 @@ if __name__ == "__main__":
         autoplay = ctx.get("autoplay", True)
         res = youtube_controller.select_and_play(index=idx, title_query=title_q, autoplay=autoplay, browser="chrome")
         if res.get("status") == "ok":
-            action_desc = "Now playing" if autoplay else "Opened in Google Chrome (paused)"
+            state = res.get("state")
+            if state == "PLAYING_VERIFIED":
+                action_desc = "Now playing"
+                verified_note = "(Audio stream verified active in PipeWire on DISPLAY=:0)"
+                status_icon = "▶️"
+            elif state == "PLAYBACK_BLOCKED":
+                action_desc = "Opened in Google Chrome (Playback Blocked)"
+                verified_note = "(Audio blocked by browser autoplay policy on DISPLAY=:0)"
+                status_icon = "⚠️"
+            elif state == "OPENED_PAUSED":
+                action_desc = "Opened in Google Chrome (paused)"
+                verified_note = "(Playback paused per instruction on DISPLAY=:0)"
+                status_icon = "⏸️"
+            else:
+                action_desc = "Opened in Google Chrome"
+                verified_note = f"({state} on DISPLAY=:0)"
+                status_icon = "ℹ️"
+
             resp = (
-                f"▶️ **{action_desc} option #{res['rank']} on YouTube in Google Chrome:**\n"
+                f"{status_icon} **{action_desc} option #{res['rank']} on YouTube in Google Chrome:**\n\n"
                 f"- **Title:** {res['title']}\n"
                 f"- **Channel:** {res['channel']}\n"
                 f"- **Duration:** {res.get('duration', 'Unknown')}\n"
                 f"- **URL:** `{res['url']}`\n"
-                f"- **Verified State:** `{res.get('state')}` (Audio active on DISPLAY=:0)"
+                f"- **Verified State:** `{state}` {verified_note}"
             )
+            if state == "PLAYBACK_BLOCKED":
+                resp += "\n\n💡 *Tip: Click inside the YouTube Chrome window on DISPLAY=:0 or press Space/K to resume playback.*"
         else:
             resp = f"⚠️ {res.get('message', 'Could not play requested YouTube video.')}"
         return {
@@ -1671,6 +1921,111 @@ if __name__ == "__main__":
             "response": f"🔊 YouTube video volume set to **{vol}%** (PipeWire stream adjusted).",
             "tools_used": ["youtube_volume"],
             "raw": res,
+        }
+
+    def _respond_audio_diagnostics(self, ctx: Dict) -> Dict:
+        from tools.media.audio_stream_manager import audio_stream_manager
+        from tools.browser.youtube_controller import youtube_controller
+        from tools.browser.browser_agent import browser_agent
+
+        tools_used = ["audio_diagnostics", "audio_stream_manager.get_master_sink_volume", "audio_stream_manager.list_active_streams"]
+
+        # 1. PipeWire master sink volume and mute status
+        sink_vol = audio_stream_manager.get_master_sink_volume()
+        master_vol = sink_vol.get("volume_pct", 100)
+        master_muted = sink_vol.get("muted", False)
+
+        # 2. Active audio streams
+        streams = audio_stream_manager.list_active_streams()
+        playback_streams = [s for s in streams if s.get("direction") == "playback" and s.get("active")]
+        chrome_stream = any(
+            ("chrome" in str(s.get("name", "")).lower() or "chromium" in str(s.get("name", "")).lower())
+            for s in playback_streams
+        )
+
+        # 3. Browser & YouTube Session Inspection
+        chrome_windows = browser_agent.find_browser_windows("chrome")
+        session = youtube_controller.get_current_session()
+        video_title = None
+        video_channel = None
+        session_state = None
+        if session and session.selected_video:
+            video_title = session.selected_video.title
+            video_channel = session.selected_video.channel
+            session_state = session.state
+
+        # 4. Synthesize diagnosis findings
+        findings = []
+        if master_muted:
+            findings.append("⚠️ **Master Sink is MUTED**: Audio output is muted at the PipeWire hardware level.")
+        elif master_vol < 20:
+            findings.append(f"⚠️ **Master Sink Volume is LOW**: Currently set to {master_vol}%.")
+        else:
+            findings.append(f"✅ **Master Sink**: Active and unmuted (Volume: {master_vol}% on default sink).")
+
+        if chrome_windows:
+            win_title = chrome_windows[0].get("title", "Google Chrome")
+            if chrome_stream:
+                findings.append(f"✅ **Chrome Audio Stream**: Detected and streaming audio in PipeWire (`{win_title}`).")
+            else:
+                findings.append(
+                    f"⚠️ **Chrome Window Open but Silent**: Window `{win_title}` is present on `DISPLAY=:0`, "
+                    f"but Chrome's audio stream is NOT active. Chrome's autoplay security policy often suppresses audio "
+                    f"until the user clicks inside the page or presses Space/K."
+                )
+        else:
+            findings.append("ℹ️ **Browser Window**: No Google Chrome window currently active on `DISPLAY=:0`.")
+
+        if session_state:
+            findings.append(f"ℹ️ **Last YouTube Action**: Video '{video_title}' by {video_channel} (State: `{session_state}`).")
+
+        # 5. Build markdown response
+        lines = [
+            "### 🔊 Audio & Playback Diagnostics",
+            "",
+            "\n".join(findings),
+            "",
+            "#### Remediation Steps:",
+            "1. **Unmute / Resume in Chrome**: Click inside the YouTube Chrome window on `DISPLAY=:0`, or say *'press space'* / *'press k'*.",
+            "2. **Check Volume**: Say *'set volume to 80%'* or *'set chrome volume to 100%'*.",
+            "3. **Developer Escalation**: Say *'escalate to developer cli'* or *'diagnose with agy'* to inspect backend logs and service health.",
+        ]
+
+        return {
+            "response": "\n".join(lines),
+            "tools_used": tools_used,
+            "raw": {
+                "master_volume": master_vol,
+                "master_muted": master_muted,
+                "active_streams": [s.get("name") for s in playback_streams],
+                "chrome_window_open": len(chrome_windows) > 0,
+                "chrome_stream_detected": chrome_stream,
+                "session_state": session_state,
+            },
+        }
+
+    def _respond_developer_escalation(self, ctx: Dict) -> Dict:
+        from tools.developer.cli_bridge import developer_cli_bridge
+
+        action = ctx.get("action", "diagnose")
+        cli = ctx.get("cli", "auto")
+
+        if action == "propose_or_run_fix":
+            return {
+                "response": (
+                    "🔒 **Gated Developer Action Required:**\n\n"
+                    "Applying fixes or mutating system services requires administrator authorization.\n"
+                    "Please provide your admin PIN to confirm (e.g., via the Account Center or privileged action prompt)."
+                ),
+                "tools_used": ["developer_cli_bridge.verify_authorization"],
+                "raw": {"status": "gated_action", "cli": cli},
+            }
+
+        diag = developer_cli_bridge.diagnose_system()
+        return {
+            "response": diag.get("markdown_report", "### 🛠️ Developer CLI Auto-Inspection Completed."),
+            "tools_used": ["developer_cli_bridge.diagnose_system", "developer_cli_bridge.detect_clis"],
+            "raw": diag,
         }
 
     def _respond_open_youtube_ai(self, ctx: Dict) -> Dict:
@@ -1809,6 +2164,75 @@ if __name__ == "__main__":
             "response": f"🔬 Verified sources for **{tasks[0]['topic']}** ({len(sources)} total):\n" + "\n".join(summary_lines),
             "tools_used": ["research_sources"],
             "count": len(sources),
+        }
+
+    # ── Phase 10 Document AI Voice Handlers ───────────────────────────
+
+    def _respond_document_open(self, ctx: Dict) -> Dict:
+        return {
+            "response": "📄 Opening Document AI in the JARVIS Dashboard.",
+            "tools_used": ["open_app"],
+            "action": "open_tab",
+            "target_tab": "documents",
+        }
+
+    def _respond_document_list(self, ctx: Dict) -> Dict:
+        from apps.document_qa.database import db as doc_db
+        docs = doc_db.list_documents(user_id="default_user")
+        if not docs:
+            return {
+                "response": "📄 You have no documents uploaded. You can upload PDFs, Word documents, text, or CSV files in the Document AI tab.",
+                "tools_used": ["document_list"],
+            }
+        lines = [f"{i}. **{d.filename}** ({d.file_type.value.upper()}, {d.page_count} pages, {d.word_count} words)" for i, d in enumerate(docs[:5], 1)]
+        return {
+            "response": f"📄 You have {len(docs)} document(s) uploaded:\n" + "\n".join(lines),
+            "tools_used": ["document_list"],
+            "count": len(docs),
+        }
+
+    def _respond_document_ask(self, ctx: Dict) -> Dict:
+        question = ctx.get("question", "").strip()
+        if not question:
+            return {
+                "response": "📄 Please state the question you would like me to ask your documents.",
+                "tools_used": ["document_ask"],
+            }
+        from apps.document_qa.qa import DocumentQAAssistant
+        assistant = DocumentQAAssistant()
+        ans = assistant.ask(question=question, user_id="default_user")
+        return {
+            "response": f"📄 **Document AI Answer:**\n\n{ans.answer}",
+            "tools_used": ["document_ask"],
+            "grounded": ans.grounded,
+            "confidence": ans.confidence,
+        }
+
+    def _respond_document_summarize(self, ctx: Dict) -> Dict:
+        title = ctx.get("title", "").strip()
+        from apps.document_qa.database import db as doc_db
+        from apps.document_qa.summarizer import DocumentSummarizer
+        docs = doc_db.list_documents(user_id="default_user")
+        if not docs:
+            return {
+                "response": "📄 No documents are currently uploaded to summarize.",
+                "tools_used": ["document_summarize"],
+            }
+        target_doc = None
+        if title:
+            for d in docs:
+                if title.lower() in d.filename.lower():
+                    target_doc = d
+                    break
+        if not target_doc:
+            target_doc = docs[0]
+
+        summarizer = DocumentSummarizer()
+        summary = summarizer.summarize(target_doc.doc_id, user_id="default_user")
+        return {
+            "response": f"📄 **Summary for {target_doc.filename}:**\n\n{summary.summary_text}",
+            "tools_used": ["document_summarize"],
+            "doc_id": target_doc.doc_id,
         }
 
     def _respond_youtube_summarize(self, ctx: Dict) -> Dict:
@@ -1950,6 +2374,15 @@ if __name__ == "__main__":
             "raw": res,
         }
 
+    def _respond_running_apps_processes(self, ctx: Dict) -> Dict:
+        from tools.system.process_inspector import process_inspector
+        overview = process_inspector.get_running_overview()
+        return {
+            "response": overview.get("markdown", "Running processes and open windows inspected."),
+            "tools_used": ["process_inspector_running_overview"],
+            "raw": overview,
+        }
+
     # Phase 4 Response Handlers
     def _respond_screen_observe(self, ctx: Dict) -> Dict:
         from tools.desktop.desktop_perception import desktop_perception
@@ -1959,20 +2392,55 @@ if __name__ == "__main__":
         wins = obs.get("open_windows", [])
         top_wins = [w for w in wins if w.get("desktop", 0) != -1]
         win_bullets = "\n".join(f"- `{w.get('title')}` (App: **{w.get('app')}**)" for w in top_wins[:5])
+        tools_used = ["desktop_perception_observe"]
 
-        resp = (
-            f"👁️ **Screen Observation Summary**\n\n"
-            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `:0`)\n"
-            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`\n"
-            f"- **Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)\n"
-            f"- **Window Dimensions:** {act.get('geometry', {}).get('width')} × {act.get('geometry', {}).get('height')} at pos ({act.get('geometry', {}).get('x')}, {act.get('geometry', {}).get('y')})\n\n"
-            f"**Currently Open Applications ({len(top_wins)}):**\n"
-            f"{win_bullets}\n\n"
-            f"Visual snapshot captured in {obs.get('total_ms', 0)}ms."
-        )
+        # Capture fullscreen visual description via local Moondream VLM
+        visual_desc = None
+        snap_path = obs.get("screenshot_path")
+        if not snap_path:
+            snap = desktop_perception.capture_fullscreen()
+            snap_path = snap.get("filepath")
+
+        if snap_path and os.path.exists(snap_path):
+            try:
+                from tools.vision.vision_vlm import vision_vlm
+                if vision_vlm.is_available():
+                    vlm_res = vision_vlm.describe_scene(
+                        snap_path,
+                        prompt="Describe what is displayed on this computer desktop screen concisely in 2-3 sentences, noting the main visible windows, content, or applications."
+                    )
+                    if vlm_res.get("success") and vlm_res.get("description"):
+                        visual_desc = vlm_res["description"].strip()
+                        tools_used.append("vision_vlm_moondream")
+            except Exception as e:
+                logger.debug("Moondream screen scene description error: %s", e)
+
+        resp_lines = [
+            "👁️ **Desktop Screen Inspection Summary**",
+            "",
+            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `DISPLAY=:0`)",
+            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`",
+            f"- **Focused Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)",
+        ]
+
+        if visual_desc:
+            resp_lines.extend([
+                "",
+                "**Visual Screen Content (Moondream VLM):**",
+                visual_desc,
+            ])
+
+        resp_lines.extend([
+            "",
+            f"**Currently Open Applications ({len(top_wins)}):**",
+            win_bullets or "- *No open application windows*",
+            "",
+            f"*Visual snapshot captured on DISPLAY=:0 in {obs.get('total_ms', 0)}ms.*",
+        ])
+
         return {
-            "response": resp,
-            "tools_used": ["desktop_perception_observe"],
+            "response": "\n".join(resp_lines),
+            "tools_used": tools_used,
             "raw": obs,
         }
 
@@ -2139,6 +2607,75 @@ if __name__ == "__main__":
             "response": f"⌨️ Typed text into active field: `\"{text_to_type}\"`. Status: {verified_str}.",
             "tools_used": ["computer_action_type"],
             "raw": res,
+        }
+
+    def _respond_screen_check_errors(self, ctx: Dict) -> Dict:
+        from tools.desktop.screen_intelligence import screen_intelligence
+        result = screen_intelligence.check_screen_errors()
+        if result.get("error_found"):
+            err_text = result.get("error", "Unknown error")
+            count = result.get("count", 1)
+            msg = (
+                f"🚨 {result.get('message')}\n\n"
+                f"```text\n{err_text[:300]}\n```\n\n"
+                "You can say *\"explain this error\"* or *\"fix it using my available coding agent\"*."
+            )
+        else:
+            msg = "✅ No errors are currently displayed on the screen or in the active application."
+
+        return {
+            "response": msg,
+            "tools_used": ["screen_check_errors"],
+            "raw": result,
+        }
+
+    def _respond_screen_explain_error(self, ctx: Dict) -> Dict:
+        from tools.desktop.screen_intelligence import screen_intelligence
+        result = screen_intelligence.explain_detected_error()
+        if result.get("has_error"):
+            msg = result.get("explanation", "Error explained.")
+        else:
+            msg = "ℹ️ No recent screen error has been detected to explain. Try asking me to *\"check whether any errors are displayed\"* first."
+
+        return {
+            "response": msg,
+            "tools_used": ["screen_explain_error"],
+            "raw": result,
+        }
+
+    def _respond_agent_repair_error(self, ctx: Dict) -> Dict:
+        from tools.desktop.coding_agent_bridge import coding_agent_bridge
+        from tools.desktop.screen_intelligence import screen_intelligence
+        err_info = getattr(screen_intelligence, "last_detected_error", None)
+        err_text = err_info.get("error_text", "") if err_info else ""
+        repair_res = coding_agent_bridge.execute_repair(error_context=err_text)
+        agent_name = repair_res.get("agent_name", "Local Coding Agent")
+        status = repair_res.get("status", "unknown")
+        files = repair_res.get("changed_files", [])
+        verified = repair_res.get("verification_passed", False)
+        test_summary = repair_res.get("test_summary", "Tests verified")
+        test_badge = f"Tests: {'Passed ✅' if verified else 'Review needed ⚠️'}"
+        msg = (
+            f"🛠️ **Autonomous Repair Complete via {agent_name}:**\n\n"
+            f"- Status: {status.upper()}\n"
+            f"- Files changed: {len(files)} ({', '.join(files) if files else 'None'})\n"
+            f"- {test_badge} ({test_summary})\n\n"
+            "Say *\"tell me what changed\"* to inspect the unified diff."
+        )
+        return {
+            "response": msg,
+            "tools_used": ["coding_agent_repair"],
+            "raw": repair_res,
+        }
+
+    def _respond_agent_explain_changes(self, ctx: Dict) -> Dict:
+        from tools.desktop.coding_agent_bridge import coding_agent_bridge
+        changes = coding_agent_bridge.explain_changes()
+        msg = changes if isinstance(changes, str) else changes.get("explanation", "No changes recorded.")
+        return {
+            "response": msg,
+            "tools_used": ["coding_agent_explain_changes"],
+            "raw": {"summary": msg},
         }
 
     def _respond_general(self, text: str) -> Dict:

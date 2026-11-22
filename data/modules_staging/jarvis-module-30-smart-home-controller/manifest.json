@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-30-smart-home-controller",
+  "module_number": 30,
+  "name": "Smart Home Controller",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "iot_home_automation",
+  "description": "Room and device registry, lock-safe command dispatch, multi-device scenes, automation rules engine, and energy telemetry with a pluggable IoT bridge adapter for JARVIS OS.",
+  "default_port": 8130,
+  "ui_route": "/smart-home",
+  "api_prefix": "/api/v1/smart-home",
+  "ws_endpoint": "/api/v1/smart-home/ws/events",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M30_DB_PATH",
+    "default_path": "./data/jarvis_smart_home.db"
+  },
+  "capabilities": [
+    "device_registry_and_control",
+    "lock_safety_confirmation",
+    "multi_device_scenes",
+    "automation_rules_engine",
+    "room_energy_telemetry"
+  ]
+}

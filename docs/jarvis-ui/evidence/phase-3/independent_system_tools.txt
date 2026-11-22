@@ -1,0 +1,17 @@
+=== free -m ===
+               total        used        free      shared  buff/cache   available
+Mem:            7950        6631         211         205        1749        1319
+Swap:          33850        1223       32627
+
+=== df -h / ===
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda2       235G  112G  113G  50% /
+
+=== Thermal Temp ===
+57.85 °C
+
+=== Uname ===
+Linux raspberrypi 6.18.60+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.18.60-1+rpt1 (2026-11-03) aarch64 GNU/Linux
+
+=== Battery Check ===
+Battery: Unavailable (AC / USB-C powered)

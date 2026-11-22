@@ -34,6 +34,8 @@ class AudioManager:
                 self.simulation_mode = False
 
         self.selected_device: Optional[Dict[str, Any]] = None
+        self.selected_playback_device: Optional[Dict[str, Any]] = None
+        self.current_volume: float = 0.65
         logger.info(
             "AudioManager initialized (simulation_mode=%s)", self.simulation_mode
         )
@@ -193,12 +195,61 @@ class AudioManager:
             return [{"card": 0, "device": 0, "name": "Simulated"}]
 
     def select_best_playback_device(self) -> Dict[str, Any]:
-        """Select preferred output speaker (ReSpeaker Lite or first available)."""
+        """Select preferred output speaker (user selection, ReSpeaker Lite, or first available)."""
+        if self.selected_playback_device:
+            return self.selected_playback_device
         devices = self.detect_playback_devices()
         for dev in devices:
             if "respeaker" in dev["name"].lower():
                 return dev
         return devices[0] if devices else {"card": 0, "device": 0, "name": "Simulated"}
+
+    def set_playback_device(self, card: int, device: int, name: Optional[str] = None) -> Dict[str, Any]:
+        """Set user-selected audio playback device and update PipeWire default sink if found."""
+        dev = {"card": card, "device": device, "name": name or f"Card {card} Device {device}"}
+        self.selected_playback_device = dev
+        try:
+            proc = subprocess.run(["wpctl", "status"], capture_output=True, text=True, timeout=2)
+            if proc.returncode == 0 and name:
+                in_sinks = False
+                for line in proc.stdout.splitlines():
+                    if "Sinks:" in line:
+                        in_sinks = True
+                        continue
+                    if in_sinks and "Sources:" in line:
+                        break
+                    if in_sinks and any(token.lower() in line.lower() for token in name.lower().split() if len(token) > 2):
+                        m = re.search(r"(\d+)\.", line)
+                        if m:
+                            sink_id = m.group(1)
+                            subprocess.run(["wpctl", "set-default", sink_id], timeout=2)
+                            break
+        except Exception as exc:
+            logger.debug("Failed setting wpctl default sink: %s", exc)
+        return dev
+
+    def get_volume(self) -> float:
+        """Read system output volume (0.0 - 1.5)."""
+        try:
+            res = subprocess.run(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"], capture_output=True, text=True, timeout=2)
+            if res.returncode == 0:
+                m = re.search(r"Volume:\s*([0-9\.]+)", res.stdout)
+                if m:
+                    self.current_volume = float(m.group(1))
+                    return self.current_volume
+        except Exception:
+            pass
+        return self.current_volume
+
+    def set_volume(self, volume: float) -> float:
+        """Set system output volume (0.0 - 1.5)."""
+        vol = max(0.0, min(1.5, float(volume)))
+        try:
+            subprocess.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{vol:.2f}"], timeout=2)
+            self.current_volume = vol
+        except Exception as exc:
+            logger.warning("Failed setting volume via wpctl: %s", exc)
+        return self.current_volume
 
     def get_device_alsa_identifier(self, device: Optional[Dict[str, Any]] = None, plug: bool = False) -> str:
         """Format an ALSA device string like 'hw:1,0' or 'plughw:1,0' for arecord/aplay.

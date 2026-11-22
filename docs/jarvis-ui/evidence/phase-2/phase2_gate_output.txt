@@ -1,0 +1,18 @@
+▶ Phase 2 Gate: Design System & Accessible Shell Verification
+  ✔ Static assets integrity check (1.127848ms)
+  ✔ Axe Accessibility Audit on Shell (3121.335616ms)
+  ✔ Keyboard-Only Navigation Test (620.292294ms)
+  ✔ All 18 destinations route and display honest status (3157.011881ms)
+  ✔ Capture screenshot at desktop_1920x1080 (1861.294482ms)
+  ✔ Capture screenshot at laptop_1366x768 (890.783014ms)
+  ✔ Capture screenshot at tablet_768x1024 (999.052857ms)
+  ✔ Capture screenshot at mobile_375x667 (635.401853ms)
+✔ Phase 2 Gate: Design System & Accessible Shell Verification (15674.981083ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 17779.575675

@@ -1,0 +1,27 @@
+[JARVIS Voice] Interruption cancelled speech in 0.3ms
+[JARVIS Voice] Interruption cancelled speech in 0.3ms
+[JARVIS Voice] Interruption cancelled speech in 5.4ms
+✔ microphone delegates to existing owner without browser capture (24.323426ms)
+✔ one command creates no additional synthesis or browser playback (8.343918ms)
+✔ empty replies are failures rather than invented success (19.350823ms)
+✔ interrupt while inference is pending cancels its late job (13.642446ms)
+✔ listen_once response is not submitted for inference twice (17.518184ms)
+✔ failed system delivery remains failed and never falls back to extra playback (7.699237ms)
+✔ late capture acceptance cannot undo mute (16.856596ms)
+✔ standby before daemon accepts capture does not dismiss pending request (3.417019ms)
+✔ late status poll cannot undo mute (21.31348ms)
+✔ capture failure and status timeout remain explicit, without resubmission (11.391181ms)
+✔ accepted owner request never opens a second recorder or claims completion (12.125806ms)
+✔ daemon ownership and capture errors are never reported as silence (9.149636ms)
+✔ confirmed no-speech response has its own outcome (10.553259ms)
+✔ server-owned speech is queued once and never replayed in browser (2.821318ms)
+✔ permission or uncertain timeout cannot start fallback capture (16.672949ms)
+✔ text success without speech delivery remains a delivery error (12.807951ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 551.542296

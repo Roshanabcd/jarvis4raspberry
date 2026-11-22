@@ -54,6 +54,11 @@ class SpeechOutputManager:
 
         logger.info("SpeechOutputManager initialized (stage_dir=%s)", self.stage_dir)
 
+    def is_speaking(self) -> bool:
+        """Return True if speech playback is currently active."""
+        with self._lock:
+            return self._current_player is not None and self._current_player.poll() is None
+
     def get_status(self) -> Dict[str, Any]:
         """Return comprehensive status for voice hardware, TTS cloner, and playback."""
         from apps.voice.service import voice_service
@@ -364,7 +369,7 @@ class SpeechOutputManager:
             if player and player.poll() is None:
                 try:
                     player.terminate()
-                    player.wait(timeout=1.0)
+                    player.wait(timeout=0.5)
                 except Exception:
                     try:
                         player.kill()
@@ -414,7 +419,8 @@ class SpeechOutputManager:
 
             # 3. Play tone via PipeWire
             player_bin = shutil.which("pw-play") or shutil.which("paplay") or shutil.which("aplay") or "pw-play"
-            proc = subprocess.Popen([player_bin, tone_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            from apps.voice.audio_environment import local_audio_environment
+            proc = subprocess.Popen([player_bin, tone_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=local_audio_environment())
             playback_started = True
             proc.wait(timeout=5)
             playback_completed = (proc.returncode == 0)

@@ -18,6 +18,7 @@ from typing import AsyncGenerator, Sequence, Tuple
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from config.config_manager import config
@@ -50,12 +51,15 @@ DEFAULT_ROUTER_SPECS: Tuple[RouterSpec, ...] = (
     ("apps.api.desktop_api", "desktop_router", "/api", ("desktop",)),
     ("apps.api.terminal_api", "terminal_router", "/api", ("terminal",)),
     ("apps.api.identity_api", "identity_router", "/api", ("identity",)),
+    ("apps.api.account_api", "account_router", "/api", ("account",)),
     ("apps.api.apps_center_api", "apps_center_router", "/api", ("apps_center",)),
     ("apps.api.browser_media_api", "browser_media_router", "/api", ("browser_media",)),
     ("apps.api.agent_orchestrator_api", "agents_router", "/api", ("agents",)),
     ("apps.api.hybrid_developer_api", "developer_router", "/api", ("developer",)),
     ("apps.api.youtube_api", "youtube_router", "/api", ("youtube",)),
     ("apps.api.research_api", "research_router", "/api", ("research",)),
+    ("apps.api.document_qa_api", "document_qa_router", "/api", ("document_qa",)),
+    ("apps.api.capabilities_api", "capabilities_router", "", ("capabilities",)),
     ("apps.api.computer_api", "router", "", ("computer",)),
     ("apps.api.websocket_api", "ws_router", "", ("ws",)),
 )
@@ -142,6 +146,11 @@ async def production_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     logger.info("JARVIS OS — Shutting down gracefully...")
     try:
+        from apps.api.task_jobs_api import close_manager
+        close_manager()
+    except Exception:
+        logger.warning("Background tasks interrupted during shutdown; they will not replay.")
+    try:
         from apps.voice.service import voice_service
 
         voice_service.stop()
@@ -209,11 +218,32 @@ def create_app(
     for spec in router_specs:
         _include_router(app, spec)
 
+    try:
+        from jarvis_feature_suite_loader import mount_jarvis_feature_suite
+
+        mount_jarvis_feature_suite(app)
+        logger.info("✓ JARVIS Unified Feature Suite mounted at /suite")
+    except Exception as exc:
+        logger.warning("JARVIS Unified Feature Suite skipped: %s", exc)
+
     if include_dashboard:
+        futuristic_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "futuristic")
+        if os.path.isdir(futuristic_dir):
+            app.mount("/futuristic", StaticFiles(directory=futuristic_dir, html=True), name="futuristic")
+            logger.info("✓ Futuristic dashboard at %s", futuristic_dir)
+
+            @app.get("/futuristic", include_in_schema=False)
+            def _redirect_futuristic():
+                return RedirectResponse(url="/futuristic/")
+
         dashboard_dir = os.path.join(os.path.dirname(__file__), "..", "dashboard", "static")
         if os.path.isdir(dashboard_dir):
             app.mount("/", StaticFiles(directory=dashboard_dir, html=True), name="dashboard")
             logger.info("✓ Dashboard at %s", dashboard_dir)
+
+            @app.get("/dashboard", include_in_schema=False)
+            def _redirect_dashboard():
+                return RedirectResponse(url="/")
         else:
             logger.warning("Dashboard static directory not found — skipping mount.")
 

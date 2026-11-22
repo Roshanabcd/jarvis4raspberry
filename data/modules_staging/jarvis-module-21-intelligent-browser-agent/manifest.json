@@ -1,0 +1,97 @@
+{
+  "module_id": "jarvis-module-21-intelligent-browser-agent",
+  "module_number": 21,
+  "name": "Intelligent Browser Agent",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "phase": "PHASE_A_CORE_AI_OS",
+  "priority": "HIGH",
+  "category": "Core AI Operating System",
+  "description": "Authorized, policy-governed browser automation agent featuring session management, site allowlist/SSRF protection, real HTML DOM extraction, page inspection, screenshot analysis, form interaction with mandatory human approval for submissions, multi-page task workflows, task cancellation, download management, and persistent automation logs.",
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "fastapi>=0.92.0",
+      "uvicorn>=0.17.6",
+      "pydantic>=1.10.4",
+      "httpx>=0.23.3",
+      "Pillow>=10.0.0"
+    ],
+    "optional_packages": [
+      "playwright>=1.43.0",
+      "pytest>=7.4.0",
+      "pytest-asyncio>=0.21.0"
+    ],
+    "jarvis_modules": [
+      "jarvis-module-18-multi-agent-orchestrator (optional)"
+    ]
+  },
+  "permissions": [
+    "browser:session:manage",
+    "browser:navigate:policy_checked",
+    "browser:dom:extract",
+    "browser:form:submit_approved",
+    "browser:download:sandboxed",
+    "storage:sqlite:local"
+  ],
+  "resource_requirements": {
+    "min_ram_mb": 128,
+    "recommended_ram_mb": 384,
+    "cpu_cores": 1,
+    "gpu_required": false,
+    "storage_type": "sqlite_wal"
+  },
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_mount": "backend.app.main:mount_module",
+    "frontend_dev": "frontend/src/main.tsx",
+    "frontend_standalone_url": "/browser-agent",
+    "health_check": "/api/v1/browser-agent/health",
+    "manifest_endpoint": "/api/v1/browser-agent/manifest",
+    "openapi_prefix": "/api/v1/browser-agent",
+    "websocket_stream": "/api/v1/browser-agent/ws/events"
+  },
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "JARVIS_M21_HOST": { "type": "string", "default": "0.0.0.0" },
+      "JARVIS_M21_PORT": { "type": "integer", "default": 8121 },
+      "JARVIS_M21_DB_PATH": { "type": "string", "default": "./data/jarvis_browser_agent.db" },
+      "JARVIS_M21_DOWNLOADS_DIR": { "type": "string", "default": "./data/downloads" },
+      "JARVIS_M21_ADAPTER_MODE": { "type": "string", "enum": ["safe_simulated"], "default": "safe_simulated" }
+    }
+  },
+  "events": {
+    "published": [
+      "browser.session.created",
+      "browser.page.navigated",
+      "browser.dom.extracted",
+      "browser.form.awaiting_approval",
+      "browser.form.submitted",
+      "browser.download.completed",
+      "browser.workflow.completed",
+      "browser.workflow.cancelled"
+    ],
+    "subscribed": [
+      "orchestrator.task.dispatch",
+      "approval.external_decision"
+    ]
+  },
+  "error_format": {
+    "schema": {
+      "error": {
+        "code": "string",
+        "message": "string",
+        "details": "object|null",
+        "timestamp": "ISO-8601 UTC string"
+      }
+    }
+  },
+  "simulation_disclosure": {
+    "uses_simulation_by_default": true,
+    "simulated_components": [
+      "SafeSimulatedBrowserAdapter serves local HTML fixtures for *.jarvis.local domains and renders Pillow PNG viewport previews without making unauthorized live web requests.",
+      "Real Playwright/Chromium automation can be bound by implementing BrowserAutomationAdapter and configuring site allowlists."
+    ]
+  }
+}

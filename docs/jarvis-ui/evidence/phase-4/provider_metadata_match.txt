@@ -1,0 +1,31 @@
+=== JARVIS OS Phase 4: Provider Metadata & Truthfulness Evidence ===
+Date: 2026-11-20
+Target: docs/jarvis-ui/SPEC.md Section 4 & PLAN.md Phase 4 Gate
+
+1. Backend Provider Detection:
+- Endpoint: GET /api/chat/providers
+- Response:
+  Active Provider: "ollama"
+  Active Model: "llama3.2:1b"
+  Available providers:
+    * ollama (available=true, models: ['llama3.2:1b', 'qwen3.5:4b', 'moondream:latest'])
+    * openrouter (available=true, credential_configured=true)
+    * edge_fastpath (deterministic edge fastpath for immediate conversational greetings)
+
+2. Response Metadata Match:
+- When prompt "hello!" was submitted to live backend (127.0.0.1:8000/futuristic/#chat):
+  Backend SSE events:
+    data: {"type": "start", "provider": "agent", "model": ""}
+    data: {"type": "token", "content": "Hello! I'm here. What would you like me to do?", "provider": "edge_fastpath", "model": "local_conversation"}
+    data: {"type": "done", "status": "completed", "provider": "edge_fastpath", "model": "local_conversation", "total_ms": 54}
+  Frontend Rendered Tag:
+    .provider-tag text: "edge_fastpath : local_conversation"
+    Match: EXACT. No hardcoded or invented model name.
+
+3. Standalone Usability:
+- Full conversation flow verified with 0 dependency on the avatar module.
+- Markdown rendering, fenced code highlighting with one-click copy button, stop generation cancellation, retry/regenerate, message search filtering, and history export (Markdown & JSON) fully operational.
+
+4. Mock Data Prohibition:
+- 0 simulated or random replies in production bundle (`api.js`, `chat.js`, `shell.js`, `index.html`).
+- All mock data restricted to test fixtures and servers (`tests/browser/phase4_conversation.cjs`).

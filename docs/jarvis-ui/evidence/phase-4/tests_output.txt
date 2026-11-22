@@ -1,0 +1,18 @@
+▶ Phase 4 Gate: Futuristic Conversation Panel Suite
+  ✔ 1. Navigation to #chat mounts conversation interface with providers and welcome message (1276.620084ms)
+  ✔ 2. Real-time streaming conversation, markdown code block, and copy code button (2934.324205ms)
+  ✔ 3. Stop generation cancellation mid-stream reaches backend request_id (1737.507306ms)
+  ✔ 4. Regenerate / Retry resubmits prompt (1798.055294ms)
+  ✔ 5. Conversation search filters message bubbles (1846.772604ms)
+  ✔ 6. Clear history deletes persistent messages and resets interface (1121.2274ms)
+  ✔ 7. Honest attachment button informs user of unsupported status (1152.907983ms)
+  ✔ 8. Live FastAPI server end-to-end verification (127.0.0.1:8000/futuristic/#chat) (1853.677885ms)
+✔ Phase 4 Gate: Futuristic Conversation Panel Suite (14275.141114ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14979.523531

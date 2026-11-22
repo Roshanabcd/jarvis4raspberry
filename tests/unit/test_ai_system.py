@@ -50,19 +50,22 @@ def test_ollama_provider_init():
 
 @patch("requests.get")
 def test_ollama_provider_availability(mock_get):
-    provider = OllamaProvider(base_url="http://localhost:11434")
-
     # Available case
+    provider = OllamaProvider(base_url="http://localhost:11434")
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_get.return_value = mock_resp
     assert provider.is_available() is True
 
-    # Server error
+    # Server error - new provider instance to avoid cache
+    provider = OllamaProvider(base_url="http://localhost:11434")
+    mock_resp = MagicMock()
     mock_resp.status_code = 500
+    mock_get.return_value = mock_resp
     assert provider.is_available() is False
 
-    # Connection error
+    # Connection error - new provider instance
+    provider = OllamaProvider(base_url="http://localhost:11434")
     mock_get.side_effect = requests.ConnectionError("Connection refused")
     assert provider.is_available() is False
 

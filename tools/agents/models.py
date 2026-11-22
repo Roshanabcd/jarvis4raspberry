@@ -23,6 +23,7 @@ class AgentStatus(str, Enum):
 class AgentId(str, Enum):
     ANTIGRAVITY = "antigravity"
     CODEX = "codex"
+    COPILOT = "copilot"
     CLAUDE = "claude"
     OPENCODE = "opencode"
     OLLAMA = "ollama"

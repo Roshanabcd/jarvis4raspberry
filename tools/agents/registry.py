@@ -16,6 +16,7 @@ from tools.agents.adapters.antigravity_adapter import AntigravityAdapter
 from tools.agents.adapters.base import BaseAgentAdapter
 from tools.agents.adapters.claude_adapter import ClaudeAdapter
 from tools.agents.adapters.codex_adapter import CodexAdapter
+from tools.agents.adapters.copilot_adapter import CopilotAdapter
 from tools.agents.adapters.ollama_adapter import OllamaAdapter
 from tools.agents.adapters.opencode_adapter import OpenCodeAdapter
 from tools.agents.models import AgentCapabilities, AgentId, AgentMetadata, AgentStatus
@@ -34,6 +35,7 @@ class AgentRegistry:
         self._adapters: Dict[str, BaseAgentAdapter] = {
             AgentId.ANTIGRAVITY.value: AntigravityAdapter(),
             AgentId.CODEX.value: CodexAdapter(),
+            AgentId.COPILOT.value: CopilotAdapter(),
             AgentId.CLAUDE.value: ClaudeAdapter(),
             AgentId.OPENCODE.value: OpenCodeAdapter(),
             AgentId.OLLAMA.value: OllamaAdapter(),

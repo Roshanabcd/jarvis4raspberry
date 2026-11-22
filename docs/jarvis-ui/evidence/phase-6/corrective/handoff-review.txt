@@ -1,0 +1,7 @@
+21 November 2026 — source/document review
+venv/bin/python -m pytest tests/unit/test_extension_catalog_bridge.py -q
+5 passed in 1.11s
+
+Document validation passed: six identical handoff pairs, ten unique issue IDs, no issue promoted to resolved, unsupported npm build/test command corrected.
+Git whitespace check passed for changed tracked implementation/instruction files.
+No physical hardware, inference provider or live deployment acceptance performed by these checks.

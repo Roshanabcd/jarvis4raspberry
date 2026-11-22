@@ -33,7 +33,7 @@ cp .env.example .env
 # Edit .env to add API keys (optional — Ollama works offline)
 
 # Run (simulation mode on by default)
-uvicorn apps.core.main:app --host 0.0.0.0 --port 8000
+uvicorn apps.core.main:app --host 127.0.0.1 --port 8000
 # Dashboard → http://localhost:8000/
 ```
 

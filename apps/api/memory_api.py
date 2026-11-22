@@ -12,6 +12,11 @@ class MemoryStoreRequest(BaseModel):
     importance: Optional[int] = 5
 
 
+class MemoryUpdateRequest(BaseModel):
+    content: str = Field(..., min_length=1)
+    importance: Optional[int] = None
+
+
 @memory_router.post("/store")
 def store_memory(req: MemoryStoreRequest):
     row_id = db.store(category=req.category, content=req.content, importance=req.importance or 5)
@@ -22,6 +27,12 @@ def store_memory(req: MemoryStoreRequest):
 def search_memory(query: str = "", category: Optional[str] = None, limit: int = 50):
     results = db.search(query=query, category=category, limit=limit)
     return {"status": "ok", "data": results, "total": len(results)}
+
+
+@memory_router.put("/{memory_id}")
+def update_memory(memory_id: int, req: MemoryUpdateRequest):
+    ok = db.update(memory_id=memory_id, content=req.content, importance=req.importance)
+    return {"status": "ok", "updated": ok, "id": memory_id}
 
 
 @memory_router.delete("/{memory_id}")

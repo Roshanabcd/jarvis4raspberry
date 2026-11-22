@@ -1,0 +1,227 @@
+{
+  "suite": "Step 6 \u2014 Voice Acceptance & Local Wake-Word Verification",
+  "git": {
+    "revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d",
+    "is_dirty": true,
+    "diff_stat": ".claude/helpers/.helpers-version                   |   2 +-\n .claude/helpers/helpers.manifest.json              |   4 +-\n .claude/helpers/memory.cjs                         |   0\n .claude/helpers/session.cjs                        |   0\n .claude/helpers/statusline.cjs                     |   4 +-\n JARVIS_BUGS_AND_IMPROVEMENTS.json                  | 166 +++--\n ai/brain.py                                        |  15 +\n ai/providers/base.py                               |   4 +-\n apps/api/account_api.py                            |  30 +-\n apps/api/voice_api.py                              |  18 +-\n apps/dashboard/static/control-center.js            |   4 +-\n apps/dashboard/static/index.html                   | 687 ++++++++++++++++++---\n docs/JARVIS_BUGS_AND_IMPROVEMENTS.json             | 166 +++--\n docs/jarvis-ui/PLAN.md                             |  62 ++\n .../screenshots/baseline_desktop_1920x1080.png     | Bin 953586 -> 1008725 bytes\n .../screenshots/baseline_laptop_1366x768.png       | Bin 588817 -> 628848 bytes\n .../screenshots/baseline_mobile_375x667.png        | Bin 146492 -> 185579 bytes\n .../screenshots/baseline_tablet_768x1024.png       | Bin 463472 -> 511208 bytes\n docs/jarvis-ui/evidence/phase-1/smoke_report.json  |  16 +-\n .../evidence/phase-6/bargein_latency.json          |   6 +-\n .../screenshots/01_voice_destination_baseline.png  | Bin 284327 -> 283622 bytes\n .../phase-6/screenshots/02_voice_muted_state.png   | Bin 261399 -> 261621 bytes\n .../screenshots/03_voice_speaking_subtitles.png    | Bin 275864 -> 278608 bytes\n .../screenshots/04_voice_bargein_cancelled.png     | Bin 259018 -> 258815 bytes\n .../screenshots/05_voice_permission_denied.png     | Bin 264193 -> 264090 bytes\n .../phase-6/screenshots/06_voice_offline_state.png | Bin 263079 -> 262872 bytes\n .../screenshots/07_voice_mobile_viewport.png       | Bin 85109 -> 85047 bytes\n tests/frontend/realtime-chat.test.cjs              |  10 +\n tests/unit/test_provider_integrations.py           |  16 +\n 29 files changed, 980 insertions(+), 230 deletions(-)"
+  },
+  "safety_checks": {
+    "estop_visible_and_enabled": true,
+    "estop_never_clicked": true,
+    "single_microphone_device_owner": true,
+    "zero_duplicate_backends": true,
+    "zero_native_runtimes_or_packages_installed": true,
+    "honest_2d_audio_reactive_avatar_only": true,
+    "physical_speaker_audibility_claimed": false,
+    "live_human_speech_claimed": false
+  },
+  "hardware_and_diagnostics": {
+    "alsa_capture": {
+      "cmd": "arecord -l",
+      "returncode": 0,
+      "stdout": "**** List of CAPTURE Hardware Devices ****",
+      "stderr": ""
+    },
+    "alsa_playback": {
+      "cmd": "aplay -l",
+      "returncode": 0,
+      "stdout": "**** List of PLAYBACK Hardware Devices ****\ncard 0: vc4hdmi0 [vc4-hdmi-0], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]\n  Subdevices: 0/1\n  Subdevice #0: subdevice #0\ncard 1: vc4hdmi1 [vc4-hdmi-1], device 0: MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]\n  Subdevices: 1/1\n  Subdevice #0: subdevice #0",
+      "stderr": ""
+    },
+    "pipewire": {
+      "cmd": "wpctl status",
+      "returncode": 0,
+      "stdout": "PipeWire 'pipewire-0' [1.4.2, roshan@raspberrypi, cookie:750067491]\n \u2514\u2500 Clients:\n        33. WirePlumber                         [1.4.2, roshan@raspberrypi, pid:1257]\n        34. pipewire                            [1.4.2, roshan@raspberrypi, pid:1259]\n        47. WirePlumber [export]                [1.4.2, roshan@raspberrypi, pid:1257]\n        92. unknown                             [1.4.2, roshan@raspberrypi, pid:1427]\n        93. xdg-desktop-portal                  [1.4.2, roshan@raspberrypi, pid:2177]\n        94. Chromium input                      [1.4.2, roshan@raspberrypi, pid:17510]\n        97. wpctl                               [1.4.2, roshan@raspberrypi, pid:78884]\n\nAudio\n \u251c\u2500 Devices:\n \u2502      48. Built-in Audio                      [alsa]\n \u2502      49. Built-in Audio                      [alsa]\n \u2502  \n \u251c\u2500 Sinks:\n \u2502  *   78. Built-in Audio Digital Stereo (HDMI) [vol: 1.00 MUTED]\n \u2502  \n \u251c\u2500 Sources:\n \u2502  \n \u251c\u2500 Filters:\n \u2502  \n \u2514\u2500 Streams:\n\nVideo\n \u251c\u2500 Devices:\n \u2502      43. imx708                              [libcamera]\n \u2502      53. rp1-cfe                             [v4l2]\n \u2502      54. rp1-cfe                             [v4l2]\n \u2502      55. rp1-cfe                             [v4l2]\n \u2502      56. rp1-cfe                             [v4l2]\n \u2502      57. rp1-cfe                             [v4l2]\n \u2502      58. rp1-cfe                             [v4l2]\n \u2502      59. rp1-cfe                             [v4l2]\n \u2502      60. rp1-cfe                             [v4l2]\n \u2502      61. rpi-hevc-dec                        [v4l2]\n \u2502      62. pispbe                              [v4l2]\n \u2502      63. pispbe                              [v4l2]\n \u2502      64. pispbe                              [v4l2]\n \u2502      65. pispbe                              [v4l2]\n \u2502      66. pispbe                              [v4l2]\n \u2502      67. pispbe                              [v4l2]\n \u2502      68. pispbe                              [v4l2]\n \u2502      69. pispbe                              [v4l2]\n \u2502      70. pispbe                              [v4l2]\n \u2502      71. pispbe                              [v4l2]\n \u2502      72. pispbe                              [v4l2]\n \u2502      73. pispbe                              [v4l2]\n \u2502      74. pispbe                              [v4l2]\n \u2502      75. pispbe                              [v4l2]\n \u2502      76. pispbe                              [v4l2]\n \u2502      77. pispbe                              [v4l2]\n \u2502  \n \u251c\u2500 Sinks:\n \u2502  \n \u251c\u2500 Sources:\n \u2502  *   90. imx708                             \n \u2502  \n \u251c\u2500 Filters:\n \u2502  \n \u2514\u2500 Streams:\n\nSettings\n \u2514\u2500 Default Configured Devices:",
+      "stderr": ""
+    },
+    "voice_api_status": {
+      "state": "STANDBY_LISTENING",
+      "listening": true,
+      "muted": false,
+      "device": {
+        "card": 0,
+        "device": 0,
+        "name": "Simulated"
+      },
+      "wake_word": "jarvis",
+      "microphone_available": false,
+      "wake_engine": {
+        "state": "STANDBY_LISTENING",
+        "is_running": true,
+        "muted": false,
+        "age_seconds": 2.0,
+        "capture_status": "ok",
+        "capture_failure_reason": "none",
+        "stt_status": "recognized",
+        "last_capture_age_s": 55.9,
+        "audio_level_rms": 0.0,
+        "energy_threshold_rms": 1391.7,
+        "recorder_failures": 0,
+        "wake_word_enabled": false,
+        "recorder_exit_code": 1
+      },
+      "capture_owner": "voice_daemon",
+      "local_state": "STANDBY",
+      "daemon_telemetry": {
+        "state": "STANDBY_LISTENING",
+        "is_running": true,
+        "muted": false,
+        "age_seconds": 2.0,
+        "capture_status": "ok",
+        "capture_failure_reason": "none",
+        "stt_status": "recognized",
+        "last_capture_age_s": 55.9,
+        "audio_level_rms": 0.0,
+        "energy_threshold_rms": 1391.7,
+        "recorder_failures": 0,
+        "wake_word_enabled": false,
+        "recorder_exit_code": 1
+      },
+      "diagnostics": {
+        "microphone": {
+          "available": false,
+          "device": "Simulated",
+          "card": 0,
+          "device_id": 0,
+          "recording": false
+        },
+        "speaker": {
+          "available": true,
+          "device": "vc4hdmi0 [vc4-hdmi-0] - MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]",
+          "card": 0,
+          "device_id": 0,
+          "playing": false
+        },
+        "tts": {
+          "provider": "cloud_neural_tts",
+          "cloning_available": false,
+          "cloning_enabled": true,
+          "remote_voice_enabled": false,
+          "cloud_tts_enabled": true,
+          "reference_voice": true,
+          "reference_audio_path": "/home/roshan/Downloads/myvoice_clean.wav",
+          "active_url": "",
+          "status_label": "Remote voice disabled (Local TTS Fallback)"
+        },
+        "last_playback": {
+          "status": "stopped",
+          "audio_id": "audio_e2de0fd9fbf4",
+          "provider": "cache",
+          "is_cloned": false,
+          "timestamp": 1795272470.1249561,
+          "latency_ms": 4.11
+        },
+        "staged_audio_count": 2
+      },
+      "speaker": {
+        "available": true,
+        "device": "vc4hdmi0 [vc4-hdmi-0] - MAI PCM i2s-hifi-0 [MAI PCM i2s-hifi-0]",
+        "card": 0,
+        "device_id": 0,
+        "playing": false
+      },
+      "tts": {
+        "provider": "cloud_neural_tts",
+        "cloning_available": false,
+        "cloning_enabled": true,
+        "remote_voice_enabled": false,
+        "cloud_tts_enabled": true,
+        "reference_voice": true,
+        "reference_audio_path": "/home/roshan/Downloads/myvoice_clean.wav",
+        "active_url": "",
+        "status_label": "Remote voice disabled (Local TTS Fallback)"
+      }
+    },
+    "openwakeword": {
+      "installed": true,
+      "paths": [
+        "/home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/lib/python3.14/site-packages/openwakeword/resources/models/hey_jarvis_v0.1.onnx"
+      ],
+      "loaded_models": [
+        "hey_jarvis_v0.1"
+      ],
+      "onnx_provider": "CPUExecutionProvider"
+    },
+    "voice_daemon": {
+      "cmd": "systemctl --user status jarvis-voice.service",
+      "returncode": 0,
+      "stdout": "\u25cf jarvis-voice.service - JARVIS OS Background Voice & Wake-Word Service\n     Loaded: loaded (/home/roshan/.config/systemd/user/jarvis-voice.service; enabled; preset: enabled)\n     Active: active (running) since Sat 2026-11-21 11:12:40 GMT; 3h 40min ago\n Invocation: b3fa468cc3c2462aa7c7aca6750dc456\n   Main PID: 1258 (python)\n      Tasks: 10 (limit: 9492)\n        CPU: 1min 23.222s\n     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/jarvis-voice.service\n             \u2514\u25001258 /home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/bin/python -m apps.voice.wake_word_engine\n\nNov 21 14:52:19 raspberrypi python[1258]: 14:52:19 [JARVIS-VOICE-SERVICE] INFO: Executing cross-process unmute command.\nNov 21 14:52:19 raspberrypi python[1258]: 14:52:19 [JARVIS-VOICE-SERVICE] INFO: WakeWordEngine State Transition: MUTED -> STANDBY_LISTENING\nNov 21 14:52:22 raspberrypi python[1258]: 14:52:22 [JARVIS-VOICE-SERVICE] INFO: Executing cross-process wake_disable command.\nNov 21 14:52:22 raspberrypi python[1258]: 14:52:22 [JARVIS-VOICE-SERVICE] INFO: Wake word detection enabled: False\nNov 21 14:52:23 raspberrypi python[1258]: 14:52:23 [JARVIS-VOICE-SERVICE] INFO: Executing cross-process wake_disable command.\nNov 21 14:52:23 raspberrypi python[1258]: 14:52:23 [JARVIS-VOICE-SERVICE] INFO: Wake word detection enabled: False\nNov 21 14:52:24 raspberrypi python[1258]: 14:52:24 [JARVIS-VOICE-SERVICE] INFO: Executing cross-process mute command.\nNov 21 14:52:24 raspberrypi python[1258]: 14:52:24 [JARVIS-VOICE-SERVICE] INFO: WakeWordEngine State Transition: STANDBY_LISTENING -> MUTED\nNov 21 14:52:25 raspberrypi python[1258]: 14:52:25 [JARVIS-VOICE-SERVICE] INFO: Executing cross-process unmute command.\nNov 21 14:52:25 raspberrypi python[1258]: 14:52:25 [JARVIS-VOICE-SERVICE] INFO: WakeWordEngine State Transition: MUTED -> STANDBY_LISTENING",
+      "stderr": ""
+    }
+  },
+  "unit_and_frontend_tests": {
+    "frontend_tests": [
+      {
+        "test": "tests/frontend/futuristic-voice-ownership.test.cjs",
+        "returncode": 0,
+        "passed": true,
+        "output": "[JARVIS Voice] Interruption cancelled speech in 0.2ms\n[JARVIS Voice] Interruption cancelled speech in 1.1ms\n[JARVIS Voice] Interruption cancelled speech in 0.2ms\n\u2714 microphone delegates to existing owner without browser capture (13.336118ms)\n\u2714 one command creates no additional synthesis or browser playback (5.276189ms)\n\u2714 empty replies are failures rather than invented success (4.319362ms)\n\u2714 interrupt while inference is pending cancels its late job (5.099986ms)\n\u2714 listen_once response is not submitted for inference twice (8.02606ms)\n\u2714 failed system delivery remains failed and never falls back to extra playback (2.871778ms)\n\u2714 late capture acceptance cannot undo mute (3.470015ms)\n\u2714 standby before daemon accepts capture does not dismiss pending request (7.747413ms)\n\u2714 late status poll cannot undo mute (5.204189ms)\n\u2714 capture failure and status timeout remain explicit, without resubmission (6.089109ms)\n\u2139 tests 10\n\u2139 suites 0\n\u2139 pass 10\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 86.157396"
+      },
+      {
+        "test": "tests/frontend/voice-capture-feedback.test.cjs",
+        "returncode": 0,
+        "passed": true,
+        "output": "\u2714 accepted owner request never opens a second recorder or claims completion (5.797852ms)\n\u2714 daemon ownership and capture errors are never reported as silence (2.896463ms)\n\u2714 confirmed no-speech response has its own outcome (2.043043ms)\n\u2714 server-owned speech is queued once and never replayed in browser (2.148783ms)\n\u2714 permission or uncertain timeout cannot start fallback capture (4.535304ms)\n\u2714 text success without speech delivery remains a delivery error (1.829414ms)\n\u2714 explicit browser mode never silently switches to host when permission fails (2.922981ms)\n\u2714 browser capture does not begin if native-owner mute is rejected (5.727445ms)\n\u2714 cancel while browser permission is pending closes late stream without submission (11.278354ms)\n\u2139 tests 9\n\u2139 suites 0\n\u2139 pass 9\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 54.379468"
+      },
+      {
+        "test": "tests/frontend/voice-jobs.test.cjs",
+        "returncode": 0,
+        "passed": true,
+        "output": "\u2714 voice reply content is text and cancellation IDs cannot inject code or paths (5.3378ms)\n\u2714 failed delivery is visible without displaying upstream error or retrying the task (6.303201ms)\n\u2714 rejected cancellation reports uncertainty rather than claiming success (1.433324ms)\n\u2714 HTTP and malformed status failures are visible (2.430614ms)\n\u2714 restored interrupted voice jobs explain restart without replay controls (2.457781ms)\n\u2139 tests 5\n\u2139 suites 0\n\u2139 pass 5\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 38.4002"
+      }
+    ],
+    "python_unit": {
+      "returncode": 0,
+      "passed": true,
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.14.6, pytest-9.1.1, pluggy-1.6.0 -- /home/roshan/.gemini/antigravity/scratch/jarvis-os/venv/bin/python\ncachedir: .pytest_cache\nrootdir: /home/roshan/.gemini/antigravity/scratch/jarvis-os\nconfigfile: pyproject.toml\nplugins: anyio-4.15.1\ncollecting ... collected 97 items\n\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[timeout] PASSED [  1%]\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[connection] PASSED [  2%]\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[http] PASSED [  3%]\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[invalid_json] PASSED [  4%]\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[empty_response] PASSED [  5%]\ntests/unit/test_voice_daemon_delivery.py::test_uncertain_backend_result_never_replays_action[wrong_shape] PASSED [  6%]\ntests/unit/test_voice_daemon_delivery.py::test_confirmed_backend_response_enters_follow_up PASSED [  7%]\ntests/unit/test_voice_daemon_delivery.py::test_telemetry_contains_no_transcript_or_identity PASSED [  8%]\ntests/unit/test_voice_daemon_delivery.py::test_invalid_telemetry_is_ignored[broken json] PASSED [  9%]\ntests/unit/test_voice_daemon_delivery.py::test_invalid_telemetry_is_ignored[[]] PASSED [ 10%]\ntests/unit/test_voice_daemon_delivery.py::test_invalid_telemetry_is_ignored[{\"state\": \"fake\"}] PASSED [ 11%]\ntests/unit/test_voice_daemon_delivery.py::test_invalid_telemetry_is_ignored[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    },
+    "isolated_playback": {
+      "returncode": 0,
+      "passed": true,
+      "stdout": "\u2714 browser playback owns one analyser, drives the mouth, and stops on completion (2899.654761ms)\n\u2139 tests 1\n\u2139 suites 0\n\u2139 pass 1\n\u2139 fail 0\n\u2139 cancelled 0\n\u2139 skipped 0\n\u2139 todo 0\n\u2139 duration_ms 2910.61271"
+    }
+  },
+  "browser_verification": {
+    "1440x900": {
+      "dashboard_tab_voice": {
+        "state_val": "STANDBY_LISTENING",
+        "wake_status_initial": "\ud83d\udfe2 ARMED",
+        "wake_status_after_toggle1": "\u26aa DISARMED",
+        "wake_status_after_toggle2": "\ud83d\udfe2 ARMED",
+        "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step6-voice/voice_tab_controls_1440x900.png"
+      },
+      "futuristic_voice": {
+        "canvas_width": 635,
+        "canvas_height": 180,
+        "initial_privacy": "Standby (Wake Word: \"jarvis\")",
+        "muted_privacy": "Microphone Muted",
+        "unmuted_privacy": "Standby (Wake Word: \"jarvis\")",
+        "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step6-voice/futuristic_voice_1440x900.png"
+      }
+    },
+    "1280x720": {
+      "dashboard_tab_voice": {
+        "state_val": "STANDBY_LISTENING",
+        "wake_status_initial": "\ud83d\udfe2 ARMED",
+        "wake_status_after_toggle1": "\u26aa DISARMED",
+        "wake_status_after_toggle2": "\ud83d\udfe2 ARMED",
+        "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step6-voice/voice_tab_controls_1280x720.png"
+      },
+      "futuristic_voice": {
+        "canvas_width": 550,
+        "canvas_height": 180,
+        "initial_privacy": "Standby (Wake Word: \"jarvis\")",
+        "muted_privacy": "Microphone Muted",
+        "unmuted_privacy": "Standby (Wake Word: \"jarvis\")",
+        "screenshot": "docs/jarvis-ui/evidence/audit-remediation/step6-voice/futuristic_voice_1280x720.png"
+      }
+    }
+  },
+  "screenshots": [
+    "docs/jarvis-ui/evidence/audit-remediation/step6-voice/voice_tab_controls_1440x900.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step6-voice/futuristic_voice_1440x900.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step6-voice/voice_tab_controls_1280x720.png",
+    "docs/jarvis-ui/evidence/audit-remediation/step6-voice/futuristic_voice_1280x720.png"
+  ],
+  "overall_verified": true
+}

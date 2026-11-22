@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Screen Vision Assistant (Module 36)</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8FA8C8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at top right, #0D223D, var(--bg) 60%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 28px;
+      border-bottom: 1px solid rgba(0, 217, 255, 0.2);
+      background: rgba(5, 11, 22, 0.85);
+      backdrop-filter: blur(10px);
+    }
+    .brand { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.04em; color: var(--cyan); }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      border: 1px solid rgba(37, 230, 162, 0.5);
+      color: var(--green);
+      background: rgba(37, 230, 162, 0.1);
+    }
+    main { max-width: 1200px; margin: 24px auto; padding: 0 20px 40px; display: grid; gap: 20px; }
+    .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: rgba(16, 30, 48, 0.9);
+      border: 1px solid rgba(0, 217, 255, 0.22);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+    h2 { margin: 0 0 12px; font-size: 1rem; color: var(--cyan); letter-spacing: 0.03em; }
+    .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+    button {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #04101E;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: rgba(152, 104, 255, 0.2);
+      color: var(--text);
+      border: 1px solid rgba(152, 104, 255, 0.5);
+    }
+    input {
+      background: #081424;
+      color: var(--text);
+      border: 1px solid rgba(0, 217, 255, 0.3);
+      border-radius: 8px;
+      padding: 9px 12px;
+      flex: 1;
+      min-width: 220px;
+    }
+    svg {
+      width: 100%;
+      height: 320px;
+      background: #071222;
+      border: 1px solid rgba(33, 139, 255, 0.3);
+      border-radius: 10px;
+      cursor: crosshair;
+    }
+    pre {
+      background: #071222;
+      border: 1px solid rgba(0, 217, 255, 0.16);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.82rem;
+      overflow-x: auto;
+      color: #CFE9FF;
+      max-height: 240px;
+    }
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .kpi { background: #0A182B; padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 217, 255, 0.16); }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); }
+    .kpi .val { font-size: 1.35rem; font-weight: 700; color: var(--green); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">JARVIS OS // MODULE 36 — SCREEN VISION ASSISTANT</div>
+    <span id="ws-badge" class="badge">WS: CONNECTING</span>
+  </header>
+
+  <main>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Captures Indexed</div><div id="kpi-captures" class="val">0</div></div>
+      <div class="kpi"><div class="label">UI Bounding Boxes</div><div id="kpi-elements" class="val">0</div></div>
+      <div class="kpi"><div class="label">Vision Queries</div><div id="kpi-queries" class="val">0</div></div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Interactive Bounding-Box Overlay Canvas (Click to Hit-Test)</h2>
+        <div class="controls">
+          <button id="btn-sample">Create Sample Screen Capture</button>
+          <button id="btn-refresh" class="secondary">Refresh Captures</button>
+        </div>
+        <svg id="vision-svg" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet"></svg>
+      </section>
+
+      <section class="card">
+        <h2>Grounded Screen Q&amp;A</h2>
+        <div class="controls">
+          <input id="qa-input" type="text" placeholder="Ask about a UI element (e.g. Where is Deploy?)" />
+          <button id="btn-ask">Ask</button>
+        </div>
+        <pre id="output-box">Select or create a capture to inspect UI elements and run spatial hit-tests.</pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    let activeCapture = null;
+    const svg = document.getElementById("vision-svg");
+    const out = document.getElementById("output-box");
+
+    function renderCapture(cap) {
+      activeCapture = cap;
+      svg.setAttribute("viewBox", `0 0 ${cap.width} ${cap.height}`);
+      svg.innerHTML = "";
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bg.setAttribute("x", 0); bg.setAttribute("y", 0);
+      bg.setAttribute("width", cap.width); bg.setAttribute("height", cap.height);
+      bg.setAttribute("fill", "#071222");
+      svg.appendChild(bg);
+
+      (cap.elements || []).forEach((el) => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", el.x); rect.setAttribute("y", el.y);
+        rect.setAttribute("width", el.width); rect.setAttribute("height", el.height);
+        rect.setAttribute("fill", "rgba(0, 217, 255, 0.14)");
+        rect.setAttribute("stroke", "#00D9FF");
+        rect.setAttribute("stroke-width", "3");
+        rect.setAttribute("rx", "8");
+
+        const txt = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        txt.setAttribute("x", el.x + 12); txt.setAttribute("y", el.y + 30);
+        txt.setAttribute("fill", "#F0F8FF");
+        txt.setAttribute("font-size", "22");
+        txt.textContent = `${el.label} [${el.role}]`;
+
+        g.appendChild(rect);
+        g.appendChild(txt);
+        svg.appendChild(g);
+      });
+    }
+
+    async function refreshAll() {
+      const [sRes, cRes] = await Promise.all([
+        fetch("/api/v1/vision/status"),
+        fetch("/api/v1/vision/captures")
+      ]);
+      const st = await sRes.json();
+      document.getElementById("kpi-captures").textContent = st.captures_count;
+      document.getElementById("kpi-elements").textContent = st.indexed_elements_count;
+      document.getElementById("kpi-queries").textContent = st.queries_count;
+      const caps = await cRes.json();
+      if (caps.captures && caps.captures.length > 0) {
+        renderCapture(caps.captures[0]);
+      }
+    }
+
+    document.getElementById("btn-sample").addEventListener("click", async () => {
+      const payload = {
+        title: "JARVIS Control Deck Desktop",
+        source: "hdmi_primary",
+        width: 1280,
+        height: 720,
+        ocr_text: "JARVIS OS Control Deck | Deploy Production | System Logs | CPU 24%",
+        elements: [
+          { element_id: "btn_deploy", role: "button", label: "Deploy Production", text: "Deploy", x: 90, y: 120, width: 320, height: 90, confidence: 0.99 },
+          { element_id: "panel_logs", role: "panel", label: "System Logs", text: "Live telemetry logs", x: 460, y: 120, width: 720, height: 420, confidence: 0.96 },
+          { element_id: "input_cmd", role: "textbox", label: "Command Bar", text: "Enter JARVIS command", x: 90, y: 580, width: 1090, height: 80, confidence: 0.98 }
+        ]
+      };
+      const res = await fetch("/api/v1/vision/captures", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      out.textContent = JSON.stringify(data, null, 2);
+      await refreshAll();
+    });
+
+    document.getElementById("btn-refresh").addEventListener("click", refreshAll);
+
+    document.getElementById("btn-ask").addEventListener("click", async () => {
+      if (!activeCapture) return;
+      const q = document.getElementById("qa-input").value.trim() || "Where is Deploy Production?";
+      const res = await fetch(`/api/v1/vision/captures/${activeCapture.capture_id}/query`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q })
+      });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+      await refreshAll();
+    });
+
+    svg.addEventListener("click", async (evt) => {
+      if (!activeCapture) return;
+      const rect = svg.getBoundingClientRect();
+      const x = Math.round(((evt.clientX - rect.left) / rect.width) * activeCapture.width);
+      const y = Math.round(((evt.clientY - rect.top) / rect.height) * activeCapture.height);
+      const res = await fetch(`/api/v1/vision/captures/${activeCapture.capture_id}/hit-test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ x, y })
+      });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    });
+
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${proto}://${location.host}/api/v1/vision/ws/captures`);
+    ws.onopen = () => { document.getElementById("ws-badge").textContent = "WS: LIVE"; };
+    ws.onclose = () => { document.getElementById("ws-badge").textContent = "WS: CLOSED"; };
+    refreshAll();
+  </script>
+</body>
+</html>

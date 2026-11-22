@@ -102,6 +102,8 @@ class BrowserAgent:
 
         # Build launch arguments preserving user profile
         args = [bin_path]
+        if is_chrome:
+            args.append("--autoplay-policy=no-user-gesture-required")
         if new_window:
             args.append("--new-window")
         args.append(clean_url)

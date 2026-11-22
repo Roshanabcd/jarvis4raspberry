@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Visual Workflow Builder (M35)</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8AA4C2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, rgba(152,104,255,0.12), transparent 42%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 30, 48, 0.8);
+    }
+    .brand h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.06em; color: var(--cyan); }
+    .brand p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+      background: rgba(0, 217, 255, 0.08);
+    }
+    .badge.live { border-color: var(--green); color: var(--green); }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-4 { grid-column: span 4; }
+    @media (max-width: 900px) { .col-8, .col-4 { grid-column: span 12; } }
+    h2 { margin: 0 0 12px; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cyan); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    button.secondary {
+      background: rgba(0, 217, 255, 0.12);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+    #canvas {
+      width: 100%;
+      height: 260px;
+      background: #040914;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; }
+    .list-item {
+      background: rgba(5, 11, 22, 0.68);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    pre {
+      background: #040914;
+      color: var(--green);
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      overflow-x: auto;
+      max-height: 200px;
+    }
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #101E30;
+      border: 1px solid var(--cyan);
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: none;
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS // VISUAL WORKFLOW BUILDER</h1>
+      <p>Module 35 • DAG Validation, Visual Node Canvas &amp; Deterministic Execution Engine</p>
+    </div>
+    <div class="badges">
+      <span class="badge live">LOCAL DAG ENGINE</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card col-8">
+      <h2>Visual DAG Canvas</h2>
+      <div class="row">
+        <button onclick="createSampleWorkflow()">Create Sample Alert Pipeline</button>
+        <button class="secondary" onclick="refreshAll()">Refresh</button>
+      </div>
+      <svg id="canvas" viewBox="0 0 760 260"></svg>
+      <h2 style="margin-top:14px;">Latest Run Trace</h2>
+      <pre id="traceBox">Select or execute a workflow to inspect per-node trace output.</pre>
+    </section>
+
+    <section class="card col-4">
+      <h2>Saved Workflows</h2>
+      <div id="wfList" class="list"></div>
+      <h2 style="margin-top:16px;">Recent Runs</h2>
+      <div id="runList" class="list"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = "/api/v1/workflows";
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      clearTimeout(window._t);
+      window._t = setTimeout(() => { el.style.display = "none"; }, 3200);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || "Request failed";
+        toast("Error: " + msg);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function renderGraph(wf) {
+      const svg = document.getElementById("canvas");
+      if (!wf) { svg.innerHTML = ""; return; }
+      const map = {};
+      wf.nodes.forEach((n, idx) => {
+        map[n.node_id] = { ...n, cx: n.x || (90 + idx * 170), cy: n.y || 130 };
+      });
+      let html = `<defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#00D9FF"/></marker></defs>`;
+      wf.edges.forEach(e => {
+        const s = map[e.source], t = map[e.target];
+        if (s && t) {
+          html += `<line x1="${s.cx + 55}" y1="${s.cy}" x2="${t.cx - 60}" y2="${t.cy}" stroke="#00D9FF" stroke-width="2" marker-end="url(#arr)" />`;
+        }
+      });
+      Object.values(map).forEach(n => {
+        html += `
+          <g>
+            <rect x="${n.cx - 58}" y="${n.cy - 26}" width="116" height="52" rx="10" fill="#101E30" stroke="#00D9FF" stroke-width="1.5"/>
+            <text x="${n.cx}" y="${n.cy - 4}" text-anchor="middle" fill="#00D9FF" font-size="10" font-weight="700">${n.node_type.toUpperCase()}</text>
+            <text x="${n.cx}" y="${n.cy + 14}" text-anchor="middle" fill="#F0F8FF" font-size="11">${n.label.slice(0,16)}</text>
+          </g>
+        `;
+      });
+      svg.innerHTML = html;
+    }
+
+    async function createSampleWorkflow() {
+      const wf = await api("/graphs", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Thermal Alert Pipeline",
+          description: "Check CPU temp and emit JARVIS alert",
+          nodes: [
+            { node_id: "n1", node_type: "trigger", label: "Temp Reading", x: 90, y: 130, config: {} },
+            { node_id: "n2", node_type: "condition", label: "Temp > 70C", x: 270, y: 130, config: { input_key: "temp_c", operator: ">", value: 70 } },
+            { node_id: "n3", node_type: "transform", label: "Format Alert", x: 460, y: 130, config: { operation: "template", template: "High temp: {temp_c}C", output_key: "alert_msg" } },
+            { node_id: "n4", node_type: "notify", label: "Emit Notice", x: 650, y: 130, config: { message: "{alert_msg}" } }
+          ],
+          edges: [
+            { source: "n1", target: "n2" },
+            { source: "n2", target: "n3" },
+            { source: "n3", target: "n4" }
+          ]
+        })
+      });
+      renderGraph(wf);
+      toast("Created workflow: " + wf.name);
+      refreshAll();
+    }
+
+    async function runWorkflow(id) {
+      const run = await api(`/graphs/${id}/execute`, {
+        method: "POST",
+        body: JSON.stringify({ input_data: { temp_c: 78.5 } })
+      });
+      document.getElementById("traceBox").textContent = JSON.stringify(run, null, 2);
+      toast("Workflow executed: " + run.run_id);
+      refreshAll();
+    }
+
+    async function refreshAll() {
+      const [wfs, runs] = await Promise.all([api("/graphs"), api("/runs")]);
+      if (wfs.workflows.length) renderGraph(wfs.workflows[0]);
+      document.getElementById("wfList").innerHTML = wfs.workflows.length
+        ? wfs.workflows.map(w => `
+            <div class="list-item">
+              <span><strong>${w.name}</strong> (${w.nodes.length} nodes)</span>
+              <button class="secondary" onclick="runWorkflow('${w.workflow_id}')">Run</button>
+            </div>`).join("")
+        : `<div class="list-item"><span>No workflows yet. Click Create Sample above.</span></div>`;
+
+      document.getElementById("runList").innerHTML = runs.runs.length
+        ? runs.runs.slice(0, 10).map(r => `<div class="list-item"><span>${r.run_id}</span><span>${r.status} (${r.trace.length} steps)</span></div>`).join("")
+        : `<div class="list-item"><span>No runs yet.</span></div>`;
+    }
+
+    function connectWS() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/runs`);
+      const badge = document.getElementById("wsBadge");
+      ws.onopen = () => { badge.textContent = "WS: CONNECTED"; badge.className = "badge live"; };
+      ws.onclose = () => { badge.textContent = "WS: RECONNECTING"; badge.className = "badge"; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => { refreshAll(); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

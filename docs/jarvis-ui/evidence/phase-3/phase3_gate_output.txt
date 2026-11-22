@@ -1,0 +1,13 @@
+▶ Phase 3 Gate: Live Telemetry, Allowlist Integrity & Offline Recovery
+  ✔ Telemetry cards render true backend metrics (1467.140561ms)
+  ✔ Disconnection transitions to offline state and surfaces warning (1314.230885ms)
+  ✔ Reconnection automatically recovers online status (1024.532594ms)
+✔ Phase 3 Gate: Live Telemetry, Allowlist Integrity & Offline Recovery (7307.040566ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9814.109955

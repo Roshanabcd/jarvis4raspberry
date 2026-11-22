@@ -17,19 +17,32 @@ class ToolExecutor:
     Each method is isolated, safe, and returns a JSON-serialisable result.
     """
 
-    def execute(self, name: str, args: Dict[str, Any]) -> str:
+    def execute(self, name: str, args: Dict[str, Any], confirmed: bool = True) -> str:
         """Dispatch a tool call through ToolRegistry or fallback executor methods."""
         from tools.registry import tool_registry
         if tool_registry.has_tool(name):
             try:
-                res = tool_registry.execute_tool(name, args)
+                res = tool_registry.execute_tool(name, args, confirmed=confirmed)
                 if res["success"]:
                     return json.dumps(res["result"], default=str) if isinstance(res["result"], (dict, list)) else str(res["result"])
-                return json.dumps({"error": res.get("error", "Execution failed"), "tool": name})
+                return json.dumps({"status": "error", "error": res.get("error", "Execution failed"), "tool": name})
             except Exception as e:
                 logger.warning(f"Tool registry execution error for {name}: {e}")
 
         method = getattr(self, f"_tool_{name}", None)
+        if method is None:
+            norm_name = name.lower().strip()
+            if norm_name in ("capture_image", "take_screenshot", "inspect_screen", "capture_screen", "screen_inspect"):
+                if "screen" in norm_name or "screenshot" in norm_name:
+                    method = self._tool_screen_capture
+                elif norm_name == "capture_image":
+                    is_screen = any("screen" in str(v).lower() or "desktop" in str(v).lower() for v in args.values())
+                    method = self._tool_screen_capture if is_screen else self._tool_camera_capture
+            elif norm_name in ("running_apps_processes", "get_running_apps", "list_running_processes", "running_processes"):
+                method = self._tool_running_apps_processes
+            elif norm_name in ("developer_escalation", "diagnose_cli", "run_cli_diagnosis"):
+                method = self._tool_developer_escalation
+
         if method is None:
             return json.dumps({"error": f"Unknown tool: {name}"})
         try:
@@ -108,7 +121,27 @@ class ToolExecutor:
         except Exception as e:
             return {"error": str(e)}
 
-    # ── Camera ────────────────────────────────────────────────
+    # ── Camera & Screen Vision ────────────────────────────────
+
+    def _tool_screen_capture(self) -> Dict:
+        try:
+            from tools.desktop.desktop_perception import DesktopPerceptionService
+            dp = DesktopPerceptionService()
+            snap = dp.capture_fullscreen()
+            if snap.get("status") != "ok" or not snap.get("filepath"):
+                return {"error": "Failed to capture screen image", "description": "Screen capture was not successful."}
+            image_path = snap.get("filepath")
+            from apps.vision.service import vision_service
+            desc = vision_service.describe_scene(image_path)
+            return {
+                "status": "ok",
+                "image_path": image_path,
+                "description": desc or "Screen analyzed successfully.",
+                "width": snap.get("width"),
+                "height": snap.get("height"),
+            }
+        except Exception as e:
+            return {"error": str(e), "description": "Screen vision tool unavailable: " + str(e)}
 
     def _tool_camera_capture(self) -> Dict:
         try:
@@ -119,6 +152,23 @@ class ToolExecutor:
             return frame
         except Exception as e:
             return {"error": str(e), "description": "Camera unavailable.", "simulated": False}
+
+    def _tool_inspect_screen(self) -> Dict:
+        return self._tool_screen_capture()
+
+    def _tool_running_apps_processes(self) -> Dict:
+        try:
+            from tools.system.process_inspector import process_inspector
+            return process_inspector.get_running_overview()
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _tool_developer_escalation(self, prompt: str = "") -> Dict:
+        try:
+            from tools.developer.cli_bridge import developer_cli_bridge
+            return developer_cli_bridge.run_diagnostic_cli(prompt=prompt)
+        except Exception as e:
+            return {"error": str(e)}
 
     def _tool_detect_objects(self) -> Dict:
         try:
@@ -298,6 +348,28 @@ class ToolExecutor:
         import shutil
         import subprocess
 
+        # Check capability catalog first (e.g. document-qa, youtube-summarizer, orchestrator, smart-home)
+        try:
+            from ai.capabilities.registry import get_capability_registry
+            reg = get_capability_registry()
+            cap = reg.get_capability(app_name.lower().strip())
+            if not cap:
+                for c in reg.list_capabilities():
+                    if app_name.lower().strip() in c.name.lower() or any(app_name.lower().strip() == kw.lower() for kw in c.keywords):
+                        cap = c
+                        break
+            if cap and cap.route:
+                return {
+                    "status": "opened",
+                    "app": cap.name,
+                    "capability_id": cap.id,
+                    "route": cap.route,
+                    "target_tab": cap.target_tab,
+                    "message": f"Opened {cap.name} interface at {cap.route}."
+                }
+        except Exception:
+            pass
+
         aliases = {
             "vs code": "code",
             "vscode": "code",
@@ -336,6 +408,42 @@ class ToolExecutor:
             return {"status": "opened", "app": app_name, "executable": path, "pid": p.pid, "target": target}
         except Exception as e:
             return {"error": f"Failed to launch '{app_name}': {e}", "status": "failed"}
+
+    # ── Autonomous Capabilities & Developer CLIs ──────────────
+
+    def _tool_invoke_capability(self, capability_id: str, action_id: str = "execute",
+                               parameters: Optional[Dict[str, Any]] = None) -> Dict:
+        """Invoke any of JARVIS's 45+ autonomous capabilities or extension modules."""
+        try:
+            from ai.capabilities.dispatcher import get_capability_dispatcher
+            from ai.capabilities.models import CapabilityInvocationRequest
+            dispatcher = get_capability_dispatcher()
+            req = CapabilityInvocationRequest(
+                capability_id=capability_id,
+                action_id=action_id,
+                parameters=parameters or {},
+                channel="agent_tool",
+            )
+            res = dispatcher.execute(req)
+            return {
+                "status": res.status,
+                "capability_id": res.capability_id,
+                "action_id": res.action_id,
+                "output": res.markdown_output,
+                "spoken_summary": res.spoken_summary,
+                "data": res.data,
+            }
+        except Exception as e:
+            return {"status": "error", "error": str(e), "capability_id": capability_id}
+
+    def _tool_execute_coding_cli(self, cli_name: str, prompt: str,
+                                action: str = "run_task") -> Dict:
+        """Execute local AI developer coding CLI (antigravity, claude, codex, copilot, etc.)."""
+        return self._tool_invoke_capability(
+            capability_id=f"developer-cli:{cli_name}",
+            action_id=action,
+            parameters={"prompt": prompt, "instruction": prompt},
+        )
 
     # ── Code Execution ────────────────────────────────────────
 
@@ -380,4 +488,57 @@ class ToolExecutor:
                     os.remove(target_file)
                 except OSError:
                     pass
+
+    # ── Computer Control & Browser Automation ───────────────────
+
+    def _tool_computer_execute(self, instruction: str) -> Dict[str, Any]:
+        from tools.desktop.unified_computer_service import unified_computer_service
+        return unified_computer_service.execute_natural_instruction(instruction)
+
+    def _tool_computer_select_option(self, option: str) -> Dict[str, Any]:
+        from tools.desktop.browser_backend import browser_backend
+        return browser_backend.select_option(option, verify=True)
+
+    def _tool_computer_click(self, button: str = "left", x: Optional[int] = None, y: Optional[int] = None) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.click(x=x, y=y, button=button)
+
+    def _tool_computer_move_mouse(self, x: int, y: int) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.move_cursor(x, y, duration=0.25, smooth=True)
+
+    def _tool_computer_type(self, text: str) -> Dict[str, Any]:
+        from tools.desktop.native_backend import native_backend
+        return native_backend.type_text(text)
+
+    def _tool_computer_stop(self) -> Dict[str, Any]:
+        from tools.desktop.unified_computer_service import unified_computer_service
+        return unified_computer_service.emergency_stop()
+
+    def _tool_open_url(self, url: str, browser: str = "chrome") -> Dict[str, Any]:
+        from tools.browser.browser_agent import browser_agent
+        clean = (url or "").strip()
+        if clean.lower() in ("youtube", "youtube.com"):
+            clean = "https://www.youtube.com"
+        elif clean.lower() in ("google", "google.com"):
+            clean = "https://www.google.com"
+        elif not clean.startswith(("http://", "https://", "about:", "chrome://")):
+            clean = f"https://{clean}"
+        return browser_agent.open_url(clean, browser=browser, new_tab=True)
+
+    def _tool_open_youtube(self, query: str = "", url: str = "") -> Dict[str, Any]:
+        from tools.browser.youtube_controller import youtube_controller
+        from tools.browser.browser_agent import browser_agent
+        if url:
+            return browser_agent.open_url(url, browser="chrome", new_tab=True)
+        clean_q = (query or "").strip()
+        if clean_q and clean_q.lower() not in ("youtube", "none", "null", "all"):
+            return youtube_controller.play_direct_query(clean_q, browser="chrome")
+        return browser_agent.open_url("https://www.youtube.com", browser="chrome", new_tab=True)
+
+    def _tool_open_desktop_app(self, app_name: str, target: Optional[str] = None, new_window: bool = False) -> Dict[str, Any]:
+        from tools.desktop.action_engine import desktop_action_engine
+        return desktop_action_engine.open_application(app_name, target=target, new_window=new_window)
+
+
 

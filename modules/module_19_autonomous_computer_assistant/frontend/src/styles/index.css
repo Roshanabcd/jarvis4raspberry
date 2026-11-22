@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: radial-gradient(circle at 12% 8%, rgba(0, 217, 255, 0.12), transparent 36%),
+              radial-gradient(circle at 88% 12%, rgba(152, 104, 255, 0.12), transparent 36%),
+              #050B16;
+  color: #F0F8FF;
+  min-height: 100vh;
+}
+
+.jarvis-glass {
+  background: rgba(16, 30, 48, 0.78);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(0, 217, 255, 0.22);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+}

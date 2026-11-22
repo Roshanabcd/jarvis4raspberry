@@ -10,6 +10,7 @@ import os
 import queue
 import tempfile
 import threading
+import uuid
 from typing import Any, Dict, Optional
 
 from apps.voice.audio_manager import AudioManager
@@ -67,11 +68,12 @@ class VoiceService:
         if reply_queue_capacity < 1:
             raise ValueError("reply_queue_capacity must be at least 1")
         self._reply_queue: "queue.Queue[VoiceJob]" = queue.Queue(maxsize=reply_queue_capacity)
-        self._reply_enqueue_lock = threading.Lock()
+        self._reply_enqueue_lock = threading.RLock()
         self._job_manager = job_manager or voice_job_mgr
         self._delivery_stop = threading.Event()
         self._delivery_worker: Optional[threading.Thread] = None
         self._last_staged: Dict[str, Any] = {}
+        self._speech_generation: int = 0
 
         # Temporary audio directory for chunk processing
         self._temp_dir = os.path.join(tempfile.gettempdir(), "jarvis_voice")
@@ -83,20 +85,43 @@ class VoiceService:
             self.simulation_mode,
         )
 
-    def enqueue_response(self, response: str, *, broadcast: bool = False) -> VoiceJob:
-        """Queue one tracked reply, refusing capacity rather than evicting live work."""
+    def enqueue_response(
+        self,
+        response: str,
+        *,
+        broadcast: bool = False,
+        preempt: bool = False,
+        turn_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+    ) -> VoiceJob:
+        """Queue one tracked reply, refusing capacity rather than evicting live work unless preempt is True."""
         if not isinstance(response, str) or not response.strip():
             raise ValueError("response must be a non-empty string")
         with self._reply_enqueue_lock:
+            if preempt:
+                self.stop_playback()
             self._ensure_delivery_worker()
             if self._reply_queue.full():
                 raise RuntimeError("Voice reply queue is full")
-            job = self._job_manager.create_job(response, preserve_active=True)
+            current_gen = getattr(self, "_speech_generation", 0)
+            job = self._job_manager.create_job(
+                response,
+                preserve_active=True,
+                generation=current_gen,
+                turn_id=turn_id,
+                message_id=message_id,
+            )
             self._reply_queue.put_nowait(job)
         if broadcast:
             try:
                 from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="assistant", text=response)
+                broadcast_chat_message(
+                    role="assistant",
+                    text=response,
+                    message_id=message_id or turn_id or job.job_id,
+                    turn_id=turn_id or job.job_id,
+                    playback_target="system",
+                )
             except Exception as exc:
                 logger.debug("Failed to broadcast queued assistant reply: %s", exc)
         return job
@@ -140,6 +165,12 @@ class VoiceService:
         current = self._job_manager.get_job(job.job_id)
         if not current or current.status != "queued":
             return current or job
+        current_gen = getattr(self, "_speech_generation", 0)
+        job_gen = getattr(job, "generation", 0)
+        if job_gen != current_gen:
+            logger.info("Dropping preempted voice job %s (generation %d != %d)", job.job_id, job_gen, current_gen)
+            cancelled = self._job_manager.update_job(job.job_id, status="cancelled", error="Preempted by newer speech")
+            return cancelled or job
         try:
             current = self._job_manager.update_job(job.job_id, status="synthesizing")
             if not current or current.status != "synthesizing":
@@ -154,6 +185,12 @@ class VoiceService:
             ):
                 error = staged.get("error") if isinstance(staged, dict) else None
                 raise RuntimeError(error or "Speech synthesis failed")
+
+            if getattr(job, "generation", 0) != getattr(self, "_speech_generation", 0):
+                logger.info("Dropping preempted synthesized audio for job %s", job.job_id)
+                cancelled = self._job_manager.update_job(job.job_id, status="cancelled", error="Preempted by newer speech")
+                return cancelled or job
+
             current = self._job_manager.update_job(
                 job.job_id,
                 audio_id=staged.get("audio_id"),
@@ -170,12 +207,30 @@ class VoiceService:
             current = self._job_manager.update_job(job.job_id, status="playing")
             if not current or current.status != "playing":
                 return current or job
+
+            if staged.get("audio_url"):
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(
+                        role="assistant",
+                        text=job.text,
+                        audio_url=staged.get("audio_url"),
+                        message_id=getattr(job, "message_id", None) or getattr(job, "turn_id", None) or job.job_id,
+                        turn_id=getattr(job, "turn_id", None) or job.job_id,
+                        playback_target="system",
+                        provider_label=staged.get("provider_label"),
+                        is_cloned=bool(staged.get("is_cloned", False)),
+                    )
+                except Exception as b_err:
+                    logger.debug("Failed to broadcast staged audio URL: %s", b_err)
+
             played = speech_manager.play_system_audio(
                 audio[0],
                 wait=True,
                 playback_owner=job.job_id,
                 should_play=lambda: (
-                    (latest := self._job_manager.get_job(job.job_id)) is not None
+                    getattr(job, "generation", 0) == getattr(self, "_speech_generation", 0)
+                    and (latest := self._job_manager.get_job(job.job_id)) is not None
                     and latest.status == "playing"
                 ),
             )
@@ -212,6 +267,15 @@ class VoiceService:
     def stop_playback(self) -> None:
         """Interrupt any ongoing audio synthesis playback immediately (barge-in)."""
         try:
+            self._speech_generation = getattr(self, "_speech_generation", 0) + 1
+            with self._reply_enqueue_lock:
+                while not self._reply_queue.empty():
+                    try:
+                        old_job = self._reply_queue.get_nowait()
+                        self._job_manager.cancel_job(old_job.job_id)
+                        self._reply_queue.task_done()
+                    except queue.Empty:
+                        break
             self._job_manager.cancel_active_jobs()
             from apps.voice.speech_manager import speech_manager
             speech_manager.stop()
@@ -228,7 +292,12 @@ class VoiceService:
             from apps.voice.wake_word_engine import wake_word_engine
             ww_status = wake_word_engine.get_status()
             active = bool(self.listening and wake_word_engine._is_running)
-            curr_state = ww_status.get("state", "STANDBY")
+            if self.simulation_mode:
+                curr_state = "MUTED" if self._muted else ("LISTENING" if self.listening else "STANDBY")
+            elif wake_word_engine._is_running:
+                curr_state = ww_status.get("state", "STANDBY")
+            else:
+                curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
         except Exception:
             active = self.listening
             curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
@@ -271,8 +340,17 @@ class VoiceService:
             return {"status": "error", "message": "Microphone is muted"}
 
         from apps.voice.wake_word_engine import is_voice_service_daemon_running
-        if is_voice_service_daemon_running():
-            return {"status": "error", "message": "The dedicated voice daemon owns the microphone. Use its wake word; a second capture was not started."}
+        daemon_active = False
+        try:
+            daemon_active = is_voice_service_daemon_running()
+        except Exception:
+            daemon_active = False
+
+        if daemon_active:
+            return {
+                "status": "error",
+                "message": "The dedicated voice daemon owns the microphone; no second capture started.",
+            }
 
         was_running = False
         try:
@@ -407,6 +485,7 @@ class VoiceService:
         speak: bool = True,
     ) -> str:
         """Process a spoken or text command through the JARVIS Brain and speak the reply."""
+        self.stop_playback()
         logger.info("Processing voice command: '%s'", text)
         self.conversation.add_turn(role="user", text=text)
         try:
@@ -445,26 +524,48 @@ class VoiceService:
         if not response:
             response = "The AI service returned no answer. Completion could not be verified."
 
+        turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
         self.conversation.add_turn(role="assistant", text=response)
+        spoken_text = (result.get("spoken_summary") or response) if isinstance(result, dict) else response
         if speak:
-            self.speak_response(response)
+            self.speak_response(spoken_text, turn_id=turn_id)
         else:
             try:
                 from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="assistant", text=response)
+                broadcast_chat_message(
+                    role="assistant",
+                    text=response,
+                    message_id=turn_id,
+                    turn_id=turn_id,
+                    playback_target="system",
+                )
             except Exception:
                 logger.debug("Could not broadcast voice reply")
         return response
 
-    def speak_response(self, response: str, *, broadcast: bool = True) -> Dict[str, Any]:
-        """Queue a reply separately from command inference."""
+    def speak_response(self, response: str, *, broadcast: bool = True, turn_id: Optional[str] = None) -> Dict[str, Any]:
+        """Synthesize and stage a reply for browser and system delivery."""
         self._last_staged = {}
         try:
-            job = self.enqueue_response(response, broadcast=broadcast)
-            current = self._job_manager.get_job(job.job_id) or job
-            self._last_staged = {"status": current.status, "job_id": job.job_id,
-                                 "audio_id": current.audio_id, "audio_url": current.audio_url,
-                                 "provider": current.provider, "error": current.error}
+            from apps.voice.speech_manager import speech_manager
+            staged = speech_manager.synthesize_and_stage(response)
+            self._last_staged = staged or {}
+            tid = turn_id or f"vcmd_{uuid.uuid4().hex[:10]}"
+            if broadcast:
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(
+                        role="assistant",
+                        text=response,
+                        audio_url=staged.get("audio_url") if isinstance(staged, dict) else None,
+                        message_id=tid,
+                        turn_id=tid,
+                        playback_target="system",
+                        provider_label=staged.get("provider_label") if isinstance(staged, dict) else None,
+                        is_cloned=bool(staged.get("is_cloned", False)) if isinstance(staged, dict) else False,
+                    )
+                except Exception:
+                    pass
             return dict(self._last_staged)
         except Exception as exc:
             logger.error("Voice output error: %s", exc)

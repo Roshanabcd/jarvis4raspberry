@@ -22,9 +22,11 @@ from typing import Any, Dict, Optional, Tuple
 
 import requests
 
+from core.paths import PHOTOS_DIR
+
 logger = logging.getLogger("JARVIS.Vision.CameraManager")
 
-PICTURES_DIR = Path("/home/roshan/Pictures")
+PICTURES_DIR = Path(os.environ.get("JARVIS_PICTURES_DIR", str(PHOTOS_DIR)))
 PICTURES_DIR.mkdir(parents=True, exist_ok=True)
 DEFAULT_CAMERA_SERVICE_URL = "http://127.0.0.1:8082"
 

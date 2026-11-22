@@ -34,7 +34,7 @@ def test_case_1_simple_greeting(brain):
     """Test 1: Simple greeting receives natural AI greeting without system telemetry or stubs."""
     session_id = "test_p1_case1"
     res = brain.chat("hello", session_id=session_id)
-    assert res.get("provider") in ("ollama", "gemini", "openai", "edge_fastpath")
+    assert res.get("provider") in ("ollama", "gemini", "openai", "nvidia", "edge_fastpath")
     text = res.get("response", "").strip()
     assert len(text) > 0
     # Must not be an old system status or calculator dump
@@ -66,7 +66,7 @@ def test_case_3_uptime_and_memory_python_script(brain):
     session_id = "test_p1_case3"
     res = brain.chat("Write a Python script to display system uptime and memory.", session_id=session_id)
     text = res.get("response", "")
-    assert res.get("provider") == "ollama" or res.get("provider") in ("gemini", "openai")
+    assert res.get("provider") in ("ollama", "gemini", "openai", "nvidia")
     # Must contain python code
     assert "```python" in text or "def " in text or "import " in text
     assert "psutil" in text or "uptime" in text

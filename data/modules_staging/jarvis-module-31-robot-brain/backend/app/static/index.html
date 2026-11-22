@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Robot Brain (M31)</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --text: #F0F8FF;
+      --muted: #8AA4C2;
+      --danger: #FF5C77;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top right, rgba(152,104,255,0.12), transparent 42%), var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(16, 30, 48, 0.8);
+    }
+    .brand h1 { margin: 0; font-size: 1.25rem; letter-spacing: 0.06em; color: var(--cyan); }
+    .brand p { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      border: 1px solid var(--border);
+      background: rgba(0, 217, 255, 0.08);
+    }
+    .badge.sim { border-color: var(--purple); color: var(--purple); }
+    .badge.live { border-color: var(--green); color: var(--green); }
+    .badge.danger { border-color: var(--danger); color: var(--danger); background: rgba(255,92,119,0.14); }
+    main {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .col-12 { grid-column: span 12; }
+    .col-7 { grid-column: span 7; }
+    .col-5 { grid-column: span 5; }
+    @media (max-width: 900px) {
+      .col-7, .col-5 { grid-column: span 12; }
+    }
+    h2 { margin: 0 0 12px; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cyan); }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .stat { background: rgba(5, 11, 22, 0.7); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+    .stat .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+    .stat .value { font-size: 1.3rem; font-weight: 700; margin-top: 4px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    input {
+      background: #081224;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.85rem;
+    }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    button.secondary {
+      background: rgba(0, 217, 255, 0.12);
+      color: var(--cyan);
+      border: 1px solid var(--border);
+    }
+    button.danger {
+      background: rgba(255, 92, 119, 0.22);
+      color: var(--danger);
+      border: 1px solid rgba(255, 92, 119, 0.6);
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .list-item {
+      background: rgba(5, 11, 22, 0.68);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.82rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    #toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: #101E30;
+      border: 1px solid var(--cyan);
+      padding: 10px 14px;
+      border-radius: 10px;
+      display: none;
+      font-size: 0.84rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <h1>JARVIS // ROBOT BRAIN</h1>
+      <p>Module 31 • E-STOP Safety Interlock, Kinematics, Waypoints &amp; Autonomous Missions</p>
+    </div>
+    <div class="badges">
+      <span id="estopBadge" class="badge live">SAFETY: CLEAR</span>
+      <span id="simBadge" class="badge sim">BRIDGE: LOADING</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card col-12">
+      <h2>Live Robot Telemetry</h2>
+      <div class="stats">
+        <div class="stat"><div class="label">Mode</div><div id="stMode" class="value">idle</div></div>
+        <div class="stat"><div class="label">Pose (X, Y)</div><div id="stPose" class="value">0.0, 0.0</div></div>
+        <div class="stat"><div class="label">Heading</div><div id="stHeading" class="value">0°</div></div>
+        <div class="stat"><div class="label">Battery</div><div id="stBatt" class="value">92%</div></div>
+        <div class="stat"><div class="label">Front Obstacle</div><div id="stObs" class="value">2.5 m</div></div>
+        <div class="stat"><div class="label">CPU Temp</div><div id="stTemp" class="value">44°C</div></div>
+      </div>
+    </section>
+
+    <section class="card col-7">
+      <h2>Safety Interlock &amp; Motion Control</h2>
+      <div class="row">
+        <button class="danger" onclick="engageEstop()">ENGAGE E-STOP</button>
+        <button class="secondary" onclick="resetEstop()">Confirm E-STOP Reset</button>
+      </div>
+      <div class="row">
+        <button onclick="sendMotion(0.6, 0.0, 1.0)">Forward 0.6 m/s</button>
+        <button class="secondary" onclick="sendMotion(0.0, 0.7, 1.0)">Turn Left</button>
+        <button class="secondary" onclick="sendMotion(0.0, -0.7, 1.0)">Turn Right</button>
+        <button class="secondary" onclick="sendMotion(-0.4, 0.0, 1.0)">Reverse</button>
+        <button class="secondary" onclick="sendMotion(0.0, 0.0, 0.5)">Stop</button>
+      </div>
+
+      <h2 style="margin-top:16px;">Register Waypoint</h2>
+      <div class="row">
+        <input id="wpName" placeholder="Waypoint (e.g. Lab Bench)" />
+        <input id="wpZone" value="Main Floor" placeholder="Zone" />
+        <input id="wpX" type="number" step="0.5" value="3.0" placeholder="X (m)" />
+        <input id="wpY" type="number" step="0.5" value="4.0" placeholder="Y (m)" />
+        <button onclick="addWaypoint()">Save Waypoint</button>
+      </div>
+      <div id="wpList" class="list"></div>
+    </section>
+
+    <section class="card col-5">
+      <h2>Autonomous Missions</h2>
+      <div id="missionList" class="list"></div>
+      <h2 style="margin-top:16px;">Telemetry Audit Log</h2>
+      <div id="eventList" class="list"></div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script>
+    const API = "/api/v1/robot-brain";
+
+    function toast(msg) {
+      const el = document.getElementById("toast");
+      el.textContent = msg;
+      el.style.display = "block";
+      clearTimeout(window._t);
+      window._t = setTimeout(() => { el.style.display = "none"; }, 3200);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...opts
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || "Request failed";
+        toast("Blocked: " + msg);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function engageEstop() {
+      await api("/estop", { method: "POST", body: JSON.stringify({ reason: "HUD E-STOP pressed" }) });
+      toast("E-STOP engaged.");
+      refreshAll();
+    }
+
+    async function resetEstop() {
+      await api("/estop/reset", { method: "POST", body: JSON.stringify({ confirm_reset: true, operator_note: "HUD confirmed reset" }) });
+      toast("E-STOP cleared.");
+      refreshAll();
+    }
+
+    async function sendMotion(linear_mps, angular_rps, duration_s) {
+      await api("/motion/cmd", { method: "POST", body: JSON.stringify({ linear_mps, angular_rps, duration_s }) });
+      refreshAll();
+    }
+
+    async function addWaypoint() {
+      const name = document.getElementById("wpName").value.trim();
+      const zone = document.getElementById("wpZone").value.trim();
+      const x = parseFloat(document.getElementById("wpX").value || "0");
+      const y = parseFloat(document.getElementById("wpY").value || "0");
+      if (name.length < 2) { toast("Enter a waypoint name."); return; }
+      await api("/waypoints", { method: "POST", body: JSON.stringify({ name, zone, x, y }) });
+      document.getElementById("wpName").value = "";
+      toast("Waypoint saved.");
+      refreshAll();
+    }
+
+    async function runMission(id) {
+      const res = await api(`/missions/${id}/execute`, { method: "POST" });
+      toast(`Mission '${res.name}' ${res.status}.`);
+      refreshAll();
+    }
+
+    async function refreshAll() {
+      const [status, wps, missions, events] = await Promise.all([
+        api("/status"),
+        api("/waypoints"),
+        api("/missions"),
+        api("/events")
+      ]);
+      document.getElementById("stMode").textContent = status.mode;
+      document.getElementById("stPose").textContent = `${status.pose.x}, ${status.pose.y}`;
+      document.getElementById("stHeading").textContent = `${status.pose.heading_deg}°`;
+      document.getElementById("stBatt").textContent = `${status.battery_pct}%`;
+      document.getElementById("stObs").textContent = `${status.front_obstacle_m} m`;
+      document.getElementById("stTemp").textContent = `${status.cpu_temp_c}°C`;
+
+      const estop = document.getElementById("estopBadge");
+      estop.textContent = status.estop_engaged ? "E-STOP ENGAGED" : "SAFETY: CLEAR";
+      estop.className = status.estop_engaged ? "badge danger" : "badge live";
+
+      const sim = document.getElementById("simBadge");
+      sim.textContent = status.simulated ? `SIMULATED (${status.adapter})` : `LIVE (${status.adapter})`;
+      sim.className = status.simulated ? "badge sim" : "badge live";
+
+      document.getElementById("wpList").innerHTML = wps.waypoints.length
+        ? wps.waypoints.map(w => `<div class="list-item"><span><strong>${w.name}</strong> (${w.zone})</span><span>(${w.x}, ${w.y})</span></div>`).join("")
+        : `<div class="list-item"><span>No waypoints saved yet.</span></div>`;
+
+      document.getElementById("missionList").innerHTML = missions.missions.length
+        ? missions.missions.map(m => `
+            <div class="list-item">
+              <span><strong>${m.name}</strong> [${m.status}]</span>
+              <button class="secondary" onclick="runMission('${m.mission_id}')">Execute</button>
+            </div>`).join("")
+        : `<div class="list-item"><span>No missions created yet.</span></div>`;
+
+      document.getElementById("eventList").innerHTML = events.events.slice(0, 12).map(e => `
+        <div class="list-item"><span><strong>${e.event_type}</strong> — ${e.detail}</span></div>
+      `).join("") || `<div class="list-item"><span>No telemetry events yet.</span></div>`;
+    }
+
+    function connectWS() {
+      const proto = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/telemetry`);
+      const badge = document.getElementById("wsBadge");
+      ws.onopen = () => { badge.textContent = "WS: CONNECTED"; badge.className = "badge live"; };
+      ws.onclose = () => { badge.textContent = "WS: RECONNECTING"; badge.className = "badge"; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => { refreshAll(); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

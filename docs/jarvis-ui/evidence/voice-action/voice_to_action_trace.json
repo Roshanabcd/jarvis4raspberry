@@ -1,0 +1,88 @@
+{
+  "suite": "voice_to_action_integration",
+  "timestamp": 1795250368.4216766,
+  "platform": "Raspberry Pi 5 (aarch64)",
+  "steps": [
+    {
+      "step": 1,
+      "command": "Jarvis, select option 1 and click Submit.",
+      "verified": true,
+      "response": "Option 1 was selected and the form was submitted successfully.",
+      "job_id": "vjob_1795250371_7127b4bc",
+      "latency_ms": 649.0
+    },
+    {
+      "step": 2,
+      "command": "Click the search box.",
+      "verified": true,
+      "response": "Moved to and clicked 'search box' at (491, 464).",
+      "cursor": {
+        "x": 491,
+        "y": 464
+      },
+      "latency_ms": 5966.6
+    },
+    {
+      "step": 3,
+      "command": "Type Hello World.",
+      "verified": true,
+      "response": "Typed \"Hello World\" into the active field.",
+      "input_val": "Hello World",
+      "latency_ms": 78.3
+    },
+    {
+      "step": 4,
+      "command": "Press Enter.",
+      "verified": true,
+      "response": "Pressed ENTER.",
+      "latency_ms": 431.3
+    },
+    {
+      "step": 5,
+      "command": "Right-click the test item.",
+      "verified": true,
+      "response": "Right-clicked 'test item' at (680, 727).",
+      "latency_ms": 963.1
+    },
+    {
+      "step": 6,
+      "command": "Jarvis, open Firefox.",
+      "verified": true,
+      "response": "\ud83d\ude80 Launched **firefox** (`/usr/bin/firefox`) on desktop session (PID: 195789).",
+      "target_window": "firefox",
+      "latency_ms": 1862.4
+    },
+    {
+      "step": 7,
+      "command": "Stop controlling the computer.",
+      "verified": true,
+      "response": "I have stopped controlling the computer immediately. All active operations were cancelled.",
+      "emergency_stopped": true,
+      "blocked_response": "Action blocked: Computer control is currently in EMERGENCY STOP.",
+      "latency_ms": 782.1
+    },
+    {
+      "step": 8,
+      "verification": "audio_telemetry",
+      "verified": true,
+      "telemetry": {
+        "capture_owner": "voice_daemon",
+        "state": "STANDBY_LISTENING",
+        "speaker": {
+          "available": true,
+          "device": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]",
+          "card": 2,
+          "device_id": 0,
+          "playing": true
+        },
+        "device": {
+          "card": 2,
+          "device": 0,
+          "name": "Lite [ReSpeaker Lite] - USB Audio [USB Audio]"
+        }
+      }
+    }
+  ],
+  "passed": 8,
+  "failed": 0
+}

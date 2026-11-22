@@ -19,5 +19,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     reason = "Physical hardware tests require JARVIS_RUN_HARDWARE_TESTS=1."
     marker = pytest.mark.skip(reason=reason)
     for item in items:
-        item.add_marker("hardware")
-        item.add_marker(marker)
+        if "tests/hardware" in str(item.fspath) or "tests/hardware" in str(getattr(item, "path", "")):
+            item.add_marker("hardware")
+            item.add_marker(marker)

@@ -2,10 +2,11 @@
 import os
 import logging
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, ConfigDict, Field
 from apps.voice.service import voice_service
 from apps.voice.remote_control_policy import require_external_voice_control
+from apps.api.active_desktop_api import require_local_dashboard
 
 logger = logging.getLogger("JARVIS.API.Voice")
 voice_router = APIRouter(prefix="/voice", tags=["voice"])
@@ -46,6 +47,22 @@ class VoiceTuningRequest(BaseModel):
     reference_audio_path: Optional[str] = None
 
 
+class SetSpeakerRequest(BaseModel):
+    card: int
+    device: int
+    name: Optional[str] = None
+
+
+class SetVolumeRequest(BaseModel):
+    volume: float = Field(..., ge=0.0, le=1.5)
+
+
+class SetVoiceModelRequest(BaseModel):
+    voice_name: Optional[str] = None
+    character: Optional[str] = None
+    speed: Optional[float] = None
+
+
 def _daemon_snapshot():
     """Resolve the capture owner and accept only fresh daemon telemetry."""
     from apps.voice.wake_word_engine import is_voice_service_daemon_running
@@ -76,6 +93,131 @@ def get_voice_status():
     st["speaker"] = diag["speaker"]
     st["tts"] = diag["tts"]
     return st
+
+
+@voice_router.get("/devices")
+def get_voice_devices():
+    """Return all detected input and output audio devices."""
+    input_devs = voice_service.audio_manager.detect_devices()
+    output_devs = voice_service.audio_manager.detect_playback_devices()
+    selected_in = voice_service.audio_manager.select_best_device()
+    selected_out = voice_service.audio_manager.select_best_playback_device()
+    vol = voice_service.audio_manager.get_volume()
+    return {
+        "status": "ok",
+        "input_devices": input_devs,
+        "output_devices": output_devs,
+        "selected_input": selected_in,
+        "selected_output": selected_out,
+        "volume": vol,
+    }
+
+
+@voice_router.get("/devices/speaker")
+def get_voice_speaker():
+    """Get active physical speaker and available playback devices."""
+    output_devs = voice_service.audio_manager.detect_playback_devices()
+    selected_out = voice_service.audio_manager.select_best_playback_device()
+    vol = voice_service.audio_manager.get_volume()
+    return {
+        "status": "ok",
+        "current_speaker": selected_out,
+        "available_speakers": output_devs,
+        "volume_pct": int(vol * 100),
+    }
+
+
+@voice_router.post("/devices/speaker")
+def set_voice_speaker(req: SetSpeakerRequest):
+    """Set active physical speaker output device."""
+    sel = voice_service.audio_manager.set_playback_device(card=req.card, device=req.device, name=req.name)
+    return {"status": "ok", "selected_output": sel}
+
+
+@voice_router.get("/devices/volume")
+def get_voice_volume():
+    """Get current output volume."""
+    vol = voice_service.audio_manager.get_volume()
+    return {"status": "ok", "volume": vol}
+
+
+@voice_router.post("/devices/volume")
+def set_voice_volume(req: SetVolumeRequest):
+    """Set current output volume."""
+    vol = voice_service.audio_manager.set_volume(req.volume)
+    return {"status": "ok", "volume": vol}
+
+
+@voice_router.get("/models")
+def list_voice_models():
+    """List available voice models, personas, and active status."""
+    from config.config_manager import config
+    from apps.voice.gradio_tts import gradio_cloner
+    cloner_st = gradio_cloner.get_provider_status()
+    models = [
+        {"id": "en-US-GuyNeural", "name": "JARVIS / Guy Neural (Authoritative Male)", "gender": "male", "engine": "edge-tts", "recommended": True},
+        {"id": "en-US-AriaNeural", "name": "Aria Neural (Expressive Female)", "gender": "female", "engine": "edge-tts", "recommended": False},
+        {"id": "en-US-ChristopherNeural", "name": "Christopher Neural (Deep Tactical Male)", "gender": "male", "engine": "edge-tts", "recommended": False},
+        {"id": "en-GB-RyanNeural", "name": "Ryan Neural (British Male)", "gender": "male", "engine": "edge-tts", "recommended": False},
+        {"id": "espeak-ng", "name": "eSpeak-NG (Local Offline Fallback)", "gender": "neutral", "engine": "espeak", "recommended": False},
+    ]
+    if cloner_st.get("online"):
+        models.insert(0, {
+            "id": "omnivoice",
+            "name": "OmniVoice Cloned Voice (Custom Model)",
+            "gender": "custom",
+            "engine": "omnivoice",
+            "recommended": True,
+        })
+    v_cfg = config.get("voice", {}) or {}
+    return {
+        "status": "ok",
+        "models": models,
+        "active_model": v_cfg.get("neural_voice", "en-US-GuyNeural"),
+        "active_character": v_cfg.get("character", "atlas"),
+        "speed": gradio_cloner.default_speed,
+        "omnivoice_online": cloner_st.get("online", False),
+    }
+
+
+@voice_router.post("/model")
+def set_voice_model(req: SetVoiceModelRequest):
+    """Set active TTS voice model, persona, and speed."""
+    from config.config_manager import config
+    from apps.voice.gradio_tts import gradio_cloner
+    v_cfg = config.get("voice", {}) or {}
+    if req.voice_name:
+        v_cfg["neural_voice"] = req.voice_name
+        v_cfg["fallback_voice"] = req.voice_name
+    if req.character:
+        v_cfg["character"] = req.character
+    if req.speed is not None:
+        v_cfg["speed"] = req.speed
+        gradio_cloner.default_speed = float(req.speed)
+    config.set("voice", v_cfg)
+    return {
+        "status": "ok",
+        "active_model": v_cfg.get("neural_voice"),
+        "active_character": v_cfg.get("character"),
+        "speed": gradio_cloner.default_speed,
+    }
+
+
+@voice_router.post("/test/speaker_phrase")
+def test_speaker_phrase():
+    """Synthesize and speak a live confirmation phrase through the physical speaker."""
+    from apps.voice.speech_manager import speech_manager
+    spk = voice_service.audio_manager.select_best_playback_device()
+    spk_name = spk.get("name", "Speaker").split(" - ")[0]
+    phrase = f"JARVIS audio output online. {spk_name} speaker verified."
+    res = speech_manager.synthesize_and_stage(phrase, play_system=True)
+    return {
+        "status": "ok" if res.get("success") else "error",
+        "phrase": phrase,
+        "speaker": spk,
+        "audio_url": res.get("audio_url"),
+        "provider": res.get("provider"),
+    }
 
 
 @voice_router.get("/session")
@@ -157,6 +299,11 @@ def mute_voice():
     external_owner, _ = _daemon_snapshot()
     if external_owner:
         _send_daemon_command_or_raise("mute")
+        try:
+            from apps.voice.daemon_status import publish_status
+            publish_status("MUTED", True)
+        except Exception:
+            pass
         return {"status": "ok", "muted": True, "target": "daemon"}
     voice_service.mute()
     return {"status": "ok", "muted": True, "target": "backend", "state": voice_service.get_state()}
@@ -168,6 +315,11 @@ def unmute_voice():
     external_owner, _ = _daemon_snapshot()
     if external_owner:
         _send_daemon_command_or_raise("unmute")
+        try:
+            from apps.voice.daemon_status import publish_status
+            publish_status("STANDBY_LISTENING", True)
+        except Exception:
+            pass
         return {"status": "ok", "muted": False, "target": "daemon"}
     voice_service.unmute()
     return {"status": "ok", "muted": False, "target": "backend", "state": voice_service.get_state()}
@@ -197,6 +349,164 @@ def listen_once(req: ListenOnceRequest = ListenOnceRequest()):
     """Push-to-talk: capture audio for N seconds from ReSpeaker Lite, transcribe and process."""
     result = voice_service.listen_once(duration_secs=req.duration_secs or 4)
     return result
+
+
+@voice_router.post("/push-to-talk", dependencies=[Depends(require_local_dashboard)])
+def push_to_talk():
+    """Request capture from an existing owner, never create another recorder."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("push_to_talk")
+        return {"status": "accepted", "target": "daemon"}
+    from apps.voice.wake_word_engine import wake_word_engine
+    if not wake_word_engine._is_running:
+        raise HTTPException(409, "Not available: no active microphone owner")
+    wake_word_engine.trigger_push_to_talk()
+    return {"status": "accepted", "target": "backend"}
+
+
+@voice_router.post("/transcribe")
+async def transcribe_audio_file(
+    file: UploadFile = File(...),
+    process_command: bool = Form(True),
+    speak: bool = Form(True),
+):
+    """Transcribe client-recorded audio (from browser/laptop mic) and optionally execute command."""
+    import tempfile, subprocess, time, shutil
+    temp_dir = os.path.join(tempfile.gettempdir(), "jarvis_voice")
+    os.makedirs(temp_dir, exist_ok=True)
+    orig_name = file.filename or ""
+    suffix = os.path.splitext(orig_name)[1].lower() if "." in orig_name else ".webm"
+    if not suffix:
+        suffix = ".webm"
+    ts = int(time.time() * 1000)
+    raw_path = os.path.join(temp_dir, f"browser_raw_{ts}{suffix}")
+    wav_path = os.path.join(temp_dir, f"browser_proc_{ts}.wav")
+
+    try:
+        content = await file.read()
+        if not content or len(content) < 50:
+            return {"status": "empty", "transcribed": "", "message": "Uploaded audio is empty"}
+        with open(raw_path, "wb") as f:
+            f.write(content)
+
+        # Convert to 16kHz mono WAV via ffmpeg if needed
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if ffmpeg_bin:
+            conv = subprocess.run(
+                [ffmpeg_bin, "-y", "-i", raw_path, "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", wav_path],
+                capture_output=True,
+                timeout=10,
+            )
+            target_wav = wav_path if (conv.returncode == 0 and os.path.isfile(wav_path) and os.path.getsize(wav_path) > 100) else raw_path
+        else:
+            target_wav = raw_path
+
+        text = voice_service.stt.transcribe(target_wav)
+        if not text or not text.strip():
+            return {"status": "empty", "transcribed": "", "message": "No audible speech recognized in audio"}
+
+        response = ""
+        staged = {}
+        if process_command:
+            response = voice_service.process_command(text, speak=speak)
+            staged = getattr(voice_service, "_last_staged", {}) or {}
+
+        return {
+            "status": "ok",
+            "transcribed": text,
+            "response": response,
+            "job_id": staged.get("job_id"),
+            "audio_url": staged.get("audio_url"),
+            "audio_id": staged.get("audio_id"),
+            "provider": staged.get("provider"),
+            "provider_label": staged.get("provider_label"),
+            "is_cloned": staged.get("is_cloned", False),
+        }
+    except Exception as e:
+        logger.error("Error transcribing uploaded audio: %s", e)
+        return {"status": "error", "message": str(e)}
+    finally:
+        for p in (raw_path, wav_path):
+            try:
+                if os.path.exists(p):
+                    os.unlink(p)
+            except Exception:
+                pass
+
+
+class WakeWordToggleRequest(BaseModel):
+    enabled: Optional[bool] = None
+    enable: Optional[bool] = None
+
+    @property
+    def is_enabled(self) -> bool:
+        if self.enabled is not None:
+            return self.enabled
+        if self.enable is not None:
+            return self.enable
+        return True
+
+
+class WakeWordConfigRequest(BaseModel):
+    sensitivity: Optional[str] = None  # "low", "medium", "high"
+    silence_timeout_s: Optional[float] = None
+    follow_up_window_s: Optional[float] = None
+    wake_threshold: Optional[float] = None
+
+
+@voice_router.post("/wake_word/toggle")
+def toggle_wake_word(req: WakeWordToggleRequest):
+    """Enable or disable background wake-word activation."""
+    target_enabled = req.is_enabled
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        cmd = "wake_enable" if target_enabled else "wake_disable"
+        from apps.voice.daemon_control import send_daemon_command
+        send_daemon_command(cmd)
+    try:
+        from apps.voice.wake_word_engine import wake_word_engine
+        wake_word_engine.set_wake_word_enabled(target_enabled)
+    except Exception:
+        pass
+    return {"status": "ok", "wake_word_enabled": target_enabled}
+
+
+@voice_router.get("/wake_word/config")
+def get_wake_word_config():
+    """Retrieve current wake word configuration parameters."""
+    from apps.voice.wake_word_engine import wake_word_engine
+    return {
+        "status": "ok",
+        "wake_word_enabled": wake_word_engine.wake_word_enabled,
+        "wake_engine": getattr(wake_word_engine, "wake_model_name", "openwakeword"),
+        "wake_threshold": getattr(wake_word_engine, "_wake_threshold", 0.5),
+        "silence_timeout_s": wake_word_engine.silence_timeout_s,
+        "follow_up_window_s": wake_word_engine.follow_up_window_s,
+        "adaptive_threshold": wake_word_engine.adaptive_threshold,
+        "ambient_noise_floor": wake_word_engine.ambient_noise_floor,
+    }
+
+
+@voice_router.post("/wake_word/config")
+def configure_wake_word(req: WakeWordConfigRequest):
+    """Configure wake-word VAD sensitivity, silence timeout, and follow-up window."""
+    from apps.voice.wake_word_engine import wake_word_engine
+    if req.sensitivity:
+        wake_word_engine.set_vad_sensitivity(req.sensitivity)
+    if req.wake_threshold is not None:
+        wake_word_engine.set_wake_threshold(req.wake_threshold)
+    if req.silence_timeout_s is not None and 0.5 <= req.silence_timeout_s <= 15.0:
+        wake_word_engine.set_silence_timeout(req.silence_timeout_s)
+    if req.follow_up_window_s is not None and 1.0 <= req.follow_up_window_s <= 60.0:
+        wake_word_engine.follow_up_window_s = float(req.follow_up_window_s)
+    return {
+        "status": "ok",
+        "sensitivity": req.sensitivity,
+        "wake_threshold": getattr(wake_word_engine, "_wake_threshold", 0.5),
+        "silence_timeout_s": wake_word_engine.silence_timeout_s,
+        "follow_up_window_s": wake_word_engine.follow_up_window_s,
+    }
 
 
 @voice_router.get("/jobs")
@@ -233,15 +543,19 @@ def cancel_voice_job(job_id: str):
 @voice_router.post("/command")
 def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
     """Execute inference once and submit exactly one bounded voice reply job."""
+    import uuid
+    turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
     response = voice_service.process_command(req.text, speak=False)
     try:
-        job = voice_service.enqueue_response(response, broadcast=False)
+        job = voice_service.enqueue_response(
+            response, broadcast=False, preempt=True, turn_id=turn_id, message_id=turn_id
+        )
     except (RuntimeError, ValueError) as exc:
         # Inference may already have performed an action: keep its confirmed
         # response and report only delivery rejection, so callers do not replay it.
         return {"status": "ok", "response": response, "job_id": None,
-                "job_status": "rejected", "audio_error": str(exc)}
-    return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status}
+                "job_status": "rejected", "audio_error": str(exc), "turn_id": turn_id}
+    return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status, "turn_id": turn_id}
 
 
 @voice_router.post("/synthesize")

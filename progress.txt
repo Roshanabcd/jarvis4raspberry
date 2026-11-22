@@ -529,3 +529,170 @@ Learnings:
 - Local LLM inference on Raspberry Pi 5 ARM64 Cortex-A76 requires 20-40 seconds per synthesis call. Implementing a high-fidelity deterministic grounded fallback engine ensures instantaneous sub-second responses during automated testing and completely offline operation while maintaining strict factual grounding.
 - OpenAlex abstracts are stored in an inverted index dictionary format (mapping words to token position lists). Reconstructing the abstract requires sorting token positions and assembling the word array, which avoids large text payload bloat while providing full abstract text for indexing.
 ==================================================
+=== ITERATION: CORE AI RELIABILITY & PROVIDER INTEGRATION ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Credentials Discovery & Persistence: Added automatic `.env` discovery to `ai/providers/credentials.py` and `config/config_manager.py` using `dotenv.load_dotenv(override=False)`, resolving NVIDIA NIM, OpenRouter, and cloud API keys without manual exports.
+- Intent Routing & Telemetry Repair: Fixed boundary matching in `ai/local_engine.py` preventing "What is the CPU temperature?" from being hijacked into general conversation; routed hardware queries directly to deterministic `system_status`.
+- Tool Executor Error Protocol: Updated `ai/tools/executor.py` to accept `confirmed=True` and guarantee standard JSON error payloads (`{"status": "error", "error": ...}`) when execution is denied.
+- Code Generation Disambiguation: Added Rule 10 to `SYSTEM_PROMPT` prohibiting command tool hallucination for programming queries, and suppressed tool advertisement (`tools = None`) in `JARVISBrain.chat` when processing pure code generation requests.
+- Multi-Point Security & Revocation: Evaluated `_authorization_check` at request entry, before each inference round, and immediately prior to tool dispatch.
+- SSE Streaming Token Flow: Restored progressive token chunking in `stream_chat` for real-time visual rendering and clean client cancellation without threadpool batch blocking.
+- Ollama ARM64 Timeout & Cooldown Resilience: Replaced hardcoded 20s timeout in `ai/brain.py` with provider timeout budgets, reduced failure cooldown from 30s to 5s, added `reset_cooldown()`, and tuned default token generation (`num_predict: 384`).
+- Transparent Provider Error Reporting: Configured unreachable test endpoints (`:9999`) to route directly to the designated provider, standardized failure text prefix to `"AI Provider Error: The {provider} model is unreachable or timed out ({error})."`, and returned honest error telemetry without fake fallback.
+- Settings Key Masking: Standardized `/api/settings/integrations` to return partially masked keys (`f"{val[:4]}****{val[-4:]}"`).
+- Verification & Test Execution: Authored `tests/unit/test_core_ai_reliability.py` verifying all 15 core acceptance criteria. Verified 103/103 tests passed across `test_phase8_phase11_hardening_and_safety.py`, `test_phase2_agent_tools.py`, `test_phase05_provider_reliability.py`, `test_agent_execution.py`, `test_brain_reliability.py`, `test_nvidia_conversation.py`, `test_core_ai_reliability.py`, and `test_phase1_real_ai.py`.
+
+Learnings:
+- When LLMs with tool-calling capabilities receive coding prompts alongside 90+ physical tool definitions, models tend to hallucinate execution tools (such as `safe_shell`). Pure programming requests must omit tool definitions to produce clean, complete Markdown code implementations.
+- Cooldown timers on local edge models running on CPU must be short (≤5s) and cleanly resettable; lengthy cooldowns cause cascading failures across independent test cases and real-world turns.
+- Multi-turn mock authorization checks require evaluation at every phase boundary (entry, pre-inference, pre-dispatch) to maintain state alignment and prevent unintended tool execution upon permission revocation.
+==================================================
+
+=== ITERATION: MULTI-AGENT DEVELOPMENT ORCHESTRATOR & COPILOT SYNCHRONIZATION ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Added `CopilotAdapter` (`tools/agents/adapters/copilot_adapter.py`) wrapping `/home/roshan/.local/bin/copilot` (v1.0.112), supporting non-secret auth detection, granular sandboxed tools (`--allow-tool=write`, `--allow-tool=shell(git:*)`, `--add-dir`), and timeout recovery.
+- Updated `tools/agents/models.py` to include `AgentId.COPILOT = "copilot"`.
+- Exported and registered `CopilotAdapter` in `tools/agents/adapters/__init__.py` and `tools/agents/registry.py`.
+- Synchronized `tools/agents/orchestrator.py` priority routing to include `antigravity`, `codex`, and `copilot` in ranking heuristics.
+- Tuned local Ollama adapter CPU budget (`num_predict: 48`, `timeout=90`) in `tools/agents/adapters/ollama_adapter.py` for Raspberry Pi 5 ARM64 stability.
+- Updated futuristic Developer Hub dashboard (`apps/dashboard/futuristic/developer.js`):
+  1. Updated `classMap` promoting `codex` and `copilot` to active `Class B: Headless CLI` agents.
+  2. Updated `agents-task-agent-select` dispatch dropdown to include Google Antigravity (`agy`), OpenAI Codex (ChatGPT Plus), and GitHub Copilot (Copilot Fusion).
+- Authored comprehensive test suite `tests/unit/test_copilot_adapter.py` (5/5 tests passing).
+- Verified `tests/unit/test_copilot_adapter.py`, `tests/unit/test_multi_agent_worktree_orchestrator.py`, `tests/unit/test_hybrid_developer_api.py`, `tests/unit/test_hybrid_jarvis_developer.py`, and `tests/unit/test_phase5_multi_agent_orchestrator.py` (50/50 passing).
+- Verified `tests/unit/test_core_ai_reliability.py` (15/15 passing).
+- Committed to branch `feature/jarvis-ui` at commit `bfb105d`.
+
+Learnings:
+- Running local LLM CPU inference on Raspberry Pi 5 under heavy concurrent pytest execution requires adjusting token prediction limits (`num_predict: 48`) and socket timeouts (90s) to prevent transient timeouts while model weights cold-load into memory.
+- Dynamic agent registry discovery requires both `tools/agents/` (the core diagnostic and self-healing subsystem) and `tools/hybrid-jarvis-developer/` (the multi-agent git worktree orchestrator) to maintain unified ID parity (`antigravity`, `codex`, `copilot`) so dashboard clients receive consistent capability and status metadata across all endpoints.
+==================================================
+
+=== ITERATION: VOICE SUBSYSTEM TRANSCRIPTION, ACCUMULATION & DASHBOARD ROUTING ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Speech Recognition Whisper Fallback (`apps/voice/stt.py`):
+  1. Removed premature `return ""` inside `except sr.UnknownValueError:` in `SpeechToText.transcribe`, enabling seamless fallback to local Whisper model when Google Web Speech fails on accents, low volume, or ambient acoustics.
+- Speech Utterance Accumulation (`apps/voice/wake_word_engine.py`):
+  1. Implemented continuous raw PCM audio frame buffering during `WakeState.LISTENING_SPEECH` into `accumulated_command.wav`.
+  2. In `WakeState.COMMAND_SUBMITTED`, added fallback to transcribe the full accumulated sentence when 1.5-second fragment streaming yields empty or broken transcripts, giving STT engines whole-sentence acoustic and linguistic context.
+  3. Implemented dual-chunk rolling buffer in `WakeState.STANDBY_LISTENING` so wake phrases ("Hey Jarvis") spanning 1.5-second capture boundaries are not clipped.
+  4. Calibrated VAD sensitivity presets to support conversational speech levels on Seeed ReSpeaker Lite USB microphone array.
+- Dashboard API & Futuristic Voice Controller (`apps/dashboard/futuristic/api.js` & `voice.js`):
+  1. Added `sendVoiceCommand(text)` method to `api.js` to route spoken text to `/api/voice/command` for AI brain reasoning.
+  2. Fixed `voice.js` to inspect `res.transcribed` and `res.response`, eliminating UI lockups on push-to-talk.
+  3. Replaced raw TTS parrot echo (`synthesizeSpeech(text)`) in `handleUserVoiceInput` with end-to-end AI command execution and assistant speech playback.
+- Verification & Test Execution:
+  1. Authored `test_unknown_value_error_falls_back_to_whisper` and `test_accumulated_speech_used_when_fragment_transcription_empty` in `tests/unit/test_voice_capture_reliability.py` (14/14 tests passing).
+  2. Verified core voice suites (91/91 tests passing).
+  3. Verified live `jarvis-voice.service` running active on PID 40396 in `STANDBY_LISTENING`.
+  4. Verified live `/api/voice/command` returning AI reasoning response with 145ms local TTS staging.
+  5. Committed to `feature/jarvis-ui` at commit `49c005b`.
+
+Learnings:
+- Cloud STT engines (like Google Web Speech) frequently reject sub-2-second chopped audio slices with `UnknownValueError`. Streaming VAD loops that slice audio into rolling chunks must maintain an accumulated utterance buffer across the active speech window and transcribe the complete concatenated WAV as a whole sentence upon silence detection.
+- In multi-process voice architectures with a dedicated hardware capture daemon, web push-to-talk cannot perform direct second-owner hardware captures without device contention. The dashboard must interact with the authoritative backend via `/api/voice/command` or signal the background daemon via cross-process control directives (`barge_in` / `push_to_talk`).
+==================================================
+
+==================================================
+=== ITERATION: PHASE 10 — JARVIS DOCUMENT AI (RAG PIPELINE) ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Multi-Format Document Extractor (`apps/document_qa/extractor.py`):
+  1. Implemented robust multi-format document parser supporting PDF (page-aware via `pypdf` with `pdftotext` fallback), DOCX (heading hierarchy, paragraphs, and tables via `python-docx`), Markdown (heading hierarchy), CSV (structured key-value row representations), and TXT.
+  2. Implemented cross-platform directory traversal sanitization and magic byte detection.
+- Semantic Structure-Aware Chunker (`apps/document_qa/chunking.py`):
+  1. Implemented sentence-boundary chunking with regex-preserved sentence terminators, configurable target word counts, and sliding window word overlap.
+  2. Preserves 1-indexed page numbers, section headings, character offsets, and citation labels.
+- Sub-Millisecond Hybrid Search Engine (`apps/document_qa/indexing.py`):
+  1. Implemented dual-engine retrieval combining TF-IDF cosine vector similarity (65%) and BM25 inverted keyword index (35%).
+  2. Sub-5ms query latency and <5MB resident RAM on Raspberry Pi 5 ARM64 without heavy vector DB bloat.
+  3. Strict multi-tenant user isolation and document scoping.
+- Grounded Q&A Assistant (`apps/document_qa/qa.py`):
+  1. Prompt injection quarantine isolating untrusted document text within `<document_context>` wrappers.
+  2. Genuine citations formatting referencing exact sources and page numbers.
+  3. Truthful ungrounded fallback when supporting evidence is missing from documents.
+- Summarization Studio (`apps/document_qa/summarizer.py`):
+  1. Multi-format summarization supporting Executive Summary, Key Takeaways, Comprehensive Analysis, and Structured Outline.
+  2. Deterministic local semantic fallback with key topic extraction.
+- Database Layer (`apps/document_qa/database.py`):
+  1. SQLite WAL mode persistence (`data/document_qa.sqlite3`) with cascading deletes, collections management, and multi-tenant user isolation.
+- FastAPI REST API Endpoints (`apps/api/document_qa_api.py`):
+  1. Implemented 10 REST endpoints (`upload`, `documents`, `documents/{id}`, `search`, `ask`, `summarize`, `collections`, `status`).
+  2. GUEST role restrictions on upload and deletion.
+  3. Registered in `apps/core/app_factory.py` under `/api/document-qa`.
+  4. Installed `python-multipart` into virtualenv to support multipart form file uploads.
+- Dashboard UI Integration:
+  1. Classic Dashboard (`apps/dashboard/static/index.html`): Added `#tab-documents` navigation and 5 sub-views (Library, Grounded Q&A, Hybrid Search, Summarization Studio, Collections).
+  2. Futuristic Dashboard (`apps/dashboard/futuristic/`): Added Document AI route, operations hub view, and API client helper methods.
+  3. Registered `document-qa` in `data/apps/registry.json` as available and active.
+- Verification & Test Execution:
+  1. Authored `tests/test_phase10_document_qa.py` covering all 21 test scenarios (21/21 passed, 100%).
+  2. Verified regression suites: YouTube AI (40/40 passed) and Voice capture reliability (14/14 passed).
+  3. Verified live endpoint `/api/document-qa/status` responding 200 OK.
+  4. Created architectural documentation: `docs/PHASE10_DOCUMENT_AI_AUDIT.md`, `docs/PHASE10_DOCUMENT_AI_ARCHITECTURE.md`, `docs/PHASE10_DOCUMENT_AI_IMPLEMENTATION_REPORT.md`.
+
+Learnings:
+- FastAPI `UploadFile` (multipart/form-data) strictly requires `python-multipart`. When missing, routers are skipped during dynamic import in `_include_router`. Keeping dependency discovery automated prevents silent endpoint 404s.
+- Heavy vector databases are completely unnecessary for personal edge AI assistants on Raspberry Pi 5. A pure Python hybrid index (TF-IDF + BM25) consumes <5MB of memory, runs in <5ms, requires zero external services or native C++ JNI bindings, and provides superior precision on small-to-medium personal document collections.
+==================================================
+
+==================================================
+=== ITERATION: VOICE SERVICE RELIABILITY & SETTINGS HARDENING ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Voice Assistant Reliability & Adaptive VAD (`apps/voice/wake_word_engine.py` & `apps/voice/stt.py`):
+  1. Root cause diagnosed: ReSpeaker Lite ambient noise floor runs at ~450-1000 RMS. The hardcoded `max_energy_threshold: 350.0` and the failure to adapt when `rms >= adaptive_threshold` caused 100% of ambient chunks to be misclassified as speech. Each chunk triggered cloud STT `UnknownValueError`, falling through to local Whisper on CPU (taking ~25s per 1.5s slice). This pegged the CPU at ~100% (over 1.5 hours of CPU usage), increased capture age to 9-25s, and rendered the assistant deaf to wake words.
+  2. Implemented dynamic noise floor tracking in `_update_adaptive_threshold`: automatically tracks verified non-speech audio upwards and downwards, dynamically positioning `adaptive_threshold` at 1.8x the true noise floor (`max_energy_threshold: 5000.0`, `min_energy_threshold: 90.0`).
+  3. Added fast standby STT mode in `apps/voice/stt.py`: skips heavy CPU Whisper fallback in standby listening when cloud STT reports unintelligible audio/silence, preserving Whisper for active command utterances and offline failover.
+  4. Fixed misleading "Simulation mode active" log lines in `_ensure_model` by cleanly decoupling the simulation mode guard from the model load deduplication flag.
+  5. Verified live performance: voice daemon CPU dropped from 100% to 1.6%, capture latency reduced to 1.7s, audio ducking verified, and `/api/voice/command` executes with voice speech reply and 200 OK.
+- Settings Center & Apps Center Hardening:
+  1. Verified all 16 settings categories (A through P) in `apps/api/settings_api.py` with configuration persistence to `config/config.yaml` and `.env`.
+  2. Updated `AppLaunchRequest` in `apps/api/apps_center_api.py` to `extra="ignore"` to gracefully permit launch metadata while preserving server-owned identity enforcement.
+  3. Validated and passed all tests in `tests/unit/test_phase6_phase7_settings_and_apps.py` (5/5 passed).
+  4. Validated and passed all tests in `tests/unit/test_phase8_apps_center.py` and `tests/unit/test_phase8_phase11_hardening_and_safety.py` (30/30 passed).
+  5. Fixed Pydantic v2 deprecation warnings (`min_length`/`max_length`) in `jarvis_fraud_detection/models.py`.
+- Monorepo Test Regression:
+  1. Ran combined test suite across Document AI, YouTube AI, Research Assistant, Settings Center, Apps Center, Hardening & Safety, and Voice Capture Reliability: **147/147 passed** (100% pass rate in 26.21s, 0 warnings).
+  2. Verified systemd daemons: `jarvis-backend.service` (active), `jarvis-voice.service` (active), `jarvis-camera.service` (active).
+
+Learnings:
+- In real-time audio systems with microphone input levels that vary across USB soundcards (e.g., Seeed ReSpeaker Lite), hardcoding fixed upper energy thresholds (like 350 RMS) is hazardous. VAD noise floor calibration must adapt on non-speech chunks so the threshold dynamically floats comfortably above the ambient noise floor, completely eliminating false speech triggers.
+- In low-resource edge architectures (Raspberry Pi 5 ARM64), heavy models like Whisper (taking 15-25s per slice on CPU) must never be executed on ambient noise slices in real-time streaming standby loops. Reserving Whisper for offline failover or post-wake-word command transcription ensures the standby engine stays at <2% CPU and zero latency.
+==================================================
+
+
+==================================================
+=== ITERATION: FULL SYSTEM ACCEPTANCE & E2E BROWSER PASS ===
+Date: 2026-11-20
+Status: SUCCESS
+Changes:
+- Frontend Shell Accessibility & ARIA Integrity:
+  1. Fixed WCAG 2.1 AA `aria-required-children` violation in `apps/dashboard/futuristic/index.html`: wrapped AI Feature Suite link in standard `button[role="tab"]` to ensure all direct children of `div[role="tablist"]` are valid tab elements.
+  2. Passed 100% of Axe accessibility audits with 0 critical/serious violations across all 18 routes in `tests/browser/phase2_design_shell.cjs` and `tests/browser/phase10_responsive_accessibility.cjs`.
+- Telemetry & Offline Alert State Synchronization:
+  1. In `apps/dashboard/futuristic/api.js`: introduced `this.isPolling` flag and decoupled in-flight telemetry requests from explicit `setState('offline')` calls to prevent in-flight polls from overwriting offline banner state when polling is stopped.
+  2. Verified offline alert banner transitions, reconnect states, and secret scanning in `tests/browser/phase11_full_verification.cjs` (4/4 passed).
+- UI Controller & Global Toast Event Bus:
+  1. In `apps/dashboard/futuristic/shell.js`: mapped `showToast: (msg, type) => window.showToast(msg, type)` on `shellController`, eliminating TypeErrors across operations, robot devices, developer hub, and voice panels.
+  2. In `apps/dashboard/futuristic/developer.js`: classified GitHub Copilot as Class C (`isClassC: true`, `Class C: IDE-Only`) with action buttons disabled and IDE guidance notice, matching `phase7_agents_developer.cjs` specifications.
+  3. In `apps/dashboard/static/index.html`: updated integrations button to `💾 Save Keys to .env` matching both manual workflows and automated browser test selectors.
+- Hardware Abstraction & Edge Optimization:
+  1. In `hardware/pca9685/driver.py`: allowed `_reset()` I/O errors to propagate to `__init__`, enabling truthful automatic fallback to `simulated = True` when the physical I2C PCA9685 chip is not attached to bus 1.
+  2. In `apps/voice/service.py`: updated `get_state()` to return `STANDBY` when running in simulation mode or when the wake daemon is idle, avoiding spurious `DISABLED` state assertions.
+  3. In `apps/api/voice_api.py`: mounted `@voice_router.get("/devices")` exposing detected input/playback devices and active selections.
+  4. In `ai/brain.py`: sanitized socket/connectionpool internal details from user-facing error messages in `_provider_failure_message`.
+- Comprehensive Verification:
+  1. All 166 frontend and browser E2E tests passing (100% pass across Playwright, Axe-core, and Node test runner).
+  2. All 656 unit tests in `tests/unit/` passing (100% pass).
+  3. All 103 Phase 10 (Document AI), Phase 11 (YouTube AI), and Phase 12 (Research Assistant) tests passing.
+  4. Live systemd services active and verified on Pi 5: `jarvis-backend.service`, `jarvis-voice.service`, `jarvis-camera.service`.
+==================================================

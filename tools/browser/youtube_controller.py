@@ -160,6 +160,10 @@ class YouTubeController:
             return self._current_session.to_dict()
         return None
 
+    def get_current_session(self) -> Optional[YouTubeSession]:
+        """Return active YouTubeSession instance."""
+        return self._current_session
+
     def search(self, query: str, max_results: int = 5, session_id: Optional[str] = None) -> Dict[str, Any]:
         """Search YouTube for organic videos and create an active user selection session.
         
@@ -246,7 +250,25 @@ class YouTubeController:
                     data = json.loads(line)
                     vid = data.get("id")
                     title = data.get("title") or "Unknown Video"
-                    channel = data.get("uploader") or data.get("channel") or "Unknown Channel"
+                    channel = (
+                        data.get("uploader")
+                        or data.get("channel")
+                        or data.get("playlist_channel")
+                        or data.get("playlist_uploader")
+                        or data.get("creator")
+                        or data.get("artist")
+                    )
+                    if (not channel or str(channel).strip().lower() in ("unknown", "unknown channel", "none")) and vid:
+                        try:
+                            import urllib.request
+                            oe_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={vid}&format=json"
+                            with urllib.request.urlopen(oe_url, timeout=1.5) as resp:
+                                if resp.status == 200:
+                                    oe_data = json.loads(resp.read().decode())
+                                    channel = oe_data.get("author_name")
+                        except Exception:
+                            pass
+                    channel = (channel or "YouTube Creator").strip()
                     duration = data.get("duration_string") or "Unknown"
 
                     # Parse thumbnail if available
@@ -393,10 +415,15 @@ class YouTubeController:
             browser_agent.send_shortcut("k", browser=browser)
 
         # Verification step
-        verify_res = self.verify_playback(video.video_id, timeout=3.0)
+        verify_res = self.verify_playback(video.video_id, timeout=5.0, attempt_unlock=autoplay, browser=browser)
 
-        final_state = STATE_PLAYING_VERIFIED if autoplay else STATE_OPENED_PAUSED
         if not verify_res.get("window_verified"):
+            final_state = STATE_FAILED
+        elif not autoplay:
+            final_state = STATE_OPENED_PAUSED
+        elif verify_res.get("audio_stream_detected"):
+            final_state = STATE_PLAYING_VERIFIED
+        else:
             final_state = STATE_PLAYBACK_BLOCKED
 
         if session:
@@ -405,8 +432,18 @@ class YouTubeController:
             session.active_index = video.rank - 1
             session.playback_verified = verify_res.get("window_verified", False)
 
-        action_label = "Now playing" if autoplay else "Opened (paused)"
-        msg = f"{action_label} option #{video.rank} '{video.title}' by {video.channel} on YouTube in Google Chrome."
+        if final_state == STATE_PLAYING_VERIFIED:
+            action_label = "Now playing"
+            msg = f"Now playing option #{video.rank} '{video.title}' by {video.channel} on YouTube in Google Chrome."
+        elif final_state == STATE_PLAYBACK_BLOCKED:
+            action_label = "Opened in Google Chrome (Playback Blocked)"
+            msg = f"Opened option #{video.rank} '{video.title}' by {video.channel} in Google Chrome, but audio stream is not detected (playback blocked by browser autoplay policy on DISPLAY=:0)."
+        elif final_state == STATE_OPENED_PAUSED:
+            action_label = "Opened in Google Chrome (paused)"
+            msg = f"Opened option #{video.rank} '{video.title}' by {video.channel} on YouTube in Google Chrome (paused)."
+        else:
+            action_label = "Failed to launch"
+            msg = f"Failed to confirm window for option #{video.rank} on YouTube."
 
         return {
             "status": "ok",
@@ -424,28 +461,73 @@ class YouTubeController:
             "message": msg,
         }
 
-    def verify_playback(self, video_id: str, timeout: float = 3.0) -> Dict[str, Any]:
+    def verify_playback(
+        self,
+        video_id: str,
+        timeout: float = 5.0,
+        attempt_unlock: bool = False,
+        browser: str = "chrome",
+    ) -> Dict[str, Any]:
         """Verify whether Google Chrome has loaded the requested YouTube video on DISPLAY=:0."""
         from tools.browser.browser_agent import browser_agent
         from tools.media.audio_stream_manager import audio_stream_manager
 
-        windows = browser_agent.find_browser_windows("chrome")
-        window_found = len(windows) > 0
-
-        # Check running process
+        deadline = time.time() + max(1.0, timeout)
+        window_found = False
         proc_running = False
-        try:
-            p_check = subprocess.run(["pgrep", "-f", "chrome"], capture_output=True, text=True, check=False)
-            proc_running = p_check.returncode == 0
-        except Exception:
-            pass
+        chrome_stream = False
+        attempts = 0
 
-        # Check audio streams in PipeWire
-        streams = audio_stream_manager.list_active_streams()
-        chrome_stream = any(
-            "chrome" in str(s.get("name", "")).lower() or "chromium" in str(s.get("name", "")).lower()
-            for s in streams
-        )
+        while True:
+            windows = browser_agent.find_browser_windows(browser)
+            window_found = len(windows) > 0
+
+            # Check running process
+            try:
+                p_check = subprocess.run(["pgrep", "-f", browser], capture_output=True, text=True, check=False)
+                proc_running = p_check.returncode == 0
+            except Exception:
+                pass
+
+            # Check audio streams in PipeWire
+            streams = audio_stream_manager.list_active_streams()
+            chrome_stream = any(
+                ("chrome" in str(s.get("name", "")).lower() or "chromium" in str(s.get("name", "")).lower())
+                and s.get("direction") == "playback" and s.get("active")
+                for s in streams
+            )
+
+            # If audio stream is already detected, we can stop polling early
+            if chrome_stream:
+                break
+
+            elapsed = timeout - (deadline - time.time())
+            # Progressive autoplay unlock sequence if window exists
+            if window_found and attempt_unlock:
+                if attempts == 0 and elapsed >= 1.5:
+                    attempts = 1
+                    try:
+                        win_match = "Google Chrome" if "chrome" in browser.lower() else "Mozilla Firefox"
+                        browser_agent.activate_window(win_match)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("k", browser=browser)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("m", browser=browser)
+                    except Exception:
+                        pass
+                elif attempts == 1 and elapsed >= 3.0:
+                    attempts = 2
+                    try:
+                        win_match = "Google Chrome" if "chrome" in browser.lower() else "Mozilla Firefox"
+                        browser_agent.activate_window(win_match)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("space", browser=browser)
+                    except Exception:
+                        pass
+
+            if time.time() >= deadline:
+                break
+            time.sleep(0.3)
 
         return {
             "verified": window_found or proc_running,

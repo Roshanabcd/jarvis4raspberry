@@ -1,5 +1,5 @@
 api_port: 8000
-api_host: "127.0.0.1"
+api_host: 127.0.0.1
 simulation_mode: false
 hardware_mode: true
 wake_word: jarvis
@@ -14,23 +14,21 @@ voice:
   speed: 0.85
   num_steps: 32
   cloning_enabled: true
-  # Remote voice cloning can transmit spoken text and a reference sample to an
-  # external provider.  Keep it disabled until an operator explicitly opts in.
   remote_voice_enabled: false
-  # Cloud neural fallback can transmit spoken text to its provider.  Local TTS
-  # remains available while this is disabled.
-  cloud_tts_enabled: false
-  # External GPU/Colab execution and remote health probing must be explicitly
-  # enabled by the operator.  They are deliberately off at boot.
+  cloud_tts_enabled: true
   colab_autorun: false
   omnivoice_monitor_enabled: false
   colab_manual_control_enabled: false
   simulation_mode: false
   routing_policy: both
-  fallback_voice: en-GB-RyanNeural
+  fallback_voice: en-US-AriaNeural
+  neural_voice: en-US-AriaNeural
+  character: aria
   auto_speak: true
   silence_threshold_s: 3.0
   energy_threshold: 120.0
+  min_energy_threshold: 90.0
+  max_energy_threshold: 2500.0
 stt:
   model: tiny
   device: cpu
@@ -48,8 +46,6 @@ robot:
   default_speed: 55
   max_speed: 100
   acceleration_ramp_ms: 500
-  # HTTP requests cannot arm or move physical actuators unless an operator
-  # explicitly enables this after completing the hardware safety checklist.
   http_actuation_enabled: false
 sensors:
   bme280:

@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-34-personal-finance-manager",
+  "module_number": 34,
+  "name": "Personal Finance Manager",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "personal_finance",
+  "description": "Local-first personal finance ledger with multi-account balances, categorized income/expense tracking, monthly budget burn monitoring, savings goals, net worth & cashflow analytics, and CSV export for JARVIS OS.",
+  "default_port": 8134,
+  "ui_route": "/finance",
+  "api_prefix": "/api/v1/finance",
+  "ws_endpoint": "/api/v1/finance/ws/updates",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M34_DB_PATH",
+    "default_path": "./data/jarvis_finance.db"
+  },
+  "capabilities": [
+    "multi_account_ledger",
+    "categorized_transactions",
+    "monthly_budget_burn_alerts",
+    "savings_goals_tracking",
+    "cashflow_summary_and_csv_export"
+  ]
+}

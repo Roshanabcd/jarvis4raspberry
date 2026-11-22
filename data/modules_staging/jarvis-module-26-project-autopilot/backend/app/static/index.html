@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 26: Project Autopilot</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --warn: #FFB84D;
+      --danger: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FAAC8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(circle at top right, rgba(33, 139, 255, 0.14), transparent 42%),
+                  radial-gradient(circle at bottom left, rgba(152, 104, 255, 0.12), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 24px; background: rgba(16, 30, 48, 0.9);
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .orb {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: radial-gradient(circle, var(--cyan), var(--blue) 60%, var(--purple));
+      box-shadow: 0 0 18px rgba(0, 217, 255, 0.65);
+    }
+    h1 { margin: 0; font-size: 1.12rem; letter-spacing: 0.04em; }
+    .subtitle { font-size: 0.78rem; color: var(--muted); }
+    .badge {
+      padding: 4px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0, 217, 255, 0.1); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255, 184, 77, 0.45); background: rgba(255, 184, 77, 0.12); color: var(--warn); }
+    .badge.ok { border-color: rgba(37, 230, 162, 0.45); background: rgba(37, 230, 162, 0.12); color: var(--green); }
+    .wrap { max-width: 1380px; margin: 0 auto; padding: 20px 24px 40px; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .kpi .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .kpi .val { font-size: 1.65rem; font-weight: 700; margin-top: 6px; color: var(--cyan); }
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 18px; align-items: start; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .panel h2 { margin: 0 0 12px; font-size: 0.96rem; color: var(--cyan); letter-spacing: 0.03em; }
+    label { display: block; font-size: 0.76rem; color: var(--muted); margin: 8px 0 4px; }
+    input, textarea {
+      width: 100%; background: var(--panel-alt); color: var(--text);
+      border: 1px solid rgba(143, 170, 200, 0.25); border-radius: 8px;
+      padding: 8px 10px; font-size: 0.86rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 70px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button, a.btn {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 14px; cursor: pointer; font-size: 0.82rem; text-decoration: none; display: inline-block;
+    }
+    button.secondary, a.btn.secondary {
+      background: rgba(152, 104, 255, 0.16); color: var(--text); border: 1px solid rgba(152, 104, 255, 0.45);
+    }
+    button.approve { background: rgba(37, 230, 162, 0.18); color: var(--green); border: 1px solid rgba(37, 230, 162, 0.45); }
+    button.reject { background: rgba(255, 92, 119, 0.16); color: var(--danger); border: 1px solid rgba(255, 92, 119, 0.45); }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+    .card { background: var(--panel-alt); border: 1px solid rgba(0, 217, 255, 0.16); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+    .card.active, .card:hover { border-color: var(--cyan); }
+    .card-title { font-weight: 600; font-size: 0.88rem; }
+    .card-meta { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+    .bar-wrap { background: rgba(255, 255, 255, 0.08); height: 10px; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+    .bar-fill { height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); transition: width 0.25s; }
+    .task-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      padding: 10px 12px; background: var(--panel-alt); border-radius: 10px;
+      border: 1px solid rgba(0,217,255,0.14); margin-bottom: 8px;
+    }
+    .log-row { font-family: ui-monospace, monospace; font-size: 0.78rem; padding: 6px 8px; background: rgba(5,11,22,0.65); border-radius: 6px; border-left: 3px solid var(--blue); }
+    #toast { font-size: 0.82rem; color: var(--green); min-height: 20px; margin-bottom: 8px; }
+    @media (max-width: 960px) { .kpi-grid, .layout { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="orb"></div>
+      <div>
+        <h1>JARVIS OS · Module 26 — Project Autopilot</h1>
+        <div class="subtitle">Goal Decomposition · Dependency Execution · Approval Gates · Sandboxed Scaffolding</div>
+      </div>
+    </div>
+    <div class="row">
+      <span id="simBadge" class="badge sim">SIMULATED LOCAL PLANNER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div id="toast"></div>
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Active Projects</div><div id="kProjects" class="val">0</div></div>
+      <div class="kpi"><div class="label">Tasks Completed</div><div id="kDone" class="val" style="color:var(--green)">0</div></div>
+      <div class="kpi"><div class="label">Awaiting Approval</div><div id="kApproval" class="val" style="color:var(--warn)">0</div></div>
+      <div class="kpi"><div class="label">Planner Adapter</div><div id="kAdapter" class="val" style="font-size:0.95rem;color:var(--purple)">local</div></div>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="panel">
+          <h2>Launch New Autopilot Project</h2>
+          <label>Project Name</label>
+          <input id="pName" placeholder="e.g. Telemetry Analytics Service" />
+          <label>Engineering Goal</label>
+          <textarea id="pGoal" placeholder="Build a lightweight FastAPI telemetry ingestion service with SQLite WAL and alerting."></textarea>
+          <label>Tech Stack (comma-separated)</label>
+          <input id="pStack" value="Python, FastAPI, SQLite" />
+          <div style="margin-top:10px" class="row">
+            <button onclick="createProject()">+ Create &amp; Auto-Plan</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>Projects</h2>
+          <div id="projectList" class="list"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <div class="row" style="justify-content:space-between">
+            <h2 id="activeTitle" style="margin:0">Select or Create a Project</h2>
+            <div class="row">
+              <button onclick="advanceActive(2)">Run Next 2 Steps</button>
+              <button class="secondary" onclick="scaffoldActive()">Scaffold Workspace</button>
+              <a id="blueprintLink" class="btn secondary" href="#" target="_blank">Export blueprint.md</a>
+            </div>
+          </div>
+          <div id="activeMeta" class="card-meta" style="margin-top:6px">No active project selected.</div>
+          <div class="bar-wrap"><div id="progressBar" class="bar-fill" style="width:0%"></div></div>
+        </div>
+
+        <div class="panel">
+          <h2>Milestones &amp; Dependency Task Queue</h2>
+          <div id="taskBoard"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Autopilot Execution Logs</h2>
+          <div id="logFeed" class="list" style="max-height:220px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/project-autopilot';
+    let activeProjectId = null;
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      setTimeout(() => { if (el.textContent === msg) el.textContent = ''; }, 3500);
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    }
+
+    async function refreshStatus() {
+      const s = await api('/status');
+      document.getElementById('kProjects').textContent = s.projects_count;
+      document.getElementById('kDone').textContent = `${s.completed_tasks}/${s.total_tasks}`;
+      document.getElementById('kApproval').textContent = s.awaiting_approval_tasks;
+      document.getElementById('kAdapter').textContent = s.adapter;
+      document.getElementById('simBadge').textContent = s.simulated ? 'SIMULATED LOCAL PLANNER' : 'LIVE PLANNER';
+    }
+
+    async function loadProjects() {
+      const data = await api('/projects');
+      const box = document.getElementById('projectList');
+      box.innerHTML = '';
+      if (!data.projects.length) {
+        box.innerHTML = '<div class="card-meta">No projects yet. Create one above.</div>';
+        return;
+      }
+      data.projects.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'card' + (p.project_id === activeProjectId ? ' active' : '');
+        div.innerHTML = `<div class="card-title">${p.name}</div><div class="card-meta">${p.status} · ${p.tech_stack.join(', ')}</div>`;
+        div.onclick = () => selectProject(p.project_id);
+        box.appendChild(div);
+      });
+      if (!activeProjectId && data.projects.length) selectProject(data.projects[0].project_id);
+    }
+
+    async function selectProject(id) {
+      activeProjectId = id;
+      const b = await api('/projects/' + id);
+      const p = b.project;
+      document.getElementById('activeTitle').textContent = p.name;
+      document.getElementById('activeMeta').textContent = `ID: ${p.project_id} · Status: ${p.status} · Progress: ${b.progress_pct}% · Workspace: ${p.workspace_path || 'Not scaffolded'}`;
+      document.getElementById('progressBar').style.width = `${b.progress_pct}%`;
+      document.getElementById('blueprintLink').href = `${API}/projects/${id}/blueprint.md`;
+
+      const msMap = Object.fromEntries(b.milestones.map(m => [m.milestone_id, m]));
+      const board = document.getElementById('taskBoard');
+      board.innerHTML = b.tasks.map(t => {
+        const ms = msMap[t.milestone_id];
+        const gate = t.requires_approval ? '<span class="badge sim">APPROVAL GATE</span>' : '';
+        const actions = t.status === 'awaiting_approval'
+          ? `<div class="row"><button class="approve" onclick="decide('${t.task_id}','approve')">Approve</button><button class="reject" onclick="decide('${t.task_id}','reject')">Reject</button></div>`
+          : `<span class="badge ${t.status === 'completed' ? 'ok' : ''}">${t.status}</span>`;
+        return `
+          <div class="task-row">
+            <div>
+              <div class="card-title">${t.title} ${gate}</div>
+              <div class="card-meta">${ms ? ms.title : ''} · ${t.estimated_minutes}m ${t.output_summary ? '· ' + t.output_summary : ''}</div>
+            </div>
+            ${actions}
+          </div>
+        `;
+      }).join('') || '<div class="card-meta">No tasks generated.</div>';
+
+      document.getElementById('logFeed').innerHTML = b.logs.map(l => `<div class="log-row">[${l.level}] ${l.message}</div>`).join('');
+      loadProjects();
+    }
+
+    async function createProject() {
+      const name = document.getElementById('pName').value.trim();
+      const goal = document.getElementById('pGoal').value.trim();
+      if (!name || !goal) return toast('Enter both project name and goal.');
+      const tech_stack = document.getElementById('pStack').value.split(',').map(s => s.trim()).filter(Boolean);
+      const b = await api('/projects', {
+        method: 'POST',
+        body: JSON.stringify({ name, goal, tech_stack, dry_run: true, auto_plan: true }),
+      });
+      document.getElementById('pName').value = '';
+      document.getElementById('pGoal').value = '';
+      toast('Project created & decomposed into milestones.');
+      await refreshStatus();
+      await selectProject(b.project.project_id);
+    }
+
+    async function advanceActive(steps) {
+      if (!activeProjectId) return toast('Select a project first.');
+      const res = await api(`/projects/${activeProjectId}/advance`, {
+        method: 'POST',
+        body: JSON.stringify({ max_steps: steps }),
+      });
+      toast(`Executed ${res.executed_count} task(s). Progress: ${res.progress_pct}%`);
+      await refreshStatus();
+      await selectProject(activeProjectId);
+    }
+
+    async function scaffoldActive() {
+      if (!activeProjectId) return toast('Select a project first.');
+      const res = await api(`/projects/${activeProjectId}/scaffold`, {
+        method: 'POST',
+        body: JSON.stringify({ include_tests: true }),
+      });
+      toast(`Scaffolded ${res.created_files.length} files in sandbox workspace.`);
+      await selectProject(activeProjectId);
+    }
+
+    async function decide(taskId, decision) {
+      await api(`/tasks/${taskId}/approval`, {
+        method: 'POST',
+        body: JSON.stringify({ decision, reviewer: 'operator', note: 'Reviewed via JARVIS UI' }),
+      });
+      toast(`Task ${decision}d.`);
+      await refreshStatus();
+      if (activeProjectId) await selectProject(activeProjectId);
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}${API}/ws/events`);
+      const b = document.getElementById('wsBadge');
+      ws.onopen = () => { b.textContent = 'WS: LIVE'; b.className = 'badge ok'; };
+      ws.onclose = () => { b.textContent = 'WS: RECONNECTING'; b.className = 'badge'; setTimeout(connectWS, 3000); };
+      ws.onmessage = () => refreshStatus();
+    }
+
+    refreshStatus();
+    loadProjects();
+    connectWS();
+  </script>
+</body>
+</html>

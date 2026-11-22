@@ -1,0 +1,103 @@
+{
+  "module_id": "jarvis-module-19-autonomous-computer-assistant",
+  "module_number": 19,
+  "name": "Autonomous Computer Assistant",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "phase": "PHASE_A_CORE_AI_OS",
+  "priority": "CRITICAL",
+  "category": "Core AI Operating System",
+  "description": "Permission-controlled desktop automation module featuring application discovery, permitted screenshot capture, window selection, keyboard/mouse actions, sandboxed file interaction, application launch, human approval gates, Emergency Stop (E-STOP), dry-run mode, action replay, and diagnostics.",
+  "dependencies": {
+    "python": ">=3.10",
+    "python_packages": [
+      "fastapi>=0.92.0",
+      "uvicorn>=0.17.6",
+      "pydantic>=1.10.4",
+      "httpx>=0.23.3",
+      "Pillow>=10.0.0"
+    ],
+    "optional_packages": [
+      "pytest>=7.4.0",
+      "pytest-asyncio>=0.21.0"
+    ],
+    "jarvis_modules": [
+      "jarvis-module-18-multi-agent-orchestrator (optional)"
+    ]
+  },
+  "permissions": [
+    "computer:app:discover",
+    "computer:screenshot:capture",
+    "computer:window:select",
+    "computer:input:keyboard_mouse",
+    "computer:file:sandboxed_io",
+    "computer:app:launch",
+    "computer:safety:estop",
+    "computer:approval:decide",
+    "storage:sqlite:local"
+  ],
+  "resource_requirements": {
+    "min_ram_mb": 128,
+    "recommended_ram_mb": 256,
+    "cpu_cores": 1,
+    "gpu_required": false,
+    "storage_type": "sqlite_wal"
+  },
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_mount": "backend.app.main:mount_module",
+    "frontend_dev": "frontend/src/main.tsx",
+    "frontend_standalone_url": "/computer-assistant",
+    "health_check": "/api/v1/computer-assistant/health",
+    "manifest_endpoint": "/api/v1/computer-assistant/manifest",
+    "openapi_prefix": "/api/v1/computer-assistant",
+    "websocket_stream": "/api/v1/computer-assistant/ws/events"
+  },
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "JARVIS_M19_HOST": { "type": "string", "default": "0.0.0.0" },
+      "JARVIS_M19_PORT": { "type": "integer", "default": 8119 },
+      "JARVIS_M19_DB_PATH": { "type": "string", "default": "./data/jarvis_computer_assistant.db" },
+      "JARVIS_M19_SANDBOX_DIR": { "type": "string", "default": "./data/sandbox_files" },
+      "JARVIS_M19_ADAPTER_MODE": { "type": "string", "enum": ["safe_demo"], "default": "safe_demo" },
+      "JARVIS_M19_DRY_RUN_DEFAULT": { "type": "boolean", "default": false }
+    }
+  },
+  "events": {
+    "published": [
+      "computer.action.submitted",
+      "computer.action.awaiting_approval",
+      "computer.action.executed",
+      "computer.action.dry_run",
+      "computer.action.failed",
+      "computer.action.replayed",
+      "computer.approval.decided",
+      "computer.estop.engaged",
+      "computer.estop.reset",
+      "computer.screenshot.captured"
+    ],
+    "subscribed": [
+      "orchestrator.task.dispatch",
+      "approval.external_decision",
+      "system.estop"
+    ]
+  },
+  "error_format": {
+    "schema": {
+      "error": {
+        "code": "string",
+        "message": "string",
+        "details": "object|null",
+        "timestamp": "ISO-8601 UTC string"
+      }
+    }
+  },
+  "simulation_disclosure": {
+    "uses_simulation_by_default": true,
+    "simulated_components": [
+      "SafeDemoDesktopAdapter simulates desktop applications, windows, cursor/keyboard state, and renders synthetic Pillow PNG screenshots without controlling the real host OS.",
+      "File interaction is strictly confined to the configured JARVIS_M19_SANDBOX_DIR directory with path-traversal protection."
+    ]
+  }
+}

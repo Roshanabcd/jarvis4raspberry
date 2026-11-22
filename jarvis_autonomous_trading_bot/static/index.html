@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Autonomous Trading Bot (Paper)</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --danger: #ef4444;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.warn { border-color: var(--amber); color: #fcd34d; }
+    .estop-btn {
+      background: var(--danger); color: #fff; border: none; border-radius: 8px;
+      padding: 6px 12px; font-weight: 800; font-size: 0.78rem; cursor: pointer;
+    }
+    main { padding: 18px 22px; max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 150px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--mono); font-size: 0.85rem;
+    }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .kpi { background: #071322; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+    .kpi-val { font-size: 1.35rem; font-weight: 800; color: var(--accent); }
+    .kpi-lbl { font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #182a40; text-align: left; }
+    th { color: var(--accent); }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — AUTONOMOUS TRADING BOT</div>
+      <div class="brand-sub">Experimental • Simulated Paper Trading, Technical Analysis &amp; Backtesting</div>
+    </div>
+    <div class="pills">
+      <span class="pill warn">PAPER TRADING ONLY</span>
+      <span class="pill ok" id="health-pill">Backend OK</span>
+      <button class="estop-btn" id="estop-btn" onclick="toggleEstop()">E-STOP: OFF</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="kpi-grid" id="portfolio-kpis"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('paper', this)">Paper Order Ticket</button>
+      <button class="tab-btn" onclick="switchTab('analysis', this)">Technical Analysis</button>
+      <button class="tab-btn" onclick="switchTab('backtest', this)">Backtest Lab</button>
+      <button class="tab-btn" onclick="switchTab('ledger', this)">Trade Ledger</button>
+    </div>
+
+    <!-- TAB 1: PAPER ORDERS -->
+    <section id="tab-paper" class="card">
+      <strong style="color:var(--accent);">Risk-Managed Paper Order Ticket</strong>
+      <div class="row">
+        <div class="field"><label>Symbol</label><input id="ord-sym" value="BTC-USD" /></div>
+        <div class="field"><label>Side</label><select id="ord-side"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
+        <div class="field"><label>Quantity</label><input id="ord-qty" type="number" step="0.01" value="1" /></div>
+        <div class="field"><label>Simulated Price ($)</label><input id="ord-price" type="number" step="0.01" value="250" /></div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="placeOrder()">Submit Paper Order</button>
+        <span class="small-muted" id="ord-msg"></span>
+      </div>
+      <table>
+        <thead><tr><th>Symbol</th><th>Quantity</th><th>Avg Entry</th><th>Market Value</th></tr></thead>
+        <tbody id="pos-tbody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 2: TECHNICAL ANALYSIS -->
+    <section id="tab-analysis" class="card hidden">
+      <div class="row">
+        <div class="field"><label>Symbol</label><input id="ta-sym" value="BTC-USD" /></div>
+        <div class="field"><label>Bars</label><input id="ta-bars" type="number" value="120" min="35" max="500" /></div>
+        <div class="field" style="align-self:end;"><button class="btn" onclick="runTA()">Run Technical Analysis</button></div>
+      </div>
+      <div id="ta-result" class="small-muted">Click Run Technical Analysis to compute SMA, EMA, RSI, MACD, Bollinger Bands, and ATR.</div>
+    </section>
+
+    <!-- TAB 3: BACKTEST LAB -->
+    <section id="tab-backtest" class="card hidden">
+      <div class="row">
+        <div class="field"><label>Symbol</label><input id="bt-sym" value="ETH-USD" /></div>
+        <div class="field">
+          <label>Strategy</label>
+          <select id="bt-strat">
+            <option value="sma_crossover">SMA Crossover (10/25)</option>
+            <option value="rsi_mean_reversion">RSI Mean Reversion</option>
+            <option value="macd_momentum">MACD Momentum</option>
+          </select>
+        </div>
+        <div class="field"><label>Stop-Loss %</label><input id="bt-sl" type="number" value="5" /></div>
+        <div class="field"><label>Take-Profit %</label><input id="bt-tp" type="number" value="10" /></div>
+        <div class="field" style="align-self:end;"><button class="btn" onclick="runBacktest()">Run Backtest</button></div>
+      </div>
+      <div class="kpi-grid" id="bt-kpis"></div>
+      <table>
+        <thead><tr><th>Entry</th><th>Exit</th><th>Entry $</th><th>Exit $</th><th>P&amp;L $</th><th>Return %</th><th>Reason</th></tr></thead>
+        <tbody id="bt-tbody"></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 4: LEDGER -->
+    <section id="tab-ledger" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Paper Order Audit Ledger</strong>
+        <button class="btn secondary" onclick="loadOrders()">Refresh</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th><th>Reason</th></tr></thead>
+        <tbody id="ord-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/trading-bot";
+    let estopState = false;
+
+    function switchTab(name, btn) {
+      ["paper", "analysis", "backtest", "ledger"].forEach(t => document.getElementById("tab-" + t).classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+      if (name === "ledger") loadOrders();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...options });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function loadPortfolio() {
+      const p = await apiFetch("/portfolio");
+      estopState = p.estop_active;
+      document.getElementById("estop-btn").textContent = estopState ? "E-STOP: ACTIVE" : "E-STOP: OFF";
+      document.getElementById("portfolio-kpis").innerHTML = `
+        <div class="kpi"><div class="kpi-val">$${p.total_equity_usd}</div><div class="kpi-lbl">Paper Equity</div></div>
+        <div class="kpi"><div class="kpi-val">$${p.cash_usd}</div><div class="kpi-lbl">Cash Available</div></div>
+        <div class="kpi"><div class="kpi-val">$${p.positions_value_usd}</div><div class="kpi-lbl">Positions Value</div></div>
+        <div class="kpi"><div class="kpi-val">$${p.realized_pnl_usd}</div><div class="kpi-lbl">Realized P&amp;L</div></div>
+      `;
+      document.getElementById("pos-tbody").innerHTML = p.positions.map(pos =>
+        `<tr><td>${pos.symbol}</td><td>${pos.quantity}</td><td>$${pos.avg_entry_price}</td><td>$${pos.market_value_usd}</td></tr>`
+      ).join("") || "<tr><td colspan='4' class='small-muted'>No open paper positions.</td></tr>";
+    }
+
+    async function toggleEstop() {
+      await apiFetch("/estop", { method: "POST", body: JSON.stringify({ active: !estopState, reason: "Dashboard toggle" }) });
+      loadPortfolio();
+    }
+
+    async function placeOrder() {
+      const data = await apiFetch("/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          symbol: document.getElementById("ord-sym").value,
+          side: document.getElementById("ord-side").value,
+          quantity: Number(document.getElementById("ord-qty").value),
+          price: Number(document.getElementById("ord-price").value)
+        })
+      });
+      document.getElementById("ord-msg").textContent = `[${data.status}] ${data.reason}`;
+      loadPortfolio();
+    }
+
+    async function runTA() {
+      const ta = await apiFetch("/analyze", {
+        method: "POST",
+        body: JSON.stringify({
+          symbol: document.getElementById("ta-sym").value,
+          sample_bars: Number(document.getElementById("ta-bars").value)
+        })
+      });
+      document.getElementById("ta-result").innerHTML = `
+        <div style="font-size:1.05rem;margin-bottom:8px;"><strong style="color:var(--accent);">${ta.symbol} Signal: ${ta.signal}</strong> (Confidence: ${Math.round(ta.confidence * 100)}% • Close: $${ta.latest_close})</div>
+        <div>SMA(20): ${ta.sma_20} • SMA(50): ${ta.sma_50} • RSI(14): ${ta.rsi_14} • MACD: ${ta.macd} / ${ta.macd_signal} • ATR(14): ${ta.atr_14}</div>
+        <ul>${ta.reasons.map(r => `<li>${r}</li>`).join("")}</ul>
+      `;
+    }
+
+    async function runBacktest() {
+      const bt = await apiFetch("/backtest", {
+        method: "POST",
+        body: JSON.stringify({
+          symbol: document.getElementById("bt-sym").value,
+          strategy: document.getElementById("bt-strat").value,
+          stop_loss_pct: Number(document.getElementById("bt-sl").value),
+          take_profit_pct: Number(document.getElementById("bt-tp").value)
+        })
+      });
+      document.getElementById("bt-kpis").innerHTML = `
+        <div class="kpi"><div class="kpi-val">${bt.total_return_pct}%</div><div class="kpi-lbl">Total Return</div></div>
+        <div class="kpi"><div class="kpi-val">${bt.max_drawdown_pct}%</div><div class="kpi-lbl">Max Drawdown</div></div>
+        <div class="kpi"><div class="kpi-val">${bt.win_rate_pct}%</div><div class="kpi-lbl">Win Rate (${bt.total_trades} trades)</div></div>
+        <div class="kpi"><div class="kpi-val">${bt.sharpe_ratio}</div><div class="kpi-lbl">Sharpe Ratio</div></div>
+      `;
+      document.getElementById("bt-tbody").innerHTML = bt.trades.map(t =>
+        `<tr><td>${t.entry_time.slice(0,16)}</td><td>${t.exit_time.slice(0,16)}</td><td>$${t.entry_price}</td><td>$${t.exit_price}</td><td>$${t.pnl_usd}</td><td>${t.return_pct}%</td><td>${t.exit_reason}</td></tr>`
+      ).join("") || "<tr><td colspan='7' class='small-muted'>No trades triggered in this window.</td></tr>";
+    }
+
+    async function loadOrders() {
+      const data = await apiFetch("/orders");
+      document.getElementById("ord-tbody").innerHTML = data.orders.map(o =>
+        `<tr><td>#${o.id}</td><td>${o.symbol}</td><td>${o.side}</td><td>${o.quantity}</td><td>$${o.price}</td><td>${o.status}</td><td>${o.reason}</td></tr>`
+      ).join("") || "<tr><td colspan='7' class='small-muted'>No paper orders yet.</td></tr>";
+    }
+
+    loadPortfolio();
+  </script>
+</body>
+</html>

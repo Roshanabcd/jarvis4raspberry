@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-41-universal-notification-center",
+  "module_number": 41,
+  "name": "Universal Notification Center",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "notifications",
+  "description": "Local-first universal notification hub with priority routing, Do-Not-Disturb critical override, deduplication, ack/dismiss lifecycle, SQLite WAL storage, and live HUD for JARVIS OS.",
+  "default_port": 8141,
+  "ui_route": "/notifications",
+  "api_prefix": "/api/v1/notifications",
+  "ws_endpoint": "/api/v1/notifications/ws/stream",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M41_DB_PATH",
+    "default_path": "./data/jarvis_notifications.db"
+  },
+  "capabilities": [
+    "multi_channel_notification_routing",
+    "dnd_quiet_hours_with_critical_override",
+    "dedupe_key_idempotency",
+    "acknowledge_and_dismiss_lifecycle",
+    "live_notification_hud_and_websocket"
+  ]
+}

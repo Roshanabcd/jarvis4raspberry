@@ -17,6 +17,7 @@ An exhaustive, evidence-backed technical audit was conducted on the complete JAR
 2. **Automated Test Results:** **143 of 143 automated unit, hardware safety, voice, and vision tests pass cleanly (100% PASS)** with zero failures and zero unhandled errors.
 3. **Physical Hardware Status:**
    - **Raspberry Pi Camera Module 3 (IMX708):** **PHYSICALLY VERIFIED**. Detected on CSI RP1 bus and actively captures live JPEG frames (`size: ~36.8 KB`) via native `rpicam-still` subprocess.
+   - **Seeed ReSpeaker Lite USB Mic Array:** **PHYSICALLY VERIFIED**. Detected on USB Bus (`ID 2886:0019`), mapped to ALSA Card 2 (`Lite`), and verified actively capturing 16kHz mono audio via PipeWire `pw-record` streaming into `jarvis-voice.service`.
    - **Local Neural Intelligence:** **PHYSICALLY VERIFIED**. Local Ollama service (`active`) running `llama3.2:1b` and `qwen3.5:4b` on Cortex-A76 CPU.
    - **Physical Actuators & Sensors:** The external Waveshare Servo HAT, TB6612 motor drivers, ESP32 coprocessor, and I2C/GPIO sensors are currently in **SIMULATED** mode. I2C bus 1 scan returns `--` across all addresses, confirming that physical HATs/sensors are not currently powered or attached to the header.
    - **Remote Voice Cloning:** The user-provided Gradio link (`https://13f7044a4e78090fd2.gradio.live/`) returns `HTTP 404 (Expired)`. The system handles this cleanly by auto-falling back to local speech synthesis.

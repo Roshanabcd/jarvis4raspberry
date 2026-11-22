@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-35-visual-workflow-builder",
+  "module_number": 35,
+  "name": "Visual Workflow Builder",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "CRITICAL",
+  "category": "workflow_automation",
+  "description": "DAG-based visual workflow builder and deterministic topological execution engine with cycle detection, typed automation nodes (trigger, transform, condition, math, notify), run tracing, and SVG graph HUD for JARVIS OS.",
+  "default_port": 8135,
+  "ui_route": "/workflows",
+  "api_prefix": "/api/v1/workflows",
+  "ws_endpoint": "/api/v1/workflows/ws/runs",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M35_DB_PATH",
+    "default_path": "./data/jarvis_workflows.db"
+  },
+  "capabilities": [
+    "visual_dag_graph_persistence",
+    "kahn_cycle_detection_and_validation",
+    "deterministic_topological_execution",
+    "conditional_branching_and_transforms",
+    "per_node_run_tracing"
+  ]
+}

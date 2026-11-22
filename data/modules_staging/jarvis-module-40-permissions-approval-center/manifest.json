@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-40-permissions-approval-center",
+  "module_number": 40,
+  "name": "Permissions & Approval Center",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "CRITICAL",
+  "category": "security_governance",
+  "description": "Fail-closed policy evaluator, human-in-the-loop approval queue with TTL expiration, immutable decision audit log, and live governance HUD for JARVIS OS.",
+  "default_port": 8140,
+  "ui_route": "/approvals",
+  "api_prefix": "/api/v1/approvals",
+  "ws_endpoint": "/api/v1/approvals/ws/requests",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M40_DB_PATH",
+    "default_path": "./data/jarvis_approvals.db"
+  },
+  "capabilities": [
+    "fail_closed_policy_evaluation",
+    "human_in_the_loop_approval_queue",
+    "ttl_expiration_and_single_decision_lock",
+    "immutable_governance_audit_log",
+    "live_approval_hud_and_websocket"
+  ]
+}

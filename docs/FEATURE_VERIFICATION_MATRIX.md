@@ -39,8 +39,7 @@ This matrix provides an evidence-based audit of every feature outlined in the Ph
 ## C. Voice Input & Wake Word
 
 | Feature Name | Expected Behavior | Source Files | UI Status | Backend Status | Test Coverage | Live Result | Final Status |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Audio Manager** | Detects input audio hardware; prioritizes ReSpeaker USB array | `apps/voice/audio_manager.py` | Home card (`#h-voice`)| Complete | 5 unit tests | USB Mic not attached; simulation active | **BLOCKED BY HARDWARE** |
+| **Audio Manager** | Detects input audio hardware; prioritizes ReSpeaker USB array | `apps/voice/audio_manager.py` | Home card (`#h-voice`)| Complete | 5 unit tests | ReSpeaker Lite detected (Card 2) & active in daemon | **COMPLETE AND VERIFIED** |
 | **Wake Word Detection** | Detects "jarvis" wake word with Vosk/simulation | `apps/voice/wake_word.py` | Status indicator | Complete | 3 unit tests | Verified with test audio fixture | **COMPLETE AND VERIFIED (SW)** |
 | **Speech-to-Text (STT)**| Transcribes microphone input using Whisper / Vosk | `apps/voice/stt.py` | Voice pipeline | Complete | 3 unit tests | Simulation fallback verified | **COMPLETE AND VERIFIED (SW)** |
 | **Text-to-Speech (TTS)**| Synthesizes natural spoken replies via espeak/pyttsx3 | `apps/voice/tts.py` | Audio output | Complete | 3 unit tests | Tested sync & async execution | **COMPLETE AND VERIFIED (SW)** |

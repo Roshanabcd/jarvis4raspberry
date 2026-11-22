@@ -1,0 +1,37 @@
+{
+  "suite": "Step 3 \u2014 Offline/Intercepted UI Verification",
+  "git": {
+    "revision": "c25be13ebd66a75a727049ca4032ef7a65e7200d",
+    "is_dirty": true,
+    "diff_stat": ".claude/helpers/.helpers-version                   |   2 +-\n .claude/helpers/helpers.manifest.json              |   4 +-\n .claude/helpers/memory.cjs                         |   0\n .claude/helpers/session.cjs                        |   0\n .claude/helpers/statusline.cjs                     |   4 +-\n JARVIS_BUGS_AND_IMPROVEMENTS.json                  |  80 ++-\n ai/brain.py                                        |  15 +\n ai/providers/base.py                               |   4 +-\n apps/api/account_api.py                            |  30 +-\n apps/dashboard/static/index.html                   | 687 ++++++++++++++++++---\n docs/JARVIS_BUGS_AND_IMPROVEMENTS.json             |  80 ++-\n docs/jarvis-ui/PLAN.md                             |  20 +\n .../screenshots/baseline_desktop_1920x1080.png     | Bin 953586 -> 1008725 bytes\n .../screenshots/baseline_laptop_1366x768.png       | Bin 588817 -> 628848 bytes\n .../screenshots/baseline_mobile_375x667.png        | Bin 146492 -> 185579 bytes\n .../screenshots/baseline_tablet_768x1024.png       | Bin 463472 -> 511208 bytes\n docs/jarvis-ui/evidence/phase-1/smoke_report.json  |  16 +-\n tests/frontend/realtime-chat.test.cjs              |  10 +\n tests/unit/test_provider_integrations.py           |  16 +\n 19 files changed, 801 insertions(+), 167 deletions(-)"
+  },
+  "viewports": {
+    "1440x900": "PASSED",
+    "1280x720": "PASSED"
+  },
+  "issues_verified": {
+    "BUG-001": true,
+    "UX-002": true,
+    "UX-003": true,
+    "UX-004": true
+  },
+  "safety_checks": {
+    "estop_visible_and_enabled": true,
+    "estop_never_clicked": true,
+    "zero_native_alerts": true
+  },
+  "screenshots": [
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_delayed_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_guest_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_admin_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux002_apps_launch_denial_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux003_settings_inline_status_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux004_sidebar_operator_enter_1440.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_delayed_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_guest_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/bug001_role_badge_admin_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux002_apps_launch_denial_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux003_settings_inline_status_1280.png",
+    "/home/roshan/.gemini/antigravity/scratch/jarvis-os/docs/jarvis-ui/evidence/audit-remediation/ux004_sidebar_operator_enter_1280.png"
+  ]
+}

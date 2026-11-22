@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — AI Study Planner</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --blue: #38bdf8;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.light { border-color: #34d399; color: #a7f3d0; }
+
+    main { padding: 18px 22px; max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 170px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--sans); font-size: 0.86rem;
+    }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .kpi { background: #071322; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+    .kpi-val { font-size: 1.45rem; font-weight: 800; color: var(--accent); }
+    .kpi-lbl { font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+    .item-box {
+      background: #07101c; border: 1px solid #182b42; border-radius: 10px;
+      padding: 12px; display: flex; flex-direction: column; gap: 6px;
+    }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — AI STUDY PLANNER</div>
+      <div class="brand-sub">Education &amp; Learning • Personalized Schedules, Milestones &amp; SM-2 Spaced Repetition</div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend: Checking...</span>
+      <span class="pill light">LIGHTWEIGHT</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="kpi-grid" id="progress-kpis"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('builder', this)">Create Study Plan</button>
+      <button class="tab-btn" onclick="switchTab('plans', this)">Syllabus Milestones &amp; Schedule</button>
+      <button class="tab-btn" onclick="switchTab('reviews', this)">Spaced Repetition (SM-2)</button>
+    </div>
+
+    <!-- TAB 1: PLAN BUILDER -->
+    <section id="tab-builder" class="card">
+      <strong style="color:var(--accent);">Generate Personalized Study Plan</strong>
+      <div class="row">
+        <div class="field">
+          <label>Plan Title</label>
+          <input id="sp-title" placeholder="e.g., Robotics Kinematics & ROS 2 Mastery" />
+        </div>
+        <div class="field" style="flex:2;">
+          <label>Learning Goal</label>
+          <input id="sp-goal" placeholder="e.g., Build and test a complete autonomous navigation stack on Raspberry Pi 5" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field" style="flex:2;">
+          <label>Syllabus Topics (comma-separated, optional)</label>
+          <input id="sp-topics" placeholder="Coordinate Frames, PID Control, Sensor Fusion, Path Planning" />
+        </div>
+        <div class="field">
+          <label>Daily Minutes</label>
+          <input id="sp-mins" type="number" value="60" min="15" max="480" />
+        </div>
+        <div class="field">
+          <label>Days Available</label>
+          <input id="sp-days" type="number" value="14" min="3" max="180" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="createPlan(this)">Build Plan &amp; Seed SM-2 Deck</button>
+        <span class="small-muted" id="sp-msg"></span>
+      </div>
+    </section>
+
+    <!-- TAB 2: PLANS & MILESTONES -->
+    <section id="tab-plans" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Active Study Plans &amp; Milestones</strong>
+        <button class="btn secondary" onclick="loadPlans()">Refresh</button>
+      </div>
+      <div id="plans-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="plan-detail" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+
+    <!-- TAB 3: SM-2 REVIEWS -->
+    <section id="tab-reviews" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Due Spaced-Repetition Flashcards (SM-2)</strong>
+        <button class="btn secondary" onclick="loadDueCards()">Refresh Due Deck</button>
+      </div>
+      <div id="cards-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/study-planner";
+
+    function switchTab(name, btn) {
+      ["builder", "plans", "reviews"].forEach(t => document.getElementById("tab-" + t).classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+      if (name === "plans") loadPlans();
+      if (name === "reviews") loadDueCards();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function loadProgress() {
+      try {
+        const [h, p] = await Promise.all([apiFetch("/health"), apiFetch("/progress")]);
+        document.getElementById("health-pill").textContent = "Backend OK • " + h.provider;
+        document.getElementById("progress-kpis").innerHTML = `
+          <div class="kpi"><div class="kpi-val">${p.total_plans}</div><div class="kpi-lbl">Study Plans</div></div>
+          <div class="kpi"><div class="kpi-val">${p.completed_milestones}/${p.total_milestones}</div><div class="kpi-lbl">Milestones Done (${p.overall_completion_pct}%)</div></div>
+          <div class="kpi"><div class="kpi-val">${p.due_cards_today}</div><div class="kpi-lbl">SM-2 Reviews Due Today</div></div>
+          <div class="kpi"><div class="kpi-val">${p.mastered_cards}/${p.total_cards}</div><div class="kpi-lbl">Mastered Flashcards</div></div>
+        `;
+      } catch {
+        document.getElementById("health-pill").textContent = "Backend Error";
+      }
+    }
+
+    async function createPlan(btn) {
+      btn.disabled = true;
+      try {
+        const raw = document.getElementById("sp-topics").value.trim();
+        const topics = raw ? raw.split(",").map(s => s.trim()).filter(Boolean) : [];
+        const data = await apiFetch("/plans", {
+          method: "POST",
+          body: JSON.stringify({
+            title: document.getElementById("sp-title").value,
+            goal: document.getElementById("sp-goal").value,
+            syllabus_topics: topics,
+            daily_minutes: Number(document.getElementById("sp-mins").value),
+            days_available: Number(document.getElementById("sp-days").value)
+          })
+        });
+        document.getElementById("sp-msg").textContent =
+          `Created plan #${data.id} with ${data.milestones.length} milestones and ${data.schedule.length} scheduled study days.`;
+        loadProgress();
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function loadPlans() {
+      const el = document.getElementById("plans-list");
+      try {
+        const data = await apiFetch("/plans");
+        if (!data.plans.length) {
+          el.innerHTML = "<div class='small-muted'>No study plans yet.</div>";
+          return;
+        }
+        el.innerHTML = data.plans.map(p => `
+          <div class="item-box">
+            <div class="row" style="justify-content:space-between;">
+              <strong>#${p.id} ${p.title} (${p.completion_pct}%)</strong>
+              <div class="row">
+                <button class="btn secondary" onclick="openPlan(${p.id})">View Milestones</button>
+                <a class="btn secondary" style="text-decoration:none;" href="${API}/plans/${p.id}/export">Export .md</a>
+              </div>
+            </div>
+            <div class="small-muted">${p.daily_minutes} min/day • ${p.days_available} days • ${p.completed_milestones}/${p.total_milestones} milestones completed</div>
+          </div>
+        `).join("");
+      } catch (err) { el.innerHTML = `<div class='small-muted'>${err.message}</div>`; }
+    }
+
+    async function openPlan(planId) {
+      const el = document.getElementById("plan-detail");
+      try {
+        const p = await apiFetch("/plans/" + planId);
+        el.innerHTML = `<strong style="color:var(--accent);">Milestones for: ${p.title}</strong>` +
+          p.milestones.map(m => `
+            <div class="item-box">
+              <div class="row" style="justify-content:space-between;">
+                <strong>${m.order_index}. ${m.title}</strong>
+                <select style="width:auto;" onchange="setMilestone(${m.id}, this.value, ${p.id})">
+                  <option value="pending" ${m.status === 'pending' ? 'selected' : ''}>Pending</option>
+                  <option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                  <option value="completed" ${m.status === 'completed' ? 'selected' : ''}>Completed</option>
+                </select>
+              </div>
+              <div class="small-muted">Target: ${m.target_date} • ~${m.estimated_minutes} min — ${m.description}</div>
+            </div>
+          `).join("");
+      } catch (err) { alert(err.message); }
+    }
+
+    async function setMilestone(id, status, planId) {
+      try {
+        await apiFetch(`/milestones/${id}`, { method: "PATCH", body: JSON.stringify({ status }) });
+        loadProgress();
+        loadPlans();
+        openPlan(planId);
+      } catch (err) { alert(err.message); }
+    }
+
+    async function loadDueCards() {
+      const el = document.getElementById("cards-list");
+      try {
+        const data = await apiFetch("/flashcards?due_only=true");
+        if (!data.cards.length) {
+          el.innerHTML = "<div class='small-muted'>All caught up! No SM-2 flashcards due today.</div>";
+          return;
+        }
+        el.innerHTML = data.cards.map(c => `
+          <div class="item-box">
+            <div class="small-muted">Topic: ${c.topic} • Reps: ${c.repetitions} • Ease: ${c.ease_factor} • Next: ${c.next_review_date}</div>
+            <div><strong>Q:</strong> ${c.question}</div>
+            <details><summary style="cursor:pointer;color:var(--accent);">Reveal Answer</summary><div style="margin-top:6px;">${c.answer}</div></details>
+            <div class="row">
+              <button class="btn secondary" onclick="gradeCard(${c.id}, 1)">Again (1)</button>
+              <button class="btn secondary" onclick="gradeCard(${c.id}, 3)">Hard (3)</button>
+              <button class="btn" onclick="gradeCard(${c.id}, 4)">Good (4)</button>
+              <button class="btn" onclick="gradeCard(${c.id}, 5)">Easy (5)</button>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) { el.innerHTML = `<div class='small-muted'>${err.message}</div>`; }
+    }
+
+    async function gradeCard(id, quality) {
+      try {
+        await apiFetch(`/flashcards/${id}/review`, { method: "POST", body: JSON.stringify({ quality }) });
+        loadProgress();
+        loadDueCards();
+      } catch (err) { alert(err.message); }
+    }
+
+    loadProgress();
+  </script>
+</body>
+</html>

@@ -136,7 +136,21 @@ class TestAPI:
     def client(cls):
         from fastapi.testclient import TestClient
         from apps.core.main import app
-        return TestClient(app)
+        from apps.api.robot_api import require_http_actuation_authorization, get_robot
+        from tools.identity.permission_manager import permission_manager
+        from tools.identity.user_manager import UserRole
+
+        app.dependency_overrides[require_http_actuation_authorization] = get_robot
+        prev_user = permission_manager._current_user
+        permission_manager.set_active_user({
+            "user_id": "test_admin",
+            "role": UserRole.ADMIN.value,
+        })
+        try:
+            yield TestClient(app)
+        finally:
+            app.dependency_overrides.pop(require_http_actuation_authorization, None)
+            permission_manager._current_user = prev_user
 
     def test_system_status(self, client):
         resp = client.get("/api/system")

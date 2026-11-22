@@ -59,6 +59,7 @@ class TestPhase2ToolRegistry:
 
     def test_schema_validation_type_checking(self):
         from tools.robotics.controller import robot
+        robot.clear_emergency_stop()
         robot.arm()
         try:
             # servo_set requires channel (int) and angle (int)

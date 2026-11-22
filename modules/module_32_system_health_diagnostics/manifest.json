@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-32-system-health-diagnostics",
+  "module_number": 32,
+  "name": "System Health & Diagnostics",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "HIGH",
+  "category": "system_observability",
+  "description": "Real-time local host CPU, memory, disk, thermal, and uptime telemetry, threshold alerting, localhost TCP service reachability probes, and diagnostic health scoring for JARVIS OS.",
+  "default_port": 8132,
+  "ui_route": "/system-health",
+  "api_prefix": "/api/v1/system-health",
+  "ws_endpoint": "/api/v1/system-health/ws/metrics",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M32_DB_PATH",
+    "default_path": "./data/jarvis_system_health.db"
+  },
+  "capabilities": [
+    "real_host_telemetry",
+    "historical_metric_snapshots",
+    "threshold_alerting_and_ack",
+    "localhost_tcp_service_probes",
+    "diagnostic_health_scoring"
+  ]
+}

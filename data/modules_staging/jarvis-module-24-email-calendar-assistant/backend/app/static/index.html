@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 24: Email &amp; Calendar Assistant</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #FFB84D;
+      --red: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FA8C4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, rgba(33,139,255,0.14), transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 16px;
+    }
+    .brand h1 { font-size: 1.25rem; letter-spacing: 0.04em; color: var(--cyan); }
+    .brand p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge {
+      padding: 5px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0,217,255,0.08); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.14); color: var(--amber); }
+    .badge.ok { border-color: rgba(37,230,162,0.5); background: rgba(37,230,162,0.12); color: var(--green); }
+    .grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .card h2 {
+      font-size: 0.9rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    input, select {
+      background: var(--panel-alt); color: var(--text); border: 1px solid rgba(143,168,196,0.28);
+      border-radius: 8px; padding: 7px 10px; font-size: 0.82rem; outline: none;
+    }
+    input.grow { flex: 1; min-width: 140px; }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 7px 12px; font-size: 0.8rem; cursor: pointer;
+    }
+    button.secondary { background: rgba(152,104,255,0.2); color: var(--text); border: 1px solid rgba(152,104,255,0.5); }
+    button.success { background: rgba(37,230,162,0.2); color: #C9FFEE; border: 1px solid rgba(37,230,162,0.55); }
+    button.danger { background: rgba(255,92,119,0.2); color: #FFD2DA; border: 1px solid rgba(255,92,119,0.55); }
+    .alert { padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 12px; display: none; }
+    .alert.show { display: block; }
+    .alert.err { background: rgba(255,92,119,0.16); border: 1px solid var(--red); color: #FFD2DA; }
+    .alert.info { background: rgba(0,217,255,0.12); border: 1px solid var(--cyan); color: var(--text); }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; }
+    .item { background: var(--panel-alt); border: 1px solid rgba(143,168,196,0.18); border-radius: 8px; padding: 10px; font-size: 0.8rem; }
+    .item-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.74rem; color: var(--cyan); }
+    .pill { font-size: 0.7rem; padding: 2px 7px; border-radius: 999px; background: rgba(33,139,255,0.2); color: var(--text); }
+    .pill.urgent { background: rgba(255,92,119,0.25); color: #FFD2DA; }
+    .pill.meeting_invite { background: rgba(152,104,255,0.25); color: #DECFFF; }
+    .pill.sent, .pill.approved { background: rgba(37,230,162,0.2); color: var(--green); }
+    .pill.pending, .pill.awaiting_approval { background: rgba(255,184,77,0.22); color: var(--amber); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <h1>JARVIS OS // MODULE 24 — EMAIL &amp; CALENDAR ASSISTANT</h1>
+      <p>Smart Inbox Triage, Draft Composer with Human Send Approval Gates, Overlap-Checked Calendar &amp; ICS Export</p>
+    </div>
+    <div class="badges">
+      <span id="simBadge" class="badge sim">SIMULATED MAIL/CAL ADAPTER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+      <span class="badge ok">CONTRACT v1.0.0</span>
+    </div>
+  </header>
+
+  <div id="alertBox" class="alert"></div>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2><span>1. Triaged Inbox</span><button class="secondary" onclick="refreshAll()">Refresh</button></h2>
+        <div id="inboxList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>2. Drafts &amp; Human Outbound Send Approvals</span></h2>
+        <div id="draftsList" class="list" style="margin-bottom:10px;"></div>
+        <div id="approvalsList" class="list"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2>
+          <span>3. Calendar Events &amp; Free-Slot Finder</span>
+          <a href="/api/v1/email-calendar/calendar/export.ics" target="_blank" style="color:var(--cyan);font-size:0.78rem;text-decoration:none;">Export .ICS</a>
+        </h2>
+        <div class="row">
+          <input id="evDate" type="date" />
+          <input id="evStart" value="10:00" style="width:78px;" />
+          <input id="evEnd" value="11:00" style="width:78px;" />
+          <input id="evTitle" class="grow" placeholder="Meeting title..." />
+          <button onclick="createEvent()">+ Schedule</button>
+          <button class="secondary" onclick="findFreeSlots()">Find Free Slots</button>
+        </div>
+        <div id="slotsBox" class="mono" style="margin-bottom:10px;"></div>
+        <div id="eventsList" class="list"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/email-calendar';
+    const todayStr = new Date().toISOString().slice(0, 10);
+    document.getElementById('evDate').value = todayStr;
+
+    function showAlert(msg, isErr = false) {
+      const box = document.getElementById('alertBox');
+      box.textContent = msg;
+      box.className = 'alert show ' + (isErr ? 'err' : 'info');
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || ('HTTP ' + res.status);
+        showAlert(msg, true);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function draftReply(emailId) {
+      await api(`/emails/${emailId}/draft-reply`, { method: 'POST', body: JSON.stringify({ tone: 'professional' }) });
+      showAlert('Generated reply draft.');
+      await refreshAll();
+    }
+
+    async function archiveEmail(emailId) {
+      await api(`/emails/${emailId}/archive`, { method: 'POST' });
+      await refreshAll();
+    }
+
+    async function requestSend(draftId) {
+      const res = await api(`/drafts/${draftId}/send`, { method: 'POST' });
+      showAlert(res.status === 'awaiting_approval' ? 'Draft queued for human send approval.' : 'Email sent.');
+      await refreshAll();
+    }
+
+    async function decideApproval(id, approved) {
+      await api(`/approvals/${id}/decide`, {
+        method: 'POST',
+        body: JSON.stringify({ approved, decided_by: 'web-operator', comment: approved ? 'Approved' : 'Rejected' }),
+      });
+      showAlert((approved ? 'Approved & dispatched' : 'Rejected') + ' outbound email ' + id);
+      await refreshAll();
+    }
+
+    async function createEvent() {
+      const title = document.getElementById('evTitle').value.trim();
+      if (!title) return;
+      await api('/calendar/events', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          date: document.getElementById('evDate').value || todayStr,
+          start_time: document.getElementById('evStart').value,
+          end_time: document.getElementById('evEnd').value,
+        }),
+      });
+      document.getElementById('evTitle').value = '';
+      showAlert('Scheduled calendar event.');
+      await refreshAll();
+    }
+
+    async function findFreeSlots() {
+      const d = document.getElementById('evDate').value || todayStr;
+      const res = await api('/calendar/find-slots', { method: 'POST', body: JSON.stringify({ date: d, duration_minutes: 30 }) });
+      document.getElementById('slotsBox').textContent = 'Free slots (' + d + '): ' +
+        res.free_slots.map(s => `${s.start_time}-${s.end_time}`).join(', ');
+    }
+
+    async function refreshAll() {
+      const [emails, drafts, approvals, events] = await Promise.all([
+        api('/emails'), api('/drafts'), api('/approvals'), api('/calendar/events')
+      ]);
+
+      document.getElementById('inboxList').innerHTML = emails.emails.length
+        ? emails.emails.map(e => `
+          <div class="item">
+            <div class="item-head"><b>${e.subject}</b><span class="pill ${e.category}">${e.category} (${e.priority_score})</span></div>
+            <div class="mono">From: ${e.sender}</div>
+            <div style="color:var(--muted);margin:4px 0;">${e.body}</div>
+            <div class="row" style="margin-bottom:0;">
+              <button class="secondary" onclick="draftReply('${e.email_id}')">Draft Reply</button>
+              <button class="danger" onclick="archiveEmail('${e.email_id}')">Archive</button>
+            </div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">Inbox zero!</div>';
+
+      document.getElementById('draftsList').innerHTML = drafts.drafts.length
+        ? drafts.drafts.map(d => `
+          <div class="item">
+            <div class="item-head"><b>Draft: ${d.subject}</b><span class="pill ${d.status}">${d.status}</span></div>
+            <div class="mono">To: ${d.to_address}</div>
+            ${d.status === 'draft' ? `<div style="margin-top:6px;"><button onclick="requestSend('${d.draft_id}')">Request Send (Gated)</button></div>` : ''}
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No drafts yet.</div>';
+
+      document.getElementById('approvalsList').innerHTML = approvals.approvals.length
+        ? approvals.approvals.map(a => `
+          <div class="item">
+            <div class="item-head"><b>Send Approval: ${a.subject}</b><span class="pill ${a.status}">${a.status}</span></div>
+            <div class="mono">To: ${a.to_address}</div>
+            ${a.status === 'pending' ? `<div class="row" style="margin-top:6px;margin-bottom:0;">
+              <button class="success" onclick="decideApproval('${a.approval_id}', true)">Approve &amp; Send</button>
+              <button class="danger" onclick="decideApproval('${a.approval_id}', false)">Reject</button>
+            </div>` : ''}
+          </div>`).join('')
+        : '';
+
+      document.getElementById('eventsList').innerHTML = events.events.length
+        ? events.events.map(ev => `
+          <div class="item">
+            <div class="item-head"><b>${ev.title}</b><span class="pill">${ev.date} ${ev.start_time}-${ev.end_time}</span></div>
+            <div class="mono">RSVP: ${ev.rsvp_status}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No calendar events scheduled.</div>';
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/events`);
+      const badge = document.getElementById('wsBadge');
+      ws.onopen = () => { badge.textContent = 'WS: LIVE'; badge.className = 'badge ok'; };
+      ws.onclose = () => { badge.textContent = 'WS: RECONNECTING'; badge.className = 'badge'; setTimeout(connectWS, 4000); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

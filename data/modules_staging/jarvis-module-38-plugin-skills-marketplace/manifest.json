@@ -1,0 +1,28 @@
+{
+  "module_id": "jarvis-module-38-plugin-skills-marketplace",
+  "module_number": 38,
+  "name": "Plugin & Skills Marketplace",
+  "version": "1.0.0",
+  "contract_version": "1.0.0",
+  "priority": "MEDIUM",
+  "category": "extensibility",
+  "description": "Local-first plugin and skills registry with SemVer validation, SHA-256 checksum verification, permission allowlisting, install/toggle lifecycle, and HUD for JARVIS OS.",
+  "default_port": 8138,
+  "ui_route": "/marketplace",
+  "api_prefix": "/api/v1/marketplace",
+  "ws_endpoint": "/api/v1/marketplace/ws/registry",
+  "entrypoint": "backend.app.main:app",
+  "mount_function": "backend.app.main:mount_module",
+  "database": {
+    "engine": "sqlite_wal",
+    "env_var": "JARVIS_M38_DB_PATH",
+    "default_path": "./data/jarvis_marketplace.db"
+  },
+  "capabilities": [
+    "semver_plugin_catalog_registry",
+    "sha256_integrity_verification",
+    "permission_scope_allowlist",
+    "install_enable_disable_uninstall_lifecycle",
+    "marketplace_audit_log_and_hud"
+  ]
+}

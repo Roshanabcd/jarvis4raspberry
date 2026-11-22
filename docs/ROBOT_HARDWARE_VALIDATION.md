@@ -16,7 +16,7 @@ Live detection conducted on the target Raspberry Pi 5 host:
 | **RPi Camera Module 3** | CSI RP1 (`imx708@1a`) | Detected on `/dev/video*` & `rpicam` | **PHYSICALLY VERIFIED** (Live JPEG captured) |
 | **SoC Thermal Monitor** | Thermal Zone 0 | Real temperature read: 49.0°C–51.0°C | **PHYSICALLY VERIFIED** |
 | **Host Storage & RAM** | USB 3.0 SATA (/dev/sda2) | 8 GB RAM, 147 GB free SSD | **PHYSICALLY VERIFIED** |
-| **Seeed ReSpeaker Lite** | USB Audio Class (ALSA) | Capture devices list empty (`arecord -l`)| **NOT CONNECTED (SIMULATED)** |
+| **Seeed ReSpeaker Lite** | USB Audio Class (ALSA) | USB ID `2886:0019`, Card 2 `Lite`, live PipeWire capture streaming | **PHYSICALLY VERIFIED** (Live Audio stream verified) |
 | **Waveshare Servo HAT (B)**| I2C Bus 1 (`0x40`) | I2C-1 scan returned all `--` | **NOT POWERED / UNSEATED (SIMULATED)** |
 | **TB6612FNG Dual Drivers**| Relayed via ESP32-S3 | Software driver layer verified | **UNVERIFIED PHYSICALLY (SIMULATED)** |
 | **4x GA12-N20 Motors** | 12V 150RPM Encoders | Encoder math & firmware verified | **UNVERIFIED PHYSICALLY (SIMULATED)** |

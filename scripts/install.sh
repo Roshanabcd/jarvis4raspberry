@@ -97,7 +97,7 @@ Wants=network-online.target
 [Service]
 User=${JARVIS_USER}
 WorkingDirectory=${JARVIS_HOME}
-ExecStart=${VENV_DIR}/bin/python3 -m uvicorn apps.core.main:app --host 0.0.0.0 --port 8000 --log-level info
+ExecStart=${VENV_DIR}/bin/python3 -m uvicorn apps.core.main:app --host 127.0.0.1 --port 8000 --log-level info
 EnvironmentFile=${JARVIS_HOME}/.env
 Environment=JARVIS_HOME=${JARVIS_HOME}
 Restart=always

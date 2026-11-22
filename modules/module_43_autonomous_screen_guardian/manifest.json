@@ -1,0 +1,64 @@
+{
+  "module_id": "jarvis-module-43-autonomous-screen-guardian",
+  "name": "Autonomous Screen Guardian & AI Repair Agent",
+  "version": "1.0.0",
+  "description": "User-authorized desktop screen monitoring, real-time local OCR, configurable multimodal screen understanding, contextual error detection, severity notifications, and permission-controlled AI coding agent repair with automated test verification.",
+  "category": "screen_intelligence_and_repair",
+  "priority": "CRITICAL",
+  "compatible_api_version": "1.0.0",
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_factory": "backend.app.main:create_app",
+    "host_mount": "backend.app.main:mount_module",
+    "frontend_dev": "frontend/src/main.tsx",
+    "standalone_hud": "/screen-guardian",
+    "api_prefix": "/api/v1/screen-guardian",
+    "ws_endpoint": "/api/v1/screen-guardian/ws/stream",
+    "default_port": 8143
+  },
+  "required_permissions": [
+    "screen.monitor.explicit_consent",
+    "screen.ocr.read",
+    "vision.provider.invoke_optional",
+    "repair.workspace.read_write_authorized",
+    "repair.agent.execute_approved",
+    "system.telemetry.read"
+  ],
+  "dependencies": {
+    "python": ">=3.10",
+    "packages": ["fastapi>=0.92.0", "uvicorn>=0.17.6", "pydantic>=1.10.4", "httpx>=0.23.3", "Pillow>=9.0.0"],
+    "optional_system_packages": ["tesseract-ocr", "scrot", "grim", "xrandr", "xdg-desktop-portal"],
+    "jarvis_modules": []
+  },
+  "conceptual_ecosystem_compatibility": {
+    "verified_against_live_packages": false,
+    "designed_for_modules": [18, 19, 20, 21, 22, 32, 36, 40, 41, 42]
+  },
+  "resource_requirements": {
+    "min_ram_mb": 192,
+    "recommended_ram_mb": 512,
+    "disk_mb": 80,
+    "gpu_required": false,
+    "arm64_compatible": true,
+    "raspberry_pi_5_compatible": true
+  },
+  "configuration_schema": {
+    "JARVIS_M43_HOST": { "type": "string", "default": "0.0.0.0" },
+    "JARVIS_M43_PORT": { "type": "integer", "default": 8143 },
+    "JARVIS_M43_DB_PATH": { "type": "string", "default": "./data/jarvis_screen_guardian.db" },
+    "JARVIS_M43_CAPTURE_INTERVAL_SEC": { "type": "number", "default": 2.0 },
+    "JARVIS_M43_MAX_INFERENCE_CONCURRENCY": { "type": "integer", "default": 2 },
+    "JARVIS_M43_STORE_RAW_SCREENSHOTS": { "type": "boolean", "default": false },
+    "JARVIS_M43_ALLOW_REMOTE_VISION_UPLOAD": { "type": "boolean", "default": false },
+    "JARVIS_M43_AUTO_START_ON_BOOT": { "type": "boolean", "default": false },
+    "JARVIS_M43_TRUSTED_WORKSPACES": { "type": "string", "default": "" },
+    "JARVIS_M43_API_TOKEN": { "type": "string", "default": "", "secret": true },
+    "JARVIS_M43_CORS_ORIGINS": { "type": "string", "default": "*" }
+  },
+  "health_check": {
+    "endpoint": "/api/v1/screen-guardian/health",
+    "method": "GET",
+    "expected_status": 200,
+    "interval_seconds": 30
+  }
+}

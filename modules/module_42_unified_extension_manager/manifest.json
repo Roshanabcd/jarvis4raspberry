@@ -1,0 +1,60 @@
+{
+  "module_id": "jarvis-module-42-unified-extension-manager",
+  "name": "Unified Extension Manager, Module SDK & Integration Compatibility Engine",
+  "version": "1.0.0",
+  "description": "Standalone archive scanner, compatibility analyzer, persistent SQLite module registry, dry-run installation planner, health monitor, shared integration SDK, and reference event bus for managing JARVIS extension modules (18-41+).",
+  "category": "platform_management",
+  "priority": "CRITICAL",
+  "compatible_api_version": "1.0.0",
+  "entrypoints": {
+    "backend_app": "backend.app.main:app",
+    "backend_factory": "backend.app.main:create_app",
+    "host_mount": "backend.app.main:mount_module",
+    "sdk_package": "sdk/jarvis_sdk",
+    "sample_extension": "sample_extension/extension.py",
+    "frontend_dev": "frontend/src/main.tsx",
+    "standalone_hud": "/extensions",
+    "api_prefix": "/api/v1/extensions",
+    "ws_endpoint": "/api/v1/extensions/ws/events",
+    "default_port": 8142
+  },
+  "required_permissions": [
+    "extensions.archives.scan",
+    "extensions.registry.read",
+    "extensions.registry.write",
+    "extensions.install.plan",
+    "extensions.install.approve",
+    "extensions.health.probe"
+  ],
+  "dependencies": {
+    "python": ">=3.10",
+    "packages": ["fastapi>=0.92.0", "uvicorn>=0.17.6", "pydantic>=1.10.4", "httpx>=0.23.3"],
+    "jarvis_modules": []
+  },
+  "resource_requirements": {
+    "min_ram_mb": 96,
+    "recommended_ram_mb": 192,
+    "disk_mb": 40,
+    "gpu_required": false,
+    "arm64_compatible": true,
+    "raspberry_pi_5_compatible": true
+  },
+  "configuration_schema": {
+    "JARVIS_M42_HOST": { "type": "string", "default": "0.0.0.0" },
+    "JARVIS_M42_PORT": { "type": "integer", "default": 8142 },
+    "JARVIS_M42_DB_PATH": { "type": "string", "default": "./data/jarvis_extensions.db" },
+    "JARVIS_M42_ARCHIVES_DIR": { "type": "string", "default": "/home/roshan/Downloads/module-jarvis" },
+    "JARVIS_M42_MAX_UNCOMPRESSED_MB": { "type": "integer", "default": 200 },
+    "JARVIS_M42_MAX_COMPRESSION_RATIO": { "type": "number", "default": 100.0 },
+    "JARVIS_M42_MAX_ARCHIVE_FILES": { "type": "integer", "default": 2500 },
+    "JARVIS_M42_HEALTH_TIMEOUT": { "type": "number", "default": 3.0 },
+    "JARVIS_M42_API_TOKEN": { "type": "string", "default": "", "secret": true },
+    "JARVIS_M42_CORS_ORIGINS": { "type": "string", "default": "*" }
+  },
+  "health_check": {
+    "endpoint": "/api/v1/extensions/health",
+    "method": "GET",
+    "expected_status": 200,
+    "interval_seconds": 30
+  }
+}

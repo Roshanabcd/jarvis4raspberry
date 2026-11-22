@@ -1,0 +1,62 @@
+=== Auth Status Checks (Safe) ===
+github.com
+  ✓ Logged in to github.com account Roshanabcd (keyring)
+  - Active account: true
+  - Git operations protocol: https
+  - Token: gho_************************************
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+error: unrecognized subcommand 'status'
+
+  tip: a similar subcommand exists: 'a'
+
+Usage: codex [OPTIONS] [PROMPT]
+       codex [OPTIONS] <COMMAND> [ARGS]
+
+For more information, try '--help'.
+Error: stdout is not a terminal
+error: Invalid command format.
+
+Did you mean: copilot -i "auth status"?
+
+For non-interactive mode, use the -p or --prompt option.
+Try 'copilot --help' for more information.
+Error: unexpected argument "auth".
+Prompts are read only from -p/--print, -i/--prompt-interactive, or stdin, so this argument would have been ignored.
+Warning: Basic terminal detected (TERM=dumb). Visual rendering will be limited. For the best experience, use a terminal emulator with truecolor support.
+Error generating content via API. Full report available at: /tmp/gemini-client-error-generateJson-api-2026-11-20T06-12-25-653Z.json _ApiError: {"error":{"code":401,"message":"API keys are not supported by this API. Expected OAuth2 access token or other authentication credentials that assert a principal. See https://cloud.google.com/docs/authentication","status":"UNAUTHENTICATED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CREDENTIALS_MISSING","domain":"googleapis.com","metadata":{"service":"aiplatform.googleapis.com","method":"google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent"}}]}}
+    at throwErrorIfNotOK (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:267953:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:267704:7
+    at async Models.generateContent (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:268763:16)
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:313303:26
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:289294:23
+    at async retryWithBackoff (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309615:23)
+    at async BaseLlmClient._generateWithRetry (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309921:14)
+    at async BaseLlmClient.generateJson (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309804:21)
+    at async NumericalClassifierStrategy.route (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:363455:28) {
+  status: 401
+}
+[Routing] NumericalClassifierStrategy failed: Error: Failed to generate content: {"error":{"code":401,"message":"API keys are not supported by this API. Expected OAuth2 access token or other authentication credentials that assert a principal. See https://cloud.google.com/docs/authentication","status":"UNAUTHENTICATED","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"CREDENTIALS_MISSING","domain":"googleapis.com","metadata":{"service":"aiplatform.googleapis.com","method":"google.cloud.aiplatform.v1beta1.PredictionService.GenerateContent"}}]}}
+    at BaseLlmClient._generateWithRetry (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309952:13)
+    at async BaseLlmClient.generateJson (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309804:21)
+    at async NumericalClassifierStrategy.route (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:363455:28)
+    at async CompositeStrategy.route (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:363527:26)
+    at async ModelRouterService.route (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:363691:18)
+    at async GeminiClient.processTurn (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:349638:24)
+    at async GeminiClient.sendMessageStream (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:349757:14)
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/gemini-Q2FNZWQG.js:13754:26
+    at async main (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/gemini-Q2FNZWQG.js:19134:5)
+Error when talking to Gemini API Full report available at: /tmp/gemini-client-error-Turn.run-sendMessageStream-2026-11-20T06-12-26-023Z.json _ApiError: {"error":{"message":"{\n  \"error\": {\n    \"code\": 401,\n    \"message\": \"API keys are not supported by this API. Expected OAuth2 access token or other authentication credentials that assert a principal. See https://cloud.google.com/docs/authentication\",\n    \"status\": \"UNAUTHENTICATED\",\n    \"details\": [\n      {\n        \"@type\": \"type.googleapis.com/google.rpc.ErrorInfo\",\n        \"reason\": \"CREDENTIALS_MISSING\",\n        \"domain\": \"googleapis.com\",\n        \"metadata\": {\n          \"method\": \"google.cloud.aiplatform.v1beta1.PredictionService.StreamGenerateContent\",\n          \"service\": \"aiplatform.googleapis.com\"\n        }\n      }\n    ]\n  }\n}\n","code":401,"status":""}}
+    at throwErrorIfNotOK (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:267953:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:267716:7
+    at async Models.generateContentStream (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:268812:16)
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:313348:19
+    at async file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:289294:23
+    at async retryWithBackoff (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:309615:23)
+    at async GeminiChat.makeApiCallAndProcessStream (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:334930:28)
+    at async GeminiChat.streamWithRetries (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:334610:29)
+    at async Turn.run (file:///home/roshan/.npm-global/lib/node_modules/@google/gemini-cli/bundle/chunk-RCB6BI5H.js:335668:24) {
+  status: 401
+}
+An unexpected critical error occurred:[object Object]

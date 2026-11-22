@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 23: Personal Executive Assistant</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #FFB84D;
+      --red: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FA8C4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top left, rgba(0,217,255,0.12), transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 16px;
+    }
+    .brand h1 { font-size: 1.25rem; letter-spacing: 0.04em; color: var(--cyan); }
+    .brand p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge {
+      padding: 5px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0,217,255,0.08); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.14); color: var(--amber); }
+    .badge.ok { border-color: rgba(37,230,162,0.5); background: rgba(37,230,162,0.12); color: var(--green); }
+    .brief-banner {
+      background: linear-gradient(135deg, rgba(16,30,48,0.95), rgba(152,104,255,0.12));
+      border: 1px solid rgba(0,217,255,0.35); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px;
+      font-size: 0.9rem; line-height: 1.45;
+    }
+    .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    .card h2 {
+      font-size: 0.9rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    input, select {
+      background: var(--panel-alt); color: var(--text); border: 1px solid rgba(143,168,196,0.28);
+      border-radius: 8px; padding: 7px 10px; font-size: 0.82rem; outline: none;
+    }
+    input.grow { flex: 1; min-width: 140px; }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 7px 12px; font-size: 0.8rem; cursor: pointer;
+    }
+    button.secondary { background: rgba(152,104,255,0.2); color: var(--text); border: 1px solid rgba(152,104,255,0.5); }
+    button.success { background: rgba(37,230,162,0.2); color: #C9FFEE; border: 1px solid rgba(37,230,162,0.55); }
+    .alert { padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 12px; display: none; }
+    .alert.show { display: block; }
+    .alert.err { background: rgba(255,92,119,0.16); border: 1px solid var(--red); color: #FFD2DA; }
+    .alert.info { background: rgba(0,217,255,0.12); border: 1px solid var(--cyan); color: var(--text); }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; }
+    .item { background: var(--panel-alt); border: 1px solid rgba(143,168,196,0.18); border-radius: 8px; padding: 10px; font-size: 0.8rem; }
+    .item-head { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.74rem; color: var(--cyan); }
+    .pill { font-size: 0.7rem; padding: 2px 7px; border-radius: 999px; background: rgba(33,139,255,0.2); color: var(--text); }
+    .pill.do_first { background: rgba(255,92,119,0.25); color: #FFD2DA; }
+    .pill.schedule { background: rgba(0,217,255,0.2); color: var(--cyan); }
+    .pill.done, .pill.completed { background: rgba(37,230,162,0.2); color: var(--green); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <h1>JARVIS OS // MODULE 23 — PERSONAL EXECUTIVE ASSISTANT</h1>
+      <p>Daily Executive Briefings, Eisenhower Priority Matrix, Smart Time Blocking, Goals, Habits &amp; Follow-Ups</p>
+    </div>
+    <div class="badges">
+      <span id="simBadge" class="badge sim">LOCAL BRIEF SYNTHESIZER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+      <span class="badge ok">CONTRACT v1.0.0</span>
+    </div>
+  </header>
+
+  <div id="alertBox" class="alert"></div>
+  <div id="briefBanner" class="brief-banner">Loading daily executive briefing...</div>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2><span>1. Priority Tasks (Eisenhower Matrix)</span></h2>
+        <div class="row">
+          <input id="taskTitle" class="grow" placeholder="New executive action item..." />
+          <select id="taskPriority"><option value="p1">P1</option><option value="p2" selected>P2</option><option value="p3">P3</option></select>
+          <label style="font-size:0.78rem;"><input id="taskUrgent" type="checkbox" checked /> Urgent</label>
+          <label style="font-size:0.78rem;"><input id="taskImportant" type="checkbox" checked /> Important</label>
+          <input id="taskMins" type="number" value="45" style="width:68px;" title="Minutes" />
+          <button onclick="addTask()">+ Task</button>
+        </div>
+        <div id="tasksList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2>
+          <span>2. Time-Blocked Day Schedule</span>
+          <button class="secondary" onclick="autoPlanDay()">Auto-Plan Day</button>
+        </h2>
+        <div class="row">
+          <input id="planDate" type="date" />
+          <input id="blkStart" value="09:00" style="width:78px;" />
+          <input id="blkEnd" value="10:00" style="width:78px;" />
+          <input id="blkTitle" class="grow" placeholder="Focus block or meeting..." />
+          <button onclick="addBlock()">+ Block</button>
+        </div>
+        <div id="blocksList" class="list"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2><span>3. Goals &amp; OKRs</span></h2>
+        <div class="row">
+          <input id="goalTitle" class="grow" placeholder="Quarterly objective..." />
+          <select id="goalHorizon"><option value="weekly">Weekly</option><option value="quarterly" selected>Quarterly</option><option value="annual">Annual</option></select>
+          <button onclick="addGoal()">+ Goal</button>
+        </div>
+        <div id="goalsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>4. Daily Habits &amp; Streaks</span></h2>
+        <div class="row">
+          <input id="habitName" class="grow" placeholder="Habit (e.g., 90m Deep Work)" />
+          <button onclick="addHabit()">+ Habit</button>
+        </div>
+        <div id="habitsList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>5. Delegations &amp; Follow-Ups</span></h2>
+        <div class="row">
+          <input id="fupPerson" placeholder="Person" style="width:110px;" />
+          <input id="fupTopic" class="grow" placeholder="Follow-up topic..." />
+          <button onclick="addFollowup()">+ Track</button>
+        </div>
+        <div id="followupsList" class="list"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/executive-assistant';
+    const todayStr = new Date().toISOString().slice(0, 10);
+    document.getElementById('planDate').value = todayStr;
+
+    function showAlert(msg, isErr = false) {
+      const box = document.getElementById('alertBox');
+      box.textContent = msg;
+      box.className = 'alert show ' + (isErr ? 'err' : 'info');
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || ('HTTP ' + res.status);
+        showAlert(msg, true);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function addTask() {
+      const title = document.getElementById('taskTitle').value.trim();
+      if (!title) return;
+      await api('/tasks', {
+        method: 'POST',
+        body: JSON.stringify({
+          title,
+          priority: document.getElementById('taskPriority').value,
+          urgent: document.getElementById('taskUrgent').checked,
+          important: document.getElementById('taskImportant').checked,
+          estimated_minutes: parseInt(document.getElementById('taskMins').value || '45', 10),
+        }),
+      });
+      document.getElementById('taskTitle').value = '';
+      showAlert('Added task.');
+      await refreshAll();
+    }
+
+    async function markTaskDone(id) {
+      await api(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'done' }) });
+      await refreshAll();
+    }
+
+    async function addBlock() {
+      const title = document.getElementById('blkTitle').value.trim();
+      if (!title) return;
+      await api('/time-blocks', {
+        method: 'POST',
+        body: JSON.stringify({
+          date: document.getElementById('planDate').value || todayStr,
+          start_time: document.getElementById('blkStart').value,
+          end_time: document.getElementById('blkEnd').value,
+          title,
+        }),
+      });
+      document.getElementById('blkTitle').value = '';
+      showAlert('Scheduled time block.');
+      await refreshAll();
+    }
+
+    async function autoPlanDay() {
+      const d = document.getElementById('planDate').value || todayStr;
+      const res = await api('/plan-day', { method: 'POST', body: JSON.stringify({ date: d, max_tasks: 4 }) });
+      showAlert(`Auto-planned ${res.scheduled_count} task(s) into open slots for ${d}.`);
+      await refreshAll();
+    }
+
+    async function addGoal() {
+      const title = document.getElementById('goalTitle').value.trim();
+      if (!title) return;
+      await api('/goals', {
+        method: 'POST',
+        body: JSON.stringify({ title, horizon: document.getElementById('goalHorizon').value }),
+      });
+      document.getElementById('goalTitle').value = '';
+      await refreshAll();
+    }
+
+    async function bumpGoal(id, cur) {
+      await api(`/goals/${id}`, { method: 'PATCH', body: JSON.stringify({ progress_pct: Math.min(100, cur + 25) }) });
+      await refreshAll();
+    }
+
+    async function addHabit() {
+      const name = document.getElementById('habitName').value.trim();
+      if (!name) return;
+      await api('/habits', { method: 'POST', body: JSON.stringify({ name }) });
+      document.getElementById('habitName').value = '';
+      await refreshAll();
+    }
+
+    async function checkinHabit(id) {
+      const d = document.getElementById('planDate').value || todayStr;
+      await api(`/habits/${id}/checkin`, { method: 'POST', body: JSON.stringify({ date: d }) });
+      showAlert('Habit checked in for ' + d);
+      await refreshAll();
+    }
+
+    async function addFollowup() {
+      const person = document.getElementById('fupPerson').value.trim();
+      const topic = document.getElementById('fupTopic').value.trim();
+      if (!person || !topic) return;
+      await api('/followups', {
+        method: 'POST',
+        body: JSON.stringify({ person, topic, due_date: document.getElementById('planDate').value || todayStr }),
+      });
+      document.getElementById('fupPerson').value = '';
+      document.getElementById('fupTopic').value = '';
+      await refreshAll();
+    }
+
+    async function completeFollowup(id) {
+      await api(`/followups/${id}`, { method: 'PATCH', body: JSON.stringify({ status: 'completed' }) });
+      await refreshAll();
+    }
+
+    async function refreshAll() {
+      const d = document.getElementById('planDate').value || todayStr;
+      const [brief, tasks, blocks, goals, habits, fups] = await Promise.all([
+        api(`/briefing?date=${d}`),
+        api('/tasks'),
+        api(`/time-blocks?date=${d}`),
+        api('/goals'),
+        api(`/habits?date=${d}`),
+        api('/followups'),
+      ]);
+
+      document.getElementById('briefBanner').textContent = brief.executive_summary;
+
+      document.getElementById('tasksList').innerHTML = tasks.tasks.length
+        ? tasks.tasks.map(t => `
+          <div class="item">
+            <div class="item-head"><b>${t.title}</b><span class="pill ${t.status === 'done' ? 'done' : t.quadrant}">${t.status === 'done' ? 'done' : t.quadrant}</span></div>
+            <div class="mono">${t.priority.toUpperCase()} | ${t.estimated_minutes}m ${t.status !== 'done' ? `<button class="success" style="margin-left:8px;padding:2px 8px;" onclick="markTaskDone('${t.task_id}')">Complete</button>` : ''}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No tasks yet.</div>';
+
+      document.getElementById('blocksList').innerHTML = blocks.time_blocks.length
+        ? blocks.time_blocks.map(b => `
+          <div class="item">
+            <div class="item-head"><b>${b.start_time} – ${b.end_time}</b><span class="pill">${b.block_type}</span></div>
+            <div>${b.title}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No blocks scheduled for ' + d + '.</div>';
+
+      document.getElementById('goalsList').innerHTML = goals.goals.length
+        ? goals.goals.map(g => `
+          <div class="item">
+            <div class="item-head"><b>${g.title}</b><span class="pill ${g.status}">${g.progress_pct}%</span></div>
+            <div class="mono">${g.horizon} | ${g.status} ${g.progress_pct < 100 ? `<button class="secondary" style="margin-left:8px;padding:2px 8px;" onclick="bumpGoal('${g.goal_id}', ${g.progress_pct})">+25%</button>` : ''}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No goals tracked yet.</div>';
+
+      document.getElementById('habitsList').innerHTML = habits.habits.length
+        ? habits.habits.map(h => `
+          <div class="item">
+            <div class="item-head"><b>${h.name}</b><span class="pill done">Streak: ${h.current_streak}d</span></div>
+            <div class="mono">Total: ${h.total_checkins} <button class="success" style="margin-left:8px;padding:2px 8px;" onclick="checkinHabit('${h.habit_id}')">Check In Today</button></div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No habits tracked yet.</div>';
+
+      document.getElementById('followupsList').innerHTML = fups.followups.length
+        ? fups.followups.map(f => `
+          <div class="item">
+            <div class="item-head"><b>${f.person}: ${f.topic}</b><span class="pill ${f.status}">${f.status}</span></div>
+            <div class="mono">Due: ${f.due_date} ${f.status === 'open' ? `<button class="success" style="margin-left:8px;padding:2px 8px;" onclick="completeFollowup('${f.followup_id}')">Done</button>` : ''}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No follow-ups queued.</div>';
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/events`);
+      const badge = document.getElementById('wsBadge');
+      ws.onopen = () => { badge.textContent = 'WS: LIVE'; badge.className = 'badge ok'; };
+      ws.onclose = () => { badge.textContent = 'WS: RECONNECTING'; badge.className = 'badge'; setTimeout(connectWS, 4000); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

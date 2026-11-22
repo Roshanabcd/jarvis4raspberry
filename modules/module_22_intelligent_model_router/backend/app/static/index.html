@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — Module 22: Intelligent AI Model Router</title>
+  <style>
+    :root {
+      --bg: #050B16;
+      --panel: #101E30;
+      --panel-alt: #0B1524;
+      --border: rgba(0, 217, 255, 0.22);
+      --cyan: #00D9FF;
+      --blue: #218BFF;
+      --purple: #9868FF;
+      --green: #25E6A2;
+      --amber: #FFB84D;
+      --red: #FF5C77;
+      --text: #F0F8FF;
+      --muted: #8FA8C4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: radial-gradient(circle at top right, rgba(152,104,255,0.14), transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header {
+      display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px;
+      padding: 16px 20px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; margin-bottom: 18px;
+      box-shadow: 0 0 28px rgba(0, 217, 255, 0.08);
+    }
+    .brand h1 { font-size: 1.25rem; letter-spacing: 0.04em; color: var(--cyan); }
+    .brand p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge {
+      padding: 5px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+      border: 1px solid var(--border); background: rgba(0,217,255,0.08); color: var(--cyan);
+    }
+    .badge.sim { border-color: rgba(255,184,77,0.5); background: rgba(255,184,77,0.14); color: var(--amber); }
+    .badge.ok { border-color: rgba(37,230,162,0.5); background: rgba(37,230,162,0.12); color: var(--green); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+    .kpi {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+    }
+    .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .kpi .val { font-size: 1.25rem; font-weight: 700; color: var(--cyan); margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; }
+    @media (max-width: 1024px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 16px; margin-bottom: 16px;
+    }
+    .card h2 {
+      font-size: 0.92rem; color: var(--cyan); text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    input, select, textarea {
+      background: var(--panel-alt); color: var(--text); border: 1px solid rgba(143,168,196,0.28);
+      border-radius: 8px; padding: 8px 10px; font-size: 0.85rem; outline: none;
+    }
+    textarea { width: 100%; min-height: 78px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { border-color: var(--cyan); }
+    button {
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      color: #03101F; font-weight: 700; border: none; border-radius: 8px;
+      padding: 8px 13px; font-size: 0.8rem; cursor: pointer;
+    }
+    button.secondary { background: rgba(152,104,255,0.2); color: var(--text); border: 1px solid rgba(152,104,255,0.5); }
+    button.danger { background: rgba(255,92,119,0.2); color: #FFD2DA; border: 1px solid rgba(255,92,119,0.55); }
+    button.success { background: rgba(37,230,162,0.2); color: #C9FFEE; border: 1px solid rgba(37,230,162,0.55); }
+    .alert { padding: 9px 12px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 12px; display: none; }
+    .alert.show { display: block; }
+    .alert.err { background: rgba(255,92,119,0.16); border: 1px solid var(--red); color: #FFD2DA; }
+    .alert.info { background: rgba(0,217,255,0.12); border: 1px solid var(--cyan); color: var(--text); }
+    pre.out {
+      background: #060D19; border: 1px solid rgba(0,217,255,0.15); border-radius: 8px;
+      padding: 12px; max-height: 240px; overflow: auto; font-size: 0.78rem; color: #C2EBFF;
+      white-space: pre-wrap;
+    }
+    .list { display: flex; flex-direction: column; gap: 8px; max-height: 310px; overflow-y: auto; }
+    .item { background: var(--panel-alt); border: 1px solid rgba(143,168,196,0.18); border-radius: 8px; padding: 10px; font-size: 0.8rem; }
+    .item-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.75rem; color: var(--cyan); }
+    .pill { font-size: 0.7rem; padding: 2px 7px; border-radius: 999px; background: rgba(33,139,255,0.2); color: var(--text); }
+    .pill.local { background: rgba(37,230,162,0.2); color: var(--green); }
+    .pill.open, .pill.outage { background: rgba(255,92,119,0.22); color: var(--red); }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <h1>JARVIS OS // MODULE 22 — INTELLIGENT AI MODEL ROUTER</h1>
+      <p>Task-Aware Multi-Model Routing, Explainable Scoring, Automatic Failover, Circuit Breakers &amp; Budget Guardrails</p>
+    </div>
+    <div class="badges">
+      <span id="simBadge" class="badge sim">SIMULATED ADAPTER</span>
+      <span id="wsBadge" class="badge">WS: CONNECTING</span>
+      <span class="badge ok">CONTRACT v1.0.0</span>
+    </div>
+  </header>
+
+  <div id="alertBox" class="alert"></div>
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">Healthy Models</div><div class="val" id="kpiHealthy">—</div></div>
+    <div class="kpi"><div class="label">Total Requests</div><div class="val" id="kpiReqs">0</div></div>
+    <div class="kpi"><div class="label">Cumulative Spend</div><div class="val" id="kpiSpend">$0.0000</div></div>
+    <div class="kpi"><div class="label">Cache Hits / Failovers</div><div class="val" id="kpiCacheFail">0 / 0</div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2><span>1. Intelligent Prompt Router Playground</span></h2>
+        <div class="row">
+          <select id="strategySelect">
+            <option value="balanced">Balanced</option>
+            <option value="cost_optimized">Cost Optimized</option>
+            <option value="latency_optimized">Latency Optimized</option>
+            <option value="quality_first">Quality First</option>
+            <option value="local_only">Local Only (Privacy)</option>
+          </select>
+          <select id="taskSelect">
+            <option value="auto">Auto-Classify Task</option>
+            <option value="coding">Coding</option>
+            <option value="reasoning">Reasoning</option>
+            <option value="summarization">Summarization</option>
+            <option value="vision">Vision</option>
+            <option value="general">General</option>
+          </select>
+          <button onclick="routePrompt()">Route &amp; Execute</button>
+          <button class="secondary" onclick="runBenchmark()">Benchmark Top 3</button>
+          <button class="secondary" onclick="clearCache()">Clear Cache</button>
+        </div>
+        <textarea id="promptInput">Refactor this FastAPI route in Python to use dependency injection and explain the tradeoffs.</textarea>
+        <pre id="routeOutput" class="out" style="margin-top:10px;">Routing decision &amp; response will appear here...</pre>
+      </section>
+
+      <section class="card">
+        <h2><span>2. Routing Telemetry &amp; Audit Logs</span><button class="secondary" onclick="refreshAll()">Refresh</button></h2>
+        <div id="logsList" class="list"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2><span>3. Model Registry &amp; Circuit Breakers</span></h2>
+        <div id="modelsList" class="list" style="max-height:420px;"></div>
+      </section>
+
+      <section class="card">
+        <h2><span>4. Daily Budget Guardrail</span></h2>
+        <div class="row">
+          <label style="font-size:0.8rem;color:var(--muted);">Daily Cap (USD):</label>
+          <input id="budgetCapInput" type="number" step="0.5" value="5.0" style="width:100px;" />
+          <button onclick="updateBudget()">Save Budget</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api/v1/model-router';
+
+    function showAlert(msg, isErr = false) {
+      const box = document.getElementById('alertBox');
+      box.textContent = msg;
+      box.className = 'alert show ' + (isErr ? 'err' : 'info');
+    }
+
+    async function api(path, opts = {}) {
+      const res = await fetch(API + path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...opts,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || data?.detail || ('HTTP ' + res.status);
+        showAlert(msg, true);
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    async function routePrompt() {
+      const res = await api('/route', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: document.getElementById('promptInput').value,
+          strategy: document.getElementById('strategySelect').value,
+          task_type: document.getElementById('taskSelect').value,
+        }),
+      });
+      document.getElementById('routeOutput').textContent = JSON.stringify(res, null, 2);
+      showAlert(`Routed to ${res.selected_model_id} (cache_hit=${res.cache_hit}, failover=${res.failover_used}, cost=$${res.cost_usd})`);
+      await refreshAll();
+    }
+
+    async function runBenchmark() {
+      const res = await api('/benchmark', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: document.getElementById('promptInput').value,
+          model_ids: ['local-qwen25-coder', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+        }),
+      });
+      document.getElementById('routeOutput').textContent = JSON.stringify(res, null, 2);
+      showAlert('Benchmark completed across 3 models.');
+    }
+
+    async function clearCache() {
+      const res = await api('/cache/clear', { method: 'POST' });
+      showAlert('Cleared ' + res.cleared_entries + ' cached response(s).');
+    }
+
+    async function toggleModel(modelId, payload) {
+      await api(`/models/${modelId}`, { method: 'PATCH', body: JSON.stringify(payload) });
+      showAlert('Updated model state for ' + modelId);
+      await refreshAll();
+    }
+
+    async function updateBudget() {
+      const cap = parseFloat(document.getElementById('budgetCapInput').value);
+      await api('/budget', { method: 'PUT', body: JSON.stringify({ daily_budget_usd: cap }) });
+      showAlert('Updated daily budget cap to $' + cap.toFixed(2));
+      await refreshAll();
+    }
+
+    async function refreshAll() {
+      const [status, models, logs] = await Promise.all([api('/status'), api('/models'), api('/logs?limit=30')]);
+      document.getElementById('simBadge').textContent = status.simulated ? 'SIMULATED ADAPTER' : 'LIVE ADAPTER';
+      document.getElementById('kpiHealthy').textContent = `${status.models_healthy} / ${status.models_total}`;
+      document.getElementById('kpiReqs').textContent = status.spend.total_requests;
+      document.getElementById('kpiSpend').textContent = '$' + Number(status.spend.total_cost_usd).toFixed(5);
+      document.getElementById('kpiCacheFail').textContent = `${status.spend.cache_hits} / ${status.spend.failovers}`;
+      document.getElementById('budgetCapInput').value = status.budget_policy.daily_budget_usd;
+
+      document.getElementById('modelsList').innerHTML = models.models.map(m => `
+        <div class="item">
+          <div class="item-head">
+            <b>${m.display_name}</b>
+            <div>
+              <span class="pill ${m.privacy_tier}">${m.privacy_tier}</span>
+              <span class="pill ${m.circuit_state}">${m.circuit_state}</span>
+              ${m.simulate_outage ? '<span class="pill outage">outage</span>' : ''}
+            </div>
+          </div>
+          <div class="mono">${m.model_id} | quality=${m.quality_score} | ${m.avg_latency_ms}ms | $${m.cost_per_1k_input_usd}/1k in</div>
+          <div class="row" style="margin-top:6px;margin-bottom:0;">
+            <button class="secondary" onclick='toggleModel("${m.model_id}", {enabled: ${!m.enabled}})'>${m.enabled ? 'Disable' : 'Enable'}</button>
+            <button class="danger" onclick='toggleModel("${m.model_id}", {simulate_outage: ${!m.simulate_outage}})'>${m.simulate_outage ? 'Clear Outage' : 'Sim Outage'}</button>
+            ${m.circuit_state === 'open' ? `<button class="success" onclick='toggleModel("${m.model_id}", {reset_circuit: true, simulate_outage: false})'>Reset Circuit</button>` : ''}
+          </div>
+        </div>`).join('');
+
+      document.getElementById('logsList').innerHTML = logs.logs.length
+        ? logs.logs.map(l => `
+          <div class="item">
+            <div class="item-head"><b>${l.selected_model_id}</b><span class="pill">${l.task_type} / ${l.strategy}</span></div>
+            <div class="mono">$${l.cost_usd} | ${l.latency_ms}ms | cache=${l.cache_hit} | failover=${l.failover_used}</div>
+          </div>`).join('')
+        : '<div class="item" style="color:var(--muted)">No routing logs yet.</div>';
+    }
+
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const ws = new WebSocket(`${proto}//${location.host}${API}/ws/events`);
+      const badge = document.getElementById('wsBadge');
+      ws.onopen = () => { badge.textContent = 'WS: LIVE'; badge.className = 'badge ok'; };
+      ws.onclose = () => { badge.textContent = 'WS: RECONNECTING'; badge.className = 'badge'; setTimeout(connectWS, 4000); };
+    }
+
+    refreshAll();
+    connectWS();
+  </script>
+</body>
+</html>

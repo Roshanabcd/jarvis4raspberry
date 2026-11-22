@@ -1,0 +1,54 @@
+{
+  "live_requested": false,
+  "results": [
+    {
+      "provider": "gemini",
+      "model": "gemini-2.0-flash",
+      "enabled": true,
+      "credential_configured": false,
+      "status": "missing_key"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-4o-mini",
+      "enabled": true,
+      "credential_configured": false,
+      "status": "missing_key"
+    },
+    {
+      "provider": "anthropic",
+      "model": "claude-3-haiku-20240307",
+      "enabled": true,
+      "credential_configured": false,
+      "status": "missing_key"
+    },
+    {
+      "provider": "nvidia",
+      "model": "nvidia/nemotron-3.5-bolt-e4b",
+      "enabled": true,
+      "credential_configured": true,
+      "status": "not_tested"
+    },
+    {
+      "provider": "openrouter",
+      "model": "openrouter/free",
+      "enabled": true,
+      "credential_configured": true,
+      "status": "not_tested"
+    },
+    {
+      "provider": "groq",
+      "model": "llama-3.1-8b-instant",
+      "enabled": true,
+      "credential_configured": false,
+      "status": "missing_key"
+    },
+    {
+      "provider": "together",
+      "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      "enabled": true,
+      "credential_configured": false,
+      "status": "missing_key"
+    }
+  ]
+}

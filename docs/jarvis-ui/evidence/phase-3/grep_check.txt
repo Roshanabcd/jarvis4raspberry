@@ -1,0 +1,5 @@
+=== Grep Check for Mock Data in apps/dashboard/futuristic/ ===
+✓ No generateSimulatedReply found
+✓ No fake data found
+✓ No mock data found
+✓ No dummy data found

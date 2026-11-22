@@ -228,6 +228,42 @@ def _register_default_agents(orch: Orchestrator):
         )
     )
 
+    # 9. Hermes Agent (OpenAI Chat protocol via FreeLLMAPI)
+    orch.register(
+        Agent(
+            agent_id="hermes",
+            capabilities=(
+                Capability("code", "Autonomous reasoning and editing"),
+                Capability("hermes", "Hermes Agent CLI"),
+            ),
+            adapter=ManualHandoff("Hermes Agent v0.21.3 is installed; wired to FreeLLMAPI gateway."),
+        )
+    )
+
+    # 10. Aider AI Pair Programmer (OpenAI protocol via FreeLLMAPI)
+    orch.register(
+        Agent(
+            agent_id="aider",
+            capabilities=(
+                Capability("code", "AI terminal pair programming"),
+                Capability("aider", "Aider CLI integration"),
+            ),
+            adapter=ManualHandoff("Aider v0.86.2 is installed; wired to FreeLLMAPI gateway."),
+        )
+    )
+
+    # 11. OpenCode Agent (OpenAI protocol via FreeLLMAPI)
+    orch.register(
+        Agent(
+            agent_id="opencode",
+            capabilities=(
+                Capability("code", "Open-source coding workflow"),
+                Capability("opencode", "OpenCode CLI"),
+            ),
+            adapter=ManualHandoff("OpenCode v2.0.22 is installed; wired to FreeLLMAPI gateway."),
+        )
+    )
+
 
 # ─── Pydantic Models ────────────────────────────────────────────────────────
 
@@ -318,6 +354,7 @@ def _get_provider_summary() -> Dict[str, Any]:
     """Report real provider key availability without exposing secrets."""
     from ai.providers.credentials import resolve_key
     from config.config_manager import config
+    from tools.developer.cli_bridge import developer_cli_bridge
     cfg = getattr(config, "config", {}) or {}
 
     providers = ["openai", "anthropic", "gemini", "groq", "openrouter", "nvidia"]
@@ -332,6 +369,14 @@ def _get_provider_summary() -> Dict[str, Any]:
         "configured": True,
         "status": "ready",
         "model": cfg.get("ai", {}).get("ollama", {}).get("model", "llama3.2:1b"),
+    }
+    fl_cfg = developer_cli_bridge.get_freellmapi_config()
+    status_map["freellmapi"] = {
+        "configured": fl_cfg["configured"],
+        "status": "ready" if fl_cfg["reachable"] else ("missing_key" if not fl_cfg["configured"] else "unreachable"),
+        "gateway_url": fl_cfg["gateway_url"],
+        "model_count": fl_cfg["model_count"],
+        "model": fl_cfg["active_model"],
     }
     return status_map
 
@@ -352,14 +397,58 @@ def _all_tasks(orch: Orchestrator) -> List[Dict[str, Any]]:
 
 # ─── API Endpoints ──────────────────────────────────────────────────────────
 
+class CliExecuteRequest(BaseModel):
+    action: str = Field(default="run_cli")
+    cli: str = Field(default="auto")
+    prompt: Optional[str] = None
+    pin: str = Field(..., min_length=1)
+    timeout: Optional[int] = Field(default=180, ge=5, le=600)
+
+
+@developer_router.get("/gateway")
+def get_developer_gateway():
+    """Return FreeLLMAPI gateway status, live model count, and detected coding CLIs."""
+    from tools.developer.cli_bridge import developer_cli_bridge
+    clis = developer_cli_bridge.detect_clis()
+    return {
+        "status": "ok",
+        "freellmapi": clis.get("freellmapi", {}),
+        "clis": clis,
+    }
+
+
+@developer_router.post("/diagnostics")
+def run_developer_diagnostics():
+    """Run safe read-only developer and system diagnostics without requiring a PIN."""
+    from tools.developer.cli_bridge import developer_cli_bridge
+    diag = developer_cli_bridge.diagnose_system()
+    return {"status": "ok", "diagnostics": diag}
+
+
+@developer_router.post("/execute")
+def execute_developer_cli_action(req: CliExecuteRequest):
+    """Execute a gated developer CLI or remediation action requiring fresh administrator PIN."""
+    from tools.developer.cli_bridge import developer_cli_bridge
+    res = developer_cli_bridge.execute_remediation(
+        action=req.action,
+        pin=req.pin,
+        cli=req.cli,
+        prompt=req.prompt,
+        timeout=req.timeout or 180,
+    )
+    return res
+
+
 @developer_router.get("/status")
 def get_developer_status():
     """Return comprehensive multi-agent developer and environment status."""
+    from tools.developer.cli_bridge import developer_cli_bridge
     orch = get_orchestrator()
     git_info = _get_git_info()
     worktrees = _get_worktree_list()
     providers = _get_provider_summary()
     tasks = _all_tasks(orch)
+    clis = developer_cli_bridge.detect_clis()
 
     running_count = sum(1 for t in tasks if t.get("state") == "running")
     succeeded_count = sum(1 for t in tasks if t.get("state") in {"succeeded", "merged"})
@@ -392,6 +481,8 @@ def get_developer_status():
         "worktrees": worktrees,
         "worktree_count": len(worktrees),
         "providers": providers,
+        "freellmapi": clis.get("freellmapi", {}),
+        "clis": clis,
         "agents": {
             "registered_count": len(orch.agents),
             "agents": agents_list,
@@ -497,6 +588,24 @@ def run_developer_task(task_id: str, auto_checkpoint: bool = True):
                 orch.save_checkpoint(result_task.task_id, diff=diff, status=status, summary=f"Auto checkpoint for {result_task.task_id}")
             except Exception as chk_err:
                 logger.warning("Auto-checkpoint failed: %s", chk_err)
+        # Spoken task announcement via single-owner TTS pipeline
+        spoken_ann = None
+        try:
+            from apps.voice.task_announcer import announce_task_completion
+            ft = [
+                {"cli": h.get("agent_id") or h.get("agent"), "status": h.get("state") or h.get("status")}
+                for h in result_task.failover_history
+            ] if result_task.failover_history else []
+            spoken_ann = announce_task_completion(
+                status=result_task.state.value,
+                action_or_name=f"Developer task {task_id}",
+                output_summary=str(result_task.result) if result_task.result else None,
+                failover_trace=ft,
+                error=result_task.error,
+            )
+        except Exception as ann_err:
+            logger.warning("Spoken announcement failed for task %s: %s", task_id, ann_err)
+
         return {
             "status": "ok",
             "task_id": result_task.task_id,
@@ -509,6 +618,7 @@ def run_developer_task(task_id: str, auto_checkpoint: bool = True):
             "error": result_task.error,
             "attempts": result_task.attempts,
             "failover_history": list(result_task.failover_history),
+            "spoken_announcement": spoken_ann,
         }
     except RuntimeError as r_err:
         raise HTTPException(status_code=409, detail=str(r_err))

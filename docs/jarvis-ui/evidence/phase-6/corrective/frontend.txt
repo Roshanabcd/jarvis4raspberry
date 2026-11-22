@@ -1,0 +1,17 @@
+[JARVIS Voice] Interruption cancelled speech in 0.3ms
+[JARVIS Voice] Interruption cancelled speech in 25.8ms
+✔ microphone delegates to existing owner without browser capture (53.521726ms)
+✔ one command creates no additional synthesis or browser playback (11.523608ms)
+✔ empty replies are failures rather than invented success (48.235031ms)
+✔ interrupt while inference is pending cancels its late job (17.446541ms)
+✔ listen_once response is not submitted for inference twice (29.564497ms)
+✔ failed system delivery remains failed and never falls back to extra playback (21.978777ms)
+✔ late capture acceptance cannot undo mute (39.322818ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1363.17143

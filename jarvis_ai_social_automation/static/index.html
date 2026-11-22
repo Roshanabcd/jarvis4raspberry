@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARVIS OS — AI Social Media Automation</title>
+  <style>
+    :root {
+      --bg: #050a12;
+      --panel: #0b1320;
+      --panel-2: #0f192b;
+      --border: #173b3a;
+      --text: #e6f1ff;
+      --muted: #8ea3bd;
+      --accent: #00f5d4;
+      --emerald: #10b981;
+      --blue: #38bdf8;
+      --amber: #f59e0b;
+      --mono: "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: var(--sans); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 14px 20px;
+      background: linear-gradient(180deg, #091220 0%, #050a12 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-title { font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-size: 1.05rem; }
+    .brand-sub { font-size: 0.78rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-size: 0.74rem; padding: 4px 10px; border-radius: 999px;
+      border: 1px solid var(--border); background: var(--panel); font-weight: 600;
+    }
+    .pill.ok { border-color: var(--emerald); color: #6ee7b7; }
+    .pill.med { border-color: var(--blue); color: #7dd3fc; }
+
+    main { padding: 18px 22px; max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      background: var(--panel); color: var(--muted); border: 1px solid var(--border);
+      padding: 9px 14px; border-radius: 8px; font-weight: 600; font-size: 0.84rem; cursor: pointer;
+    }
+    .tab-btn.active { background: rgba(0, 245, 212, 0.12); color: var(--accent); border-color: var(--accent); }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+      padding: 16px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .field { flex: 1; min-width: 170px; }
+    label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 4px; }
+    input, select, textarea {
+      width: 100%; background: #060d18; color: var(--text);
+      border: 1px solid #1e324a; border-radius: 8px; padding: 9px 11px;
+      font-family: var(--sans); font-size: 0.86rem;
+    }
+    textarea { min-height: 100px; resize: vertical; }
+    .btn {
+      background: linear-gradient(90deg, #00d4b8, #10b981); color: #031214;
+      border: none; border-radius: 8px; padding: 9px 16px; font-weight: 700;
+      font-size: 0.85rem; cursor: pointer;
+    }
+    .btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); }
+    .btn:disabled { opacity: 0.55; cursor: wait; }
+    .post-card {
+      background: #07101c; border: 1px solid #182b42; border-radius: 10px;
+      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+    .kpi { background: #071322; border: 1px solid var(--border); border-radius: 10px; padding: 12px; text-align: center; }
+    .kpi-val { font-size: 1.45rem; font-weight: 800; color: var(--accent); }
+    .kpi-lbl { font-size: 0.74rem; color: var(--muted); margin-top: 3px; }
+    .hidden { display: none !important; }
+    .small-muted { font-size: 0.78rem; color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #182a40; text-align: left; }
+    th { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand-title">JARVIS OS — AI SOCIAL MEDIA AUTOMATION</div>
+      <div class="brand-sub">Business &amp; Support • Multi-Platform Planner, Scheduler &amp; Engagement Analytics</div>
+    </div>
+    <div class="pills">
+      <span class="pill ok" id="health-pill">Backend: Checking...</span>
+      <span class="pill med" id="provider-pill">AI: ...</span>
+      <span class="pill med" id="pub-pill">Publish: ...</span>
+      <span class="pill ok">AVAILABLE</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('planner', this)">Multi-Platform Planner</button>
+      <button class="tab-btn" onclick="switchTab('queue', this)">Scheduled Queue &amp; Publisher</button>
+      <button class="tab-btn" onclick="switchTab('analytics', this)">Engagement Analytics</button>
+    </div>
+
+    <!-- TAB 1: PLANNER -->
+    <section id="tab-planner" class="card">
+      <strong style="color:var(--accent);">Generate Automated Multi-Platform Campaign</strong>
+      <div class="row">
+        <div class="field">
+          <label>Campaign Name</label>
+          <input id="p-name" value="JARVIS OS Launch Week" />
+        </div>
+        <div class="field" style="flex:2;">
+          <label>Core Topic</label>
+          <input id="p-topic" placeholder="e.g., Building Autonomous AI Modules on Raspberry Pi 5" />
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>Platforms (comma-separated)</label>
+          <input id="p-plats" value="LinkedIn, X, Instagram, YouTube" />
+        </div>
+        <div class="field">
+          <label>Duration (Days)</label>
+          <input id="p-days" type="number" value="3" min="1" max="14" />
+        </div>
+        <div class="field" style="flex:2;">
+          <label>Call to Action</label>
+          <input id="p-cta" value="Follow for the next JARVIS OS module release" />
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn" onclick="runPlan(this)">Generate &amp; Schedule Campaign</button>
+        <span class="small-muted" id="p-status"></span>
+      </div>
+    </section>
+
+    <!-- TAB 2: QUEUE -->
+    <section id="tab-queue" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Scheduled &amp; Published Queue</strong>
+        <div class="row">
+          <button class="btn secondary" onclick="loadQueue()">Refresh</button>
+          <button class="btn secondary" onclick="runDue(true)">Run Due (Dry-Run)</button>
+          <button class="btn" onclick="runDue(false)">Publish Due Posts</button>
+        </div>
+      </div>
+      <div id="queue-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </section>
+
+    <!-- TAB 3: ANALYTICS -->
+    <section id="tab-analytics" class="card hidden">
+      <div class="row" style="justify-content:space-between;">
+        <strong style="color:var(--accent);">Engagement Analytics Dashboard</strong>
+        <button class="btn secondary" onclick="loadAnalytics()">Refresh Metrics</button>
+      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <table>
+        <thead>
+          <tr><th>Platform</th><th>Posts</th><th>Published</th><th>Impressions</th><th>Engagements</th><th>ER %</th><th>CTR %</th></tr>
+        </thead>
+        <tbody id="plat-tbody"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script>
+    const API = "/api/social-automation";
+
+    function switchTab(name, btn) {
+      ["planner", "queue", "analytics"].forEach(t => document.getElementById("tab-" + t).classList.add("hidden"));
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.getElementById("tab-" + name).classList.remove("hidden");
+      btn.classList.add("active");
+      if (name === "queue") loadQueue();
+      if (name === "analytics") loadAnalytics();
+    }
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(API + path, {
+        headers: { "Content-Type": "application/json" },
+        ...options
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Request failed");
+      return data;
+    }
+
+    async function loadHealth() {
+      try {
+        const h = await apiFetch("/health");
+        document.getElementById("health-pill").textContent = "Backend OK";
+        document.getElementById("provider-pill").textContent = "AI: " + h.provider;
+        document.getElementById("pub-pill").textContent = "Publish: " + h.publish_mode;
+      } catch {
+        document.getElementById("health-pill").textContent = "Backend Error";
+      }
+    }
+
+    async function runPlan(btn) {
+      btn.disabled = true;
+      try {
+        const plats = document.getElementById("p-plats").value.split(",").map(s => s.trim()).filter(Boolean);
+        const data = await apiFetch("/plan", {
+          method: "POST",
+          body: JSON.stringify({
+            campaign_name: document.getElementById("p-name").value,
+            topic: document.getElementById("p-topic").value,
+            platforms: plats.length ? plats : ["LinkedIn", "X"],
+            days: Number(document.getElementById("p-days").value),
+            call_to_action: document.getElementById("p-cta").value
+          })
+        });
+        document.getElementById("p-status").textContent =
+          `Scheduled ${data.posts_created} posts via ${data.provider_used}. Switch to Queue tab to review or publish.`;
+        loadHealth();
+      } catch (err) { alert(err.message); } finally { btn.disabled = false; }
+    }
+
+    async function loadQueue() {
+      const el = document.getElementById("queue-list");
+      try {
+        const data = await apiFetch("/posts");
+        if (!data.posts.length) {
+          el.innerHTML = "<div class='small-muted'>No posts scheduled yet. Create a campaign in the Planner tab.</div>";
+          return;
+        }
+        el.innerHTML = data.posts.map(p => `
+          <div class="post-card">
+            <div class="row" style="justify-content:space-between;">
+              <div><strong style="color:var(--accent);">#${p.id} [${p.platform}]</strong> ${p.title}</div>
+              <span class="pill ${p.status === 'published' ? 'ok' : 'med'}">${p.status.toUpperCase()}</span>
+            </div>
+            <div style="white-space:pre-wrap;font-size:0.85rem;">${p.copy_text}</div>
+            <div class="small-muted">Scheduled (UTC): ${p.scheduled_for} • ${p.character_count} chars • Impressions: ${p.impressions}, Likes: ${p.likes}</div>
+            <div class="row">
+              <button class="btn secondary" onclick="publishOne(${p.id}, true)">Dry-Run</button>
+              <button class="btn" onclick="publishOne(${p.id}, false)">Publish / Export</button>
+              <button class="btn secondary" onclick="promptMetrics(${p.id})">Log Metrics</button>
+            </div>
+          </div>
+        `).join("");
+      } catch (err) { el.innerHTML = `<div class='small-muted'>${err.message}</div>`; }
+    }
+
+    async function publishOne(id, dryRun) {
+      try {
+        const res = await apiFetch(`/posts/${id}/publish`, {
+          method: "POST",
+          body: JSON.stringify({ dry_run: dryRun })
+        });
+        alert(res.message);
+        loadQueue();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function runDue(dryRun) {
+      try {
+        const res = await apiFetch(`/scheduler/run-due?dry_run=${dryRun}`, { method: "POST" });
+        alert(`Checked ${res.due_count} due post(s) (dry_run=${res.dry_run}).`);
+        loadQueue();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function promptMetrics(id) {
+      const imp = Number(prompt("Impressions:", "1200") || "0");
+      const likes = Number(prompt("Likes:", "85") || "0");
+      const comments = Number(prompt("Comments:", "14") || "0");
+      const shares = Number(prompt("Shares:", "9") || "0");
+      const clicks = Number(prompt("Clicks:", "42") || "0");
+      try {
+        await apiFetch(`/posts/${id}/metrics`, {
+          method: "POST",
+          body: JSON.stringify({ impressions: imp, likes, comments, shares, clicks })
+        });
+        loadQueue();
+      } catch (err) { alert(err.message); }
+    }
+
+    async function loadAnalytics() {
+      try {
+        const a = await apiFetch("/analytics");
+        document.getElementById("kpi-grid").innerHTML = `
+          <div class="kpi"><div class="kpi-val">${a.total_posts}</div><div class="kpi-lbl">Total Posts</div></div>
+          <div class="kpi"><div class="kpi-val">${a.published_count}</div><div class="kpi-lbl">Published</div></div>
+          <div class="kpi"><div class="kpi-val">${a.total_impressions}</div><div class="kpi-lbl">Impressions</div></div>
+          <div class="kpi"><div class="kpi-val">${a.overall_engagement_rate_pct}%</div><div class="kpi-lbl">Engagement Rate</div></div>
+          <div class="kpi"><div class="kpi-val">${a.overall_ctr_pct}%</div><div class="kpi-lbl">CTR</div></div>
+        `;
+        document.getElementById("plat-tbody").innerHTML = a.by_platform.map(p => `
+          <tr>
+            <td>${p.platform}</td><td>${p.posts_count}</td><td>${p.published_count}</td>
+            <td>${p.impressions}</td><td>${p.engagements}</td><td>${p.engagement_rate_pct}%</td><td>${p.ctr_pct}%</td>
+          </tr>
+        `).join("") || "<tr><td colspan='7' class='small-muted'>No platform data yet.</td></tr>";
+      } catch (err) { alert(err.message); }
+    }
+
+    loadHealth();
+  </script>
+</body>
+</html>

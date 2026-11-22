@@ -1,0 +1,20 @@
+{
+  "fixture": "MOCK API; no service actions",
+  "source_sha256": "a922a2c1edc338a7cdf7fc54d9f76792fc10653da7997a0543cb8949a0a1f07e",
+  "results": [
+    {
+      "width": 1440,
+      "height": 900,
+      "persistent_denial": true,
+      "focus_restored": true,
+      "dialogs": 0
+    },
+    {
+      "width": 1280,
+      "height": 720,
+      "persistent_denial": true,
+      "focus_restored": true,
+      "dialogs": 0
+    }
+  ]
+}
