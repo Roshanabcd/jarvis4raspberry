@@ -68,8 +68,7 @@ INTENTS = [
     (r"\b(what.*(temp|hot|cold|warm)|how warm|how cold)\b", "read_sensors", None),
 
     # Camera
-    (r"\b(camera|capture|photo|picture|image|take a (photo|picture)|what (do you see|can you see))\b", "camera_capture", None),
-    (r"\b(look|see|observe|describe (what|the|around))\b", "camera_capture", None),
+    (r"\b(?:take\s+(?:a\s+)?(?:photo|picture|snapshot)|snap\s+(?:a\s+)?photo|capture\s+(?:a\s+)?(?:photo|picture|image)|camera\s+capture|camera\s+snapshot)\b", "camera_capture", None),
 
     # Memory
     (r"\b(remember|store|save|note|record)\s+(.+)", "memory_store", None),
@@ -500,6 +499,33 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:capture\s+(?:my\s+)?photo|take\s+a\s+(?:photo|picture)|take\s+(?:a\s+)?picture|capture\s+(?:a\s+)?(?:frame|image)|camera\s+capture)\b', text_lower):
             return "camera_capture", {"text": text}
 
+        # Audio Diagnostics & Sound Troubleshooting Intent
+        # Disambiguates queries like "can you able to see why sound is not listening that you played video right now",
+        # "why is sound not working", "why is audio not playing", "no sound from video", "diagnose audio", "sound troubleshooting"
+        if re.search(
+            r'\b(?:why\s+(?:is\s+)?(?:the\s+)?(?:sound|audio|video\s+sound|playback)\s+(?:is\s+)?(?:not\s+|blocked|failing|silent|muted|missing)|'
+            r'(?:why\s+)?sound\s+is\s+not\s+(?:listening|playing|working|audible)|'
+            r'why\s+can[\'’]?t\s+i\s+hear|can[\'’]?t\s+hear\s+(?:anything|sound|audio|the\s+video)|'
+            r'no\s+(?:sound|audio)\s+(?:from\s+(?:the\s+)?(?:video|youtube|speaker)|playing)?|'
+            r'(?:diagnose|troubleshoot|check|inspect)\s+(?:the\s+)?(?:audio|sound|speaker|playback|pipewire))\b',
+            text_lower
+        ) or re.search(r'\b(?:sound|audio)\s+(?:is\s+)?(?:broken|down|not\s+working|failing)\b', text_lower):
+            return "audio_diagnostics", {"text": text}
+
+        # Developer CLI Escalation Bridge ("escalate to developer cli", "diagnose with agy", "developer diagnosis", "run developer fix")
+        if re.search(
+            r'\b(?:escalate\s+(?:to\s+)?(?:developer|cli|agy|claude)|'
+            r'(?:developer|cli|system)\s+diagnos(?:is|e)|'
+            r'diagnose\s+with\s+(?:agy|antigravity|claude)|'
+            r'(?:propose|run)\s+(?:developer\s+)?fix)\b',
+            text_lower
+        ):
+            action = "diagnose"
+            if "fix" in text_lower or "repair" in text_lower or "run" in text_lower:
+                action = "propose_or_run_fix"
+            cli_target = "agy" if ("agy" in text_lower or "antigravity" in text_lower) else ("claude" if "claude" in text_lower else "auto")
+            return "developer_escalation", {"action": action, "cli": cli_target, "text": text}
+
         # Phase 8: Apps Center Intent Routing
         if re.search(r'\b(?:open\s+(?:my\s+)?apps|show\s+(?:all\s+)?applications|list\s+applications|apps\s+center|what\s+ai\s+apps|what\s+applications\s+are\s+available|show\s+apps)\b', text_lower):
             return "apps_list", {"text": text}
@@ -727,6 +753,12 @@ class LocalIntelligenceEngine:
 
             elif intent == "youtube_volume":
                 return self._respond_youtube_volume(ctx)
+
+            elif intent == "audio_diagnostics":
+                return self._respond_audio_diagnostics(ctx)
+
+            elif intent == "developer_escalation":
+                return self._respond_developer_escalation(ctx)
 
             # Phase 11 YouTube AI Dispatches
             elif intent == "youtube_summarize_command":
@@ -1747,15 +1779,34 @@ if __name__ == "__main__":
         autoplay = ctx.get("autoplay", True)
         res = youtube_controller.select_and_play(index=idx, title_query=title_q, autoplay=autoplay, browser="chrome")
         if res.get("status") == "ok":
-            action_desc = "Now playing" if autoplay else "Opened in Google Chrome (paused)"
+            state = res.get("state")
+            if state == "PLAYING_VERIFIED":
+                action_desc = "Now playing"
+                verified_note = "(Audio stream verified active in PipeWire on DISPLAY=:0)"
+                status_icon = "▶️"
+            elif state == "PLAYBACK_BLOCKED":
+                action_desc = "Opened in Google Chrome (Playback Blocked)"
+                verified_note = "(Audio blocked by browser autoplay policy on DISPLAY=:0)"
+                status_icon = "⚠️"
+            elif state == "OPENED_PAUSED":
+                action_desc = "Opened in Google Chrome (paused)"
+                verified_note = "(Playback paused per instruction on DISPLAY=:0)"
+                status_icon = "⏸️"
+            else:
+                action_desc = "Opened in Google Chrome"
+                verified_note = f"({state} on DISPLAY=:0)"
+                status_icon = "ℹ️"
+
             resp = (
-                f"▶️ **{action_desc} option #{res['rank']} on YouTube in Google Chrome:**\n"
+                f"{status_icon} **{action_desc} option #{res['rank']} on YouTube in Google Chrome:**\n\n"
                 f"- **Title:** {res['title']}\n"
                 f"- **Channel:** {res['channel']}\n"
                 f"- **Duration:** {res.get('duration', 'Unknown')}\n"
                 f"- **URL:** `{res['url']}`\n"
-                f"- **Verified State:** `{res.get('state')}` (Audio active on DISPLAY=:0)"
+                f"- **Verified State:** `{state}` {verified_note}"
             )
+            if state == "PLAYBACK_BLOCKED":
+                resp += "\n\n💡 *Tip: Click inside the YouTube Chrome window on DISPLAY=:0 or press Space/K to resume playback.*"
         else:
             resp = f"⚠️ {res.get('message', 'Could not play requested YouTube video.')}"
         return {
@@ -1831,6 +1882,111 @@ if __name__ == "__main__":
             "response": f"🔊 YouTube video volume set to **{vol}%** (PipeWire stream adjusted).",
             "tools_used": ["youtube_volume"],
             "raw": res,
+        }
+
+    def _respond_audio_diagnostics(self, ctx: Dict) -> Dict:
+        from tools.media.audio_stream_manager import audio_stream_manager
+        from tools.browser.youtube_controller import youtube_controller
+        from tools.browser.browser_agent import browser_agent
+
+        tools_used = ["audio_diagnostics", "audio_stream_manager.get_master_sink_volume", "audio_stream_manager.list_active_streams"]
+
+        # 1. PipeWire master sink volume and mute status
+        sink_vol = audio_stream_manager.get_master_sink_volume()
+        master_vol = sink_vol.get("volume_pct", 100)
+        master_muted = sink_vol.get("muted", False)
+
+        # 2. Active audio streams
+        streams = audio_stream_manager.list_active_streams()
+        playback_streams = [s for s in streams if s.get("direction") == "playback" and s.get("active")]
+        chrome_stream = any(
+            ("chrome" in str(s.get("name", "")).lower() or "chromium" in str(s.get("name", "")).lower())
+            for s in playback_streams
+        )
+
+        # 3. Browser & YouTube Session Inspection
+        chrome_windows = browser_agent.find_browser_windows("chrome")
+        session = youtube_controller.get_current_session()
+        video_title = None
+        video_channel = None
+        session_state = None
+        if session and session.selected_video:
+            video_title = session.selected_video.title
+            video_channel = session.selected_video.channel
+            session_state = session.state
+
+        # 4. Synthesize diagnosis findings
+        findings = []
+        if master_muted:
+            findings.append("⚠️ **Master Sink is MUTED**: Audio output is muted at the PipeWire hardware level.")
+        elif master_vol < 20:
+            findings.append(f"⚠️ **Master Sink Volume is LOW**: Currently set to {master_vol}%.")
+        else:
+            findings.append(f"✅ **Master Sink**: Active and unmuted (Volume: {master_vol}% on default sink).")
+
+        if chrome_windows:
+            win_title = chrome_windows[0].get("title", "Google Chrome")
+            if chrome_stream:
+                findings.append(f"✅ **Chrome Audio Stream**: Detected and streaming audio in PipeWire (`{win_title}`).")
+            else:
+                findings.append(
+                    f"⚠️ **Chrome Window Open but Silent**: Window `{win_title}` is present on `DISPLAY=:0`, "
+                    f"but Chrome's audio stream is NOT active. Chrome's autoplay security policy often suppresses audio "
+                    f"until the user clicks inside the page or presses Space/K."
+                )
+        else:
+            findings.append("ℹ️ **Browser Window**: No Google Chrome window currently active on `DISPLAY=:0`.")
+
+        if session_state:
+            findings.append(f"ℹ️ **Last YouTube Action**: Video '{video_title}' by {video_channel} (State: `{session_state}`).")
+
+        # 5. Build markdown response
+        lines = [
+            "### 🔊 Audio & Playback Diagnostics",
+            "",
+            "\n".join(findings),
+            "",
+            "#### Remediation Steps:",
+            "1. **Unmute / Resume in Chrome**: Click inside the YouTube Chrome window on `DISPLAY=:0`, or say *'press space'* / *'press k'*.",
+            "2. **Check Volume**: Say *'set volume to 80%'* or *'set chrome volume to 100%'*.",
+            "3. **Developer Escalation**: Say *'escalate to developer cli'* or *'diagnose with agy'* to inspect backend logs and service health.",
+        ]
+
+        return {
+            "response": "\n".join(lines),
+            "tools_used": tools_used,
+            "raw": {
+                "master_volume": master_vol,
+                "master_muted": master_muted,
+                "active_streams": [s.get("name") for s in playback_streams],
+                "chrome_window_open": len(chrome_windows) > 0,
+                "chrome_stream_detected": chrome_stream,
+                "session_state": session_state,
+            },
+        }
+
+    def _respond_developer_escalation(self, ctx: Dict) -> Dict:
+        from tools.developer.cli_bridge import developer_cli_bridge
+
+        action = ctx.get("action", "diagnose")
+        cli = ctx.get("cli", "auto")
+
+        if action == "propose_or_run_fix":
+            return {
+                "response": (
+                    "🔒 **Gated Developer Action Required:**\n\n"
+                    "Applying fixes or mutating system services requires administrator authorization.\n"
+                    "Please provide your admin PIN to confirm (e.g., via the Account Center or privileged action prompt)."
+                ),
+                "tools_used": ["developer_cli_bridge.verify_authorization"],
+                "raw": {"status": "gated_action", "cli": cli},
+            }
+
+        diag = developer_cli_bridge.diagnose_system()
+        return {
+            "response": diag.get("markdown_report", "### 🛠️ Developer CLI Auto-Inspection Completed."),
+            "tools_used": ["developer_cli_bridge.diagnose_system", "developer_cli_bridge.detect_clis"],
+            "raw": diag,
         }
 
     def _respond_open_youtube_ai(self, ctx: Dict) -> Dict:

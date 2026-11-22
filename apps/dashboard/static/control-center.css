@@ -174,7 +174,7 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 .cc-hero[data-state=thinking] .cc-avatar { animation:cc-glow 1.7s ease-in-out infinite alternate; }
 .cc-mic { border:1px solid #53faff; border-radius:50%; width:56px; height:56px; color:#8dfaff; background:radial-gradient(#0b5065,#031725); box-shadow:0 0 24px #00daff55; cursor:pointer; font-size:1.5rem; margin:8px auto 10px; position:relative; }
 .cc-state { color:#b1faff; font-size:.9rem; letter-spacing:.06em; }
-.cc-caption { background:linear-gradient(180deg,#14324b,#071523); border:1px solid #4a738e; border-radius:12px; margin:14px 0; padding:13px; line-height:1.5; min-height:64px; max-height:120px; overflow:auto; font-size:.9rem; }
+.cc-caption { background:linear-gradient(180deg,#14324b,#071523); border:1px solid #4a738e; border-radius:12px; margin:14px 0; padding:13px; line-height:1.5; min-height:64px; max-height:120px; overflow:auto; font-size:.9rem; white-space:pre-wrap; }
 .cc-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center; }
 .cc-controls select { max-width:100%; font-size:.8rem; min-width:0; }
 .cc-controls label { color:#91b5c8; font-size:.75rem; margin:0; }

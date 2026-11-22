@@ -250,7 +250,8 @@
       if (area) {
         area.replaceChildren();
         for (const message of messages) {
-          const body = message.querySelector('.msg-content')?.textContent || '';
+          const contentEl = message.querySelector('.msg-content');
+          const body = contentEl ? (contentEl.innerText || contentEl.textContent || '') : '';
           const assistant = message.classList.contains('jarvis');
           const row = doc.createElement('p');
           row.dataset.role = assistant ? 'assistant' : 'user';

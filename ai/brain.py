@@ -555,7 +555,8 @@ class JARVISBrain:
             "screen_check_errors", "screen_explain_error", "agent_repair_error", "agent_explain_changes",
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
-            "apps_list", "apps_open", "apps_status", "apps_categories"
+            "apps_list", "apps_open", "apps_status", "apps_categories",
+            "audio_diagnostics", "developer_escalation"
         }
 
         if use_tools and intent in FAST_PATH_INTENTS:
@@ -902,7 +903,8 @@ class JARVISBrain:
             "screen_check_errors", "screen_explain_error", "agent_repair_error", "agent_explain_changes",
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
-            "apps_list", "apps_open", "apps_status", "apps_categories"
+            "apps_list", "apps_open", "apps_status", "apps_categories",
+            "audio_diagnostics", "developer_escalation"
         }
 
         if use_tools and intent in FAST_PATH_INTENTS:
