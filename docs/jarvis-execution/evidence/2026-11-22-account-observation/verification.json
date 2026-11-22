@@ -1,0 +1,35 @@
+{
+  "source_revision": "ccba75fce68036a9892870e8b7fdf69d267a71d0",
+  "dirty_worktree": true,
+  "classification": "offline fixtures, mocked native adapters; one temporary Chromium with intercepted requests",
+  "command": "venv/bin/python -m pytest -q tests/unit/test_youtube_account_observation.py tests/unit/test_account_action_truthfulness.py tests/unit/test_capability_router.py tests/unit/test_computer_use_agent.py::TestUnifiedComputerService::test_browser_ui_action_switch_youtube_account_progress",
+  "result": "76 passed in 5.90s",
+  "baseline": "42 passed in 2.33s",
+  "source_sha256": {
+    "tools/desktop/youtube_account_observation.py": "c62bbb1e0291eeafaef80d1eda950e141b12ee5de76e29554de6595d5ff2413e",
+    "tools/desktop/browser_backend.py": "a7351dd757642db3e1ec6f3591b122d0e2df7e686d30d82e3abc1944f8e6a6c8",
+    "tools/desktop/unified_computer_service.py": "4866cdeef262888832316ab16ad6e1ecc39ad41430cc066db10408390a745d6e",
+    "ai/capabilities/registry.py": "81c9d3155b8d76bfbb2d18d3ee5d200c6df4e8c05e20d46481cc36f47e99fee0",
+    "ai/capabilities/router.py": "0ef5500175d0615bf226ee65b761bcb9a05b8a42f64ca076ee8da890f16cf0b4",
+    "tests/unit/test_youtube_account_observation.py": "3e82210584b6d8df6a059b90508fe02df638be3604ea99e9ab24c142b04eafdf"
+  },
+  "coverage": [
+    "supported HTTPS origin restriction",
+    "narrow visible YouTube account-item extraction",
+    "duplicate labels retained and clarified",
+    "exact label matching only",
+    "read-only list/resolve actions",
+    "chat/voice router and dispatcher",
+    "no managed browser automatically launched",
+    "no native input sent by observation actions"
+  ],
+  "limitations": [
+    "No personal or live YouTube session accessed",
+    "Supported DOM markup verified only against offline fixture; actual current website compatibility unverified",
+    "Managed-browser scope only; not necessarily desktop Chrome",
+    "No selected-account identity verification or account switch",
+    "Legacy native switch path still needs observation-based targeting",
+    "No deployment or auth changes"
+  ],
+  "diff_check": "passed"
+}

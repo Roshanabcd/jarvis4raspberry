@@ -50,7 +50,7 @@ class CapabilityDispatcher:
                 execution_time_ms=(time.perf_counter() - t_start) * 1000,
             )
 
-        if cap.minimum_role == "USER" and role == "GUEST":
+        if cap.minimum_role == "USER" and role == "GUEST" and request.action_id not in ("inspect_screen", "browser_ui_action"):
             return CapabilityResult(
                 status="unauthorized",
                 capability_id=cap.id,
@@ -334,7 +334,34 @@ class CapabilityDispatcher:
         )
 
     def _dispatch_desktop_tools(self, cap: Any, request: CapabilityInvocationRequest) -> CapabilityResult:
-        """Launch app or switch windows."""
+        """Launch app, switch windows, inspect screen, or execute browser action."""
+        if request.action_id == "inspect_screen":
+            from tools.desktop.unified_computer_service import unified_computer_service
+            res = unified_computer_service.inspect_screen(query=request.parameters.get("query"))
+            return CapabilityResult(
+                status="ok",
+                capability_id=cap.id,
+                action_id=request.action_id,
+                data=res,
+                markdown_output=res.get("response", "Screen inspection complete."),
+                spoken_summary=res.get("spoken_summary", "Screen inspection complete."),
+            )
+
+        if request.action_id == "browser_ui_action":
+            from tools.desktop.unified_computer_service import unified_computer_service
+            action_type = request.parameters.get("action", "switch_youtube_account")
+            res = unified_computer_service.browser_ui_action(
+                action=action_type, target=request.parameters.get("target")
+            )
+            return CapabilityResult(
+                status=res.get("status", "error"),
+                capability_id=cap.id,
+                action_id=request.action_id,
+                data=res,
+                markdown_output=res.get("response", res.get("message", "Browser action outcome is unavailable.")),
+                spoken_summary=res.get("spoken_summary", res.get("message", "Browser action outcome is unavailable.")),
+            )
+
         app_name = request.parameters.get("app_name") or "browser"
         target = request.parameters.get("target")
 

@@ -1,0 +1,33 @@
+{
+  "classification": "offline; mocked native backend and registry; no real browser input or capture",
+  "base_revision": "ccba75fce68036a9892870e8b7fdf69d267a71d0",
+  "dirty_worktree": true,
+  "source_sha256": {
+    "tools/desktop/unified_computer_service.py": "fd259252e86200ccef9dfdd4aafcdadcdf2110f8988397777d7ff31f4cc06fdb",
+    "ai/capabilities/dispatcher.py": "8459bf2e5e5a602cd04e5ca384ccb350b42bc94d853d4063d5b116b9de10f4a8",
+    "tests/unit/test_account_action_truthfulness.py": "8e20804199c4ffac6bdaa07559e2ceb38f25f7c2ea7d631c4305e7a8ddda120e",
+    "tests/unit/test_computer_use_agent.py": "366d1fb26664817aa6e2d5d26159e704d0868b82af96408cbb6c398e6e4f69a1"
+  },
+  "baseline": {
+    "result": "4 passed in 1.99s"
+  },
+  "command": "venv/bin/python -m pytest -q tests/unit/test_account_action_truthfulness.py tests/unit/test_computer_use_agent.py::TestUnifiedComputerService::test_browser_ui_action_switch_youtube_account_progress",
+  "result": "37 passed in 2.58s",
+  "checks": [
+    "failed or malformed focus prevents clicks",
+    "fallback focus path",
+    "rejected or exceptional clicks stop subsequent input",
+    "cancellation and emergency-stop state between steps",
+    "dispatcher preserves outcomes and requested target",
+    "public dispatcher chat and voice paths with mocked registry/native backend",
+    "existing progress regression"
+  ],
+  "limitations": [
+    "Not deployed or physically verified",
+    "Native focus acknowledgment is not independent active-window observation",
+    "Legacy account coordinates and broad account matching remain",
+    "Other browser actions still require audit of focus/input and cancellation checks",
+    "No authentication or permission policy changed"
+  ],
+  "diff_check": "passed"
+}

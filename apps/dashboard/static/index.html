@@ -1103,7 +1103,7 @@
           <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Sensors')">🌡️ Sensors</button>
           <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Robot')">🤖 Robot</button>
         </div>
-        <div class="cc-controls"><button class="btn dark" id="cc-share-screen-btn" onclick="toggleScreenMonitoring()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
+        <div class="cc-controls"><button class="btn dark" id="cc-share-screen-btn" onclick="toggleScreenMonitoring()">Share screen</button><span id="screen-monitor-badge" class="badge live" style="display:none;font-size:0.75rem;align-self:center;margin-left:4px">Monitoring ON</span><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
         <details class="cc-voice-settings"><summary>Voice &amp; conversation preferences</summary>
           <div class="cc-controls"><label for="cc-character-select">Character</label><select id="cc-character-select"><option value="aria">ARIA (Female Assistant)</option><option value="atlas">ATLAS (Male Assistant)</option><option value="classic">Classic Mode</option></select></div>
           <div class="cc-controls"><label for="cc-ai-model">AI model</label><select id="cc-ai-model" aria-label="Home AI model"><option value="">Loading configured models…</option></select></div>
@@ -4928,7 +4928,7 @@ async function sendChat() {
             updateStatus('loading', 'Working…');
           } else if (event.type === 'progress') {
             const stages = {intent_classification:'Understanding your request…', model_inferring:'Waiting for the selected AI model…', tool_executing:'Running the requested tools…', tool_observed:'Checking tool results…', compound_planning:'Preparing the task steps…', waiting:'Still working; no result yet.'};
-            progress.textContent = stages[event.stage] || 'Working on your request…';
+            progress.textContent = event.detail || stages[event.stage] || 'Working on your request…';
             if (Number.isFinite(event.elapsed_ms)) progress.textContent += ` ${Math.round(event.elapsed_ms / 1000)}s elapsed.`;
             updateStatus('loading', progress.textContent);
           } else if (event.type === 'token') {
@@ -10687,11 +10687,16 @@ async function toggleScreenMonitoring() {
   const btn = document.getElementById('cc-share-screen-btn');
   const preview = document.getElementById('active-desktop-snapshot-preview');
   const drawer = document.getElementById('active-desktop-drawer');
+  const badge = document.getElementById('screen-monitor-badge');
 
   if (screenMonitorTimer) {
     clearInterval(screenMonitorTimer);
     screenMonitorTimer = null;
     if (btn) btn.textContent = 'Share screen';
+    if (badge) {
+      badge.style.display = 'none';
+      badge.textContent = 'Monitoring OFF';
+    }
     if (preview) preview.hidden = true;
     const heroCaption = document.getElementById('cc-caption');
     if (heroCaption) heroCaption.textContent = 'Screen monitoring stopped.';
@@ -10699,7 +10704,12 @@ async function toggleScreenMonitoring() {
   }
 
   if (drawer) drawer.open = true;
-  if (btn) btn.textContent = 'Stop screen';
+  if (btn) btn.textContent = 'Stop sharing';
+  if (badge) {
+    badge.style.display = 'inline-block';
+    badge.className = 'badge live';
+    badge.textContent = 'Monitoring ON';
+  }
   showTab('chat');
 
   async function fetchScreen() {

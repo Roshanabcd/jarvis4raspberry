@@ -1,0 +1,22 @@
+{
+  "legacy-PLAN.md": {
+    "source": "PLAN.md",
+    "sha256": "a1902765bc9eb43c3064c623762761bb27726b015e39909f8fcf11daf805f5d7"
+  },
+  "incoming-PLAN2.md": {
+    "source": "PLAN2.md",
+    "sha256": "ac68a6361840e43ed0e5916a632c209d2b4d9fa778dd9988eaa6761b72ebf87a"
+  },
+  "incoming-FEATURES2.json": {
+    "source": "JARVIS_PLAN_FEATURES2.json",
+    "sha256": "fd49c6bf75c8fc7a1f156359c8eaef6edc6eff16675df67ea24ee1bb968691c6"
+  },
+  "incoming-PROMPT2.md": {
+    "source": "NEXT_AGENT_PROMPT2.md",
+    "sha256": "d5ecb6456a1c64d8754ac80e2d4523ae4e5c5e3bde8583688931c0624fb62ecf"
+  },
+  "documents-PLAN.md": {
+    "source": "/home/roshan/Documents/Codex/2026-11-22/referenced-chatgpt-conversation-this-is-an-2/outputs/PLAN.md",
+    "sha256": "d625112b0516bedd8742dd1f974ee76a34b4933018fd296d5f7109540355b5bd"
+  }
+}

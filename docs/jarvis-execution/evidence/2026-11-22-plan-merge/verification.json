@@ -1,0 +1,22 @@
+{
+  "source_revision": "ccba75fce68036a9892870e8b7fdf69d267a71d0",
+  "dirty_worktree": true,
+  "classification": "offline fixtures; no live input, provider calls or stored-data changes",
+  "source_sha256": {
+    "scripts/plan_tracker.py": "fd621f4a977872f84336c62cc55cd2d0ca76c816837befd55799e32bf95d3ab8",
+    "tests/unit/test_plan_tracker.py": "1e6f1c3b336f26cb34d47364f562f0ad6986040638147bbe6cb801e285837bbf",
+    "tools/desktop/unified_computer_service.py": "50d9cf02b1db3f63eaaf37cc96772362c68f17e898b5ac1b609460306d83bd24",
+    "tests/unit/test_account_action_truthfulness.py": "1b9c0cb772c27b011e798f51274f52fcc2733504a1c1490e792884015a5ce3b4",
+    "tests/unit/test_computer_use_agent.py": "ed0dcf425b7fec4d3d90dd6acbe8565b3343c522cbbe9307f11ede1560316ed4"
+  },
+  "command": "venv/bin/python -m pytest -q tests/unit/test_plan_tracker.py tests/unit/test_account_action_truthfulness.py tests/unit/test_computer_use_agent.py::TestUnifiedComputerService::test_browser_ui_action_switch_youtube_account_progress",
+  "result": "51 passed in 2.37s",
+  "plan_validation": "2440 unique primary/supplemental IDs; 1420 JRV, 1020 JF; 180 preserved legacy records; main/mirror pairs equal",
+  "limitations": [
+    "No live voice or browser acceptance",
+    "Account target clarification implemented; duplicate observed labels and actual identity verification remain open",
+    "Tracker is local coding-agent tooling, not yet a JARVIS voice capability",
+    "Memory database left untouched; source Documents plan retained as input reference"
+  ],
+  "import_manifest": "docs/jarvis-execution/imports/2026-11-22/manifest.json"
+}

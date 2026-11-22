@@ -342,7 +342,7 @@ class JARVISBrain:
 
     def stream_chat(
         self,
-        user_message: str,
+        user_message: str = "",
         session_id: Optional[str] = None,
         role: Optional[str] = None,
         user_id: Optional[str] = None,
@@ -352,6 +352,7 @@ class JARVISBrain:
         allow_fallback: bool = False,
         max_provider_retries: int = 1,
         thinking_mode: bool = False,
+        message: Optional[str] = None,
         **kwargs: Any,
     ):
         """
@@ -360,6 +361,7 @@ class JARVISBrain:
         Agent mode emits a start event then the verified final response; use_tools=False
         preserves direct token streaming without executing actions.
         """
+        user_message = user_message or message or kwargs.get("message", "")
         if use_tools:
             started = time.monotonic()
             request_id = f"req_{uuid.uuid4().hex[:12]}"
@@ -835,7 +837,7 @@ class JARVISBrain:
             if stream is not None and hasattr(stream, 'close'):
                 stream.close()
 
-    def chat(self, user_message: str, use_tools: bool = True,
+    def chat(self, user_message: str = "", use_tools: bool = True,
              session_id: Optional[str] = None,
              user_id: Optional[str] = None,
              role: Optional[str] = None,
@@ -849,6 +851,7 @@ class JARVISBrain:
              on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
              _authorization_check: Optional[Callable[[], bool]] = None,
              _allow_compound: bool = True,
+             message: Optional[str] = None,
              **kwargs: Any) -> Dict[str, Any]:
         """
         Synchronous chat processing with session isolation, exact response preservation,
@@ -857,6 +860,7 @@ class JARVISBrain:
         Provider fallback is only used when explicitly authorized for this request
         (allow_fallback=True). Explicit provider selection is never silently switched.
         """
+        user_message = user_message or message or kwargs.get("message", "")
         sid = session_id or "default"
         request_id = _request_id or f"req_{uuid.uuid4().hex[:12]}"
         user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
@@ -1109,15 +1113,20 @@ class JARVISBrain:
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories",
-            "audio_diagnostics", "developer_escalation", "running_apps_processes"
+            "audio_diagnostics", "developer_escalation", "running_apps_processes",
+            "browser_switch_account", "inspect_screen",
         }
 
         explicit_provider = bool(provider_name) or bool(self._active and self._active.name in ("freellmapi", "openai", "gemini", "anthropic", "openrouter", "nvidia"))
-        is_direct_desktop = intent in ("desktop_open_url", "desktop_search_youtube", "desktop_open_app", "open_app")
+        is_direct_desktop = intent in (
+            "desktop_open_url", "desktop_search_youtube", "desktop_open_app", "open_app",
+            "browser_switch_account", "screen_observe", "screen_check_errors", "inspect_screen"
+        )
         if use_tools and intent in FAST_PATH_INTENTS and (not explicit_provider or is_direct_desktop):
             logger.info(f"Fast-path execution for intent: {intent}")
             local_res = engine.respond(cleaned_message)
             resp_text = local_res.get("response", "Action completed.")
+            spoken_summary = local_res.get("spoken_summary")
             db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
             db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
                             provider="edge_fastpath", model="deterministic_hardware_engine",
@@ -1126,6 +1135,7 @@ class JARVISBrain:
             history.append({"role": "assistant", "content": resp_text})
             return {
                 "response": resp_text,
+                "spoken_summary": spoken_summary,
                 "provider": "edge_fastpath",
                 "model": "deterministic_hardware_engine",
                 "tools_used": [{"tool": t} for t in local_res.get("tools_used", [])],

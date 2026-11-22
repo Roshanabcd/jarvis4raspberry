@@ -1,0 +1,18 @@
+{
+  "classification": "offline mocked backend; no physical input or provider calls",
+  "base_revision": "ccba75fce68036a9892870e8b7fdf69d267a71d0",
+  "working_tree": "dirty; pre-existing changes preserved; hashes identify tested files",
+  "source_sha256": {
+    "tools/desktop/unified_computer_service.py": "c580625c5a83d9ddd7ac30e26ad6055fbd35f9e5ef950489db71903a05412221",
+    "tests/unit/test_account_action_truthfulness.py": "075b1ee4c224b5f75172d5716db0b4df07f0b26b454d326b7c3bce232fc11003",
+    "tests/unit/test_computer_use_agent.py": "366d1fb26664817aa6e2d5d26159e704d0868b82af96408cbb6c398e6e4f69a1"
+  },
+  "command": "venv/bin/python -m pytest -q tests/unit/test_computer_use_agent.py::TestUnifiedComputerService::test_browser_ui_action_switch_youtube_account_progress tests/unit/test_account_action_truthfulness.py",
+  "result": "4 passed in 1.94s",
+  "limitations": [
+    "Not deployed or live-verified",
+    "Legacy coordinate-based attempts remain; observation-based targeting and focus/input failure handling remain open",
+    "No full account-switch implementation or UI phase completion claimed"
+  ],
+  "roadmap_validation": "180 unique sequential IDs; paired instruction files identical; git diff --check passed"
+}

@@ -405,3 +405,39 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
 - Evidence recorded: `docs/jarvis-ui/evidence/master-phase-2/verification_report.json` and screenshot `phase2_voice_ready_click.png`.
 - Next: Phase 3 (Real-Time Screen Sharing, Screen Capture & Problem Detection `DISPLAY=:0`).
 
+
+### Pi control review and proposed workstream · 22 November 2026
+- Reviewed instruction pairs, current dirty Git state, audit/roadmap, terminal engine and browser/desktop paths.
+- Added `docs/JARVIS_PI_CONTROL_PHASES.md`: prioritized findings, architecture proposal, C0–C6 Antigravity prompts and Claude/Codex fallback.
+- Updated CLAUDE.md and CLAUDE2.md together; AGENTS rules unchanged.
+- Source review found unchecked account-switch clicks marked verified and terminal-engine confirmation limitations; API exploitability and live behavior remain unverified.
+- No runtime source changed, service restarted, provider called or device operated. No gate marked verified.
+- Next: reconcile original phase gates with master-phase handoffs and approve the concrete eligible control/security scope before implementation.
+
+### Master feature ledger · 22 November 2026
+- User requested an expanded persistent roadmap and continuation; root `PLAN.md` now tracks 180 acceptance units.
+- Original UI statuses/evidence are preserved. Root plan does not replace these gates.
+- Current bounded follow-up: truthful account-action reporting, no auth/privilege/device changes.
+- Full account selection and remaining avatar/voice/final gates stay open.
+- Root-ledger J001: unconditional account success changed to unverified; four focused fake-backend tests passed (1.94s).
+- Evidence: `docs/jarvis-ui/evidence/control-roadmap-2026-11-22/verification.json`. No live acceptance or phase gate completion claimed.
+- Next scoped item: J002/J003 focus/input failure handling; original UI gate statuses unchanged.
+
+### Account focus/input continuation · 22 November 2026
+- Root J002/J003 account-path checks implemented; J007 account-step cancellation covered.
+- Dispatcher preserves outcome and target through chat/voice request paths; no permissions changes.
+- Focused command and source hashes saved in `docs/jarvis-ui/evidence/control-focus-input-2026-11-22/verification.json`; 37 passed in 2.58s.
+- No real browser/device actions or service restart; no original UI phase marked verified.
+- Next: observed page targets and explicit account identity (J004–J006); remaining cancellation paths (J007).
+
+### Imported roadmap reconciliation · 22 November 2026
+- Main PLAN/FEATURES/PROMPT and 2 copies synchronized; old ledger and original imports preserved under docs/jarvis-execution/imports/.
+- 1420 JRV primary and 1020 JF supplemental contracts retained; old 180 J IDs retain scoped evidence. No completion inferred from import.
+- Offline checker plus account-target clarification: 51 focused tests passed in 2.37s. Evidence docs/jarvis-execution/evidence/2026-11-22-plan-merge/verification.json.
+- Existing UI gates unchanged; no stored memory migration or deployment. Next per root PLAN/HANDOFF: observed candidate disambiguation.
+
+### Managed account observation checkpoint · 22 November 2026
+- Root JRV-0528/0539: read-only managed-session labels and duplicate clarification integrated with chat/voice routing.
+- 76 focused offline checks passed in 5.90s; evidence docs/jarvis-execution/evidence/2026-11-22-account-observation/verification.json.
+- No live account verification, native input, deployment or gate completion. Managed session is not assumed to be personal Chrome.
+- Next: root PLAN/HANDOFF session-bound menu observation and subsequent identity verification.

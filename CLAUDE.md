@@ -243,3 +243,19 @@ The provider-independent UI regression command is `venv/bin/python tests/browser
 ### Project-specific override for generic tooling examples
 
 The package currently defines test:desktop, test:browser, test:smoke and test:shell; it does not define build or test. Choose a reviewed focused check first. The generic Ruflo commands above are reference examples, not mandatory startup steps. Do not automatically install tools, start token-consuming daemons, use unavailable tool names, or spawn agents merely because a task touches several files. Existing installed integrations remain intact. No orchestration tool is required to continue local implementation.
+
+## Raspberry Pi control continuation · 22 November 2026
+
+Read `docs/JARVIS_PI_CONTROL_PHASES.md` for the source-based gap analysis and detailed Antigravity/Claude/Codex phase prompts. This is a proposed control workstream, not authorization to bypass `AGENTS.md` or `docs/jarvis-ui/PLAN.md`. Start with C0: reconcile the original UI gates and later master-phase handoffs, trace active callers, preserve current dirty files and propose the next eligible change.
+
+Highest-priority findings: the desktop account workflow reports verified success after unchecked guessed-coordinate clicks; the terminal engine has a local `confirm=True` bypass and tokens whose expiry/session binding is not enforced in that branch. Trace surrounding API protections before claiming an externally exploitable vulnerability. Fix truthful action reporting first once its phase is eligible. Prepare scoped server-owned approval changes for review; never enable unrestricted sudo or run JARVIS as root.
+
+Browser profiles and website accounts are separate concepts. Require explicit targets and observed results, preserve user login/MFA, and never import personal cookies. Reuse existing task, provider, desktop and voice owners. Validate via isolated fixtures first; report real Pi, inference, account and microphone acceptance separately. Do not claim feature completion from a visible card, HTTP 200 or a mocked test.
+
+Keep this file synchronized with `CLAUDE2.md`. Update PLAN and evidence after an authorized implementation checkpoint. No new dependency, paid call, privileged deployment, authentication change, stored-data migration or physical motion is authorized by these prompts.
+
+## Persistent feature roadmap · 22 November 2026
+
+Read root `PLAN.md` at every continuation. It is the feature ledger and handoff index; `docs/jarvis-ui/PLAN.md` retains the UI phase gates and historical evidence. Preserve both. Review existing implementations before building a ledger item. Skip evidence-backed COMPLETE items, record regressions as REOPENED, and update status/evidence/next action after each cohesive change. The ledger does not override approval rules or mark blocked UI gates passed.
+
+Reconciled roadmap files: root PLAN.md, JARVIS_PLAN_FEATURES.json and NEXT_AGENT_PROMPT.md are canonical; their 2 copies are mirrors. Run `venv/bin/python scripts/plan_tracker.py --validate` on handoff. After intentional plan status edits run --sync, then --validate. Read docs/jarvis-execution/HANDOFF.md before selecting the next ID. Do not equate JRV/JF overlaps or promote legacy evidence beyond its tested scope.

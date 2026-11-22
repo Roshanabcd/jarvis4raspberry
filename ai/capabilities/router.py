@@ -117,6 +117,20 @@ class AutonomousCapabilityRouter:
 
     def _match_core_apps(self, text: str, raw_text: str) -> Optional[CapabilityIntentMatch]:
         """Match YouTube summarizer, Document QA, Research, Telemetry, and Desktop automation."""
+        # Read-only account observation is distinct from switching or media playback.
+        account_match = re.fullmatch(r'(?:find|resolve) (?:the )?youtube account (?:named|labelled) ["“](.+?)["”]', text, re.I)
+        list_accounts = re.fullmatch(r'(?:list|show)(?: the)?(?: visible)? youtube (?:accounts|account labels)', text, re.I)
+        if account_match or list_accounts:
+            params = {"action": "resolve_youtube_account" if account_match else "list_youtube_accounts"}
+            if account_match:
+                params["target"] = account_match.group(1)
+            return CapabilityIntentMatch(
+                capability_id="desktop-pc-tools", action_id="browser_ui_action",
+                confidence=0.95, extracted_parameters=params,
+                matched_pattern="youtube_account_observation",
+                rationale="Read visible labels in the managed browser without selecting an account.",
+            )
+
         # A. YouTube Video Summarizer
         url_match = _URL_REGEX.search(raw_text)
         yt_url = url_match.group(0) if url_match and ("youtube.com" in url_match.group(0) or "youtu.be" in url_match.group(0)) else None
@@ -194,6 +208,30 @@ class AutonomousCapabilityRouter:
                 extracted_parameters={"app_name": target_app},
                 matched_pattern="open_application",
                 rationale=f"Detected desktop application launch request for {target_app}.",
+            )
+
+        # G. Screen Intelligence & Desktop Computer-Use Inspection
+        if re.search(r"\b(?:inspect|diagnose|check|view|look\s+at)\s+(?:the\s+|my\s+)?(?:current\s+)?screen\b", text, re.I) or \
+           re.search(r"\bwhat\s+(?:problem|issue|error|window)\s+is\s+(?:on|in)\s+(?:the\s+|my\s+)?screen\b", text, re.I) or \
+           re.search(r"\b(?:what\s+is\s+on\s+my\s+screen|screen\s+diagnos(?:is|e))\b", text, re.I):
+            return CapabilityIntentMatch(
+                capability_id="desktop-pc-tools",
+                action_id="inspect_screen",
+                confidence=0.95,
+                extracted_parameters={"query": text},
+                matched_pattern="inspect_screen",
+                rationale="Detected screen inspection and diagnosis intent.",
+            )
+
+        # H. Browser UI Actions (YouTube Account Switcher)
+        if re.search(r"\b(?:switch\s+(?:to\s+)?(?:another\s+)?account|switch\s+account|change\s+account|account\s+switcher)\b", text, re.I):
+            return CapabilityIntentMatch(
+                capability_id="desktop-pc-tools",
+                action_id="browser_ui_action",
+                confidence=0.95,
+                extracted_parameters={"action": "switch_youtube_account", "query": text},
+                matched_pattern="browser_ui_action",
+                rationale="Detected browser UI action to switch account.",
             )
 
         return None

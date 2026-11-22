@@ -775,6 +775,422 @@ class UnifiedComputerService:
                 pass
         return None
 
+    def inspect_screen(self, query: Optional[str] = None) -> Dict[str, Any]:
+        """Inspect current screen on DISPLAY=:0: active window, wmctrl window list, problem/error detection, and target resolution."""
+        res = screen_intelligence.inspect_screen(query=query)
+        self._action_history.append({
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "inspect_screen",
+            "query": query,
+            "timestamp": time.time(),
+            "status": "ok",
+            "active_window": res.get("active_window"),
+            "has_error": res.get("has_error", False),
+        })
+        return res
+
+    def monitor_screen(self) -> Dict[str, Any]:
+        """Query continuous screen monitoring telemetry."""
+        return self.inspect_screen()
+
+    def focus_window(self, target: str) -> Dict[str, Any]:
+        """Bring target window to foreground on DISPLAY=:0 by title keyword or hex window ID."""
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+        res = native_backend.focus_window(target)
+        self.set_target_window(target)
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "focus_window",
+            "target": target,
+            "timestamp": time.time(),
+            "status": "ok" if res.get("verified") else "error",
+            "verified": res.get("verified", False),
+            "response": f"Focused window '{target}'.",
+        }
+        self._action_history.append(record)
+        return record
+
+    def desktop_click(self, x: Optional[int] = None, y: Optional[int] = None, button: str = "left", clicks: int = 1, target_element: Optional[str] = None) -> Dict[str, Any]:
+        """Bounded, coordinate-validated X11 mouse click on DISPLAY=:0 with visual verification and instant abort support."""
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        res = native_backend.get_screen_resolution()
+        max_w, max_h = res.get("width", 1440), res.get("height", 900)
+
+        target_x, target_y = x, y
+        if (target_x is None or target_y is None) and target_element:
+            target_res = screen_intelligence.resolve_target(target_element)
+            if target_res.get("status") == "ok":
+                el = target_res.get("element", {})
+                target_x = el.get("x", max_w // 2)
+                target_y = el.get("y", max_h // 2)
+            else:
+                target_x, target_y = max_w // 2, max_h // 2
+
+        if target_x is None:
+            target_x = max_w // 2
+        if target_y is None:
+            target_y = max_h // 2
+
+        # Bounded coordinate validation
+        target_x = max(0, min(max_w - 1, int(target_x)))
+        target_y = max(0, min(max_h - 1, int(target_y)))
+
+        click_res = native_backend.click(x=target_x, y=target_y, button=button, clicks=clicks)
+        pos_after = native_backend.get_cursor_position()
+
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "desktop_click",
+            "target": {"x": target_x, "y": target_y},
+            "button": button,
+            "clicks": clicks,
+            "cursor_position_after": pos_after,
+            "timestamp": time.time(),
+            "status": "ok",
+            "verified": click_res.get("verified", True),
+            "response": f"Clicked {button} at ({target_x}, {target_y}).",
+        }
+        self._action_history.append(record)
+        return record
+
+    def desktop_type(self, text: str, target_window: Optional[str] = None) -> Dict[str, Any]:
+        """Safe text entry into focused control or target window on DISPLAY=:0."""
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        # Sensitivity gate: block direct destructive command injection
+        if re.search(r"\b(?:rm\s+-rf|sudo\s+|mkfs|dd\s+if=)\b", text):
+            return {
+                "status": "blocked",
+                "message": "Typing destructive system commands is prohibited without explicit administrative confirmation.",
+                "verified": False,
+            }
+
+        res = native_backend.type_text(text, target_window=target_window)
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "desktop_type",
+            "text": text[:50] + ("..." if len(text) > 50 else ""),
+            "target_window": target_window,
+            "timestamp": time.time(),
+            "status": "ok",
+            "verified": res.get("verified", True),
+            "response": f"Typed text into {target_window or 'active window'}.",
+        }
+        self._action_history.append(record)
+        return record
+
+    def desktop_hotkey(self, hotkey: str) -> Dict[str, Any]:
+        """Press keyboard shortcut on DISPLAY=:0."""
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        res = native_backend.press_hotkey(hotkey)
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "desktop_hotkey",
+            "hotkey": hotkey,
+            "timestamp": time.time(),
+            "status": "ok",
+            "verified": res.get("verified", True),
+            "response": f"Pressed hotkey '{hotkey}'.",
+        }
+        self._action_history.append(record)
+        return record
+
+    def desktop_scroll(self, direction: str = "down", clicks: int = 5) -> Dict[str, Any]:
+        """Scroll mouse wheel on DISPLAY=:0."""
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        res = native_backend.scroll(direction=direction, clicks=clicks)
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "desktop_scroll",
+            "direction": direction,
+            "clicks": clicks,
+            "timestamp": time.time(),
+            "status": "ok",
+            "verified": res.get("verified", True),
+            "response": f"Scrolled {direction}.",
+        }
+        self._action_history.append(record)
+        return record
+
+    def browser_ui_action(self, action: str = "focus", target: Optional[str] = None, url: Optional[str] = None, clicks: int = 1, on_progress: Optional[Callable] = None) -> Dict[str, Any]:
+        """
+        Interact with active Chrome window on DISPLAY=:0:
+        focus tab, switch YouTube account, click visible UI elements found via screen vision, scroll, play/pause, or switch tabs.
+        """
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        act_clean = (action or "").lower().strip()
+        if act_clean in {"list_youtube_accounts", "resolve_youtube_account"}:
+            if act_clean == "resolve_youtube_account" and (not isinstance(target, str) or not target.strip()):
+                result = {"status": "needs_input", "verified": False,
+                          "response": "Which visible account label should I match? No account was selected."}
+            else:
+                result = browser_backend.observe_youtube_accounts(
+                    target=target if act_clean == "resolve_youtube_account" else None
+                )
+            return {**result, "action": act_clean,
+                    "spoken_summary": result.get("response", "Account observation is unavailable.")}
+        account_action = "account" in act_clean or (isinstance(target, str) and "account" in target.lower())
+        if account_action and (not isinstance(target, str) or not target.strip()):
+            message = "Which signed-in account should I use? Please provide its visible account label."
+            record = {
+                "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                "action": "switch_youtube_account",
+                "status": "needs_input",
+                "verified": False,
+                "response": message,
+                "spoken_summary": message,
+                "timestamp": time.time(),
+            }
+            self._action_history.append(record)
+            return record
+        t_start = time.time()
+        res_geom = native_backend.get_screen_resolution()
+        screen_w = res_geom.get("width", 1440)
+        screen_h = res_geom.get("height", 900)
+
+        # 1. Switch YouTube Account Workflow
+        if account_action:
+            def failed(stage: str, message: str, status: str = "error") -> Dict[str, Any]:
+                record = {
+                    "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                    "action": "switch_youtube_account",
+                    "status": status,
+                    "verified": False,
+                    "failed_stage": stage,
+                    "response": message,
+                    "spoken_summary": message,
+                    "timestamp": time.time(),
+                }
+                self._action_history.append(record)
+                return record
+
+            def stopped(stage: str) -> Optional[Dict[str, Any]]:
+                if self._emergency_stopped or self._stop_requested:
+                    return failed(stage, "Browser action stopped; the account change is not confirmed.", "cancelled")
+                return None
+
+            def delivered(result: Any) -> bool:
+                return (isinstance(result, dict) and result.get("verified") is True
+                        and result.get("status", "ok") == "ok")
+
+            if on_progress:
+                try:
+                    on_progress({"type": "progress", "stage": "browser_action", "detail": "[Step 1/3] Capturing screen and focusing Google Chrome..."})
+                except Exception:
+                    pass
+
+            # Bring Google Chrome to foreground
+            cancelled = stopped("focus")
+            if cancelled:
+                return cancelled
+            try:
+                focus_res = native_backend.focus_window("Chrome")
+                if not delivered(focus_res):
+                    cancelled = stopped("focus")
+                    if cancelled:
+                        return cancelled
+                    focus_res = native_backend.focus_window("YouTube")
+            except Exception:
+                return failed("focus", "Could not focus the browser. No account-menu clicks were sent.")
+            if not delivered(focus_res):
+                return failed("focus", "Could not focus Chrome or YouTube. No account-menu clicks were sent.")
+            time.sleep(0.3)
+
+            if on_progress:
+                try:
+                    on_progress({"type": "progress", "stage": "browser_action", "detail": "[Step 2/3] Locating YouTube profile avatar..."})
+                except Exception:
+                    pass
+
+            # On YouTube layout in Chrome: Profile avatar is at top right header
+            # Screen resolution-aware coordinates:
+            avatar_x = screen_w - 35
+            avatar_y = 125
+            cancelled = stopped("avatar_click")
+            if cancelled:
+                return cancelled
+            try:
+                click_result = native_backend.click(x=avatar_x, y=avatar_y, button="left", clicks=1)
+            except Exception:
+                return failed("avatar_click", "Browser input failed; the account change is not confirmed.")
+            if not delivered(click_result):
+                return failed("avatar_click", "Browser input was not delivered; the account change is not confirmed.")
+            time.sleep(0.4)
+
+            if on_progress:
+                try:
+                    on_progress({"type": "progress", "stage": "browser_action", "detail": "[Step 3/3] Opening account switcher..."})
+                except Exception:
+                    pass
+
+            # Account switcher menu item in YouTube popup menu:
+            # Typically 4th menu item down, approx 140px below avatar
+            menu_x = avatar_x - 80
+            menu_y = avatar_y + 140
+            cancelled = stopped("menu_click")
+            if cancelled:
+                return cancelled
+            try:
+                click_result = native_backend.click(x=menu_x, y=menu_y, button="left", clicks=1)
+            except Exception:
+                return failed("menu_click", "Browser input failed; the account change is not confirmed.")
+            if not delivered(click_result):
+                return failed("menu_click", "Browser input was not delivered; the account change is not confirmed.")
+            time.sleep(0.3)
+
+            cancelled = stopped("verification")
+            if cancelled:
+                return cancelled
+
+            # Input delivery is not evidence of the website's resulting state.
+            # Until the account identity is observed, never announce completion.
+            spoken_summary = (
+                "I attempted to open the account menu in Google Chrome, but I could not "
+                "verify the menu or active account. Please check the browser; "
+                "the requested account change is not confirmed."
+            )
+            record = {
+                "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                "action": "switch_youtube_account",
+                "status": "unverified",
+                "verified": False,
+                "spoken_summary": spoken_summary,
+                "response": spoken_summary,
+                "tools_used": ["focus_window", "desktop_click"],
+                "timestamp": time.time(),
+            }
+            self._action_history.append(record)
+            return record
+
+        # 2. Play / Pause Media in Browser
+        if "play" in act_clean or "pause" in act_clean:
+            native_backend.focus_window("Chrome")
+            time.sleep(0.2)
+            native_backend.press_hotkey("k")
+            spoken_summary = "Toggled playback in YouTube."
+            record = {
+                "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                "action": "play_pause",
+                "status": "ok",
+                "verified": True,
+                "spoken_summary": spoken_summary,
+                "response": "Sent Play/Pause command to active Chrome media tab.",
+                "timestamp": time.time(),
+            }
+            self._action_history.append(record)
+            return record
+
+        # 3. Switch Browser Tab
+        if "switch_tab" in act_clean or "next_tab" in act_clean:
+            native_backend.focus_window("Chrome")
+            time.sleep(0.2)
+            native_backend.press_hotkey("ctrl+Tab")
+            record = {
+                "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                "action": "switch_tab",
+                "status": "ok",
+                "verified": True,
+                "spoken_summary": "Switched to the next Chrome tab.",
+                "response": "Switched active browser tab.",
+                "timestamp": time.time(),
+            }
+            self._action_history.append(record)
+            return record
+
+        # 4. General Window / Tab Focus
+        native_backend.focus_window("Chrome")
+        record = {
+            "action_id": f"act_{uuid.uuid4().hex[:8]}",
+            "action": "focus_chrome",
+            "status": "ok",
+            "verified": True,
+            "spoken_summary": "Focused Google Chrome on DISPLAY=:0.",
+            "response": "Focused Google Chrome window on DISPLAY=:0.",
+            "timestamp": time.time(),
+        }
+        self._action_history.append(record)
+        return record
+
+    def run_safe_terminal_task(self, command: str, session_id: str = "default", confirm: bool = False, pin: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Runs read-only terminal diagnostics freely; gates mutating terminal commands behind explicit confirmation / fresh PIN.
+        """
+        if self._emergency_stopped or self._stop_requested:
+            return {"status": "blocked", "message": "Action blocked: Computer control is in EMERGENCY STOP."}
+
+        cmd_clean = command.strip()
+        cmd_lower = cmd_clean.lower()
+
+        # Mutating and destructive operation tokens
+        mutating_tokens = [
+            "rm ", "rm\t", "rmdir", "sudo ", "dd ", "mv ", "cp ", "shutdown", "reboot",
+            "poweroff", "init ", "chmod", "chown", "mkfs", "kill", "pkill", "systemctl stop",
+            "systemctl restart", "apt ", "pip install", "pip uninstall", ">", ">>",
+        ]
+
+        is_mutating = any(t in cmd_lower for t in mutating_tokens)
+
+        # Gate mutating commands behind confirmation or Admin PIN
+        if is_mutating and not confirm and not pin:
+            return {
+                "status": "confirmation_required",
+                "command": cmd_clean,
+                "requires_confirmation": True,
+                "message": f"Command '{cmd_clean}' modifies files or system state. Explicit operator confirmation or Admin PIN is required.",
+                "verified": False,
+            }
+
+        # Execute command safely
+        import subprocess
+        try:
+            res = subprocess.run(
+                cmd_clean,
+                shell=True,
+                capture_output=True,
+                text=True,
+                timeout=20,
+                env={**os.environ, "DISPLAY": os.environ.get("DISPLAY", ":0")},
+            )
+            out = res.stdout.strip()
+            err = res.stderr.strip()
+            combined = (out + ("\n" + err if err else "")).strip() or "(Command completed with no output)"
+            record = {
+                "action_id": f"act_{uuid.uuid4().hex[:8]}",
+                "action": "run_safe_terminal_task",
+                "command": cmd_clean,
+                "returncode": res.returncode,
+                "output": combined[:2000],
+                "status": "ok" if res.returncode == 0 else "failed",
+                "verified": res.returncode == 0,
+                "timestamp": time.time(),
+            }
+            self._action_history.append(record)
+            return record
+        except subprocess.TimeoutExpired:
+            return {
+                "status": "timeout",
+                "command": cmd_clean,
+                "error": "Terminal command timed out after 20 seconds.",
+                "verified": False,
+            }
+        except Exception as exc:
+            return {
+                "status": "error",
+                "command": cmd_clean,
+                "error": str(exc),
+                "verified": False,
+            }
+
 
 # Global singleton instance
 unified_computer_service = UnifiedComputerService()

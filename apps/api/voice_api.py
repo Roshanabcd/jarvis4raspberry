@@ -1,5 +1,6 @@
 """Voice REST API for JARVIS OS — speech control, status, devices, and push-to-talk."""
 import os
+import re
 import logging
 from typing import Optional, Dict, Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
