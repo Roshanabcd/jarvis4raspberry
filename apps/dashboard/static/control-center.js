@@ -204,6 +204,72 @@
   // Microphone capture with real status reporting, active turn monitoring, and barge-in
   let voiceMonitorInterval = null;
 
+  root.addEventListener('jarvis:voice_stage', (e) => {
+    const d = e.detail;
+    const stage = d?.stage;
+    const details = d?.details || {};
+    if (!stage) return;
+    if (stage === 'LISTENING_SPEECH') {
+      state('listening', 'Listening…');
+      text('cc-caption', details.rms ? ('Listening to microphone (RMS: ' + Math.round(details.rms) + ')… Speak now.') : 'Listening to ReSpeaker microphone… Speak now.');
+      text('cc-chat-feedback', 'Listening… Speak your command.');
+    } else if (stage === 'HEARD') {
+      state('listening', 'Hearing speech…');
+      text('cc-caption', details.text ? ('Heard: "' + details.text + '"') : 'Speech detected… Transcribing…');
+      text('cc-chat-feedback', details.text ? ('Heard: "' + details.text + '"') : 'Speech detected… Transcribing…');
+    } else if (stage === 'THINKING') {
+      state('thinking', 'Thinking…');
+      text('cc-caption', 'Thinking… Processing your voice command.');
+      text('cc-chat-feedback', 'Thinking… Processing command.');
+    } else if (stage === 'SPEAKING') {
+      state('speaking', 'Speaking');
+      if (details.text) text('cc-caption', details.text);
+      text('cc-chat-feedback', 'Speaking response…');
+    } else if (stage === 'READY') {
+      syncConversation();
+      idleState();
+    } else if (stage === 'ERROR') {
+      state('error', 'Voice error');
+      text('cc-caption', '⚠️ Voice error: ' + (details.error || 'Failed'));
+      text('cc-chat-feedback', '⚠️ Voice error: ' + (details.error || 'Failed'));
+    }
+  });
+
+  root.addEventListener('jarvis:voice_state', (e) => {
+    const d = e.detail;
+    const wsState = d?.state || d?.voice_state;
+    if (!wsState) return;
+    wakeState = wsState;
+    text('h-voice', wakeState.replaceAll('_', ' '));
+    text('cc-wake', 'Voice: ' + wakeState.replaceAll('_', ' ').toLowerCase());
+
+    if (wsState === 'LISTENING_SPEECH') {
+      state('listening', 'Listening…');
+      text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
+      text('cc-chat-feedback', 'Listening… Speak your command.');
+    } else if (wsState === 'STREAMING_TRANSCRIPTION') {
+      state('listening', 'Hearing speech…');
+      text('cc-caption', 'Hearing speech…');
+      text('cc-chat-feedback', 'Hearing speech…');
+    } else if (wsState === 'SILENCE_COUNTDOWN') {
+      text('cc-caption', 'Silence detected, finalizing command…');
+    } else if (wsState === 'COMMAND_SUBMITTED' || wsState === 'PROCESSING_AGENT') {
+      state('thinking', 'Thinking…');
+      text('cc-caption', 'Thinking… Processing your voice command.');
+      text('cc-chat-feedback', 'Processing voice command…');
+    } else if (wsState === 'SPEAKING_RESPONSE') {
+      state('speaking', 'Speaking');
+    } else if (wsState === 'FOLLOW_UP_STANDBY') {
+      state('listening', 'Listening (follow-up)');
+      text('cc-caption', 'Listening for follow-up command…');
+    } else if (wsState === 'STANDBY_LISTENING') {
+      if (!speaking) idleState();
+    } else if (wsState === 'ERROR') {
+      state('error', 'Voice error');
+      text('cc-caption', '⚠️ Microphone capture error — check ReSpeaker Lite connection.');
+    }
+  });
+
   byId('cc-speak')?.addEventListener('click', async () => {
     // 1. Barge-in: if currently speaking, interrupt immediately
     if (speaking) {
@@ -215,9 +281,11 @@
       } catch (_) {}
       speaking = false;
       state('listening', 'Listening…');
+      text('cc-caption', 'Barge-in: speech stopped. Listening…');
       text('cc-chat-feedback', 'Barge-in: speech stopped. Listening…');
     } else {
       state('listening', 'Listening…');
+      text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
       text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
     }
 
@@ -233,7 +301,8 @@
         text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
 
         let pollCount = 0;
-        const maxPolls = 60; // 30 seconds at 500ms
+        let hasStartedTurn = false;
+        const maxPolls = 100; // 30 seconds at 300ms
         voiceMonitorInterval = setInterval(async () => {
           pollCount++;
           if (pollCount > maxPolls) {
@@ -251,35 +320,56 @@
               text('h-voice', wakeState.replaceAll('_', ' '));
               text('cc-wake', 'Voice: ' + wakeState.replaceAll('_', ' ').toLowerCase());
             }
+            if (st?.mic_disconnected || (st?.capture_status === 'failed' && st?.recorder_failures >= 3)) {
+              state('error', 'Mic error');
+              text('cc-caption', '⚠️ Microphone disconnected — check ReSpeaker Lite USB cable.');
+              text('cc-chat-feedback', '⚠️ Microphone disconnected — check ReSpeaker Lite USB cable.');
+              return;
+            }
+            if (['LISTENING_SPEECH', 'STREAMING_TRANSCRIPTION', 'SILENCE_COUNTDOWN', 'COMMAND_SUBMITTED', 'PROCESSING_AGENT', 'SPEAKING_RESPONSE'].includes(wsState)) {
+              hasStartedTurn = true;
+            }
             if (wsState === 'LISTENING_SPEECH') {
               state('listening', 'Listening…');
+              text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
               text('cc-chat-feedback', 'Listening… Speak your command.');
             } else if (wsState === 'STREAMING_TRANSCRIPTION') {
-              state('listening', 'Listening…');
+              state('listening', 'Hearing speech…');
+              text('cc-caption', 'Hearing speech…');
               text('cc-chat-feedback', 'Hearing speech…');
             } else if (wsState === 'SILENCE_COUNTDOWN') {
+              text('cc-caption', 'Silence detected, finalizing command…');
               text('cc-chat-feedback', 'Silence detected, finalizing command…');
             } else if (wsState === 'COMMAND_SUBMITTED' || wsState === 'PROCESSING_AGENT') {
               state('thinking', 'Thinking…');
+              text('cc-caption', 'Thinking… Processing your voice command.');
               text('cc-chat-feedback', 'Processing voice command…');
             } else if (wsState === 'SPEAKING_RESPONSE') {
               state('speaking', 'Speaking');
               text('cc-chat-feedback', 'Speaking response…');
+              if (st?.last_response) text('cc-caption', st.last_response);
             } else if (wsState === 'FOLLOW_UP_STANDBY' || wsState === 'STANDBY_LISTENING') {
-              clearInterval(voiceMonitorInterval);
-              voiceMonitorInterval = null;
-              syncConversation();
-              idleState();
+              if (hasStartedTurn) {
+                clearInterval(voiceMonitorInterval);
+                voiceMonitorInterval = null;
+                syncConversation();
+                if (st?.last_response) text('cc-caption', st.last_response);
+                idleState();
+              }
             }
           } catch (_) {}
-        }, 500);
+        }, 300);
       } else {
-        text('cc-chat-feedback', outcome?.message || 'Voice outcome unavailable.');
+        const msg = outcome?.message || 'Voice outcome unavailable.';
+        text('cc-caption', msg);
+        text('cc-chat-feedback', msg);
         syncConversation();
         idleState();
       }
     } catch (err) {
-      text('cc-chat-feedback', 'Microphone error: ' + (err.message || 'Check microphone'));
+      const msg = 'Microphone error: ' + (err.message || 'Check microphone');
+      text('cc-caption', msg);
+      text('cc-chat-feedback', msg);
       syncConversation();
       idleState();
     }

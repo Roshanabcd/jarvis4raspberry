@@ -1,0 +1,26 @@
+{
+  "phase": "Phase 2: Real-Time Voice Assistant, Ready Mic Button & Single-Voice Preemption",
+  "timestamp": "2026-11-22T13:40:46Z",
+  "status": "verified_live",
+  "button_and_ipc_verification": {
+    "cc_speak_visible": true,
+    "feedback_text": "Listening\u2026 Speak your command.",
+    "caption_text": "Listening to ReSpeaker microphone\u2026 Speak now.",
+    "push_to_talk_logged": true,
+    "listening_speech_state_logged": true,
+    "screenshot_path": "docs/jarvis-ui/evidence/master-phase-2/phase2_voice_ready_click.png"
+  },
+  "stt_and_wake_phrase_verification": {
+    "original_phrase": "hello jarvis what is running on my pc",
+    "stt_transcribed": "hello Jarvis what is running on my PC",
+    "one_shot_extracted_command": "what is running on my PC",
+    "two_step_wake_match": true,
+    "one_shot_success": true
+  },
+  "pipewire_playback_verification": {
+    "playback_returncode": 0,
+    "playback_duration_s": 4.92,
+    "playback_success": true
+  },
+  "gate_passed": true
+}

@@ -354,6 +354,11 @@ def listen_once(req: ListenOnceRequest = ListenOnceRequest()):
 @voice_router.post("/push-to-talk", dependencies=[Depends(require_local_dashboard)])
 def push_to_talk():
     """Request capture from an existing owner, never create another recorder."""
+    try:
+        from apps.api.websocket_api import broadcast_voice_state
+        broadcast_voice_state("LISTENING_SPEECH", "Push-to-talk activated")
+    except Exception:
+        pass
     external_owner, _ = _daemon_snapshot()
     if external_owner:
         _send_daemon_command_or_raise("push_to_talk")
@@ -540,22 +545,104 @@ def cancel_voice_job(job_id: str):
     return {"status": "ok", "job_id": job_id, "cancelled": False, "current_status": job.status}
 
 
+class VoiceStageReport(BaseModel):
+    stage: str
+    details: Optional[Dict[str, Any]] = None
+
+
+@voice_router.post("/stage")
+def report_voice_stage(req: VoiceStageReport):
+    """Receive real-time voice stage from voice daemon and broadcast over WebSocket."""
+    try:
+        from apps.api.websocket_api import broadcast_voice_stage, broadcast_voice_state
+        broadcast_voice_stage(req.stage, req.details)
+        mic_lvl = (req.details or {}).get("mic_level")
+        broadcast_voice_state(req.stage, str(req.details or ""), mic_level=mic_lvl)
+    except Exception:
+        pass
+    return {"status": "ok"}
+
+
+@voice_router.post("/dictate", dependencies=[Depends(require_local_dashboard)])
+def dictate_speech():
+    """Trigger speech dictation through the existing voice owner, inserting transcribed text."""
+    try:
+        from apps.api.websocket_api import broadcast_voice_stage
+        broadcast_voice_stage("Listening...", {"is_dictation": True})
+    except Exception:
+        pass
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("dictate")
+        return {"status": "ok", "mode": "daemon_dictate", "owner": external_owner}
+
+    try:
+        from apps.voice.service import voice_service
+        res = voice_service.listen_once(duration_secs=4)
+        text = res.get("transcribed", "")
+        if text:
+            try:
+                from apps.api.websocket_api import broadcast_voice_stage
+                broadcast_voice_stage("Heard", {"text": text, "transcript": text, "is_dictation": True})
+            except Exception:
+                pass
+        return {"status": "ok", "mode": "standalone_dictate", "text": text}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Dictation unavailable: {exc}")
+
+
+@voice_router.post("/dictate/stop", dependencies=[Depends(require_local_dashboard)])
+def stop_dictate_speech():
+    """Stop active dictation recording immediately and transcribe accumulated audio."""
+    external_owner, _ = _daemon_snapshot()
+    if external_owner:
+        _send_daemon_command_or_raise("dictate_stop")
+        return {"status": "ok", "mode": "daemon_dictate_stop"}
+    return {"status": "ok", "mode": "standalone_dictate_stop"}
+
+
 @voice_router.post("/command")
 def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
     """Execute inference once and submit exactly one bounded voice reply job."""
     import uuid
     turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
-    response = voice_service.process_command(req.text, speak=False)
+    try:
+        from apps.api.websocket_api import broadcast_chat_message, broadcast_voice_stage
+        broadcast_voice_stage("Heard", {"transcript": req.text, "text": req.text})
+        broadcast_chat_message(
+            role="user",
+            text=req.text,
+            message_id=f"user_{turn_id}",
+            turn_id=turn_id,
+            playback_target="none",
+        )
+        broadcast_voice_stage("Thinking...")
+    except Exception as exc:
+        logger.debug("Failed to broadcast voice command start: %s", exc)
+
+    response = voice_service.process_command(
+        req.text,
+        speak=False,
+        turn_id=turn_id,
+        broadcast_user=False,
+        broadcast_assistant=False,
+    )
     try:
         job = voice_service.enqueue_response(
-            response, broadcast=False, preempt=True, turn_id=turn_id, message_id=turn_id
+            response, broadcast=True, preempt=True, turn_id=turn_id, message_id=turn_id
         )
     except (RuntimeError, ValueError) as exc:
+        try:
+            from apps.api.websocket_api import broadcast_voice_stage
+            broadcast_voice_stage("Ready", {"error": str(exc)})
+        except Exception:
+            pass
         # Inference may already have performed an action: keep its confirmed
         # response and report only delivery rejection, so callers do not replay it.
         return {"status": "ok", "response": response, "job_id": None,
                 "job_status": "rejected", "audio_error": str(exc), "turn_id": turn_id}
     return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status, "turn_id": turn_id}
+
 
 
 @voice_router.post("/synthesize")

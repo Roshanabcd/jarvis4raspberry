@@ -137,10 +137,34 @@ class WakeWordEngine:
         self._last_response: str = ""
         self._last_error: Optional[str] = None
         self._push_to_talk_active: bool = False
+        self._current_recording_proc: Optional[subprocess.Popen] = None
+        self._interrupt_recording: bool = False
 
         # Command callback
         self._on_command_handler: Optional[Callable[[str], Any]] = None
         self._stt: Optional[Any] = None
+
+    def _notify_stage(self, stage: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """Send stage notification to backend for WebSocket broadcast (fire-and-forget)."""
+        if not getattr(self, "_is_running", False):
+            return
+        def _post():
+            try:
+                import urllib.request
+                import json
+                data = json.dumps({"stage": stage, "details": details or {}}).encode("utf-8")
+                req = urllib.request.Request(
+                    "http://127.0.0.1:8000/api/voice/stage",
+                    data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=0.5):
+                    pass
+            except Exception:
+                pass
+        threading.Thread(target=_post, daemon=True).start()
+
 
     @property
     def stt(self):
@@ -173,6 +197,22 @@ class WakeWordEngine:
                     publish_status(self._state.value, self._is_running, diagnostics=self.get_capture_diagnostics())
                 except Exception:
                     pass
+                stage_map = {
+                    WakeState.STANDBY_LISTENING: "Ready",
+                    WakeState.WAKE_DETECTED: "Wake detected",
+                    WakeState.LISTENING_SPEECH: "Listening...",
+                    WakeState.STREAMING_TRANSCRIPTION: "Listening...",
+                    WakeState.SILENCE_COUNTDOWN: "Finishing speech...",
+                    WakeState.COMMAND_SUBMITTED: "Processing...",
+                    WakeState.PROCESSING_AGENT: "Thinking...",
+                    WakeState.SPEAKING_RESPONSE: "Speaking...",
+                    WakeState.FOLLOW_UP_STANDBY: "Ready",
+                    WakeState.MUTED: "Muted",
+                    WakeState.ERROR: "Error",
+                }
+                stage_label = stage_map.get(new_state, new_state.value)
+                self._notify_stage(stage_label, {"state": new_state.value})
+
 
     def set_command_handler(self, handler: Callable[[str], Any]) -> None:
         self._on_command_handler = handler
@@ -213,10 +253,15 @@ class WakeWordEngine:
 
     def get_capture_diagnostics(self) -> Dict[str, Any]:
         """Numeric capture health only; never persist audio, text, or identity."""
+        mic_disconnected = bool(
+            self._capture_status == "failed"
+            and (self._recorder_consecutive_failures >= 3 or self._capture_failure_reason in ("recorder_exit", "recorder_exception"))
+        )
         return {
             "capture_status": self._capture_status,
             "recorder_exit_code": self._recorder_exit_code,
             "capture_failure_reason": self._capture_failure_reason,
+            "mic_disconnected": mic_disconnected,
             "last_capture_age_s": round(max(0.0, time.monotonic() - self._last_capture_time), 1) if self._last_capture_time else None,
             "audio_level_rms": round(self._last_audio_rms, 2) if self._last_audio_rms is not None else None,
             "energy_threshold_rms": round(self.adaptive_threshold, 2),
@@ -238,6 +283,21 @@ class WakeWordEngine:
             self._is_running = True
             self._stop_event.clear()
             self.set_state(WakeState.STANDBY_LISTENING)
+
+            def poll_commands_loop():
+                while not self._stop_event.is_set():
+                    try:
+                        self._check_daemon_commands()
+                    except Exception:
+                        pass
+                    self._stop_event.wait(0.04)
+
+            self._poller_thread = threading.Thread(
+                target=poll_commands_loop,
+                daemon=True,
+                name="VoiceCmdPoller",
+            )
+            self._poller_thread.start()
 
             self._thread = threading.Thread(
                 target=self._run_loop,
@@ -263,6 +323,17 @@ class WakeWordEngine:
             self._stop_event.clear()
             self.set_state(WakeState.STANDBY_LISTENING)
 
+        def poll_commands_loop():
+            while not self._stop_event.is_set():
+                try:
+                    self._check_daemon_commands()
+                except Exception:
+                    pass
+                self._stop_event.wait(0.04)
+
+        cmd_poller = threading.Thread(target=poll_commands_loop, daemon=True, name="VoiceCmdPoller")
+        cmd_poller.start()
+
         def publish_telemetry():
             from apps.voice.daemon_status import publish_status
             while not self._stop_event.is_set():
@@ -283,7 +354,9 @@ class WakeWordEngine:
         finally:
             self._is_running = False
             self._stop_event.set()
+            cmd_poller.join(timeout=1)
             telemetry.join(timeout=3)
+
 
     def stop(self) -> None:
         """Stop the background voice assistant."""
@@ -390,13 +463,30 @@ class WakeWordEngine:
             logger.info("Barge-in activated. Speech playback stopped.")
             self._current_transcript = ""
             self._last_speech_time = time.time()
+            self._interrupt_recording = True
+            proc = self._current_recording_proc
+            if proc and proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
             self.set_state(WakeState.LISTENING_SPEECH)
 
     def trigger_push_to_talk(self) -> None:
         """Directly activate voice command listening without waiting for wake word."""
         with self._state_lock:
             self._push_to_talk_active = True
+            self._interrupt_recording = True
+            proc = self._current_recording_proc
+            if proc and proc.poll() is None:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
             self.barge_in()
+            self._current_transcript = ""
+            self._last_speech_time = time.time()
+            self.set_state(WakeState.LISTENING_SPEECH)
             logger.info("Push-to-Talk manually activated.")
 
     def _calculate_audio_rms(self, wav_path: str) -> float:
@@ -446,7 +536,18 @@ class WakeWordEngine:
             cmd = ["pw-record", "--rate=16000", "--channels=1", "--format=s16", output_path]
             from apps.voice.audio_environment import local_audio_environment
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=local_audio_environment())
-            time.sleep(duration_s)
+            self._current_recording_proc = proc
+
+            # Sleep in short slices to allow immediate preemption on push-to-talk / barge-in
+            sleep_step = 0.04
+            slept = 0.0
+            while slept < duration_s and not self._stop_event.is_set():
+                if getattr(self, "_interrupt_recording", False):
+                    self._interrupt_recording = False
+                    break
+                time.sleep(sleep_step)
+                slept += sleep_step
+
             stopped_by_us = proc.poll() is None
             if stopped_by_us:
                 proc.terminate()
@@ -455,6 +556,9 @@ class WakeWordEngine:
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.communicate()
+            finally:
+                self._current_recording_proc = None
+
 
             self._recorder_exit_code = proc.returncode
             # PipeWire can exit 1 on a requested SIGTERM after successfully
@@ -580,6 +684,15 @@ class WakeWordEngine:
             elif cmd == "wake_disable":
                 logger.info("Executing cross-process wake_disable command.")
                 self.set_wake_word_enabled(False)
+            elif cmd == "dictate":
+                logger.info("Executing cross-process dictate command.")
+                self._dictate_mode = True
+                self._stop_dictate_requested = False
+                self.trigger_push_to_talk()
+            elif cmd == "dictate_stop":
+                logger.info("Executing cross-process dictate_stop command.")
+                self._stop_dictate_requested = True
+                self._interrupt_recording = True
         except Exception as exc:
             logger.debug("Error checking daemon commands: %s", exc)
 
@@ -774,7 +887,9 @@ class WakeWordEngine:
                 self._last_speech_time = time.time()
                 is_ptt = getattr(self, "_push_to_talk_active", False)
                 self._push_to_talk_active = False
-                has_heard_speech = bool(cmd_parts) or is_ptt
+                has_heard_speech = bool(cmd_parts)
+                listening_start_time = time.time()
+                initial_speech_timeout = 8.0
 
                 while self._is_running and not self._stop_event.is_set():
                     self._check_daemon_commands()
@@ -813,10 +928,12 @@ class WakeWordEngine:
                         has_heard_speech = True
                         self._last_speech_time = time.time()
                         self.set_state(WakeState.STREAMING_TRANSCRIPTION)
+                        self._notify_stage("Listening...", {"mic_level": round(rms, 1)})
                     else:
+                        self._notify_stage("Listening...", {"mic_level": round(rms, 1)})
                         # Silence in this window
-                        elapsed_silence = time.time() - self._last_speech_time
                         if has_heard_speech:
+                            elapsed_silence = time.time() - self._last_speech_time
                             self.set_state(WakeState.SILENCE_COUNTDOWN)
                             logger.info("Silence countdown: %.1fs / %.1fs", elapsed_silence, self.silence_timeout_s)
                             effective_silence = 1.5 if (self._current_transcript and len(self._current_transcript.split()) >= 2) else self.silence_timeout_s
@@ -824,14 +941,20 @@ class WakeWordEngine:
                                 logger.info("Continuous silence reached (%.1fs)! Finalizing command.", elapsed_silence)
                                 self.set_state(WakeState.COMMAND_SUBMITTED)
                                 break
-                        elif elapsed_silence >= (self.silence_timeout_s * 2):
-                            # User didn't say anything after wake word
-                            logger.info("No speech detected after wake word. Returning to standby.")
-                            self.set_state(WakeState.STANDBY_LISTENING)
-                            break
+                        else:
+                            elapsed_waiting = time.time() - listening_start_time
+                            if elapsed_waiting >= initial_speech_timeout:
+                                logger.info("No speech detected within %.1fs grace period; returning to standby.", initial_speech_timeout)
+                                self.set_state(WakeState.STANDBY_LISTENING)
+                                break
+
+
+                    if getattr(self, "_stop_dictate_requested", False):
+                        logger.info("Dictate stop requested by user; finalizing speech capture.")
+                        self.set_state(WakeState.COMMAND_SUBMITTED)
+                        break
 
                 if self.state == WakeState.COMMAND_SUBMITTED:
-                    self.set_state(WakeState.PROCESSING_AGENT)
                     final_cmd = ""
                     accumulated_path = None
                     if accumulated_frames and audio_params:
@@ -863,12 +986,27 @@ class WakeWordEngine:
 
                     cleaned_cmd = self._command_after_wake_phrase(final_cmd) or final_cmd
                     self._last_command = cleaned_cmd
-                    if cleaned_cmd:
+
+                    is_dictate = getattr(self, "_dictate_mode", False)
+                    self._dictate_mode = False
+                    self._stop_dictate_requested = False
+
+                    if is_dictate:
+                        logger.info("Dictation finalized: '%s'", cleaned_cmd)
+                        self._last_dictation = cleaned_cmd
+                        self._notify_stage("Heard", {"text": cleaned_cmd, "transcript": cleaned_cmd, "is_dictation": True, "state": "HEARD"})
+                        self.set_state(WakeState.STANDBY_LISTENING)
+                        self._notify_stage("Ready", {"state": "STANDBY_LISTENING"})
+                    elif cleaned_cmd:
                         logger.info("Submitting recognized voice command: '%s'", cleaned_cmd)
+                        self._notify_stage("Heard", {"text": cleaned_cmd, "transcript": cleaned_cmd, "state": "HEARD"})
+                        self.set_state(WakeState.PROCESSING_AGENT)
+                        self._notify_stage("Thinking...", {"state": "PROCESSING_AGENT"})
                         self._execute_command_and_respond(cleaned_cmd)
                     else:
                         logger.info("No speech recognized in command utterance; returning to standby.")
                         self.set_state(WakeState.STANDBY_LISTENING)
+                        self._notify_stage("Ready", {"state": "STANDBY_LISTENING"})
 
     def _execute_command_and_respond(self, command_text: str) -> None:
         """Route recognized command to JARVIS Brain, deliver dual text/speech, and enter follow-up window."""
@@ -916,10 +1054,13 @@ class WakeWordEngine:
                 self._last_error = "Command completion could not be verified. Check the dashboard before retrying."
                 self._last_response = self._last_error
                 self._follow_up_deadline = 0.0
+                self._notify_stage("Error", {"error": self._last_error, "state": "ERROR"})
                 self.set_state(WakeState.STANDBY_LISTENING)
+                self._notify_stage("Ready", {"state": "STANDBY_LISTENING"})
                 return
 
             self.set_state(WakeState.SPEAKING_RESPONSE)
+            self._notify_stage("Speaking...", {"text": response_text, "state": "SPEAKING_RESPONSE"})
             t_start = time.time()
             time.sleep(0.3)
             while time.time() - t_start < 10.0 and self._is_tts_playing():
@@ -928,6 +1069,7 @@ class WakeWordEngine:
             # 2. Enter 15-second follow-up window
             self._follow_up_deadline = time.time() + self.follow_up_window_s
             self.set_state(WakeState.FOLLOW_UP_STANDBY)
+            self._notify_stage("Ready", {"state": "FOLLOW_UP_STANDBY"})
             logger.info("Entered 15-second follow-up window until %.1f", self._follow_up_deadline)
 
         except Exception as exc:

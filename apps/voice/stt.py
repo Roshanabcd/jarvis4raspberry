@@ -151,7 +151,7 @@ class SpeechToText:
                     import struct, math
                     samples = struct.unpack(f"{n_frames * wf.getnchannels()}h", raw_bytes)
                     rms = math.sqrt(sum(s * s for s in samples) / max(1, len(samples)))
-                    if rms < 8.0:
+                    if rms < 25.0:
                         self.last_status = "silence"
                         logger.debug("Audio file is near-silent (RMS: %.2f), skipping STT", rms)
                         return ""
@@ -211,11 +211,20 @@ class SpeechToText:
             try:
                 self.last_status = "recognizing"
                 logger.info("Transcribing audio file with Whisper: %s", audio_file_path)
-                result = self.model.transcribe(audio_file_path)
+                whisper_lang = (self.language or "en-US").split("-")[0].lower()
+                result = self.model.transcribe(
+                    audio_file_path,
+                    fp16=False,
+                    language=whisper_lang,
+                    temperature=0.0,
+                    condition_on_previous_text=False,
+                    no_speech_threshold=0.6,
+                    logprob_threshold=-1.0,
+                )
                 transcription = str(result.get("text", "")).strip()
                 if transcription:
                     self.last_status = "recognized"
-                    logger.debug("Whisper produced a transcript")
+                    logger.debug("Whisper produced a transcript: %s", transcription)
                     return transcription
                 self.last_status = "unintelligible"
             except Exception as exc:

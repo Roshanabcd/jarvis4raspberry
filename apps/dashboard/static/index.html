@@ -772,6 +772,9 @@
     background: #0f241c;
     color: #c8ffe3;
   }
+  .account-modal-overlay { display: none; }
+  .account-modal-overlay.open { display: flex; }
+  .account-modal-box { max-width: 100%; box-sizing: border-box; }
   .active-desktop-options,
   .active-desktop-actions,
   .chat-compose {
@@ -1040,7 +1043,45 @@
       <div class="cc-stack">
         <section class="cc-panel"><h2><span><span class="cc-icon">◌</span>Conversation</span><button class="cc-link" onclick="showTab('chat')">Open chat</button></h2><p class="cc-description">Live chat with JARVIS</p>
           <div class="cc-chat" id="cc-conversation" role="log" aria-label="Recent conversation"><p>Ready when you are. Start a conversation below.</p></div>
-          <form id="cc-chat-form" class="cc-compose"><label class="sr-only" for="cc-message">Message JARVIS</label><input id="cc-message" required maxlength="4096" placeholder="Message JARVIS…"><button class="btn" type="submit" id="cc-send">Send</button></form>
+          <form id="cc-chat-form" class="cc-compose" onsubmit="return false;">
+            <div class="chatgpt-pill-composer" id="cc-pill-composer">
+              <!-- Left: Circular + Action Button & Popover Menu -->
+              <div class="pill-plus-wrapper">
+                <button type="button" class="pill-plus-btn" id="cc-plus-btn" aria-label="Add attachment or action" title="Add attachment or action" aria-haspopup="true" aria-expanded="false">+</button>
+                <div class="pill-popover-menu" id="cc-plus-menu" role="menu" hidden>
+                  <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillAttach('home')">
+                    <span class="icon">📎</span>
+                    <span>Attach File / Image</span>
+                  </button>
+                  <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillScreenShot('home')">
+                    <span class="icon">🖥️</span>
+                    <span>Capture Current Screen</span>
+                  </button>
+                  <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillAppsCheck('home')">
+                    <span class="icon">⚡</span>
+                    <span>Check Running PC Apps</span>
+                  </button>
+                </div>
+              </div>
+              <!-- Center: Borderless Input with "Ask JARVIS..." placeholder -->
+              <label class="sr-only" for="cc-message">Message JARVIS</label>
+              <input id="cc-message" class="pill-input" maxlength="4096" placeholder="Ask JARVIS..." autocomplete="off">
+              <!-- Right: 3 Inline Controls (Think, Dictate, Real-Time Voice Waveform/Send) -->
+              <div class="pill-actions">
+                <button type="button" class="pill-think-btn" id="cc-think-btn" title="Toggle deep reasoning / multi-step planning mode" aria-pressed="false">
+                  <span class="brain-icon">🧠</span>
+                  <span>Think</span>
+                </button>
+                <button type="button" class="pill-dictate-btn" id="cc-dictate-btn" title="Dictate" aria-label="Dictate speech into input">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+                </button>
+                <button type="submit" class="pill-circle-btn waveform-mode" id="cc-send" title="Real-Time Voice Chat" aria-label="Real-Time Voice Chat">
+                  <svg viewBox="0 0 24 24" fill="currentColor" class="icon-waveform"><rect x="4" y="9" width="2.5" height="6" rx="1.25"/><rect x="8.5" y="5" width="2.5" height="14" rx="1.25"/><rect x="13" y="2" width="2.5" height="20" rx="1.25"/><rect x="17.5" y="7" width="2.5" height="10" rx="1.25"/></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon-send" style="display:none"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                </button>
+              </div>
+            </div>
+          </form>
           <p id="cc-chat-feedback" class="cc-subtle" role="status" aria-live="polite"></p>
         </section>
         <section class="cc-panel"><h2><span><span class="cc-icon">ϟ</span>Tasks &amp; agents</span><button class="cc-link" onclick="showTab('chat');document.getElementById('background-task-input').focus()">New task</button></h2><p class="cc-description">Your background work</p><div id="cc-tasks" class="cc-list"><p class="cc-subtle">Checking task history…</p></div></section>
@@ -1058,11 +1099,11 @@
         <div class="cc-caption" id="cc-caption">Hello. What would you like to work on?</div>
         <div class="cc-quick-chips" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:10px 0">
           <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('System Status')">📊 System Status</button>
-          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Screen')">🖥️ Screen</button>
+          <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="diagnoseDesktopScreen()" title="Diagnose screen errors and open windows">🖥️ Screen</button>
           <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Sensors')">🌡️ Sensors</button>
           <button class="btn dark" style="font-size:0.75rem;padding:4px 10px" onclick="quickPrompt('Robot')">🤖 Robot</button>
         </div>
-        <div class="cc-controls"><button class="btn dark" onclick="showTab('chat');document.getElementById('active-desktop-start').focus()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
+        <div class="cc-controls"><button class="btn dark" id="cc-share-screen-btn" onclick="toggleScreenMonitoring()">Share screen</button><button class="btn dark" onclick="stopSpeech()">Stop voice</button><button class="btn dark" onclick="showTab('integrations')">AI model &amp; keys</button></div>
         <details class="cc-voice-settings"><summary>Voice &amp; conversation preferences</summary>
           <div class="cc-controls"><label for="cc-character-select">Character</label><select id="cc-character-select"><option value="aria">ARIA (Female Assistant)</option><option value="atlas">ATLAS (Male Assistant)</option><option value="classic">Classic Mode</option></select></div>
           <div class="cc-controls"><label for="cc-ai-model">AI model</label><select id="cc-ai-model" aria-label="Home AI model"><option value="">Loading configured models…</option></select></div>
@@ -1141,11 +1182,13 @@
             </fieldset>
             <p id="active-desktop-status" class="status-msg" role="status" aria-live="polite">Inactive</p>
             <video id="active-desktop-preview" autoplay muted playsinline hidden style="width:100%;max-height:280px;background:#03050c;border-radius:8px" aria-label="Shared screen preview"></video>
-            <div class="active-desktop-actions" style="margin-top:10px;display:flex;gap:6px">
+            <img id="active-desktop-snapshot-preview" hidden style="width:100%;max-height:280px;background:#03050c;border-radius:8px;object-fit:contain" aria-label="Desktop snapshot preview" />
+            <div class="active-desktop-actions" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
               <label class="sr-only" for="active-desktop-question">Question about the shared screen</label>
               <input id="active-desktop-question" maxlength="1000" style="flex:1" placeholder="What does this terminal error mean?" aria-describedby="active-desktop-status active-desktop-help">
               <button id="active-desktop-read-text" class="btn dark" type="button" onclick="jarvisDesktop.readText()" disabled>Read screen text</button>
               <button id="active-desktop-describe" class="btn dark" type="button" onclick="jarvisDesktop.describe()" disabled>Ask about screen</button>
+              <button id="active-desktop-diagnose" class="btn dark" type="button" onclick="diagnoseDesktopScreen()">Diagnose screen</button>
             </div>
             <p id="active-desktop-answer" class="status-msg" style="white-space:pre-wrap" aria-live="polite"></p>
             <p style="font-size:0.72rem;color:var(--muted)">Native mouse, keyboard, and window controls are in Computer Use and operate this host’s X11 desktop.</p>
@@ -1153,18 +1196,49 @@
         </div>
       </details>
       <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:clamp(16rem, calc(100vh - 250px), 52rem);min-height:240px;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
-      <div class="chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:var(--card-bg, #081723);padding:10px 0;border-top:1px solid var(--card-border);z-index:20">
-        <select id="voice-capture-source" style="max-width:140px;font-size:0.78rem;padding:6px" aria-label="Microphone capture location">
-          <option value="host">ReSpeaker Mic</option>
-          <option value="browser">Browser Mic</option>
-        </select>
-        <button id="mic-btn" class="btn dark" style="border:1px solid var(--accent);color:var(--accent);padding:6px 10px;font-size:0.8rem" onclick="toggleVoiceRecord()" title="Capture ReSpeaker microphone" aria-label="Speak to JARVIS">
-          <span id="mic-icon">🎤</span> <span id="mic-label">Speak</span>
-        </button>
-        <button class="btn dark" style="padding:6px 10px;font-size:0.8rem" onclick="quickChatInspectScreen()" title="Inspect current screen with Vision AI">🖥️ Screen</button>
-        <label class="sr-only" for="chat-in">Message to JARVIS</label>
-        <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()" aria-label="Message to JARVIS" style="flex:1">
-        <button id="chat-send-btn" class="btn" onclick="sendChat()" style="padding:6px 16px">Send</button>
+      <div class="chat-compose" style="display:flex;flex-direction:column;gap:6px;position:sticky;bottom:0;background:var(--card-bg, #081723);padding:8px 0;border-top:1px solid var(--card-border);z-index:20">
+        <div class="chatgpt-pill-composer" id="chat-pill-composer">
+          <!-- Left: Circular + Action Button & Popover Menu -->
+          <div class="pill-plus-wrapper">
+            <button type="button" class="pill-plus-btn" id="chat-plus-btn" aria-label="Add attachment or action" title="Add attachment or action" aria-haspopup="true" aria-expanded="false">+</button>
+            <div class="pill-popover-menu" id="chat-plus-menu" role="menu" hidden>
+              <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillAttach('chat')">
+                <span class="icon">📎</span>
+                <span>Attach File / Image</span>
+              </button>
+              <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillScreenShot('chat')">
+                <span class="icon">🖥️</span>
+                <span>Capture Current Screen</span>
+              </button>
+              <button type="button" class="pill-menu-item" role="menuitem" onclick="triggerPillAppsCheck('chat')">
+                <span class="icon">⚡</span>
+                <span>Check Running PC Apps</span>
+              </button>
+            </div>
+          </div>
+          <!-- Center: Borderless Input with "Ask JARVIS..." placeholder -->
+          <label class="sr-only" for="chat-in">Message to JARVIS</label>
+          <input id="chat-in" class="pill-input" placeholder="Ask JARVIS..." autocomplete="off" aria-label="Message to JARVIS">
+          <!-- Right: 3 Inline Controls (Think, Dictate, Real-Time Voice Waveform/Send) -->
+          <div class="pill-actions">
+            <button type="button" class="pill-think-btn" id="chat-think-btn" title="Toggle deep reasoning / multi-step planning mode" aria-pressed="false">
+              <span class="brain-icon">🧠</span>
+              <span>Think</span>
+            </button>
+            <button type="button" class="pill-dictate-btn" id="chat-dictate-btn" title="Dictate" aria-label="Dictate speech into input">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>
+            </button>
+            <button type="button" class="pill-circle-btn waveform-mode" id="chat-send-btn" title="Real-Time Voice Chat" aria-label="Real-Time Voice Chat">
+              <svg viewBox="0 0 24 24" fill="currentColor" class="icon-waveform"><rect x="4" y="9" width="2.5" height="6" rx="1.25"/><rect x="8.5" y="5" width="2.5" height="14" rx="1.25"/><rect x="13" y="2" width="2.5" height="20" rx="1.25"/><rect x="17.5" y="7" width="2.5" height="10" rx="1.25"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon-send" style="display:none"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Hidden source select to maintain backwards compatibility with existing voice-capture-source / mic-btn -->
+        <div style="display:none">
+          <select id="voice-capture-source"><option value="host">ReSpeaker Mic</option><option value="browser">Browser Mic</option></select>
+          <button id="mic-btn" type="button"><span id="mic-icon">🎤</span><span id="mic-label">Speak</span></button>
+        </div>
       </div>
 
       <!-- Collapsible Background Tasks Drawer (Keeps main dialogue composer pinned and visible) -->
@@ -4574,6 +4648,32 @@ function connectWS() {
         }
         return;
       }
+      if (d.type === 'voice_stage') {
+        window.dispatchEvent(new CustomEvent('jarvis:voice_stage', { detail: d }));
+        const stage = d.stage;
+        const details = d.details || {};
+        const hVoice = document.getElementById('h-voice');
+        if (hVoice) hVoice.textContent = stage;
+        const ccWake = document.getElementById('cc-wake');
+        if (ccWake) ccWake.textContent = 'Voice: ' + stage.toLowerCase();
+        const ccFeedback = document.getElementById('cc-chat-feedback');
+        if (ccFeedback) {
+          if (stage === 'LISTENING_SPEECH') {
+            ccFeedback.textContent = details.rms ? ('Listening… (RMS: ' + Math.round(details.rms) + ')') : 'Listening to ReSpeaker microphone… Speak now.';
+          } else if (stage === 'HEARD') {
+            ccFeedback.textContent = details.text ? ('Heard: "' + details.text + '"') : 'Speech detected… Transcribing…';
+          } else if (stage === 'THINKING') {
+            ccFeedback.textContent = 'Thinking… Processing command.';
+          } else if (stage === 'SPEAKING') {
+            ccFeedback.textContent = 'Speaking response…';
+          } else if (stage === 'READY') {
+            ccFeedback.textContent = 'Ready';
+          } else if (stage === 'ERROR') {
+            ccFeedback.textContent = 'Voice error: ' + (details.error || 'Failed');
+          }
+        }
+        return;
+      }
       const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
       setVal('h-cpu', (d.cpu_pct ?? 0).toFixed(1) + '%');
       setVal('h-ram', (d.ram_pct ?? 0).toFixed(1) + '%');
@@ -4581,6 +4681,9 @@ function connectWS() {
       setVal('h-disk', (d.disk_pct ?? 0).toFixed(1) + '%');
       setVal('h-robot', d.robot_state ?? 'DISARMED');
       setVal('h-voice', d.voice_state ?? 'STANDBY');
+      if (d.type === 'voice_status' || d.voice_state) {
+        window.dispatchEvent(new CustomEvent('jarvis:voice_state', { detail: d }));
+      }
     } catch(err) {}
   };
 }
@@ -10562,6 +10665,127 @@ window.jarvisProviderSettings = JarvisProviderSettings.mount(document.getElement
   },
   onSelectionChange: async () => { await initChatModels(); }
 });
+
+
+let screenMonitorTimer = null;
+
+async function toggleScreenMonitoring() {
+  const btn = document.getElementById('cc-share-screen-btn');
+  const preview = document.getElementById('active-desktop-snapshot-preview');
+  const drawer = document.getElementById('active-desktop-drawer');
+
+  if (screenMonitorTimer) {
+    clearInterval(screenMonitorTimer);
+    screenMonitorTimer = null;
+    if (btn) btn.textContent = 'Share screen';
+    if (preview) preview.hidden = true;
+    const heroCaption = document.getElementById('cc-caption');
+    if (heroCaption) heroCaption.textContent = 'Screen monitoring stopped.';
+    return;
+  }
+
+  if (drawer) drawer.open = true;
+  if (btn) btn.textContent = 'Stop screen';
+  showTab('chat');
+
+  async function fetchScreen() {
+    try {
+      const res = await fetch('/api/active-desktop/snapshot', {
+        headers: { 'X-Jarvis-Client': 'dashboard' }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.thumbnail_url && preview) {
+          preview.src = d.thumbnail_url;
+          preview.hidden = false;
+        }
+        const statusEl = document.getElementById('active-desktop-status');
+        if (statusEl) {
+          const w = d.resolution ? d.resolution.width : 1440;
+          const h = d.resolution ? d.resolution.height : 900;
+          const act = d.active_window ? (d.active_window.title || 'Desktop') : 'Desktop';
+          statusEl.textContent = 'Live Desktop (' + w + 'x' + h + ') · Active: ' + act;
+          statusEl.className = 'status-msg is-ok';
+        }
+      }
+    } catch (_) {}
+  }
+
+  await fetchScreen();
+  screenMonitorTimer = setInterval(fetchScreen, 3000);
+}
+
+async function diagnoseDesktopScreen() {
+  const chatStatus = document.getElementById('chat-status-badge');
+  if (chatStatus) {
+    chatStatus.textContent = 'Diagnosing screen…';
+    chatStatus.className = 'badge warning';
+  }
+  const heroCaption = document.getElementById('cc-caption');
+  if (heroCaption) heroCaption.textContent = 'Inspecting screen for errors and open windows…';
+
+  try {
+    const res = await fetch('/api/active-desktop/diagnose-screen', {
+      method: 'POST',
+      headers: { 'X-Jarvis-Client': 'dashboard' }
+    });
+    if (!res.ok) throw new Error('Diagnosis request failed (' + res.status + ')');
+    const data = await res.json();
+
+    const preview = document.getElementById('active-desktop-snapshot-preview');
+    if (preview && data.thumbnail_url) {
+      preview.src = data.thumbnail_url;
+      preview.hidden = false;
+    }
+
+    const hasErr = data.has_error;
+    const actApp = (data.active_window && data.active_window.app) || 'Desktop';
+    const actTitle = (data.active_window && data.active_window.title) || 'Unknown';
+    let content = '🖥️ **Screen Diagnosis Report**\n\n' +
+                  '• **Active Window:** ' + actApp + ' — "' + actTitle + '"\n' +
+                  '• **Open Windows:** ' + (data.open_windows_count || 0) + ' active\n' +
+                  '• **Status:** ' + (hasErr ? '⚠️ Issues Detected' : '✅ Clear (No Errors)') + '\n\n' +
+                  '**Summary:** ' + data.spoken_summary + '\n\n' +
+                  '**Recommendation:** ' + data.recommendation;
+
+    if (data.errors && data.errors.length > 0) {
+      content += '\n\n**Detected Errors:**\n' + data.errors.map(function(e) {
+        return '- `' + e.error_text + '` (' + e.location + ')';
+      }).join('\n');
+    }
+
+    addMsg('jarvis', content);
+    if (heroCaption) heroCaption.textContent = data.spoken_summary;
+
+    const autoSpeak = document.getElementById('chat-auto-speak');
+    if (autoSpeak && autoSpeak.checked && data.spoken_summary) {
+      try {
+        if (typeof playJarvisAudio === 'function') {
+          fetch('/api/voice/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Jarvis-Client': 'dashboard' },
+            body: JSON.stringify({ text: data.spoken_summary, voice_type: 'neural' })
+          }).then(function(r) { return r.json(); }).then(function(s) {
+            if (s.audio_url) playJarvisAudio(s.audio_url);
+          }).catch(function() {});
+        }
+      } catch (_) {}
+    }
+
+    if (chatStatus) {
+      chatStatus.textContent = hasErr ? 'Screen: Issue' : 'Screen: Clear';
+      chatStatus.className = hasErr ? 'badge offline' : 'badge live';
+    }
+  } catch (err) {
+    addMsg('jarvis', '❌ Screen diagnosis unavailable: ' + err.message);
+    if (heroCaption) heroCaption.textContent = 'Screen diagnosis failed: ' + err.message;
+    if (chatStatus) {
+      chatStatus.textContent = 'Diagnosis error';
+      chatStatus.className = 'badge offline';
+    }
+  }
+}
+
 </script>
 </body>
 </html>

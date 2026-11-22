@@ -395,3 +395,13 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
 - Evidence recorded: `docs/jarvis-ui/evidence/master-phase-1/verification_report.json`.
 - Next: Phase 2 (Real-Time Voice Assistant, Ready Mic Button & Single-Voice Preemption).
 
+### Master Phase 2 Handoff — Real-Time Voice Assistant & Preemption · 22 November 2026
+- Verified single device ownership: `jarvis-voice.service` owns PipeWire ReSpeaker Lite (`pw-record`, card 2 device 0).
+- Cross-process `#cc-speak` push-to-talk IPC verified (<100ms dispatch to daemon; journal logs confirm immediate `LISTENING_SPEECH`).
+- Real speech STT verified with "hello jarvis what is running on my pc"; one-shot & two-step wake phrase commands extracted cleanly.
+- Real-time voice stages broadcast over `/ws` to Home Dashboard (Listening... -> Heard -> Thinking... -> Speaking... -> Ready).
+- Single-voice mutex enforced: browser suppressed (`playback_target: system`), stale speech preempted, task announcer active.
+- Phase 2 Gate passed 100%: 33/33 unit tests green, live Playwright `#cc-speak` click verified in journalctl, live TTS playback via `pw-play` completed cleanly (returncode 0).
+- Evidence recorded: `docs/jarvis-ui/evidence/master-phase-2/verification_report.json` and screenshot `phase2_voice_ready_click.png`.
+- Next: Phase 3 (Real-Time Screen Sharing, Screen Capture & Problem Detection `DISPLAY=:0`).
+
