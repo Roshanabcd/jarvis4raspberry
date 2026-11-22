@@ -552,6 +552,7 @@ class VoiceService:
 
         self.conversation.add_turn(role="assistant", text=response)
         spoken_text = (result.get("spoken_summary") or response) if isinstance(result, dict) else response
+        self._last_spoken_summary = spoken_text
         if speak:
             self.speak_response(spoken_text, turn_id=tid)
         elif broadcast_assistant:

@@ -344,11 +344,15 @@ class JARVISBrain:
         self,
         user_message: str,
         session_id: Optional[str] = None,
+        role: Optional[str] = None,
+        user_id: Optional[str] = None,
         provider_name: Optional[str] = None,
         model_name: Optional[str] = None,
         use_tools: bool = True,
         allow_fallback: bool = False,
         max_provider_retries: int = 1,
+        thinking_mode: bool = False,
+        **kwargs: Any,
     ):
         """
         Stream chat response token-by-token with progressive SSE rendering,
@@ -361,7 +365,7 @@ class JARVISBrain:
             request_id = f"req_{uuid.uuid4().hex[:12]}"
             message_id = f"msg_{uuid.uuid4().hex[:12]}"
             yield {"request_id": request_id, "message_id": message_id, "type": "start", "session_id": session_id or "default",
-                   "provider": provider_name or "agent", "model": model_name or ""}
+                   "provider": provider_name or "agent", "model": model_name or "", "thinking_mode": thinking_mode}
 
             import queue
             import concurrent.futures
@@ -376,10 +380,13 @@ class JARVISBrain:
                     user_message,
                     use_tools=True,
                     session_id=session_id,
+                    user_id=user_id,
+                    role=role,
                     provider_name=provider_name,
                     model_name=model_name,
                     allow_fallback=allow_fallback,
                     max_provider_retries=max_provider_retries,
+                    thinking_mode=thinking_mode,
                     _request_id=request_id,
                     _message_id=message_id,
                     on_progress=progress_callback,
@@ -408,9 +415,23 @@ class JARVISBrain:
                         yield {**evt, "request_id": request_id, "message_id": message_id, "session_id": session_id or "default"}
                     except queue.Empty:
                         break
-
-                result = future.result()
-                finished = True
+                try:
+                    result = future.result()
+                    finished = True
+                except Exception as fe:
+                    logger.error(f"Error during async chat task execution: {fe}")
+                    result = {
+                        "response": f"I encountered an error executing this task: {fe}",
+                        "status": "failed",
+                        "error": str(fe),
+                        "request_id": request_id,
+                        "message_id": message_id,
+                        "session_id": session_id or "default",
+                        "provider": provider_name or "agent",
+                        "model": model_name or "",
+                        "tools_used": [],
+                    }
+                    finished = True
             finally:
                 if not finished:
                     self.cancel_request(request_id)
@@ -822,11 +843,13 @@ class JARVISBrain:
              model_name: Optional[str] = None,
              allow_fallback: bool = False,
              max_provider_retries: int = 0,
+             thinking_mode: bool = False,
              _request_id: Optional[str] = None,
              _message_id: Optional[str] = None,
              on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
              _authorization_check: Optional[Callable[[], bool]] = None,
-             _allow_compound: bool = True) -> Dict[str, Any]:
+             _allow_compound: bool = True,
+             **kwargs: Any) -> Dict[str, Any]:
         """
         Synchronous chat processing with session isolation, exact response preservation,
         multi-task orchestration, deterministic hardware tools, and authenticated identity roles.
@@ -838,6 +861,9 @@ class JARVISBrain:
         request_id = _request_id or f"req_{uuid.uuid4().hex[:12]}"
         user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
         asst_msg_id = _message_id or f"msg_{uuid.uuid4().hex[:12]}"
+
+        if thinking_mode and not user_message.startswith("[Thinking Mode"):
+            user_message = f"[Thinking Mode: Enabled — Reason step-by-step and provide a multi-step plan]\n{user_message}"
 
         if _authorization_check is not None and not _authorization_check():
             return {
@@ -1151,7 +1177,7 @@ class JARVISBrain:
         attempted_providers = {provider.name}
         tools_used = []
         rounds = 0
-        inference_deadline = time.monotonic() + 75.0
+        inference_deadline = time.monotonic() + 180.0
         failure_telemetry: List[Dict[str, Any]] = []
         provider_attempts = 0
         max_provider_retries = max(0, int(max_provider_retries))

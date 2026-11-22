@@ -1,7 +1,7 @@
 """Voice REST API for JARVIS OS — speech control, status, devices, and push-to-talk."""
 import os
 import logging
-from typing import Optional
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, ConfigDict, Field
 from apps.voice.service import voice_service
@@ -549,6 +549,8 @@ class VoiceStageReport(BaseModel):
     stage: str
     details: Optional[Dict[str, Any]] = None
 
+VoiceStageReport.model_rebuild()
+
 
 @voice_router.post("/stage")
 def report_voice_stage(req: VoiceStageReport):
@@ -625,11 +627,18 @@ def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
         speak=False,
         turn_id=turn_id,
         broadcast_user=False,
-        broadcast_assistant=False,
+        broadcast_assistant=True,
     )
+    # Deliver concise 1-2 sentence spoken summary aloud
+    spoken_summary = getattr(voice_service, "_last_spoken_summary", None) or response
+    if len(spoken_summary) > 250 or "\n" in spoken_summary or "###" in spoken_summary or "```" in spoken_summary:
+        clean = re.sub(r"[\#\*\`\[\]\(\)]", "", spoken_summary)
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", clean) if s.strip()]
+        spoken_summary = " ".join(sentences[:2]) if sentences else clean[:200]
+
     try:
         job = voice_service.enqueue_response(
-            response, broadcast=True, preempt=True, turn_id=turn_id, message_id=turn_id
+            spoken_summary, broadcast=True, preempt=True, turn_id=turn_id, message_id=turn_id
         )
     except (RuntimeError, ValueError) as exc:
         try:

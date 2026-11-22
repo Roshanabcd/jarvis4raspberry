@@ -4622,17 +4622,18 @@ function connectWS() {
       const d = JSON.parse(e.data);
       if (d.type === 'chat_message') {
         const msgId = d.message_id || d.turn_id;
-        if (msgId && renderedMessageIds.has(msgId)) {
+        if (msgId) {
           const existing = document.querySelector(`[data-message-id="${msgId}"]`);
-          if (existing && d.audio_url) {
-            attachAudioToBubble(existing, d.audio_url, d.provider_label, d.is_cloned);
+          if (existing) {
+            if (d.audio_url) {
+              attachAudioToBubble(existing, d.audio_url, d.provider_label, d.is_cloned);
+            }
+            return;
           }
-          return;
         }
         if (currentChatAbort && d.role === 'assistant') {
           return;
         }
-        if (msgId) renderedMessageIds.add(msgId);
         const role = d.role === 'assistant' ? 'jarvis' : (d.role || 'user');
         addMsg(role, d.text, {
           audio_url: d.audio_url,
@@ -4839,8 +4840,12 @@ async function sendChat() {
 
   lastUserMessage = msg;
   inp.value = '';
-  interruptAllAudio();
-  addMsg('user', msg);
+  if (typeof Event !== 'undefined' && typeof inp.dispatchEvent === 'function') {
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  if (typeof interruptAllAudio === 'function') interruptAllAudio();
+  const clientTurnId = 'chat_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+  addMsg('user', msg, { message_id: 'user_' + clientTurnId });
 
   setChatStatus('loading', 'Sending your message…');
   document.getElementById('cancel-chat-btn').style.display = 'inline-block';
@@ -4875,7 +4880,16 @@ async function sendChat() {
     const res = await fetch('/api/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, provider, model, use_tools: document.getElementById('chat-mode')?.value !== 'conversation', speak: autoSpeakRequested && !browserVoiceRequested, audio_output: 'browser' }),
+      body: JSON.stringify({
+        message: msg,
+        provider,
+        model,
+        use_tools: document.getElementById('chat-mode')?.value !== 'conversation',
+        speak: autoSpeakRequested && !browserVoiceRequested,
+        audio_output: 'browser',
+        thinking_mode: Boolean(globalThis.jarvisThinkingMode),
+        session_id: clientTurnId
+      }),
       signal: controller.signal
     });
 
@@ -4907,8 +4921,8 @@ async function sendChat() {
               if (currentChatAbort === controller) currentChatRequestId = requestId;
             }
             if (event.message_id) {
-              assistantMsgElem.dataset.messageId = event.message_id;
-              renderedMessageIds.add(event.message_id);
+              if (assistantMsgElem.dataset) assistantMsgElem.dataset.messageId = event.message_id;
+              if (typeof renderedMessageIds !== 'undefined') renderedMessageIds.add(event.message_id);
             }
             progress.textContent = 'Message received. I’m working on it.';
             updateStatus('loading', 'Working…');
@@ -5020,9 +5034,9 @@ function addMsg(cls, text, audioInfo) {
 
   const msgId = audioInfo?.message_id;
   if (msgId) {
-    if (renderedMessageIds.has(msgId)) {
-      const existing = box.querySelector(`[data-message-id="${msgId}"]`);
-      if (existing && audioInfo.audio_url) {
+    const existing = box.querySelector(`[data-message-id="${msgId}"]`);
+    if (existing) {
+      if (audioInfo.audio_url) {
         attachAudioToBubble(existing, audioInfo.audio_url, audioInfo.provider_label, audioInfo.is_cloned);
       }
       return existing;
