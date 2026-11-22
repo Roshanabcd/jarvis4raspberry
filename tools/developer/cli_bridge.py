@@ -5,6 +5,7 @@ automated read-only system inspection, and strictly gated remediation with fresh
 """
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from pathlib import Path
@@ -22,6 +23,82 @@ _SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|token|password|secret|pin)(\s*[=
 def redact(value: Any) -> str:
     """Redact sensitive values like tokens, keys, and PINs."""
     return _SECRET_PATTERN.sub(r"\1\2[REDACTED]", str(value))
+
+
+def detect_requested_output_file(prompt: str) -> Optional[str]:
+    """Extract requested destination file path from user prompt if present."""
+    if not prompt:
+        return None
+    # 1. Full absolute or home paths: /path/to/file.ext or ~/path/to/file.ext
+    m = re.search(r'(?:^|[\s"\'`])([/~][a-zA-Z0-9_\.\-/]+\.[a-zA-Z0-9]{2,5})', prompt)
+    if m:
+        return os.path.expanduser(m.group(1).strip())
+    # 2. Key phrases like 'to Downloads/horse.jpg', 'save as horse.jpg', 'output to /tmp/x.png'
+    m2 = re.search(r'(?:to|as|in|into|named|path|file)\s+([a-zA-Z0-9_\.\-/]+\.[a-zA-Z0-9]{2,5})', prompt, re.I)
+    if m2:
+        val = m2.group(1).strip()
+        if val.startswith("Downloads/"):
+            return str(Path.home() / val)
+        elif not val.startswith("/") and not val.startswith("~"):
+            return str(Path.home() / "Downloads" / val)
+        return os.path.expanduser(val)
+    return None
+
+
+def is_image_task(prompt: str) -> bool:
+    """Check if the user prompt is requesting image generation or rendering."""
+    if not prompt:
+        return False
+    p = prompt.lower()
+    img_ext = bool(re.search(r"\.(jpg|jpeg|png|webp|svg|gif|bmp)\b", p))
+    img_word = bool(re.search(r"\b(image|picture|photo|drawing|illustration|sketch|wallpaper|render)\b", p))
+    create_word = bool(re.search(r"\b(generate|create|make|draw|paint|render|save|produce|fetch)\b", p))
+    return (img_word and create_word) or (img_ext and create_word) or (img_ext and img_word)
+
+
+def is_soft_failure(
+    output: str,
+    exit_code: int = 0,
+    target_file: Optional[str] = None,
+) -> Tuple[bool, str]:
+    """Detect whether execution failed even if exit_code is 0, including 429 quota exhaustion or missing target file."""
+    if exit_code != 0:
+        return True, f"Exit code {exit_code}"
+
+    out_lower = (output or "").lower()
+
+    # 1. Quota / Rate limit / Generation failure patterns
+    quota_patterns = [
+        "429",
+        "resource_exhausted",
+        "rate limit",
+        "quota exceeded",
+        "exceeded your current quota",
+        "cannot be rendered",
+        "failed to generate",
+        "model is overloaded",
+        "credit balance is too low",
+        "insufficient quota",
+        "out of quota",
+        "capacity exceeded",
+        "quota",
+    ]
+    for pat in quota_patterns:
+        if pat in out_lower:
+            return True, f"Quota/Provider failure marker: '{pat}'"
+
+    # 2. Target file check
+    if target_file:
+        p = Path(os.path.expanduser(target_file))
+        if not p.is_file():
+            return True, f"Target output file '{target_file}' was not created on disk"
+        try:
+            if p.stat().st_size == 0:
+                return True, f"Target output file '{target_file}' is empty (0 bytes) on disk"
+        except Exception as e:
+            return True, f"Could not inspect target file '{target_file}': {e}"
+
+    return False, ""
 
 
 class DeveloperCliBridge:
@@ -128,6 +205,7 @@ class DeveloperCliBridge:
             ("antigravity", ["antigravity", "agy", "/home/roshan/.local/bin/agy"], ["--version"], "antigravity"),
             ("claude", ["claude", "/home/roshan/.local/bin/claude"], ["--version"], "anthropic"),
             ("codex", ["codex", "/home/roshan/.local/bin/codex"], ["--version"], "openai"),
+            ("copilot", ["copilot", "gh", "/home/roshan/.local/bin/copilot"], ["--version"], "openai"),
             ("hermes", ["hermes", "/home/roshan/.local/bin/hermes"], ["--version"], "openai"),
             ("aider", ["aider", "/home/roshan/.local/bin/aider"], ["--version"], "openai"),
             ("opencode", ["opencode", "/home/roshan/.npm-global/bin/opencode"], ["--version"], "openai"),
@@ -410,6 +488,7 @@ class DeveloperCliBridge:
                 "antigravity": [clis.get("antigravity", {}).get("path") or "agy", "-p", prompt or "Diagnose repository and suggest fixes", "--sandbox"],
                 "claude": [clis.get("claude", {}).get("path") or "claude", "-p", "--no-session-persistence", "--permission-mode", "dontAsk", prompt or "Diagnose repository and suggest fixes"],
                 "codex": [clis.get("codex", {}).get("path") or "codex", "-p", prompt or "Diagnose repository and suggest fixes"],
+                "copilot": [clis.get("copilot", {}).get("path") or "copilot", "suggest", prompt or "Diagnose repository and suggest fixes"],
                 "hermes": [clis.get("hermes", {}).get("path") or "hermes", "-p", prompt or "Diagnose repository and suggest fixes"],
                 "aider": [clis.get("aider", {}).get("path") or "aider", "--message", prompt or "Diagnose repository and suggest fixes", "--no-auto-commits"],
                 "opencode": [clis.get("opencode", {}).get("path") or "opencode", "run", prompt or "Diagnose repository and suggest fixes"],

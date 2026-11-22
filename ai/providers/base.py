@@ -264,6 +264,32 @@ JARVIS_TOOLS: List[Dict] = [
         "name": "computer_stop",
         "description": "Emergency stop all computer automation.",
         "parameters": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "invoke_capability",
+        "description": "Invoke any of JARVIS's 45+ autonomous capabilities, apps, or extension modules (e.g. 'youtube-summarizer', 'document-qa', 'module:24:email_calendar_assistant', 'module:30:smart_home_controller', 'module:33:defensive_cybersecurity_agent').",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "capability_id": {"type": "string", "description": "ID or alias of capability to invoke"},
+                "action_id": {"type": "string", "description": "Action to run (default: 'execute')", "default": "execute"},
+                "parameters": {"type": "object", "description": "Key-value parameters for the action"}
+            },
+            "required": ["capability_id"]
+        }
+    },
+    {
+        "name": "execute_coding_cli",
+        "description": "Execute local AI developer coding CLI (antigravity, claude, codex, copilot, hermes, aider, opencode, cline) to inspect, diagnose, refactor, or fix code in the repository.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "cli_name": {"type": "string", "enum": ["antigravity", "claude", "codex", "copilot", "hermes", "aider", "opencode", "cline"], "description": "Target CLI"},
+                "prompt": {"type": "string", "description": "Instruction or diagnostic directive for the CLI"},
+                "action": {"type": "string", "enum": ["diagnose", "run_task"], "default": "run_task"}
+            },
+            "required": ["cli_name", "prompt"]
+        }
     }
 ]
 

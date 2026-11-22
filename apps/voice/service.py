@@ -525,8 +525,21 @@ class VoiceService:
 
         turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
         self.conversation.add_turn(role="assistant", text=response)
+        spoken_text = (result.get("spoken_summary") or response) if isinstance(result, dict) else response
         if speak:
-            self.speak_response(response, turn_id=turn_id)
+            self.speak_response(spoken_text, turn_id=turn_id)
+        else:
+            try:
+                from apps.api.websocket_api import broadcast_chat_message
+                broadcast_chat_message(
+                    role="assistant",
+                    text=response,
+                    message_id=turn_id,
+                    turn_id=turn_id,
+                    playback_target="system",
+                )
+            except Exception:
+                logger.debug("Could not broadcast voice reply")
         return response
 
     def speak_response(self, response: str, *, broadcast: bool = True, turn_id: Optional[str] = None) -> Dict[str, Any]:

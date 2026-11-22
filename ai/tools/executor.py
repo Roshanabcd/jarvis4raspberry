@@ -348,6 +348,28 @@ class ToolExecutor:
         import shutil
         import subprocess
 
+        # Check capability catalog first (e.g. document-qa, youtube-summarizer, orchestrator, smart-home)
+        try:
+            from ai.capabilities.registry import get_capability_registry
+            reg = get_capability_registry()
+            cap = reg.get_capability(app_name.lower().strip())
+            if not cap:
+                for c in reg.list_capabilities():
+                    if app_name.lower().strip() in c.name.lower() or any(app_name.lower().strip() == kw.lower() for kw in c.keywords):
+                        cap = c
+                        break
+            if cap and cap.route:
+                return {
+                    "status": "opened",
+                    "app": cap.name,
+                    "capability_id": cap.id,
+                    "route": cap.route,
+                    "target_tab": cap.target_tab,
+                    "message": f"Opened {cap.name} interface at {cap.route}."
+                }
+        except Exception:
+            pass
+
         aliases = {
             "vs code": "code",
             "vscode": "code",
@@ -386,6 +408,42 @@ class ToolExecutor:
             return {"status": "opened", "app": app_name, "executable": path, "pid": p.pid, "target": target}
         except Exception as e:
             return {"error": f"Failed to launch '{app_name}': {e}", "status": "failed"}
+
+    # ── Autonomous Capabilities & Developer CLIs ──────────────
+
+    def _tool_invoke_capability(self, capability_id: str, action_id: str = "execute",
+                               parameters: Optional[Dict[str, Any]] = None) -> Dict:
+        """Invoke any of JARVIS's 45+ autonomous capabilities or extension modules."""
+        try:
+            from ai.capabilities.dispatcher import get_capability_dispatcher
+            from ai.capabilities.models import CapabilityInvocationRequest
+            dispatcher = get_capability_dispatcher()
+            req = CapabilityInvocationRequest(
+                capability_id=capability_id,
+                action_id=action_id,
+                parameters=parameters or {},
+                channel="agent_tool",
+            )
+            res = dispatcher.execute(req)
+            return {
+                "status": res.status,
+                "capability_id": res.capability_id,
+                "action_id": res.action_id,
+                "output": res.markdown_output,
+                "spoken_summary": res.spoken_summary,
+                "data": res.data,
+            }
+        except Exception as e:
+            return {"status": "error", "error": str(e), "capability_id": capability_id}
+
+    def _tool_execute_coding_cli(self, cli_name: str, prompt: str,
+                                action: str = "run_task") -> Dict:
+        """Execute local AI developer coding CLI (antigravity, claude, codex, copilot, etc.)."""
+        return self._tool_invoke_capability(
+            capability_id=f"developer-cli:{cli_name}",
+            action_id=action,
+            parameters={"prompt": prompt, "instruction": prompt},
+        )
 
     # ── Code Execution ────────────────────────────────────────
 

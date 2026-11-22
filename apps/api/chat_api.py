@@ -23,6 +23,8 @@ class ChatRequest(BaseModel):
     max_provider_retries: int = Field(default=1, ge=0, le=3)
     speak: bool = False
     audio_output: Literal["browser", "system"] = "system"
+    role: Optional[str] = None
+    user_id: Optional[str] = None
 
 
 class ModelSwitchRequest(BaseModel):
@@ -88,6 +90,8 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
         user_message=req.message,
         use_tools=req.use_tools,
         session_id=req.session_id,
+        role=req.role,
+        user_id=req.user_id,
         provider_name=req.provider,
         model_name=req.model,
         allow_fallback=req.allow_fallback,
@@ -96,10 +100,11 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
 
     # Text-first: only synthesize speech if explicitly requested (speak=True)
     resp_text = result.get("response", "")
-    if req.speak and resp_text and not result.get('error') and result.get('status') not in {'failed', 'cancelled'}:
+    speech_text = result.get("spoken_summary") or resp_text
+    if req.speak and speech_text and not result.get('error') and result.get('status') not in {'failed', 'cancelled'}:
         try:
             from apps.voice.speech_manager import speech_manager
-            audio_info = speech_manager.synthesize_and_stage(resp_text, play_system=req.audio_output == "system")
+            audio_info = speech_manager.synthesize_and_stage(speech_text, play_system=req.audio_output == "system")
             if not audio_info.get("audio_url"):
                 result["audio_error"] = audio_info.get("error") or "Speech synthesis produced no playable audio"
             result["audio_id"] = audio_info.get("audio_id")
@@ -144,6 +149,8 @@ def chat_stream_endpoint(req: ChatRequest):
             events = brain.stream_chat(
                 user_message=req.message,
                 session_id=req.session_id,
+                role=req.role,
+                user_id=req.user_id,
                 provider_name=req.provider,
                 model_name=req.model,
                 use_tools=req.use_tools,
