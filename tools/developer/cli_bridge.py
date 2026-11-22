@@ -29,49 +29,131 @@ class DeveloperCliBridge:
     def __init__(self, repo_root: Optional[Path] = None):
         self.repo_root = repo_root or Path("/home/roshan/.gemini/antigravity/scratch/jarvis-os")
 
-    def detect_clis(self) -> Dict[str, Any]:
-        """Detect installed local developer CLIs (agy / antigravity, claude)."""
-        # 1. Antigravity CLI (agy)
-        agy_bin = (
-            shutil.which("antigravity")
-            or shutil.which("agy")
-            or "/home/roshan/.local/bin/agy"
-        )
-        agy_info = {"installed": False, "path": None, "version": None}
-        if agy_bin and Path(agy_bin).is_file() and os.access(agy_bin, os.X_OK):
-            agy_info["installed"] = True
-            agy_info["path"] = str(agy_bin)
-            try:
-                res = subprocess.run([agy_bin, "--version"], capture_output=True, text=True, timeout=3, check=False)
-                if res.returncode == 0:
-                    agy_info["version"] = res.stdout.strip()
-            except Exception:
-                agy_info["version"] = "available"
+    def get_freellmapi_config(self) -> Dict[str, Any]:
+        """Check FreeLLMAPI gateway status and model count without exposing secrets."""
+        from ai.providers.credentials import usable_key
+        gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+        gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+        configured = bool(usable_key(gateway_key))
 
-        # 2. Claude Code CLI
-        claude_bin = (
-            shutil.which("claude")
-            or "/home/roshan/.local/bin/claude"
-        )
-        claude_info = {"installed": False, "path": None, "version": None}
-        if claude_bin and Path(claude_bin).is_file() and os.access(claude_bin, os.X_OK):
-            claude_info["installed"] = True
-            claude_info["path"] = str(claude_bin)
+        reachable = False
+        model_count = 0
+        models_sample: List[str] = []
+        if configured:
             try:
-                res = subprocess.run([claude_bin, "--version"], capture_output=True, text=True, timeout=3, check=False)
-                if res.returncode == 0:
-                    claude_info["version"] = res.stdout.strip()
+                import requests
+                res = requests.get(
+                    f"{gateway_url}/models",
+                    headers={"Authorization": f"Bearer {gateway_key}", "Accept": "application/json"},
+                    timeout=2.0
+                )
+                if res.status_code == 200:
+                    reachable = True
+                    data = res.json()
+                    raw = data.get("data", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                    model_count = len(raw)
+                    models_sample = [m.get("id") if isinstance(m, dict) else str(m) for m in raw[:6]]
             except Exception:
-                claude_info["version"] = "available"
-
-        # Preferred CLI: Antigravity if available, else Claude
-        primary = "antigravity" if agy_info["installed"] else ("claude" if claude_info["installed"] else "none")
+                reachable = False
 
         return {
-            "antigravity": agy_info,
-            "claude": claude_info,
+            "gateway_url": gateway_url,
+            "configured": configured,
+            "reachable": reachable,
+            "model_count": model_count,
+            "active_model": os.getenv("FREELLMAPI_MODEL", "auto"),
+            "models_sample": models_sample,
+        }
+
+    def get_agent_env(self, cli_name: str) -> Dict[str, str]:
+        """Build runtime environment injecting FreeLLMAPI connection without writing secrets to disk."""
+        env = os.environ.copy()
+        gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+        gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+
+        if gateway_key:
+            bare_gateway = gateway_url.replace("/v1", "")
+            # Anthropic protocol (for Claude Code CLI)
+            env["ANTHROPIC_BASE_URL"] = bare_gateway
+            env["ANTHROPIC_AUTH_TOKEN"] = gateway_key
+            env["ANTHROPIC_API_KEY"] = gateway_key
+            env["CLAUDE_BASE_URL"] = bare_gateway
+
+            # OpenAI protocol (for Codex, Hermes, Aider, OpenCode, Cline)
+            env["OPENAI_BASE_URL"] = gateway_url
+            env["OPENAI_API_BASE"] = gateway_url
+            env["OPENAI_API_KEY"] = gateway_key
+            env["CODEX_API_BASE"] = gateway_url
+            env["CODEX_API_KEY"] = gateway_key
+            env["FREELLMAPI_API_KEY"] = gateway_key
+            env["FREELLMAPI_BASE_URL"] = gateway_url
+
+        return env
+
+    def detect_clis(self) -> Dict[str, Any]:
+        """Detect installed local developer CLIs and their FreeLLMAPI connection readiness."""
+        freellm = self.get_freellmapi_config()
+        fl_ready = freellm["configured"] and freellm["reachable"]
+
+        cli_specs = [
+            ("antigravity", ["antigravity", "agy", "/home/roshan/.local/bin/agy"], ["--version"], "antigravity"),
+            ("claude", ["claude", "/home/roshan/.local/bin/claude"], ["--version"], "anthropic"),
+            ("codex", ["codex", "/home/roshan/.local/bin/codex"], ["--version"], "openai"),
+            ("hermes", ["hermes", "/home/roshan/.local/bin/hermes"], ["--version"], "openai"),
+            ("aider", ["aider", "/home/roshan/.local/bin/aider"], ["--version"], "openai"),
+            ("opencode", ["opencode", "/home/roshan/.npm-global/bin/opencode"], ["--version"], "openai"),
+            ("cline", ["cline", "/home/roshan/.npm-global/bin/cline"], ["--version"], "openai"),
+        ]
+
+        detected: Dict[str, Any] = {}
+        installed_list = []
+
+        for name, candidate_bins, ver_cmd, wire in cli_specs:
+            bin_path = None
+            for cb in candidate_bins:
+                resolved = shutil.which(cb) or (cb if Path(cb).is_file() and os.access(cb, os.X_OK) else None)
+                if resolved:
+                    bin_path = resolved
+                    break
+
+            info: Dict[str, Any] = {
+                "installed": bool(bin_path),
+                "path": bin_path,
+                "version": None,
+                "freellmapi_protocol": wire,
+                "freellmapi_connected": bool(bin_path and fl_ready),
+            }
+
+            if bin_path:
+                installed_list.append(name)
+                try:
+                    res = subprocess.run([bin_path] + ver_cmd, capture_output=True, text=True, timeout=3, check=False)
+                    if res.returncode == 0:
+                        info["version"] = res.stdout.strip().splitlines()[0]
+                    else:
+                        info["version"] = "available"
+                except Exception:
+                    info["version"] = "available"
+
+            detected[name] = info
+
+        if "antigravity" in detected:
+            detected["agy"] = detected["antigravity"]
+
+        # Select primary CLI
+        primary = "antigravity" if detected["antigravity"]["installed"] else (
+            "claude" if detected["claude"]["installed"] else (
+                installed_list[0] if installed_list else "none"
+            )
+        )
+
+        return {
+            **detected,
             "primary": primary,
-            "has_developer_cli": agy_info["installed"] or claude_info["installed"],
+            "has_developer_cli": len(installed_list) > 0,
+            "installed_clis": installed_list,
+            "installed_count": len(installed_list),
+            "freellmapi": freellm,
         }
 
     def diagnose_system(self) -> Dict[str, Any]:
@@ -167,25 +249,43 @@ class DeveloperCliBridge:
             diagnostics["git"] = {"error": str(e)}
 
         # 4. Formatted Markdown Report
-        report_lines = [
-            "### 🛠️ Developer CLI Auto-Inspection Report",
-            "",
-            "#### 1. Available Developer CLIs",
-        ]
         clis = diagnostics["clis"]
-        if clis["antigravity"]["installed"]:
-            report_lines.append(f"- **Google Antigravity (`agy`):** ✅ Installed (`{clis['antigravity']['version'] or 'v1.5.x'}` at `{clis['antigravity']['path']}`)")
-        else:
-            report_lines.append("- **Google Antigravity (`agy`):** ❌ Not detected")
+        fl = clis.get("freellmapi", {})
+        fl_status_str = f"ONLINE ({fl.get('model_count', 0)} models available via `{fl.get('gateway_url')}`)" if fl.get("reachable") else "OFFLINE"
 
-        if clis["claude"]["installed"]:
-            report_lines.append(f"- **Anthropic Claude Code (`claude`):** ✅ Installed (`{clis['claude']['version'] or 'v2.x'}` at `{clis['claude']['path']}`)")
-        else:
-            report_lines.append("- **Anthropic Claude Code (`claude`):** ❌ Not detected")
+        report_lines = [
+            "### 🛠️ Developer CLI & Gateway Auto-Inspection Report",
+            "",
+            "#### 1. FreeLLMAPI Local Gateway",
+            f"- **Gateway Endpoint:** `{fl.get('gateway_url', 'http://localhost:3001/v1')}`",
+            f"- **Status:** `{'🟢 ' + fl_status_str if fl.get('reachable') else '🔴 OFFLINE'}`",
+            f"- **Credential Configured:** `{'YES (Masked)' if fl.get('configured') else 'NO'}`",
+            f"- **Active Default Model:** `{fl.get('active_model', 'auto')}`",
+            "",
+            "#### 2. Detected Local Coding Agents",
+        ]
+
+        cli_labels = [
+            ("antigravity", "Google Antigravity (`agy`)", "Antigravity"),
+            ("claude", "Anthropic Claude Code (`claude`)", "Anthropic Messages"),
+            ("codex", "OpenAI Codex CLI (`codex`)", "OpenAI Chat"),
+            ("hermes", "Hermes Agent (`hermes`)", "OpenAI Chat"),
+            ("aider", "Aider AI Pair Programmer (`aider`)", "OpenAI Chat"),
+            ("opencode", "OpenCode (`opencode`)", "OpenAI Chat"),
+            ("cline", "Cline Autonomous CLI (`cline`)", "OpenAI Chat"),
+        ]
+
+        for k, label, proto in cli_labels:
+            info = clis.get(k, {})
+            if info.get("installed"):
+                conn_badge = "⚡ Connected to FreeLLMAPI" if info.get("freellmapi_connected") else "Standalone"
+                report_lines.append(f"- **{label}:** ✅ Installed (`{info.get('version') or 'available'}`) · {conn_badge} via {proto}")
+            else:
+                report_lines.append(f"- **{label}:** ❌ Not detected")
 
         report_lines.extend([
             "",
-            "#### 2. Service & Hardware Health",
+            "#### 3. Service & Hardware Health",
             f"- **`jarvis-core.service`:** `{'ACTIVE' if diagnostics['services'].get('jarvis-core', {}).get('active') else 'INACTIVE'}`",
             f"- **`jarvis-voice.service`:** `{'ACTIVE (Single mic owner)' if diagnostics['services'].get('jarvis-voice', {}).get('active') else 'INACTIVE'}`",
             f"- **Audio Master Sink:** `{'MUTED ⚠️' if diagnostics['audio'].get('master_muted') else 'UNMUTED'}` (Volume: {diagnostics['audio'].get('master_volume_pct', 'N/A')}%)",
@@ -194,14 +294,14 @@ class DeveloperCliBridge:
         ])
 
         if diagnostics["recommendations"]:
-            report_lines.extend(["", "#### 3. Recommended Actions:"])
+            report_lines.extend(["", "#### 4. Recommended Actions:"])
             for rec in diagnostics["recommendations"]:
                 report_lines.append(f"- {rec}")
 
         report_lines.extend([
             "",
             "> [!NOTE]",
-            "> *All diagnostic checks above are read-only. Mutating repairs require explicit user confirmation and administrator PIN verification.*"
+            "> *All diagnostic checks above are read-only. Mutating repairs and coding executions require explicit user confirmation and administrator PIN verification.*"
         ])
 
         diagnostics["markdown_report"] = "\n".join(report_lines)
@@ -234,6 +334,7 @@ class DeveloperCliBridge:
             return {
                 "status": "error",
                 "code": "AUTHENTICATION_FAILED",
+                "error": f"Authorization denied: {auth_msg}",
                 "message": f"Authorization denied: {auth_msg}. Mutating remediation requires fresh administrator PIN.",
             }
 
@@ -263,15 +364,23 @@ class DeveloperCliBridge:
             except Exception as e:
                 return {"status": "error", "message": f"Failed to restart service: {e}"}
 
-        elif act in ("run_cli", "cli_fix", "propose_fix"):
+        elif act in ("run_cli", "cli_fix", "propose_fix", "run_coding_task"):
             chosen_cli = cli
             if chosen_cli == "auto":
                 chosen_cli = clis["primary"]
 
-            if chosen_cli == "antigravity" and clis["antigravity"]["installed"]:
-                cmd = [clis["antigravity"]["path"], "-p", prompt or "Diagnose repository and suggest fixes", "--sandbox"]
-            elif chosen_cli == "claude" and clis["claude"]["installed"]:
-                cmd = [clis["claude"]["path"], "-p", prompt or "Diagnose repository and suggest fixes"]
+            cli_cmd_map = {
+                "antigravity": [clis.get("antigravity", {}).get("path") or "agy", "-p", prompt or "Diagnose repository and suggest fixes", "--sandbox"],
+                "claude": [clis.get("claude", {}).get("path") or "claude", "-p", prompt or "Diagnose repository and suggest fixes"],
+                "codex": [clis.get("codex", {}).get("path") or "codex", "-p", prompt or "Diagnose repository and suggest fixes"],
+                "hermes": [clis.get("hermes", {}).get("path") or "hermes", "-p", prompt or "Diagnose repository and suggest fixes"],
+                "aider": [clis.get("aider", {}).get("path") or "aider", "--message", prompt or "Diagnose repository and suggest fixes", "--no-auto-commits"],
+                "opencode": [clis.get("opencode", {}).get("path") or "opencode", "run", prompt or "Diagnose repository and suggest fixes"],
+                "cline": [clis.get("cline", {}).get("path") or "cline", "-p", prompt or "Diagnose repository and suggest fixes"],
+            }
+
+            if chosen_cli in cli_cmd_map and clis.get(chosen_cli, {}).get("installed"):
+                cmd = cli_cmd_map[chosen_cli]
             else:
                 return {
                     "status": "error",
@@ -280,14 +389,15 @@ class DeveloperCliBridge:
                 }
 
             try:
-                proc = subprocess.run(cmd, cwd=str(self.repo_root), capture_output=True, text=True, timeout=30, check=False)
+                env = self.get_agent_env(chosen_cli)
+                proc = subprocess.run(cmd, cwd=str(self.repo_root), env=env, capture_output=True, text=True, timeout=45, check=False)
                 output = redact(proc.stdout.strip()[:3000])
                 return {
                     "status": "ok" if proc.returncode == 0 else "error",
                     "cli": chosen_cli,
                     "action": act,
                     "output": output or redact(proc.stderr.strip()[:1000]),
-                    "message": f"Executed deep diagnostic with {chosen_cli.title()}.",
+                    "message": f"Executed task with {chosen_cli.title()} (Exit code: {proc.returncode}).",
                 }
             except Exception as e:
                 return {"status": "error", "message": f"CLI execution error: {e}"}

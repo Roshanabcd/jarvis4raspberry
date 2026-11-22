@@ -197,20 +197,21 @@ class JARVISBrain:
                 client.list_models = lambda client=client: [client.model]
             self._providers.append(client)
 
-        # FreeLLMAPI shares the chat-completions protocol. Register it only
-        # when the operator supplies a gateway key and a gateway model ID.
-        gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
-        gateway_model = os.getenv("FREELLMAPI_MODEL", "").strip()
-        if usable_key(gateway_key) and gateway_model:
-            gateway = OpenAIProvider(
+        # FreeLLMAPI gateway provider with dynamic catalog, tool calling & streaming
+        try:
+            from ai.providers.freellmapi_provider import FreeLLMAPIProvider
+            gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+            gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").strip()
+            gateway_model = os.getenv("FREELLMAPI_MODEL", "auto").strip() or "auto"
+            gateway = FreeLLMAPIProvider(
                 api_key=gateway_key,
-                base_url="http://127.0.0.1:3001/v1",
+                base_url=gateway_url,
                 model=gateway_model,
                 enabled=True,
             )
-            gateway.name = "freellmapi"
-            gateway.list_models = lambda: [gateway.model]
             self._providers.append(gateway)
+        except Exception as e:
+            logger.warning("Failed to initialize FreeLLMAPIProvider: %s", e)
 
         # 7. Generic OpenAI-Compatible
         custom_cfg = cfg.get("custom", {}) or {}
@@ -907,7 +908,8 @@ class JARVISBrain:
             "audio_diagnostics", "developer_escalation", "running_apps_processes"
         }
 
-        if use_tools and intent in FAST_PATH_INTENTS:
+        explicit_provider = bool(provider_name) or bool(self._active and self._active.name in ("freellmapi", "openai", "gemini", "anthropic", "openrouter", "nvidia"))
+        if use_tools and intent in FAST_PATH_INTENTS and not explicit_provider:
             logger.info(f"Fast-path execution for intent: {intent}")
             local_res = engine.respond(user_message)
             resp_text = local_res.get("response", "Action completed.")
@@ -1121,6 +1123,32 @@ class JARVISBrain:
 
                 if not isinstance(tool_calls, list):
                     raise ValueError("Provider returned malformed tool_calls payload")
+
+                if not tool_calls and rounds == 1 and use_tools and advertised:
+                    # Fallback parser & intent router for free models that omit native tool_calls
+                    fallback_tool_map = {
+                        "running_apps_processes": ("get_running_apps_processes", {}),
+                        "screen_observe": ("inspect_screen", {}),
+                        "screen_screenshot": ("inspect_screen", {}),
+                        "system_status": ("get_system_status", {}),
+                        "audio_diagnostics": ("diagnose_system_status", {}),
+                        "developer_escalation": ("diagnose_system_status", {}),
+                    }
+                    # 1. Check if model text had parseable tool syntax
+                    text_candidate = result.get("text", "")
+                    if text_candidate and hasattr(provider, "parse_fallback_tool_calls"):
+                        tool_calls = provider.parse_fallback_tool_calls(text_candidate, advertised_tools=tools)
+
+                    # 2. Check intent-routed PC tools
+                    if not tool_calls and intent in fallback_tool_map:
+                        t_name, t_args = fallback_tool_map[intent]
+                        if t_name in advertised:
+                            logger.info(f"Fallback intent router dispatched '{t_name}' on {provider.name}")
+                            tool_calls = [{
+                                "id": f"fallback_call_{uuid.uuid4().hex[:8]}",
+                                "name": t_name,
+                                "args": t_args,
+                            }]
 
                 if not tool_calls:
                     text = (result.get("text") or "").strip()

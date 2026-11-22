@@ -786,6 +786,80 @@ class ToolRegistry:
             "execute": _fn_get_process_info,
         })
 
+        def _fn_get_running_apps_processes(limit: int = 10, **_):
+            from tools.system.process_inspector import process_inspector
+            overview = process_inspector.get_running_overview(limit=limit)
+            return overview.get("markdown", str(overview))
+
+        def _fn_inspect_screen(**_):
+            from tools.desktop.desktop_perception import desktop_perception
+            from tools.desktop.screen_intelligence import screen_intelligence
+            res = desktop_perception.get_screen_resolution()
+            active = desktop_perception.get_active_window()
+            windows = desktop_perception.list_open_windows()
+            err_check = screen_intelligence.check_screen_errors()
+            lines = [
+                "🖥️ **Screen & Desktop Inspection**",
+                f"- **Resolution:** {res.get('width', 1360)}x{res.get('height', 768)}",
+                f"- **Active Window:** `{active.get('title', 'Unknown')}` (Class: `{active.get('class', 'N/A')}`, ID: `{active.get('id', 'N/A')}`)",
+                f"- **Open Windows Count:** {len(windows)}",
+            ]
+            if err_check.get("error_found"):
+                lines.append(f"- **Screen Errors Detected:** ⚠️ {err_check.get('message')}")
+            else:
+                lines.append("- **Screen Errors:** None detected")
+            if windows:
+                lines.append("### Open Windows:")
+                for w in windows[:6]:
+                    lines.append(f"- `[{w.get('id')}]` {w.get('title')} ({w.get('app')})")
+            return "\n".join(lines)
+
+        def _fn_diagnose_system_status(**_):
+            from tools.developer.cli_bridge import developer_cli_bridge
+            diag = developer_cli_bridge.diagnose_system()
+            return diag.get("markdown_report", str(diag))
+
+        self.register_tool({
+            "name": "get_running_apps_processes",
+            "description": "Inspect running applications, open desktop windows, core service states, and top CPU/RAM processes (safe read-only)",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_running_apps_processes,
+        })
+        self.register_tool({
+            "name": "running_apps_processes",
+            "description": "Alias for get_running_apps_processes",
+            "schema": {"limit": "int"},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_get_running_apps_processes,
+        })
+        self.register_tool({
+            "name": "inspect_screen",
+            "description": "Capture and inspect current desktop screen, active window, resolution, open windows, and visible errors",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": _fn_inspect_screen,
+        })
+        self.register_tool({
+            "name": "screen_observe",
+            "description": "Alias for inspect_screen",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:read"],
+            "execute": _fn_inspect_screen,
+        })
+        self.register_tool({
+            "name": "diagnose_system_status",
+            "description": "Run safe read-only diagnostics across core services, audio sink/streams, git state, and installed developer CLIs",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["system:read"],
+            "execute": _fn_diagnose_system_status,
+        })
+
         # ── Category A2: Calculator Tools ─────────────────────
         self.register_tool({
             "name": "calculate",

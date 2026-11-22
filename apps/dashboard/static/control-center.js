@@ -201,16 +201,85 @@
   }
   syncModels();
 
-  // Microphone capture with real status reporting
+  // Microphone capture with real status reporting, active turn monitoring, and barge-in
+  let voiceMonitorInterval = null;
+
   byId('cc-speak')?.addEventListener('click', async () => {
-    state('thinking', 'Requesting microphone…');
-    text('cc-chat-feedback', 'Requesting the selected microphone…');
+    // 1. Barge-in: if currently speaking, interrupt immediately
+    if (speaking) {
+      stopBrowserSpeech();
+      const player = byId('jarvis-audio-player');
+      if (player) { player.pause(); player.currentTime = 0; }
+      try {
+        await root.fetch('/api/voice/interrupt', { method: 'POST', headers: { 'X-Jarvis-Client': 'dashboard' } });
+      } catch (_) {}
+      speaking = false;
+      state('listening', 'Listening…');
+      text('cc-chat-feedback', 'Barge-in: speech stopped. Listening…');
+    } else {
+      state('listening', 'Listening…');
+      text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
+    }
+
+    if (voiceMonitorInterval) {
+      clearInterval(voiceMonitorInterval);
+      voiceMonitorInterval = null;
+    }
+
     try {
       const outcome = await root.toggleVoiceRecord();
-      text('cc-chat-feedback', outcome?.message || 'Voice outcome unavailable. Open Voice Diagnostics.');
+      if (outcome?.status === 'accepted') {
+        state('listening', 'Listening…');
+        text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
+
+        let pollCount = 0;
+        const maxPolls = 60; // 30 seconds at 500ms
+        voiceMonitorInterval = setInterval(async () => {
+          pollCount++;
+          if (pollCount > maxPolls) {
+            clearInterval(voiceMonitorInterval);
+            voiceMonitorInterval = null;
+            syncConversation();
+            idleState();
+            return;
+          }
+          try {
+            const st = await get('/api/voice/wake_status');
+            const wsState = st?.state;
+            if (wsState) {
+              wakeState = wsState;
+              text('h-voice', wakeState.replaceAll('_', ' '));
+              text('cc-wake', 'Voice: ' + wakeState.replaceAll('_', ' ').toLowerCase());
+            }
+            if (wsState === 'LISTENING_SPEECH') {
+              state('listening', 'Listening…');
+              text('cc-chat-feedback', 'Listening… Speak your command.');
+            } else if (wsState === 'STREAMING_TRANSCRIPTION') {
+              state('listening', 'Listening…');
+              text('cc-chat-feedback', 'Hearing speech…');
+            } else if (wsState === 'SILENCE_COUNTDOWN') {
+              text('cc-chat-feedback', 'Silence detected, finalizing command…');
+            } else if (wsState === 'COMMAND_SUBMITTED' || wsState === 'PROCESSING_AGENT') {
+              state('thinking', 'Thinking…');
+              text('cc-chat-feedback', 'Processing voice command…');
+            } else if (wsState === 'SPEAKING_RESPONSE') {
+              state('speaking', 'Speaking');
+              text('cc-chat-feedback', 'Speaking response…');
+            } else if (wsState === 'FOLLOW_UP_STANDBY' || wsState === 'STANDBY_LISTENING') {
+              clearInterval(voiceMonitorInterval);
+              voiceMonitorInterval = null;
+              syncConversation();
+              idleState();
+            }
+          } catch (_) {}
+        }, 500);
+      } else {
+        text('cc-chat-feedback', outcome?.message || 'Voice outcome unavailable.');
+        syncConversation();
+        idleState();
+      }
     } catch (err) {
       text('cc-chat-feedback', 'Microphone error: ' + (err.message || 'Check microphone'));
-    } finally {
       syncConversation();
       idleState();
     }
@@ -223,6 +292,16 @@
     if (byId('chat-send-btn')?.disabled) {
       text('cc-chat-feedback', 'A reply is still in progress. Wait or stop it in Chat.');
       return;
+    }
+    // Barge-in: Preempt any active speech when sending a new chat message
+    if (speaking) {
+      stopBrowserSpeech();
+      const player = byId('jarvis-audio-player');
+      if (player) { player.pause(); player.currentTime = 0; }
+      try {
+        await root.fetch('/api/voice/interrupt', { method: 'POST', headers: { 'X-Jarvis-Client': 'dashboard' } });
+      } catch (_) {}
+      speaking = false;
     }
     const chatIn = byId('chat-in');
     if (chatIn) chatIn.value = message;
@@ -331,7 +410,11 @@
     }
     area.classList.remove('cc-subtle');
     for (const job of jobs.slice(0, 4)) {
-      const row = doc.createElement('div'); row.className = 'cc-list-row';
+      const card = doc.createElement('div');
+      card.style.cssText = 'border-bottom:1px solid #183344;padding:8px 0';
+      const row = doc.createElement('div');
+      row.className = 'cc-list-row';
+      row.style.cssText = 'border-bottom:none;padding:0;cursor:pointer';
       const labelCol = doc.createElement('div');
       labelCol.style.cssText = 'min-width:0;flex:1;margin-right:8px;text-align:left';
       
@@ -349,11 +432,106 @@
 
       const badge = doc.createElement('span');
       const st = (job.status || 'pending').toLowerCase();
-      badge.className = 'cc-badge ' + (st === 'completed' || st === 'success' ? 'live' : '');
+      badge.className = 'cc-badge ' + (st === 'completed' || st === 'success' || st === 'succeeded' ? 'live' : (st === 'failed' ? 'warn' : ''));
       badge.textContent = job.status || 'pending';
 
       row.append(labelCol, badge);
-      area.appendChild(row);
+      card.appendChild(row);
+
+      const detailBox = doc.createElement('div');
+      detailBox.className = 'cc-task-detail';
+      detailBox.style.cssText = 'display:none;margin-top:6px;padding:8px;background:rgba(15,23,42,0.6);border-radius:4px;font-size:0.75rem;color:#94a3b8';
+
+      if (st === 'failed') {
+        const reasonP = doc.createElement('div');
+        reasonP.style.cssText = 'color:#f87171;margin-bottom:6px;word-break:break-word';
+        reasonP.textContent = 'Failure reason: ' + (job.error_detail || job.error_reason || job.error_code || 'Model provider execution failed');
+        detailBox.appendChild(reasonP);
+
+        const actions = doc.createElement('div');
+        actions.style.cssText = 'display:flex;gap:6px;margin-top:6px';
+
+        const retryBtn = doc.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'btn dark';
+        retryBtn.style.cssText = 'padding:2px 8px;font-size:0.72rem;background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;cursor:pointer';
+        retryBtn.textContent = 'Retry';
+        retryBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          retryBtn.disabled = true;
+          retryBtn.textContent = 'Retrying…';
+          try {
+            await root.fetch(`/api/task-jobs/${encodeURIComponent(job.job_id)}/retry`, {
+              method: 'POST',
+              headers: { 'X-Jarvis-Client': 'dashboard' }
+            });
+            await refresh();
+          } catch (err) {
+            retryBtn.textContent = 'Retry failed';
+            retryBtn.disabled = false;
+          }
+        });
+
+        const dismissBtn = doc.createElement('button');
+        dismissBtn.type = 'button';
+        dismissBtn.className = 'btn dark';
+        dismissBtn.style.cssText = 'padding:2px 8px;font-size:0.72rem;background:#1e293b;color:#94a3b8;border:1px solid #475569;cursor:pointer';
+        dismissBtn.textContent = 'Dismiss / Clear';
+        dismissBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          dismissBtn.disabled = true;
+          dismissBtn.textContent = 'Clearing…';
+          try {
+            await root.fetch(`/api/task-jobs/${encodeURIComponent(job.job_id)}`, {
+              method: 'DELETE',
+              headers: { 'X-Jarvis-Client': 'dashboard' }
+            });
+            await refresh();
+          } catch (err) {
+            dismissBtn.textContent = 'Clear failed';
+            dismissBtn.disabled = false;
+          }
+        });
+
+        actions.append(retryBtn, dismissBtn);
+        detailBox.appendChild(actions);
+      } else if (job.response || job.result_available) {
+        const respP = doc.createElement('div');
+        respP.style.cssText = 'color:#e2e8f0;white-space:pre-wrap;margin-bottom:6px;max-height:120px;overflow-y:auto';
+        respP.textContent = 'Result: ' + (job.response || 'Completed');
+        detailBox.appendChild(respP);
+
+        const dismissBtn = doc.createElement('button');
+        dismissBtn.type = 'button';
+        dismissBtn.className = 'btn dark';
+        dismissBtn.style.cssText = 'padding:2px 8px;font-size:0.72rem;background:#1e293b;color:#94a3b8;border:1px solid #475569;cursor:pointer';
+        dismissBtn.textContent = 'Dismiss / Clear';
+        dismissBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          dismissBtn.disabled = true;
+          try {
+            await root.fetch(`/api/task-jobs/${encodeURIComponent(job.job_id)}`, {
+              method: 'DELETE',
+              headers: { 'X-Jarvis-Client': 'dashboard' }
+            });
+            await refresh();
+          } catch (err) {
+            dismissBtn.disabled = false;
+          }
+        });
+        detailBox.appendChild(dismissBtn);
+      } else {
+        const statP = doc.createElement('div');
+        statP.textContent = `Status: ${job.status || 'Active'} · Progress: ${job.progress || 'working'}`;
+        detailBox.appendChild(statP);
+      }
+
+      row.addEventListener('click', () => {
+        detailBox.style.display = detailBox.style.display === 'none' ? 'block' : 'none';
+      });
+
+      card.appendChild(detailBox);
+      area.appendChild(card);
     }
   }
 
@@ -392,7 +570,10 @@
       const providers = value(2), selected = providers?.active_provider;
       text('cc-provider', selected ? 'AI: ' + selected : 'AI: unavailable');
       text('cc-model-name', providers?.active_model || 'Model status unavailable');
-      text('cc-terminal', sys ? `[HOST] ${sys.os || 'Local'} · ${sys.arch || ''}\n[UPTIME] ${sys.uptime_str || 'Unknown'}\n[AI] ${selected || 'Unavailable'}\n[WORKSPACE] Ready to open\nCommands run only when requested.` : '[JARVIS] Service status unavailable.');
+      const provList = Array.isArray(providers?.providers) ? providers.providers : [];
+      const flmapi = provList.find(p => p.name === 'freellmapi');
+      const flmInfo = flmapi ? `\n[GATEWAY] FreeLLMAPI ${flmapi.available ? 'Online (' + (flmapi.models?.length || 0) + ' models)' : 'Offline'}` : '';
+      text('cc-terminal', sys ? `[HOST] ${sys.os || 'Local'} · ${sys.arch || ''}\n[UPTIME] ${sys.uptime_str || 'Unknown'}\n[AI] ${selected || 'Unavailable'} (${providers?.active_model || 'default'})${flmInfo}\n[WORKSPACE] Ready to open\nCommands run only when requested.` : '[JARVIS] Service status unavailable.');
 
       const jobs = value(3)?.jobs;
       renderTasks(jobs, jobs ? 'No background tasks yet.' : 'Task history unavailable.');

@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JARVIS OS — Neural & Robotics Command Suite</title>
+<link rel="icon" type="image/png" href="/jarvis_icon.png">
 <style>
   :root {
     --bg: #070913;
@@ -216,6 +217,14 @@
     width: 100%;
     outline: none;
     transition: border-color 0.2s;
+  }
+  input[type="checkbox"], input[type="radio"] {
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--accent);
   }
   input:focus, textarea:focus, select:focus {
     border-color: var(--accent);
@@ -892,7 +901,7 @@
       <span class="hdr-user-role" id="hdr-pill-role">Pending</span>
     </button>
     <button id="hdr-notifications-btn" class="btn dark" onclick="if(window.jarvisNotify)window.jarvisNotify.toggleDrawer()" aria-label="Notifications" title="System Notifications &amp; Alerts">🔔 Alerts <span id="hdr-notif-count" class="badge online" style="display:none;margin-left:4px">0</span></button>
-    <label style="display:inline-flex;align-items:center;gap:4px;font-size:0.72rem;color:var(--text);cursor:pointer;background:rgba(255,255,255,0.04);padding:4px 8px;border-radius:4px;border:1px solid var(--card-border)" title="Auto-speak high-priority notifications and alerts aloud"><input type="checkbox" id="hdr-auto-speak-notif" onchange="if(window.jarvisNotify)window.jarvisNotify.toggleAutoSpeak(this.checked)"> 🔊 Auto-Speak</label>
+    <label id="hdr-auto-speak-label" style="display:inline-flex;align-items:center;gap:6px;font-size:0.75rem;color:var(--text);cursor:pointer;background:rgba(255,255,255,0.04);padding:5px 9px;border-radius:6px;border:1px solid var(--card-border);white-space:nowrap;flex-shrink:0;height:32px" title="Auto-speak high-priority notifications and alerts aloud"><input type="checkbox" id="hdr-auto-speak-notif" onchange="if(window.jarvisNotify)window.jarvisNotify.toggleAutoSpeak(this.checked)"> 🔊 Auto-Speak</label>
     <span id="ws-badge" class="ws-badge" role="status" aria-live="polite">● Connecting...</span>
     <button id="estop-btn" class="btn danger" style="padding: 4px 12px; font-size: 0.75rem;" onclick="robotCmd('estop')" aria-label="Emergency stop all robot actuators">🛑 E-STOP</button>
   </div>
@@ -2351,6 +2360,109 @@
         <h3>Quality Gate Status</h3>
         <div class="val" id="dev-gate-val" style="font-size:0.95rem;color:var(--warn)">HUMAN_REVIEW</div>
         <div class="sub">Release gated</div>
+      </div>
+    </div>
+
+    <!-- FreeLLMAPI Gateway & Safe Developer Execution -->
+    <div class="responsive-2col" style="margin-bottom:18px">
+      <!-- FreeLLMAPI Gateway Panel -->
+      <div class="panel" style="display:flex;flex-direction:column;justify-content:space-between">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+            <h2 style="display:flex;align-items:center;gap:8px">🌐 FreeLLMAPI Local Gateway</h2>
+            <span id="flm-gateway-badge" class="status-pill live">CHECKING...</span>
+          </div>
+          <p style="font-size:0.8rem;color:var(--muted);margin-bottom:12px">
+            Local gateway routing to 300+ frontier & open-source LLMs with native function calling, tool use, and SSE streaming.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+            <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:6px;padding:10px">
+              <div style="font-size:0.72rem;color:var(--muted)">Endpoint & Origin</div>
+              <div id="flm-gateway-url" style="font-family:monospace;font-size:0.8rem;color:var(--accent);margin-top:2px">http://localhost:3001/v1</div>
+            </div>
+            <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:6px;padding:10px">
+              <div style="font-size:0.72rem;color:var(--muted)">Available Models</div>
+              <div id="flm-model-count" style="font-size:1.1rem;color:var(--green);font-weight:700;margin-top:2px">—</div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label for="flm-model-select" style="font-size:0.75rem;color:var(--muted);display:block;margin-bottom:4px">Select Gateway Model for Chat / Agents:</label>
+            <div style="display:flex;gap:8px">
+              <select id="flm-model-select" style="flex:1;padding:8px 10px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.82rem">
+                <option value="auto">auto (Gateway Intelligent Router)</option>
+              </select>
+              <button class="btn accent" style="padding:8px 12px;font-size:0.78rem;white-space:nowrap" onclick="activateGatewayModel()">⚡ Activate</button>
+            </div>
+            <div id="flm-model-feedback" style="font-size:0.72rem;color:var(--muted);margin-top:4px"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Safe Developer Mode Panel: Diagnostics & Gated Remediation -->
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <h2>🛡️ Safe Developer Tools & Gated Execution</h2>
+          <button class="btn ok" style="padding:4px 10px;font-size:0.75rem" onclick="runDeveloperDiagnostics()">🔍 Run Read-Only Diagnostics</button>
+        </div>
+        <p style="font-size:0.8rem;color:var(--muted);margin-bottom:10px">
+          Read-only inspection executes immediately. Mutating CLI tasks and service repairs require administrator PIN verification.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label for="dev-exec-action" style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Action Type:</label>
+              <select id="dev-exec-action" style="width:100%;padding:6px 8px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.8rem">
+                <option value="run_cli">Execute Coding Agent CLI</option>
+                <option value="remediate_service">Remediate System Service</option>
+                <option value="git_repair">Git Workspace Repair</option>
+              </select>
+            </div>
+            <div>
+              <label for="dev-exec-cli" style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Target Coding CLI:</label>
+              <select id="dev-exec-cli" style="width:100%;padding:6px 8px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.8rem">
+                <option value="auto">Auto (Optimal CLI)</option>
+                <option value="claude">Claude Code (Anthropic)</option>
+                <option value="codex">Codex CLI (OpenAI)</option>
+                <option value="hermes">Hermes Agent</option>
+                <option value="aider">Aider CLI</option>
+                <option value="opencode">OpenCode Interpreter</option>
+                <option value="agy">Antigravity CLI (agy)</option>
+                <option value="cline">Cline CLI</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label for="dev-exec-prompt" style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Task Prompt / Command Specification:</label>
+            <input type="text" id="dev-exec-prompt" placeholder="e.g. Inspect git diff and run unit tests" style="width:100%;padding:6px 10px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.82rem">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end">
+            <div>
+              <label for="dev-exec-pin" style="font-size:0.72rem;color:var(--muted);display:block;margin-bottom:2px">Administrator PIN:</label>
+              <input type="password" id="dev-exec-pin" placeholder="Enter PIN to unlock execution" style="width:100%;padding:6px 10px;background:#060814;border:1px solid var(--card-border);border-radius:6px;color:#fff;font-size:0.82rem">
+            </div>
+            <button class="btn warn" id="btn-exec-dev-gated" onclick="executeDeveloperGatedAction()" style="padding:7px 14px;font-size:0.8rem;white-space:nowrap">🔐 Execute Gated Action</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Diagnostic / Execution Terminal Output (Hidden until triggered) -->
+    <div id="dev-diag-panel" class="panel" style="margin-bottom:18px;display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h3 id="dev-diag-title" style="font-size:0.95rem;color:var(--text)">📋 System Diagnostics & Execution Report</h3>
+        <button class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="document.getElementById('dev-diag-panel').style.display='none'">✕ Close</button>
+      </div>
+      <pre id="dev-diag-output" style="background:#03050c;border:1px solid var(--card-border);border-radius:6px;padding:12px;font-family:monospace;font-size:0.75rem;color:#cbd5e1;max-height:260px;overflow-y:auto;white-space:pre-wrap;margin:0"></pre>
+    </div>
+
+    <!-- Local Coding Agents Matrix -->
+    <div class="panel" style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <h2>💻 Local Coding Agent CLIs (FreeLLMAPI Injected)</h2>
+        <span style="font-size:0.75rem;color:var(--muted)">Runtime in-memory environment injection · Zero secrets written to disk</span>
+      </div>
+      <div id="dev-coding-clis-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
+        <div style="color:var(--muted);font-size:0.85rem">Detecting installed coding agent CLIs...</div>
       </div>
     </div>
 
@@ -4660,9 +4772,13 @@ function attachAudioToBubble(bubbleElem, audioUrl, providerLabel, isCloned) {
 
 let lastStagedAudioUrl = null;
 let audioUnlocked = false;
+let audioPlaybackGeneration = 0;
 
-function playJarvisAudio(url) {
+function playJarvisAudio(url, gen) {
   if (!url) return;
+  if (gen !== undefined && gen !== audioPlaybackGeneration) {
+    return;
+  }
   lastStagedAudioUrl = url;
   const player = document.getElementById('jarvis-audio-player');
   if (!player) return;
@@ -4723,6 +4839,7 @@ function clearChat() {
 }
 
 async function stopSpeech() {
+  audioPlaybackGeneration++;
   browserCaptureGeneration++;
   activeBrowserCapture?.getTracks().forEach(track => track.stop());
   activeBrowserRecorder?.state === 'recording' && activeBrowserRecorder.stop();
@@ -4733,7 +4850,7 @@ async function stopSpeech() {
     player.currentTime = 0;
   }
   try {
-    await fetch('/api/voice/stop', { method: 'POST' });
+    await fetch('/api/voice/interrupt', { method: 'POST' });
   } catch(e) {}
 }
 
@@ -5631,7 +5748,7 @@ async function identifyFaceVision() {
 let dashboardIdentityRole = "GUEST";
 function updateHeaderUserPill(name, role) {
   dashboardIdentityRole = role;
-  if (window.AccountCenter) {
+  if (typeof window !== 'undefined' && window.AccountCenter) {
     window.AccountCenter.updateHeaderPill(name, role);
     window.AccountCenter.updateSidebarCard(name, role);
   }
@@ -5750,7 +5867,7 @@ async function verifyAdminPinSubmit() {
     updateHeaderUserPill(d.active_user.display_name, d.authorization_role);
     status.textContent = 'Signed in as administrator. Privileged settings still request your PIN for each change.';
     await loadIdentityStatus();
-    if (window.AccountCenter) {
+    if (typeof window !== 'undefined' && window.AccountCenter) {
       await window.AccountCenter.loadAccountCenter();
       if (window.AccountCenter.preferences?.voice_greeting) {
         window.AccountCenter.triggerVoiceGreeting(`Welcome back, ${window.AccountCenter.currentUser?.callsign || d.active_user.display_name}. Session elevated.`);
@@ -7487,11 +7604,194 @@ async function rollbackAgentCheckpoint() {
 async function loadDeveloperCenter() {
   await Promise.all([
     loadDeveloperStatus(),
+    loadDeveloperGateway(),
     loadDeveloperAgents(),
     loadDeveloperTasks(),
     loadDeveloperWorktrees(),
     loadDeveloperTests()
   ]);
+}
+
+async function loadDeveloperGateway() {
+  const badgeEl = document.getElementById('flm-gateway-badge');
+  const urlEl = document.getElementById('flm-gateway-url');
+  const countEl = document.getElementById('flm-model-count');
+  const clisGrid = document.getElementById('dev-coding-clis-grid');
+  const modelSel = document.getElementById('flm-model-select');
+
+  try {
+    const [gwRes, provRes] = await Promise.all([
+      fetch('/api/developer/gateway'),
+      fetch('/api/chat/providers')
+    ]);
+    
+    if (gwRes.ok) {
+      const data = await gwRes.json();
+      const flm = data.freellmapi || {};
+      const clis = data.clis || {};
+      
+      if (badgeEl) {
+        if (flm.reachable) {
+          badgeEl.className = 'status-pill live';
+          badgeEl.textContent = 'ONLINE (PORT 3001)';
+          badgeEl.style.color = 'var(--green)';
+        } else if (flm.configured) {
+          badgeEl.className = 'status-pill';
+          badgeEl.textContent = 'CONFIGURED (OFFLINE)';
+          badgeEl.style.color = 'var(--warn)';
+        } else {
+          badgeEl.className = 'status-pill';
+          badgeEl.textContent = 'UNCONFIGURED';
+          badgeEl.style.color = 'var(--err)';
+        }
+      }
+      if (urlEl) urlEl.textContent = flm.gateway_url || 'http://localhost:3001/v1';
+      if (countEl) countEl.textContent = `${flm.model_count || 0} models`;
+
+      if (clisGrid) {
+        const cliEntries = Object.entries(clis).filter(([k]) => k !== 'freellmapi');
+        if (cliEntries.length === 0) {
+          clisGrid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No coding CLIs detected.</div>';
+        } else {
+          clisGrid.innerHTML = cliEntries.map(([cliKey, c]) => {
+            const isInstalled = !!c.installed;
+            const isReady = !!c.freellmapi_ready;
+            const statusColor = isReady ? 'var(--green)' : (isInstalled ? 'var(--accent)' : 'var(--muted)');
+            const protocolLabel = c.protocol === 'anthropic' ? 'Anthropic Messages API' : 'OpenAI Chat API';
+            return `
+              <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">
+                <div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <h3 style="font-size:0.95rem;color:var(--text);font-weight:700;margin:0">${cliKey.toUpperCase()}</h3>
+                    <span class="status-pill ${isReady ? 'live' : ''}" style="color:${statusColor}">${isReady ? 'READY' : (isInstalled ? 'INSTALLED' : 'NOT FOUND')}</span>
+                  </div>
+                  <div style="font-size:0.75rem;color:var(--accent);margin-bottom:4px">v${c.version || 'unknown'} · ${protocolLabel}</div>
+                  <div style="font-size:0.7rem;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.path || ''}">${c.path || 'Not in PATH'}</div>
+                </div>
+                <div style="margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.72rem;color:${isReady ? 'var(--green)' : 'var(--muted)'}">
+                  ${isReady ? '✓ FreeLLMAPI Injected' : 'FreeLLMAPI inactive'}
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    }
+
+    if (provRes.ok && modelSel) {
+      const provData = await provRes.json();
+      const provList = Array.isArray(provData.providers) ? provData.providers : [];
+      const flmProv = provList.find(p => p.name === 'freellmapi');
+      if (flmProv && Array.isArray(flmProv.models) && flmProv.models.length > 0) {
+        const curVal = modelSel.value;
+        modelSel.innerHTML = '';
+        flmProv.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m === 'auto' ? 'auto (Gateway Intelligent Router)' : m;
+          if (m === flmProv.model || m === curVal) opt.selected = true;
+          modelSel.appendChild(opt);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('loadDeveloperGateway error:', err);
+  }
+}
+
+async function activateGatewayModel() {
+  const modelSel = document.getElementById('flm-model-select');
+  const feedback = document.getElementById('flm-model-feedback');
+  if (!modelSel) return;
+  const model = modelSel.value;
+  try {
+    if (feedback) feedback.textContent = `Activating freellmapi:${model}...`;
+    const ok = await switchChatModel(`freellmapi:${model}`);
+    if (ok) {
+      if (feedback) {
+        feedback.textContent = `✓ Activated freellmapi:${model} for chat and tools.`;
+        feedback.style.color = 'var(--green)';
+      }
+      await initChatModels();
+    } else {
+      if (feedback) {
+        feedback.textContent = `Failed to activate model ${model}.`;
+        feedback.style.color = 'var(--err)';
+      }
+    }
+  } catch (e) {
+    if (feedback) {
+      feedback.textContent = `Error: ${e.message}`;
+      feedback.style.color = 'var(--err)';
+    }
+  }
+}
+
+async function runDeveloperDiagnostics() {
+  const panel = document.getElementById('dev-diag-panel');
+  const title = document.getElementById('dev-diag-title');
+  const out = document.getElementById('dev-diag-output');
+  if (panel) panel.style.display = 'block';
+  if (title) title.textContent = '📋 System & Gateway Diagnostics Report';
+  if (out) out.textContent = 'Running read-only diagnostics across system services, PipeWire audio, git worktree, and FreeLLMAPI gateway...';
+
+  try {
+    const res = await fetch('/api/developer/diagnostics', { method: 'POST' });
+    const data = await res.json();
+    if (out) out.textContent = data.diagnostics || JSON.stringify(data, null, 2);
+  } catch (e) {
+    if (out) out.textContent = 'Error running diagnostics: ' + e.message;
+  }
+}
+
+async function executeDeveloperGatedAction() {
+  const actionSel = document.getElementById('dev-exec-action');
+  const cliSel = document.getElementById('dev-exec-cli');
+  const promptInput = document.getElementById('dev-exec-prompt');
+  const pinInput = document.getElementById('dev-exec-pin');
+  const panel = document.getElementById('dev-diag-panel');
+  const title = document.getElementById('dev-diag-title');
+  const out = document.getElementById('dev-diag-output');
+
+  const action = actionSel ? actionSel.value : 'run_cli';
+  const cli = cliSel ? cliSel.value : 'auto';
+  const prompt = promptInput ? promptInput.value.trim() : '';
+  const pin = pinInput ? pinInput.value.trim() : '';
+
+  if (!pin) {
+    if (panel) panel.style.display = 'block';
+    if (title) title.textContent = '🔐 Authorization Required';
+    if (out) out.textContent = '❌ Administrator PIN is required to execute gated developer actions.';
+    if (window.jarvisNotify && window.jarvisNotify.notify) {
+      window.jarvisNotify.notify('Administrator PIN is required to execute gated developer actions.', 'warn');
+    }
+    if (pinInput) pinInput.focus();
+    return;
+  }
+
+  if (panel) panel.style.display = 'block';
+  if (title) title.textContent = `🔐 Gated Action Execution: ${action} (${cli})`;
+  if (out) out.textContent = `Authorizing PIN and executing ${action}...`;
+
+  try {
+    const res = await fetch('/api/developer/execute', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, cli, prompt, pin })
+    });
+    const data = await res.json();
+    if (pinInput) pinInput.value = ''; // Always clear PIN after execution
+    if (out) {
+      if (data.status === 'ok') {
+        out.textContent = `[SUCCESS] Action completed.\n\n${data.output || JSON.stringify(data, null, 2)}`;
+      } else {
+        out.textContent = `[FAILED / DENIED] ${data.error || 'Execution denied'}\n\n${JSON.stringify(data, null, 2)}`;
+      }
+    }
+  } catch (e) {
+    if (pinInput) pinInput.value = '';
+    if (out) out.textContent = 'Execution error: ' + e.message;
+  }
 }
 
 async function loadDeveloperStatus() {
