@@ -72,6 +72,7 @@ class VoiceService:
         self._delivery_stop = threading.Event()
         self._delivery_worker: Optional[threading.Thread] = None
         self._last_staged: Dict[str, Any] = {}
+        self._speech_generation: int = 0
 
         # Temporary audio directory for chunk processing
         self._temp_dir = os.path.join(tempfile.gettempdir(), "jarvis_voice")
@@ -83,15 +84,18 @@ class VoiceService:
             self.simulation_mode,
         )
 
-    def enqueue_response(self, response: str, *, broadcast: bool = False) -> VoiceJob:
-        """Queue one tracked reply, refusing capacity rather than evicting live work."""
+    def enqueue_response(self, response: str, *, broadcast: bool = False, preempt: bool = False) -> VoiceJob:
+        """Queue one tracked reply, refusing capacity rather than evicting live work unless preempt is True."""
         if not isinstance(response, str) or not response.strip():
             raise ValueError("response must be a non-empty string")
         with self._reply_enqueue_lock:
+            if preempt:
+                self.stop_playback()
             self._ensure_delivery_worker()
             if self._reply_queue.full():
                 raise RuntimeError("Voice reply queue is full")
-            job = self._job_manager.create_job(response, preserve_active=True)
+            current_gen = getattr(self, "_speech_generation", 0)
+            job = self._job_manager.create_job(response, preserve_active=True, generation=current_gen)
             self._reply_queue.put_nowait(job)
         if broadcast:
             try:
@@ -140,6 +144,12 @@ class VoiceService:
         current = self._job_manager.get_job(job.job_id)
         if not current or current.status != "queued":
             return current or job
+        current_gen = getattr(self, "_speech_generation", 0)
+        job_gen = getattr(job, "generation", 0)
+        if job_gen != current_gen:
+            logger.info("Dropping preempted voice job %s (generation %d != %d)", job.job_id, job_gen, current_gen)
+            cancelled = self._job_manager.update_job(job.job_id, status="cancelled", error="Preempted by newer speech")
+            return cancelled or job
         try:
             current = self._job_manager.update_job(job.job_id, status="synthesizing")
             if not current or current.status != "synthesizing":
@@ -154,6 +164,12 @@ class VoiceService:
             ):
                 error = staged.get("error") if isinstance(staged, dict) else None
                 raise RuntimeError(error or "Speech synthesis failed")
+
+            if getattr(job, "generation", 0) != getattr(self, "_speech_generation", 0):
+                logger.info("Dropping preempted synthesized audio for job %s", job.job_id)
+                cancelled = self._job_manager.update_job(job.job_id, status="cancelled", error="Preempted by newer speech")
+                return cancelled or job
+
             current = self._job_manager.update_job(
                 job.job_id,
                 audio_id=staged.get("audio_id"),
@@ -170,12 +186,25 @@ class VoiceService:
             current = self._job_manager.update_job(job.job_id, status="playing")
             if not current or current.status != "playing":
                 return current or job
+
+            if staged.get("audio_url"):
+                try:
+                    from apps.api.websocket_api import broadcast_chat_message
+                    broadcast_chat_message(
+                        role="assistant",
+                        text=job.text,
+                        audio_url=staged.get("audio_url"),
+                    )
+                except Exception as b_err:
+                    logger.debug("Failed to broadcast staged audio URL: %s", b_err)
+
             played = speech_manager.play_system_audio(
                 audio[0],
                 wait=True,
                 playback_owner=job.job_id,
                 should_play=lambda: (
-                    (latest := self._job_manager.get_job(job.job_id)) is not None
+                    getattr(job, "generation", 0) == getattr(self, "_speech_generation", 0)
+                    and (latest := self._job_manager.get_job(job.job_id)) is not None
                     and latest.status == "playing"
                 ),
             )
@@ -212,6 +241,15 @@ class VoiceService:
     def stop_playback(self) -> None:
         """Interrupt any ongoing audio synthesis playback immediately (barge-in)."""
         try:
+            self._speech_generation = getattr(self, "_speech_generation", 0) + 1
+            with self._reply_enqueue_lock:
+                while not self._reply_queue.empty():
+                    try:
+                        old_job = self._reply_queue.get_nowait()
+                        self._job_manager.cancel_job(old_job.job_id)
+                        self._reply_queue.task_done()
+                    except queue.Empty:
+                        break
             self._job_manager.cancel_active_jobs()
             from apps.voice.speech_manager import speech_manager
             speech_manager.stop()
@@ -421,6 +459,7 @@ class VoiceService:
         speak: bool = True,
     ) -> str:
         """Process a spoken or text command through the JARVIS Brain and speak the reply."""
+        self.stop_playback()
         logger.info("Processing voice command: '%s'", text)
         self.conversation.add_turn(role="user", text=text)
         try:

@@ -684,10 +684,12 @@ class GradioVoiceCloner:
                 cmd = [player_bin, audio_result.audio_path]
                 if "ffplay" in player_bin:
                     cmd.extend(["-nodisp", "-autoexit", "-loglevel", "quiet"])
+                from apps.voice.audio_environment import local_audio_environment
                 self._current_player = subprocess.Popen(
                     cmd,
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL
+                    stderr=subprocess.DEVNULL,
+                    env=local_audio_environment(),
                 )
                 if wait:
                     self._current_player.wait(timeout=15)

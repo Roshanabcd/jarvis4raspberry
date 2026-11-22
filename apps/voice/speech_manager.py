@@ -369,7 +369,7 @@ class SpeechOutputManager:
             if player and player.poll() is None:
                 try:
                     player.terminate()
-                    player.wait(timeout=1.0)
+                    player.wait(timeout=0.5)
                 except Exception:
                     try:
                         player.kill()
@@ -419,7 +419,8 @@ class SpeechOutputManager:
 
             # 3. Play tone via PipeWire
             player_bin = shutil.which("pw-play") or shutil.which("paplay") or shutil.which("aplay") or "pw-play"
-            proc = subprocess.Popen([player_bin, tone_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            from apps.voice.audio_environment import local_audio_environment
+            proc = subprocess.Popen([player_bin, tone_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=local_audio_environment())
             playback_started = True
             proc.wait(timeout=5)
             playback_completed = (proc.returncode == 0)
