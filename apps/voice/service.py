@@ -499,8 +499,9 @@ class VoiceService:
             response = "The AI service returned no answer. Completion could not be verified."
 
         self.conversation.add_turn(role="assistant", text=response)
+        spoken_text = (result.get("spoken_summary") or response) if isinstance(result, dict) else response
         if speak:
-            self.speak_response(response)
+            self.speak_response(spoken_text)
         else:
             try:
                 from apps.api.websocket_api import broadcast_chat_message

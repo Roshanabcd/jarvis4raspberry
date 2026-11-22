@@ -456,39 +456,124 @@ class JARVISBrain:
             }
             return
 
-        # 1. Compound multi-task check (Test 7)
-        if use_tools and CompoundTaskOrchestrator.is_compound_request(user_message):
-            yield {
-                "type": "start",
-                "request_id": request_id,
-                "message_id": asst_msg_id,
-                "session_id": sid,
-                "provider": "compound_orchestrator",
-                "model": "hybrid_multi_task_agent",
-            }
-            comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid)
-            resp_text = comp_res.get("response", "")
-            db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
-            db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
-                            provider="compound_orchestrator", model="hybrid_multi_task_agent",
-                            tools_used=comp_res.get("tools_used", []))
-            history.append({"role": "user", "content": user_message})
-            history.append({"role": "assistant", "content": resp_text})
-            yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
-            dur_ms = int((time.time() - t_start) * 1000)
-            yield {
-                "type": "done",
-                "request_id": request_id,
-                "message_id": asst_msg_id,
-                "session_id": sid,
-                "provider": "compound_orchestrator",
-                "model": "hybrid_multi_task_agent",
-                "ttft_ms": dur_ms,
-                "total_ms": dur_ms,
-                "tokens": len(resp_text.split()),
-                "tools_used": comp_res.get("tools_used", []),
-            }
-            return
+        # 1. Multi-Task DAG Execution or Legacy Compound multi-task check
+        if use_tools:
+            from ai.capabilities.multi_task_brain import get_multi_task_brain
+            mt_brain = get_multi_task_brain()
+            if mt_brain.is_multi_task_request(user_message):
+                yield {
+                    "type": "start",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "multi_task_brain",
+                    "model": "capability_dag_orchestrator",
+                }
+                plan = mt_brain.create_plan(user_message, user_role=role, user_id=user_id or "user", session_id=sid)
+                executed_plan = mt_brain.execute_plan(plan, user_id=user_id or "user", user_role=role, session_id=sid, channel="chat")
+                resp_text = executed_plan.final_summary
+                db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                provider="multi_task_brain", model="capability_dag_orchestrator",
+                                tools_used=[{"tool": s.capability_id, "action": s.action_id} for s in executed_plan.steps])
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": resp_text})
+                yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+                dur_ms = int((time.time() - t_start) * 1000)
+                yield {
+                    "type": "done",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "multi_task_brain",
+                    "model": "capability_dag_orchestrator",
+                    "ttft_ms": dur_ms,
+                    "total_ms": dur_ms,
+                    "tokens": len(resp_text.split()),
+                    "tools_used": [{"tool": s.capability_id, "action": s.action_id} for s in executed_plan.steps],
+                }
+                return
+
+            if CompoundTaskOrchestrator.is_compound_request(user_message):
+                yield {
+                    "type": "start",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "compound_orchestrator",
+                    "model": "hybrid_multi_task_agent",
+                }
+                comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid)
+                resp_text = comp_res.get("response", "")
+                db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                provider="compound_orchestrator", model="hybrid_multi_task_agent",
+                                tools_used=comp_res.get("tools_used", []))
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": resp_text})
+                yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+                dur_ms = int((time.time() - t_start) * 1000)
+                yield {
+                    "type": "done",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "compound_orchestrator",
+                    "model": "hybrid_multi_task_agent",
+                    "ttft_ms": dur_ms,
+                    "total_ms": dur_ms,
+                    "tokens": len(resp_text.split()),
+                    "tools_used": comp_res.get("tools_used", []),
+                }
+                return
+
+            # Direct Capability Router match (developer CLIs, modules, core apps)
+            from ai.capabilities.router import get_capability_router
+            from ai.capabilities.dispatcher import get_capability_dispatcher
+            from ai.capabilities.models import CapabilityInvocationRequest
+            cap_router = get_capability_router()
+            cap_match = cap_router.route(user_message, user_role=role)
+            if cap_match and (cap_match.capability_id.startswith("developer-cli:") or cap_match.capability_id.startswith("module:") or cap_match.capability_id in ("youtube-summarizer", "document-qa", "research-assistant")):
+                yield {
+                    "type": "start",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "capability_router",
+                    "model": cap_match.capability_id,
+                }
+                disp = get_capability_dispatcher()
+                cap_res = disp.execute(CapabilityInvocationRequest(
+                    capability_id=cap_match.capability_id,
+                    action_id=cap_match.action_id,
+                    parameters=cap_match.extracted_parameters,
+                    user_id=user_id or "user",
+                    role=role,
+                    session_id=sid,
+                    channel="chat",
+                ))
+                resp_text = cap_res.markdown_output
+                db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                provider="capability_router", model=cap_match.capability_id,
+                                tools_used=[{"tool": cap_match.capability_id, "action": cap_match.action_id}])
+                history.append({"role": "user", "content": user_message})
+                history.append({"role": "assistant", "content": resp_text})
+                yield {"type": "token", "content": resp_text, "request_id": request_id, "message_id": asst_msg_id}
+                dur_ms = int((time.time() - t_start) * 1000)
+                yield {
+                    "type": "done",
+                    "request_id": request_id,
+                    "message_id": asst_msg_id,
+                    "session_id": sid,
+                    "provider": "capability_router",
+                    "model": cap_match.capability_id,
+                    "ttft_ms": dur_ms,
+                    "total_ms": dur_ms,
+                    "tokens": len(resp_text.split()),
+                    "tools_used": [{"tool": cap_match.capability_id, "action": cap_match.action_id}],
+                }
+                return
 
         from ai.local_engine import LocalIntelligenceEngine
         engine = LocalIntelligenceEngine()
@@ -817,28 +902,106 @@ class JARVISBrain:
                         "request_id": request_id, "message_id": asst_msg_id,
                         "session_id": sid, "timestamp": time.time()}
 
-            # 1. Compound multi-task check (Test 7)
-            if use_tools and _allow_compound and CompoundTaskOrchestrator.is_compound_request(user_message):
-                if on_progress:
-                    try:
-                        on_progress({"type": "progress", "stage": "compound_planning", "detail": "Executing compound task"})
-                    except Exception:
-                        pass
-                comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid, on_progress=on_progress)
-                resp_text = comp_res.get("response", "")
-                db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
-                db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
-                                provider="compound_orchestrator", model="hybrid_multi_task_agent",
-                                tools_used=comp_res.get("tools_used", []))
-                history.append({"role": "user", "content": user_message})
-                history.append({"role": "assistant", "content": resp_text})
-                comp_res.update({
-                    "request_id": request_id,
-                    "message_id": asst_msg_id,
-                    "session_id": sid,
-                    "timestamp": time.time(),
-                })
-                return comp_res
+            # 1. Multi-Task DAG Execution or Legacy Compound multi-task check
+            if use_tools and _allow_compound:
+                from ai.capabilities.multi_task_brain import get_multi_task_brain
+                mt_brain = get_multi_task_brain()
+                if mt_brain.is_multi_task_request(user_message):
+                    if on_progress:
+                        try:
+                            on_progress({"type": "progress", "stage": "multi_task_planning", "detail": "Planning multi-task execution"})
+                        except Exception:
+                            pass
+                    plan = mt_brain.create_plan(user_message, user_role=role, user_id=user_id or "user", session_id=sid)
+                    executed_plan = mt_brain.execute_plan(plan, user_id=user_id or "user", user_role=role, session_id=sid, channel="chat", on_progress=on_progress)
+                    resp_text = executed_plan.final_summary
+                    db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                    db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                    provider="multi_task_brain", model="capability_dag_orchestrator",
+                                    tools_used=[{"tool": s.capability_id, "action": s.action_id} for s in executed_plan.steps])
+                    history.append({"role": "user", "content": user_message})
+                    history.append({"role": "assistant", "content": resp_text})
+                    return {
+                        "response": resp_text,
+                        "spoken_summary": executed_plan.spoken_summary,
+                        "status": "completed",
+                        "provider": "multi_task_brain",
+                        "model": "capability_dag_orchestrator",
+                        "tools_used": [{"tool": s.capability_id, "action": s.action_id} for s in executed_plan.steps],
+                        "rounds": 1,
+                        "plan": executed_plan.model_dump(),
+                        "request_id": request_id,
+                        "message_id": asst_msg_id,
+                        "session_id": sid,
+                        "timestamp": time.time(),
+                    }
+
+                if CompoundTaskOrchestrator.is_compound_request(user_message):
+                    if on_progress:
+                        try:
+                            on_progress({"type": "progress", "stage": "compound_planning", "detail": "Executing compound task"})
+                        except Exception:
+                            pass
+                    comp_res = CompoundTaskOrchestrator.execute_compound(user_message, self, session_id=sid, on_progress=on_progress)
+                    resp_text = comp_res.get("response", "")
+                    db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                    db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                    provider="compound_orchestrator", model="hybrid_multi_task_agent",
+                                    tools_used=comp_res.get("tools_used", []))
+                    history.append({"role": "user", "content": user_message})
+                    history.append({"role": "assistant", "content": resp_text})
+                    comp_res.update({
+                        "request_id": request_id,
+                        "message_id": asst_msg_id,
+                        "session_id": sid,
+                        "timestamp": time.time(),
+                    })
+                    return comp_res
+
+            # Direct Capability Router match (developer CLIs, modules, core apps)
+            if use_tools:
+                from ai.capabilities.router import get_capability_router
+                from ai.capabilities.dispatcher import get_capability_dispatcher
+                from ai.capabilities.models import CapabilityInvocationRequest
+                cap_router = get_capability_router()
+                cap_match = cap_router.route(user_message, user_role=role)
+                if cap_match and (cap_match.capability_id.startswith("developer-cli:") or cap_match.capability_id.startswith("module:") or cap_match.capability_id in ("youtube-summarizer", "document-qa", "research-assistant")):
+                    if on_progress:
+                        try:
+                            on_progress({"type": "progress", "stage": "capability_execution", "detail": f"Routing to {cap_match.capability_id}"})
+                        except Exception:
+                            pass
+                    disp = get_capability_dispatcher()
+                    cap_res = disp.execute(CapabilityInvocationRequest(
+                        capability_id=cap_match.capability_id,
+                        action_id=cap_match.action_id,
+                        parameters=cap_match.extracted_parameters,
+                        user_id=user_id or "user",
+                        role=role,
+                        session_id=sid,
+                        channel="chat",
+                    ))
+                    resp_text = cap_res.markdown_output
+                    db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
+                    db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
+                                    provider="capability_router", model=cap_match.capability_id,
+                                    tools_used=[{"tool": cap_match.capability_id, "action": cap_match.action_id}])
+                    history.append({"role": "user", "content": user_message})
+                    history.append({"role": "assistant", "content": resp_text})
+                    return {
+                        "response": resp_text,
+                        "spoken_summary": cap_res.spoken_summary,
+                        "status": "completed",
+                        "provider": "capability_router",
+                        "model": cap_match.capability_id,
+                        "tools_used": [{"tool": cap_match.capability_id, "action": cap_match.action_id}],
+                        "capability_result": cap_res.model_dump(),
+                        "rounds": 1,
+                        "request_id": request_id,
+                        "message_id": asst_msg_id,
+                        "session_id": sid,
+                        "timestamp": time.time(),
+                    }
 
             # 2. Intent classification via LocalIntelligenceEngine
             if on_progress:
