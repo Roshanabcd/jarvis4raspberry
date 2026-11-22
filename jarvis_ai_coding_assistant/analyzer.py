@@ -146,7 +146,10 @@ class StaticCodeAnalyzer:
             )
         )
 
+        has_syntax_error = any(f.rule_id == "SYN-001" for f in deduped)
         penalty = sum(SEVERITY_PENALTY.get(f.severity, 0) for f in deduped)
+        if has_syntax_error:
+            penalty = max(penalty, 60)
         score = max(0, min(100, 100 - penalty))
         return score, _score_to_grade(score), deduped, metrics
 

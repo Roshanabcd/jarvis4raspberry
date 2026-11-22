@@ -144,6 +144,8 @@ class WorkspaceManager:
     ) -> Dict[str, object]:
         """Preview or safely write updated file content with optional timestamped backup."""
         target = self.resolve_safe_path(relative_path)
+        if target.exists() and target.is_dir():
+            raise ValueError(f"Target '{relative_path}' is a directory, not a file.")
         existed = target.exists()
         original = target.read_text(encoding="utf-8", errors="replace") if existed else ""
         rel_display = target.relative_to(self.root).as_posix()

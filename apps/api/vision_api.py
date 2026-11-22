@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from apps.vision.service import vision_service
+from core.paths import PHOTOS_DIR
 from tools.identity.permission_manager import permission_manager
 from tools.vision.camera_manager import CameraManager
 
@@ -162,14 +163,19 @@ def get_image_by_filename(filename: str):
         raise HTTPException(status_code=400, detail="Invalid file type: only JPEG/PNG images are permitted")
 
     # 3. Path boundary verification
-    safe_dir = Path("/home/roshan/Pictures").resolve()
+    safe_dir = Path(os.environ.get("JARVIS_PICTURES_DIR", str(PHOTOS_DIR))).resolve()
     target_path = (safe_dir / filename).resolve()
 
     if not target_path.is_relative_to(safe_dir):
         raise HTTPException(status_code=403, detail="Access denied: path outside authorized directory")
 
     if not target_path.exists() or not target_path.is_file():
-        raise HTTPException(status_code=404, detail=f"Image file '{filename}' not found")
+        legacy_dir = Path("/home/roshan/Pictures").resolve()
+        legacy_path = (legacy_dir / filename).resolve()
+        if legacy_path.is_relative_to(legacy_dir) and legacy_path.exists() and legacy_path.is_file():
+            target_path = legacy_path
+        else:
+            raise HTTPException(status_code=404, detail=f"Image file '{filename}' not found")
 
     return FileResponse(str(target_path), media_type="image/jpeg")
 

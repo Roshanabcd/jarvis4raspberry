@@ -103,12 +103,6 @@
       "verified": true
     },
     {
-      "destination": "Developer Hub",
-      "tabId": "tab-developer",
-      "navId": "nav-developer",
-      "verified": true
-    },
-    {
       "destination": "YouTube AI",
       "tabId": "tab-youtube",
       "navId": "nav-youtube",
@@ -132,26 +126,26 @@
       "viewport": "desktop_1920x1080",
       "dimensions": "1920x1080",
       "screenshot": "baseline_desktop_1920x1080.png",
-      "bytes": 953586
+      "bytes": 1008725
     },
     {
       "viewport": "laptop_1366x768",
       "dimensions": "1366x768",
       "screenshot": "baseline_laptop_1366x768.png",
-      "bytes": 588817
+      "bytes": 628848
     },
     {
       "viewport": "tablet_768x1024",
       "dimensions": "768x1024",
       "screenshot": "baseline_tablet_768x1024.png",
-      "bytes": 463472
+      "bytes": 511208
     },
     {
       "viewport": "mobile_375x667",
       "dimensions": "375x667",
       "screenshot": "baseline_mobile_375x667.png",
-      "bytes": 146492
+      "bytes": 185579
     }
   ],
-  "timestamp": "2026-11-21T06:33:47.270Z"
+  "timestamp": "2026-11-21T10:14:31.587Z"
 }

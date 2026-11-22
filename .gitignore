@@ -70,3 +70,9 @@ package-lock.json
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+data/photos/
+data/voice_samples/
+data/module_archives/
+.claude-flow/
+.playwright-mcp/
+.swarm/

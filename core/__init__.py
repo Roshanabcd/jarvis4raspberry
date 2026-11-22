@@ -1,0 +1,36 @@
+"""JARVIS OS Core System Package."""
+from .paths import (
+    JARVIS_ROOT,
+    MODULES_DIR,
+    DATA_DIR,
+    CAPTURES_DIR,
+    PHOTOS_DIR,
+    SCREENSHOTS_DIR,
+    DOWNLOADS_DIR,
+    DB_DIR,
+    VOICE_SAMPLES_DIR,
+    MODULE_ARCHIVES_DIR,
+    NOTEBOOKS_DIR,
+    LOGS_DIR,
+    WORKTREES_DIR,
+    ensure_runtime_dirs,
+    is_contained_in_root,
+)
+
+__all__ = [
+    "JARVIS_ROOT",
+    "MODULES_DIR",
+    "DATA_DIR",
+    "CAPTURES_DIR",
+    "PHOTOS_DIR",
+    "SCREENSHOTS_DIR",
+    "DOWNLOADS_DIR",
+    "DB_DIR",
+    "VOICE_SAMPLES_DIR",
+    "MODULE_ARCHIVES_DIR",
+    "NOTEBOOKS_DIR",
+    "LOGS_DIR",
+    "WORKTREES_DIR",
+    "ensure_runtime_dirs",
+    "is_contained_in_root",
+]
