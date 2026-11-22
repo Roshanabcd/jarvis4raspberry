@@ -545,7 +545,7 @@ def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
     """Execute inference once and submit exactly one bounded voice reply job."""
     response = voice_service.process_command(req.text, speak=False)
     try:
-        job = voice_service.enqueue_response(response, broadcast=False)
+        job = voice_service.enqueue_response(response, broadcast=False, preempt=True)
     except (RuntimeError, ValueError) as exc:
         # Inference may already have performed an action: keep its confirmed
         # response and report only delivery rejection, so callers do not replay it.

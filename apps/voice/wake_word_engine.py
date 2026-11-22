@@ -136,6 +136,7 @@ class WakeWordEngine:
         self._last_command: str = ""
         self._last_response: str = ""
         self._last_error: Optional[str] = None
+        self._push_to_talk_active: bool = False
 
         # Command callback
         self._on_command_handler: Optional[Callable[[str], Any]] = None
@@ -394,6 +395,7 @@ class WakeWordEngine:
     def trigger_push_to_talk(self) -> None:
         """Directly activate voice command listening without waiting for wake word."""
         with self._state_lock:
+            self._push_to_talk_active = True
             self.barge_in()
             logger.info("Push-to-Talk manually activated.")
 
@@ -749,7 +751,9 @@ class WakeWordEngine:
 
                 speech_chunk = os.path.join(self.temp_dir, "speech_chunk.wav")
                 self._last_speech_time = time.time()
-                has_heard_speech = bool(cmd_parts)
+                is_ptt = getattr(self, "_push_to_talk_active", False)
+                self._push_to_talk_active = False
+                has_heard_speech = bool(cmd_parts) or is_ptt
 
                 while self._is_running and not self._stop_event.is_set():
                     self._check_daemon_commands()
@@ -772,19 +776,17 @@ class WakeWordEngine:
                         with wave.open(speech_chunk, "rb") as wf:
                             audio_params = wf.getparams()
                             frames = wf.readframes(wf.getnframes())
-                            speech_threshold = max(self.adaptive_threshold, self.ambient_noise_floor * 1.5 + 50.0, 220.0)
-                            if (rms > speech_threshold) or has_heard_speech:
-                                accumulated_bytes += len(frames)
-                                if accumulated_bytes > 1_920_000:
-                                    self._current_transcript = ""
-                                    self._last_error = "Voice request exceeded the capture limit; no command was submitted."
-                                    self.set_state(WakeState.STANDBY_LISTENING)
-                                    break
-                                accumulated_frames.append(frames)
+                            accumulated_bytes += len(frames)
+                            if accumulated_bytes > 1_920_000:
+                                self._current_transcript = ""
+                                self._last_error = "Voice request exceeded the capture limit; no command was submitted."
+                                self.set_state(WakeState.STANDBY_LISTENING)
+                                break
+                            accumulated_frames.append(frames)
                     except Exception as ex:
                         logger.debug("Error reading speech chunk frames: %s", ex)
 
-                    speech_threshold = max(self.adaptive_threshold, self.ambient_noise_floor * 1.5 + 50.0, 220.0)
+                    speech_threshold = max(self.adaptive_threshold, self.ambient_noise_floor * 1.25, self.min_energy_threshold)
                     if rms > speech_threshold:
                         # User spoke in this window
                         has_heard_speech = True
@@ -797,7 +799,7 @@ class WakeWordEngine:
                             self.set_state(WakeState.SILENCE_COUNTDOWN)
                             logger.info("Silence countdown: %.1fs / %.1fs", elapsed_silence, self.silence_timeout_s)
                             if elapsed_silence >= self.silence_timeout_s:
-                                logger.info("3.0s continuous silence reached! Finalizing command.")
+                                logger.info("Continuous silence reached (%.1fs)! Finalizing command.", elapsed_silence)
                                 self.set_state(WakeState.COMMAND_SUBMITTED)
                                 break
                         elif elapsed_silence >= (self.silence_timeout_s * 2):

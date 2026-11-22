@@ -174,8 +174,8 @@ class SpeechToText:
                 # Cloud recognition must not leave the sole capture owner stuck
                 # indefinitely with a misleading standby heartbeat.
                 recognizer.operation_timeout = 8.0
-                recognizer.energy_threshold = 150
-                recognizer.dynamic_energy_threshold = False
+                recognizer.energy_threshold = 60
+                recognizer.dynamic_energy_threshold = True
                 with sr.AudioFile(audio_file_path) as source:
                     audio_data = recognizer.record(source)
                 try:

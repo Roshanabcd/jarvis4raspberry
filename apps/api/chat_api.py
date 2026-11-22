@@ -70,6 +70,18 @@ def test_provider_endpoint(req: ProviderTestRequest, _: None = Depends(require_a
 @chat_router.post("")
 def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
     """Process a chat message through the JARVIS AI brain synchronously."""
+    if req.speak:
+        try:
+            from apps.voice.service import voice_service
+            voice_service.stop_playback()
+        except Exception:
+            pass
+        try:
+            from apps.voice.speech_manager import speech_manager
+            speech_manager.stop()
+        except Exception:
+            pass
+
     from ai.brain import get_brain
     brain = get_brain()
     result = brain.chat(
@@ -108,6 +120,18 @@ def chat_stream_endpoint(req: ChatRequest):
     Text-first delivery: text is progressively streamed with immediate rendering.
     Audio is only staged post-stream if req.speak is True.
     """
+    if req.speak:
+        try:
+            from apps.voice.service import voice_service
+            voice_service.stop_playback()
+        except Exception:
+            pass
+        try:
+            from apps.voice.speech_manager import speech_manager
+            speech_manager.stop()
+        except Exception:
+            pass
+
     from ai.brain import get_brain
     brain = get_brain()
 

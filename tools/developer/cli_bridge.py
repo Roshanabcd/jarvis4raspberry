@@ -34,6 +34,16 @@ class DeveloperCliBridge:
         from ai.providers.credentials import usable_key
         gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
         gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+        if not gateway_key:
+            try:
+                from dotenv import load_dotenv
+                env_file = self.repo_root / ".env"
+                if env_file.exists():
+                    load_dotenv(env_file)
+                    gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+                    gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+            except Exception:
+                pass
         configured = bool(usable_key(gateway_key))
 
         reachable = False
@@ -70,6 +80,16 @@ class DeveloperCliBridge:
         env = os.environ.copy()
         gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
         gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+        if not gateway_key:
+            try:
+                from dotenv import load_dotenv
+                env_file = self.repo_root / ".env"
+                if env_file.exists():
+                    load_dotenv(env_file)
+                    gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+                    gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+            except Exception:
+                pass
 
         if gateway_key:
             bare_gateway = gateway_url.replace("/v1", "")
@@ -120,7 +140,9 @@ class DeveloperCliBridge:
                 "installed": bool(bin_path),
                 "path": bin_path,
                 "version": None,
+                "protocol": wire,
                 "freellmapi_protocol": wire,
+                "freellmapi_ready": bool(bin_path and fl_ready),
                 "freellmapi_connected": bool(bin_path and fl_ready),
             }
 
@@ -326,6 +348,7 @@ class DeveloperCliBridge:
         pin: str,
         cli: str = "auto",
         prompt: Optional[str] = None,
+        timeout: int = 180,
     ) -> Dict[str, Any]:
         """Execute a gated remediation action after verifying administrator PIN."""
         # 1. Enforce strict PIN authorization
@@ -365,13 +388,15 @@ class DeveloperCliBridge:
                 return {"status": "error", "message": f"Failed to restart service: {e}"}
 
         elif act in ("run_cli", "cli_fix", "propose_fix", "run_coding_task"):
-            chosen_cli = cli
+            chosen_cli = cli.lower().strip()
             if chosen_cli == "auto":
-                chosen_cli = clis["primary"]
+                chosen_cli = clis.get("primary", "antigravity")
+            if chosen_cli == "agy":
+                chosen_cli = "antigravity"
 
             cli_cmd_map = {
                 "antigravity": [clis.get("antigravity", {}).get("path") or "agy", "-p", prompt or "Diagnose repository and suggest fixes", "--sandbox"],
-                "claude": [clis.get("claude", {}).get("path") or "claude", "-p", prompt or "Diagnose repository and suggest fixes"],
+                "claude": [clis.get("claude", {}).get("path") or "claude", "-p", "--no-session-persistence", "--permission-mode", "dontAsk", prompt or "Diagnose repository and suggest fixes"],
                 "codex": [clis.get("codex", {}).get("path") or "codex", "-p", prompt or "Diagnose repository and suggest fixes"],
                 "hermes": [clis.get("hermes", {}).get("path") or "hermes", "-p", prompt or "Diagnose repository and suggest fixes"],
                 "aider": [clis.get("aider", {}).get("path") or "aider", "--message", prompt or "Diagnose repository and suggest fixes", "--no-auto-commits"],
@@ -385,26 +410,68 @@ class DeveloperCliBridge:
                 return {
                     "status": "error",
                     "code": "CLI_UNAVAILABLE",
+                    "error": f"Requested CLI '{chosen_cli}' is not installed or available on this system.",
                     "message": f"Requested CLI '{chosen_cli}' is not installed or available on this system.",
                 }
 
             try:
                 env = self.get_agent_env(chosen_cli)
-                proc = subprocess.run(cmd, cwd=str(self.repo_root), env=env, capture_output=True, text=True, timeout=45, check=False)
-                output = redact(proc.stdout.strip()[:3000])
+                proc = subprocess.run(
+                    cmd,
+                    cwd=str(self.repo_root),
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False
+                )
+                stdout_clean = redact(proc.stdout.strip()[:4096])
+                stderr_clean = redact(proc.stderr.strip()[:2048])
+                output = stdout_clean or stderr_clean
+
+                if proc.returncode == 0:
+                    return {
+                        "status": "ok",
+                        "cli": chosen_cli,
+                        "action": act,
+                        "output": output,
+                        "exit_code": 0,
+                        "message": f"Executed task with {chosen_cli.title()} (Exit code: 0).",
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "code": "CLI_ERROR",
+                        "cli": chosen_cli,
+                        "action": act,
+                        "output": output,
+                        "exit_code": proc.returncode,
+                        "error": stderr_clean or stdout_clean or f"CLI exited with code {proc.returncode}",
+                        "message": f"CLI {chosen_cli.title()} exited with code {proc.returncode}.",
+                    }
+            except subprocess.TimeoutExpired:
                 return {
-                    "status": "ok" if proc.returncode == 0 else "error",
+                    "status": "error",
+                    "code": "TIMEOUT",
                     "cli": chosen_cli,
                     "action": act,
-                    "output": output or redact(proc.stderr.strip()[:1000]),
-                    "message": f"Executed task with {chosen_cli.title()} (Exit code: {proc.returncode}).",
+                    "error": f"Execution timed out after {timeout}s",
+                    "message": f"CLI {chosen_cli.title()} execution timed out after {timeout}s.",
                 }
             except Exception as e:
-                return {"status": "error", "message": f"CLI execution error: {e}"}
+                return {
+                    "status": "error",
+                    "code": "EXECUTION_FAILED",
+                    "cli": chosen_cli,
+                    "action": act,
+                    "error": str(e),
+                    "message": f"CLI execution error: {e}",
+                }
 
         return {
             "status": "error",
             "code": "UNKNOWN_ACTION",
+            "error": f"Unrecognized remediation action '{action}'.",
             "message": f"Unrecognized remediation action '{action}'.",
         }
 
@@ -412,7 +479,7 @@ class DeveloperCliBridge:
         self,
         prompt: str,
         preferred_cli: str = "auto",
-        timeout: int = 40,
+        timeout: int = 120,
     ) -> Dict[str, Any]:
         """Run safe, non-interactive diagnostic reasoning using agy (primary) or claude (fallback).
         
@@ -423,22 +490,22 @@ class DeveloperCliBridge:
 
         # Determine CLI order: primary first, fallback second
         order: List[Tuple[str, List[str]]] = []
-        if preferred_cli in ("antigravity", "agy") or (preferred_cli == "auto" and clis["antigravity"]["installed"]):
-            if clis["antigravity"]["installed"]:
+        if preferred_cli in ("antigravity", "agy") or (preferred_cli == "auto" and clis.get("antigravity", {}).get("installed")):
+            if clis.get("antigravity", {}).get("installed"):
                 order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
-            if clis["claude"]["installed"]:
-                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
-        elif preferred_cli == "claude" or (preferred_cli == "auto" and clis["claude"]["installed"]):
-            if clis["claude"]["installed"]:
-                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
-            if clis["antigravity"]["installed"]:
+            if clis.get("claude", {}).get("installed"):
+                order.append(("claude", [clis["claude"]["path"], "-p", "--no-session-persistence", "--permission-mode", "dontAsk", clean_prompt]))
+        elif preferred_cli == "claude" or (preferred_cli == "auto" and clis.get("claude", {}).get("installed")):
+            if clis.get("claude", {}).get("installed"):
+                order.append(("claude", [clis["claude"]["path"], "-p", "--no-session-persistence", "--permission-mode", "dontAsk", clean_prompt]))
+            if clis.get("antigravity", {}).get("installed"):
                 order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
         else:
             # Try whichever is installed
-            if clis["antigravity"]["installed"]:
+            if clis.get("antigravity", {}).get("installed"):
                 order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
-            if clis["claude"]["installed"]:
-                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
+            if clis.get("claude", {}).get("installed"):
+                order.append(("claude", [clis["claude"]["path"], "-p", "--no-session-persistence", "--permission-mode", "dontAsk", clean_prompt]))
 
         if not order:
             return {
@@ -452,9 +519,11 @@ class DeveloperCliBridge:
         for cli_name, cmd in order:
             try:
                 logger.info("Executing diagnostic CLI escalation via %s", cli_name)
+                env = self.get_agent_env(cli_name)
                 proc = subprocess.run(
                     cmd,
                     cwd=str(self.repo_root),
+                    env=env,
                     capture_output=True,
                     text=True,
                     timeout=timeout,

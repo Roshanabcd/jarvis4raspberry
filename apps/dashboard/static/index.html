@@ -1152,8 +1152,8 @@
           </section>
         </div>
       </details>
-      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:clamp(12rem, calc(100dvh - 22rem), 48rem);min-height:0;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
-      <div class="chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:var(--card);padding:10px 0 0;border-top:1px solid var(--card-border);z-index:20">
+      <div id="chat-box" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages" style="height:clamp(16rem, calc(100vh - 250px), 52rem);min-height:240px;overflow-y:auto;background:#060914;border:1px solid var(--card-border);border-radius:8px;padding:16px;margin-bottom:12px;display:flex;flex-direction:column;gap:12px"></div>
+      <div class="chat-compose" style="display:flex;gap:8px;align-items:center;position:sticky;bottom:0;background:var(--card-bg, #081723);padding:10px 0;border-top:1px solid var(--card-border);z-index:20">
         <select id="voice-capture-source" style="max-width:140px;font-size:0.78rem;padding:6px" aria-label="Microphone capture location">
           <option value="host">ReSpeaker Mic</option>
           <option value="browser">Browser Mic</option>
@@ -1166,18 +1166,26 @@
         <input id="chat-in" placeholder="Ask JARVIS anything (e.g. 'hello jarvis', 'system status', 'move robot forward')..." onkeydown="if(event.key==='Enter')sendChat()" aria-label="Message to JARVIS" style="flex:1">
         <button id="chat-send-btn" class="btn" onclick="sendChat()" style="padding:6px 16px">Send</button>
       </div>
-      <section class="panel" id="background-tasks-panel" aria-labelledby="background-tasks-heading" style="margin-top:16px">
-        <h2 id="background-tasks-heading">Background tasks</h2>
-        <p>Give JARVIS a task and keep chatting while it works. Task history survives restarts; interrupted tasks are never rerun automatically. Replies remain available until the service restarts.</p>
-        <form id="background-task-form" style="display:flex;gap:8px;flex-wrap:wrap">
-          <label class="sr-only" for="background-task-input">Task for JARVIS</label>
-          <input id="background-task-input" maxlength="4000" required placeholder="Describe a task for JARVIS…" style="flex:1;min-width:200px">
-          <button class="btn" type="submit" id="background-task-submit">Start task</button>
-          <button class="btn dark" type="button" id="background-task-refresh">Refresh tasks</button>
-        </form>
-        <p id="background-task-feedback" role="status" aria-live="polite"></p>
-        <div id="background-task-list" aria-label="Recent background tasks"></div>
-      </section>
+
+      <!-- Collapsible Background Tasks Drawer (Keeps main dialogue composer pinned and visible) -->
+      <details id="chat-background-tasks-drawer" style="margin-top:14px;background:rgba(0,0,0,0.25);border:1px solid var(--card-border);border-radius:8px;padding:10px">
+        <summary style="font-size:0.82rem;color:var(--accent);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+          <span>⚡ Background Tasks &amp; Autonomous Queue</span>
+          <span style="font-size:0.72rem;color:var(--muted)">Submit tasks &amp; keep chatting</span>
+        </summary>
+        <section class="panel" id="background-tasks-panel" aria-labelledby="background-tasks-heading" style="margin-top:10px;background:transparent;border:none;padding:0">
+          <h2 id="background-tasks-heading" style="display:none">Background tasks</h2>
+          <p style="color:var(--muted);font-size:0.78rem;margin-bottom:10px">Give JARVIS a task and keep chatting while it works. Task history survives restarts; interrupted tasks are never rerun automatically. Replies remain available until the service restarts.</p>
+          <form id="background-task-form" style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="sr-only" for="background-task-input">Task for JARVIS</label>
+            <input id="background-task-input" maxlength="4000" required placeholder="Describe a task for JARVIS…" style="flex:1;min-width:200px">
+            <button class="btn" type="submit" id="background-task-submit">Start task</button>
+            <button class="btn dark" type="button" id="background-task-refresh">Refresh tasks</button>
+          </form>
+          <p id="background-task-feedback" role="status" aria-live="polite"></p>
+          <div id="background-task-list" aria-label="Recent background tasks"></div>
+        </section>
+      </details>
     </div>
   </div>
 
@@ -1208,19 +1216,21 @@
         </div>
       </div>
 
-      <!-- Physical Audio Output & Speaker Hardware Control -->
-      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
+      <!-- Physical Audio Output & Speaker Hardware Control (Primary Above the Fold) -->
+      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:16px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;align-items:center;gap:10px">
             <span style="font-size:1.4rem">🔊</span>
             <div>
-              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Physical Audio Output &amp; Speaker Management</h3>
-              <div style="font-size:0.75rem;color:var(--muted)">Select hardware playback device, calibrate output volume, and test live speech output</div>
+              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Active Audio Hardware &amp; Wake-Word Controls</h3>
+              <div style="font-size:0.75rem;color:var(--muted)">Manage physical speaker sink, calibrate volume, and toggle wake-word listening</div>
             </div>
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="btn" onclick="testSpeakerOutputPhrase()">🔊 Test Speaker (Speaks Aloud)</button>
-            <button class="btn dark" onclick="loadVoiceHardware()">🔄 Refresh Audio Devices</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" onclick="testSpeakerOutputPhrase()">🔊 Test Speaker</button>
+            <button class="btn dark" onclick="testVoiceListen()">🎙️ Test Mic (3s)</button>
+            <button class="btn dark" onclick="loadVoiceHardware()">🔄 Refresh Devices</button>
+            <button class="btn warn" onclick="stopSpeech()">⏹️ Interrupt Audio</button>
           </div>
         </div>
 
@@ -1250,56 +1260,56 @@
         </div>
       </div>
 
-      <!-- Digital Avatar Studio & Neural Voice Config -->
-      <div style="background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.25);border-radius:8px;padding:16px;margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:1.4rem">🎭</span>
-            <div>
-              <h3 style="margin:0;font-size:1.05rem;color:var(--accent)">Digital Human Avatar &amp; Neural Voice Studio</h3>
-              <div style="font-size:0.75rem;color:var(--muted)">Select persona, calibrate neural voice model, and test real-time viseme lip-sync</div>
+      <!-- Collapsible Section 1: Digital Avatar Studio & Neural Voice Config -->
+      <details id="voice-avatar-drawer" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:14px">
+        <summary style="font-size:0.85rem;color:var(--accent);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px">🎭 Digital Human Avatar &amp; Neural Voice Studio</span>
+          <span style="font-size:0.72rem;color:var(--muted)">Persona ARIA/ATLAS &amp; Neural Models</span>
+        </summary>
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+            <span style="font-size:0.75rem;color:var(--muted)">Select persona, calibrate neural voice model, and test real-time viseme lip-sync</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn" style="padding:4px 12px;font-size:0.75rem" onclick="previewVoiceModel()">🗣️ Live Preview Voice</button>
+              <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('aria')">Preview ARIA</button>
+              <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('atlas')">Preview ATLAS</button>
             </div>
           </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn" style="padding:4px 12px;font-size:0.75rem" onclick="previewVoiceModel()">🗣️ Live Preview Voice</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('aria')">Preview ARIA</button>
-            <button class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="testAvatarVoice('atlas')">Preview ATLAS</button>
-          </div>
-        </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px;margin-bottom:14px">
-          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
-            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Active Avatar Persona</label>
-            <select id="voice-tab-char-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncCharacterSelection(this.value)">
-              <option value="aria" selected>ARIA (Futuristic Cyber Assistant)</option>
-              <option value="atlas">ATLAS (Tactical Android Assistant)</option>
-              <option value="classic">Classic Mode (Matrix Hologram HUD)</option>
-            </select>
-          </div>
-
-          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
-            <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Neural TTS Voice Model</label>
-            <select id="voice-tab-voice-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncVoiceSelection(this.value)">
-              <option value="en-US-GuyNeural">Microsoft Guy (Authoritative Male - Recommended)</option>
-              <option value="en-US-AriaNeural" selected>Microsoft Aria (Expressive Female)</option>
-              <option value="en-US-ChristopherNeural">Microsoft Christopher (Deep Tactical Male)</option>
-              <option value="en-GB-RyanNeural">Microsoft Ryan (British Male)</option>
-              <option value="espeak-ng">eSpeak-NG (Local Offline Fallback)</option>
-            </select>
-          </div>
-
-          <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <label style="font-size:0.75rem;color:var(--muted);font-weight:600;margin:0">Speaking Pacing (Speed)</label>
-              <span id="colab-speed-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">0.85x</span>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:12px">
+            <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+              <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Active Avatar Persona</label>
+              <select id="voice-tab-char-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncCharacterSelection(this.value)">
+                <option value="aria" selected>ARIA (Futuristic Cyber Assistant)</option>
+                <option value="atlas">ATLAS (Tactical Android Assistant)</option>
+                <option value="classic">Classic Mode (Matrix Hologram HUD)</option>
+              </select>
             </div>
-            <input id="colab-speed-slider" type="range" min="0.65" max="1.35" step="0.05" value="0.85" style="width:100%;margin-top:8px" oninput="updateSpeedLabel(this.value)">
+
+            <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+              <label style="font-size:0.75rem;color:var(--muted);font-weight:600">Neural TTS Voice Model</label>
+              <select id="voice-tab-voice-select" style="width:100%;margin-top:6px;background:#0d1127;border:1px solid var(--card-border);padding:6px 10px;border-radius:4px;color:var(--text);font-size:0.85rem" onchange="syncVoiceSelection(this.value)">
+                <option value="en-US-GuyNeural">Microsoft Guy (Authoritative Male - Recommended)</option>
+                <option value="en-US-AriaNeural" selected>Microsoft Aria (Expressive Female)</option>
+                <option value="en-US-ChristopherNeural">Microsoft Christopher (Deep Tactical Male)</option>
+                <option value="en-GB-RyanNeural">Microsoft Ryan (British Male)</option>
+                <option value="espeak-ng">eSpeak-NG (Local Offline Fallback)</option>
+              </select>
+            </div>
+
+            <div style="background:var(--card-bg);padding:12px;border-radius:6px;border:1px solid var(--card-border)">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <label style="font-size:0.75rem;color:var(--muted);font-weight:600;margin:0">Speaking Pacing (Speed)</label>
+                <span id="colab-speed-val" style="font-size:0.75rem;color:var(--accent);font-family:monospace">0.85x</span>
+              </div>
+              <input id="colab-speed-slider" type="range" min="0.65" max="1.35" step="0.05" value="0.85" style="width:100%;margin-top:8px" oninput="updateSpeedLabel(this.value)">
+            </div>
           </div>
         </div>
-      </div>
+      </details>
 
-      <!-- Google Colab OmniVoice Dynamic Integration (Collapsible Drawer) -->
-      <details id="colab-omnivoice-details" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:20px">
+      <!-- Collapsible Section 2: Google Colab OmniVoice Dynamic Integration -->
+      <details id="colab-omnivoice-details" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:14px">
         <summary style="font-size:0.85rem;color:var(--muted);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
           <span style="display:flex;align-items:center;gap:8px">☁️ Google Colab OmniVoice (Optional Cloud GPU Voice Cloning)</span>
           <span id="colab-status-badge" class="badge" style="background:rgba(255,176,0,0.15);color:var(--warn);font-size:0.7rem">OFFLINE (LOCAL TTS ACTIVE)</span>
@@ -1331,47 +1341,54 @@
         </div>
       </details>
 
-      <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
-        <button class="btn" onclick="testVoiceListen()">🎙️ Test Microphone Capture (3s)</button>
-        <button class="btn dark" onclick="testSpeakerOutputPhrase()">🔊 Test Physical Speaker</button>
-        <button class="btn dark" onclick="testBrowserAudio()">🎧 Test Browser Audio</button>
-        <button class="btn dark" onclick="clearVoiceCache()">🗑️ Clear Voice Cache</button>
-        <button class="btn warn" onclick="stopSpeech()">⏹️ Interrupt Audio</button>
-      </div>
-
-      <!-- Voice Daemon Control & Durable Jobs Panel -->
-      <div style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:20px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-          <div>
-            <h3 style="margin:0;font-size:0.95rem;color:var(--accent)">🎙️ Voice Daemon & Playback Control</h3>
+      <!-- Collapsible Section 3: Voice Daemon Control & Durable Jobs Panel -->
+      <details id="voice-daemon-drawer" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:14px">
+        <summary style="font-size:0.85rem;color:var(--accent);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px">🎙️ Voice Daemon IPC &amp; Durable Reply Jobs</span>
+          <span style="font-size:0.72rem;color:var(--muted)">Service control &amp; job queue</span>
+        </summary>
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
             <div style="font-size:0.74rem;color:var(--muted)">IPC control across daemon and core service</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button id="btn-voice-mute" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="muteVoiceDaemon()">🔇 Mute Daemon</button>
+              <button id="btn-voice-unmute" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="unmuteVoiceDaemon()">🔊 Unmute Daemon</button>
+              <button id="btn-voice-stop" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="stopVoiceDaemon()">⏹️ Stop Daemon</button>
+              <button id="btn-voice-interrupt" class="btn warn" style="padding:4px 10px;font-size:0.75rem" onclick="interruptVoiceDaemon()">⚡ Interrupt Audio</button>
+            </div>
           </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button id="btn-voice-mute" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="muteVoiceDaemon()">🔇 Mute Daemon</button>
-            <button id="btn-voice-unmute" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="unmuteVoiceDaemon()">🔊 Unmute Daemon</button>
-            <button id="btn-voice-stop" class="btn dark" style="padding:4px 10px;font-size:0.75rem" onclick="stopVoiceDaemon()">⏹️ Stop Daemon</button>
-            <button id="btn-voice-interrupt" class="btn warn" style="padding:4px 10px;font-size:0.75rem" onclick="interruptVoiceDaemon()">⚡ Interrupt Audio</button>
-          </div>
-        </div>
-        <div id="voice-daemon-fb" style="font-family:monospace;font-size:0.78rem;color:var(--accent);margin-bottom:12px">Daemon control ready.</div>
-        <p id="voice-capture-health" role="status" style="font-size:0.8rem;color:var(--muted)">Loading microphone capture and recognition status…</p>
+          <div id="voice-daemon-fb" style="font-family:monospace;font-size:0.78rem;color:var(--accent);margin-bottom:12px">Daemon control ready.</div>
+          <p id="voice-capture-health" role="status" style="font-size:0.8rem;color:var(--muted)">Loading microphone capture and recognition status…</p>
 
-        <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-            <strong style="font-size:0.82rem;color:var(--text)">Recent Voice Reply Jobs</strong>
-            <button id="btn-refresh-voice-jobs" class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="loadVoiceJobs()">🔄 Refresh Jobs</button>
+          <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:10px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <strong style="font-size:0.82rem;color:var(--text)">Recent Voice Reply Jobs</strong>
+              <button id="btn-refresh-voice-jobs" class="btn dark" style="padding:2px 8px;font-size:0.72rem" onclick="loadVoiceJobs()">🔄 Refresh Jobs</button>
+            </div>
+            <div id="voice-jobs-list" style="font-size:0.8rem">Loading recent voice jobs...</div>
           </div>
-          <div id="voice-jobs-list" style="font-size:0.8rem">Loading recent voice jobs...</div>
         </div>
-      </div>
-      <div class="form-group">
-        <label>Manual Speech Synthesis (Speak Aloud in Cloned Voice or Fallback)</label>
-        <div style="display:flex;gap:8px">
-          <input id="voice-test-text" placeholder="Enter text to speak aloud in your voice..." value="Systems fully operational. I am JARVIS.">
-          <button class="btn" onclick="speakCustomText()">Synthesize & Speak</button>
+      </details>
+
+      <!-- Collapsible Section 4: Manual Speech Synthesis & Event Logs -->
+      <details id="voice-synthesis-drawer" style="background:rgba(0,229,255,0.03);border:1px solid rgba(0,229,255,0.2);border-radius:8px;padding:14px;margin-bottom:14px">
+        <summary style="font-size:0.85rem;color:var(--accent);cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:space-between">
+          <span style="display:flex;align-items:center;gap:8px">🗣️ Manual Speech Synthesis &amp; Event Log</span>
+          <span style="font-size:0.72rem;color:var(--muted)">Custom speech &amp; real-time event stream</span>
+        </summary>
+        <div style="margin-top:12px">
+          <div class="form-group" style="margin-bottom:12px">
+            <label style="font-size:0.78rem;color:var(--muted)">Speak Custom Text Aloud</label>
+            <div style="display:flex;gap:8px;margin-top:4px">
+              <input id="voice-test-text" placeholder="Enter text to speak aloud in your voice..." value="Systems fully operational. I am JARVIS." style="flex:1">
+              <button class="btn" onclick="speakCustomText()">Synthesize &amp; Speak</button>
+              <button class="btn dark" onclick="clearVoiceCache()">🗑️ Clear Cache</button>
+            </div>
+          </div>
+          <label style="font-size:0.75rem;color:var(--muted)">Subsystem Event Stream</label>
+          <div id="voice-log" style="font-family:monospace;font-size:0.78rem;background:#050711;padding:12px;border-radius:6px;border:1px solid var(--card-border);min-height:90px;max-height:220px;overflow-y:auto;white-space:pre-wrap;margin-top:4px">Voice events will appear here...</div>
         </div>
-      </div>
-      <div id="voice-log" style="font-family:monospace;font-size:0.8rem;background:#050711;padding:12px;border-radius:6px;border:1px solid var(--card-border);min-height:90px;white-space:pre-wrap">Voice events will appear here...</div>
+      </details>
     </div>
   </div>
 
@@ -2205,36 +2222,38 @@
       </div>
     </div>
 
-    <!-- Search & Category Filters -->
-    <div class="apps-filter-bar">
-      <div class="apps-search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="apps-search-input" placeholder="Search applications by name, category, capability, or keywords..." oninput="filterApps()">
+    <!-- Search & Category Filters (Sticky for accessible catalog navigation) -->
+    <div class="apps-sticky-controls" style="position:sticky;top:0;z-index:15;background:linear-gradient(180deg,#030b12 90%,transparent);padding:8px 0 10px 0;margin-bottom:8px">
+      <div class="apps-filter-bar" style="margin-bottom:10px">
+        <div class="apps-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="apps-search-input" placeholder="Search applications by name, category, capability, or keywords..." oninput="filterApps()">
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="apps-status-select" onchange="filterApps()" style="padding:9px 12px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:var(--text);font-size:0.82rem;outline:none;">
+            <option value="all">All Statuses</option>
+            <option value="available">Available Only</option>
+            <option value="planned">Roadmap / Planned</option>
+            <option value="in_development">In Development</option>
+          </select>
+          <button class="btn dark" onclick="resetAppsFilters()" style="padding:8px 12px;font-size:0.82rem;" title="Reset Search & Filters">↺ Reset</button>
+        </div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <select id="apps-status-select" onchange="filterApps()" style="padding:9px 12px;background:#090d1f;border:1px solid var(--card-border);border-radius:6px;color:var(--text);font-size:0.82rem;outline:none;">
-          <option value="all">All Statuses</option>
-          <option value="available">Available Only</option>
-          <option value="planned">Roadmap / Planned</option>
-          <option value="in_development">In Development</option>
-        </select>
-        <button class="btn dark" onclick="resetAppsFilters()" style="padding:8px 12px;font-size:0.82rem;" title="Reset Search & Filters">↺ Reset</button>
-      </div>
-    </div>
 
-    <!-- 10 Category Horizontal Pills -->
-    <div class="apps-category-row" id="apps-category-pills">
-      <button type="button" class="cat-pill active" aria-pressed="true" onclick="selectAppCategory('all', this)">All Categories</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('productivity', this)">Productivity</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('education_learning', this)">Education & Learning</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('developer_tools', this)">Developer Tools</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('ai_agents', this)">AI Agents</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('business_support', this)">Business & Support</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('research_knowledge', this)">Research & Knowledge</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('computer_vision', this)">Computer Vision</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('media_content', this)">Media & Content</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('security_analytics', this)">Security & Analytics</button>
-      <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('experimental', this)">Experimental</button>
+      <!-- 10 Category Horizontal Pills -->
+      <div class="apps-category-row" id="apps-category-pills" style="margin-bottom:0">
+        <button type="button" class="cat-pill active" aria-pressed="true" onclick="selectAppCategory('all', this)">All Categories</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('productivity', this)">Productivity</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('education_learning', this)">Education & Learning</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('developer_tools', this)">Developer Tools</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('ai_agents', this)">AI Agents</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('business_support', this)">Business & Support</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('research_knowledge', this)">Research & Knowledge</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('computer_vision', this)">Computer Vision</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('media_content', this)">Media & Content</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('security_analytics', this)">Security & Analytics</button>
+        <button type="button" class="cat-pill" aria-pressed="false" onclick="selectAppCategory('experimental', this)">Experimental</button>
+      </div>
     </div>
 
     <!-- Dynamic 20 Applications Cards Grid -->
@@ -4122,6 +4141,11 @@ function renderAppsCenter() {
         </div>
         <div class="app-category-tag">${formatCategory(app.category)}</div>
         <p class="app-desc">${app.description}</p>
+        ${!isAvail ? `
+          <div style="font-size:0.72rem;color:var(--warn);background:rgba(255,176,0,0.08);border:1px solid rgba(255,176,0,0.25);border-radius:4px;padding:4px 8px;margin-bottom:8px">
+            ⚠️ ${escapeHtml(app.unavailable_reason || (isPlanned ? 'Roadmap: Planned for upcoming milestone' : (app.status === 'in_development' ? 'In development' : 'Service offline or dependency not met')))}
+          </div>
+        ` : ''}
         ${app.id.startsWith('extension-') ? `<p class="app-desc">${escapeHtml(app.roadmap || '')}</p>` : ''}
         <div class="app-footer-actions">
           <button class="btn dark" style="padding:4px 8px;font-size:0.75rem;" onclick="showAppDetails('${app.id}')">ℹ️ Details</button>
@@ -7649,23 +7673,27 @@ async function loadDeveloperGateway() {
       if (countEl) countEl.textContent = `${flm.model_count || 0} models`;
 
       if (clisGrid) {
-        const cliEntries = Object.entries(clis).filter(([k]) => k !== 'freellmapi');
+        const KNOWN_CLIS = ['antigravity', 'claude', 'codex', 'hermes', 'aider', 'opencode', 'cline'];
+        const cliEntries = Object.entries(clis).filter(([k]) => KNOWN_CLIS.includes(k.toLowerCase()));
         if (cliEntries.length === 0) {
           clisGrid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem">No coding CLIs detected.</div>';
         } else {
           clisGrid.innerHTML = cliEntries.map(([cliKey, c]) => {
             const isInstalled = !!c.installed;
-            const isReady = !!c.freellmapi_ready;
+            const isReady = Boolean(c.freellmapi_ready || c.freellmapi_connected);
             const statusColor = isReady ? 'var(--green)' : (isInstalled ? 'var(--accent)' : 'var(--muted)');
-            const protocolLabel = c.protocol === 'anthropic' ? 'Anthropic Messages API' : 'OpenAI Chat API';
+            const protocolLabel = (c.protocol === 'anthropic' || c.freellmapi_protocol === 'anthropic') ? 'Anthropic Messages API' : 'OpenAI Chat API';
+            const displayName = cliKey.toLowerCase() === 'antigravity' ? 'ANTIGRAVITY (AGY)' : cliKey.toUpperCase();
+            const rawVer = (c.version || '').replace(/^(v|codex-cli\s*|hermes\s*agent\s*v?|aider\s*v?|opencode\s*v?)/i, '').trim();
+            const verText = rawVer ? (rawVer.startsWith('v') ? rawVer.split(' ')[0] : `v${rawVer.split(' ')[0]}`) : (isInstalled ? 'installed' : 'not found');
             return `
               <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">
                 <div>
                   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                    <h3 style="font-size:0.95rem;color:var(--text);font-weight:700;margin:0">${cliKey.toUpperCase()}</h3>
+                    <h3 style="font-size:0.95rem;color:var(--text);font-weight:700;margin:0">${displayName}</h3>
                     <span class="status-pill ${isReady ? 'live' : ''}" style="color:${statusColor}">${isReady ? 'READY' : (isInstalled ? 'INSTALLED' : 'NOT FOUND')}</span>
                   </div>
-                  <div style="font-size:0.75rem;color:var(--accent);margin-bottom:4px">v${c.version || 'unknown'} · ${protocolLabel}</div>
+                  <div style="font-size:0.75rem;color:var(--accent);margin-bottom:4px">${verText} · ${protocolLabel}</div>
                   <div style="font-size:0.7rem;color:var(--muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${c.path || ''}">${c.path || 'Not in PATH'}</div>
                 </div>
                 <div style="margin-top:10px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.72rem;color:${isReady ? 'var(--green)' : 'var(--muted)'}">
@@ -7738,7 +7766,10 @@ async function runDeveloperDiagnostics() {
   try {
     const res = await fetch('/api/developer/diagnostics', { method: 'POST' });
     const data = await res.json();
-    if (out) out.textContent = data.diagnostics || JSON.stringify(data, null, 2);
+    if (out) {
+      const diagText = data.diagnostics?.markdown_report || data.diagnostics || JSON.stringify(data, null, 2);
+      out.textContent = typeof diagText === 'string' ? diagText : JSON.stringify(diagText, null, 2);
+    }
   } catch (e) {
     if (out) out.textContent = 'Error running diagnostics: ' + e.message;
   }
@@ -7785,7 +7816,9 @@ async function executeDeveloperGatedAction() {
       if (data.status === 'ok') {
         out.textContent = `[SUCCESS] Action completed.\n\n${data.output || JSON.stringify(data, null, 2)}`;
       } else {
-        out.textContent = `[FAILED / DENIED] ${data.error || 'Execution denied'}\n\n${JSON.stringify(data, null, 2)}`;
+        const code = data.code || (data.error && data.error.includes('timed out') ? 'TIMEOUT' : 'FAILED');
+        const label = code === 'TIMEOUT' ? '[TIMEOUT]' : (code === 'AUTHENTICATION_FAILED' ? '[ACCESS DENIED]' : '[CLI ERROR / FAILED]');
+        out.textContent = `${label} ${data.error || data.message || 'Execution failed'}\n\n${JSON.stringify(data, null, 2)}`;
       }
     }
   } catch (e) {

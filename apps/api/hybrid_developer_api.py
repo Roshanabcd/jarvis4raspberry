@@ -402,6 +402,7 @@ class CliExecuteRequest(BaseModel):
     cli: str = Field(default="auto")
     prompt: Optional[str] = None
     pin: str = Field(..., min_length=1)
+    timeout: Optional[int] = Field(default=180, ge=5, le=600)
 
 
 @developer_router.get("/gateway")
@@ -433,6 +434,7 @@ def execute_developer_cli_action(req: CliExecuteRequest):
         pin=req.pin,
         cli=req.cli,
         prompt=req.prompt,
+        timeout=req.timeout or 180,
     )
     return res
 
