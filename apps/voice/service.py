@@ -10,6 +10,7 @@ import os
 import queue
 import tempfile
 import threading
+import uuid
 from typing import Any, Dict, Optional
 
 from apps.voice.audio_manager import AudioManager
@@ -67,7 +68,7 @@ class VoiceService:
         if reply_queue_capacity < 1:
             raise ValueError("reply_queue_capacity must be at least 1")
         self._reply_queue: "queue.Queue[VoiceJob]" = queue.Queue(maxsize=reply_queue_capacity)
-        self._reply_enqueue_lock = threading.Lock()
+        self._reply_enqueue_lock = threading.RLock()
         self._job_manager = job_manager or voice_job_mgr
         self._delivery_stop = threading.Event()
         self._delivery_worker: Optional[threading.Thread] = None

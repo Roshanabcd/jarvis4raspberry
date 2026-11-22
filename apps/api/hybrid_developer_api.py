@@ -588,6 +588,24 @@ def run_developer_task(task_id: str, auto_checkpoint: bool = True):
                 orch.save_checkpoint(result_task.task_id, diff=diff, status=status, summary=f"Auto checkpoint for {result_task.task_id}")
             except Exception as chk_err:
                 logger.warning("Auto-checkpoint failed: %s", chk_err)
+        # Spoken task announcement via single-owner TTS pipeline
+        spoken_ann = None
+        try:
+            from apps.voice.task_announcer import announce_task_completion
+            ft = [
+                {"cli": h.get("agent_id") or h.get("agent"), "status": h.get("state") or h.get("status")}
+                for h in result_task.failover_history
+            ] if result_task.failover_history else []
+            spoken_ann = announce_task_completion(
+                status=result_task.state.value,
+                action_or_name=f"Developer task {task_id}",
+                output_summary=str(result_task.result) if result_task.result else None,
+                failover_trace=ft,
+                error=result_task.error,
+            )
+        except Exception as ann_err:
+            logger.warning("Spoken announcement failed for task %s: %s", task_id, ann_err)
+
         return {
             "status": "ok",
             "task_id": result_task.task_id,
@@ -600,6 +618,7 @@ def run_developer_task(task_id: str, auto_checkpoint: bool = True):
             "error": result_task.error,
             "attempts": result_task.attempts,
             "failover_history": list(result_task.failover_history),
+            "spoken_announcement": spoken_ann,
         }
     except RuntimeError as r_err:
         raise HTTPException(status_code=409, detail=str(r_err))

@@ -8048,8 +8048,16 @@ async function loadDeveloperGateway() {
               const statusColor = isReady ? 'var(--green)' : (isInstalled ? 'var(--accent)' : 'var(--muted)');
               const protocolLabel = (c.protocol === 'anthropic' || c.freellmapi_protocol === 'anthropic') ? 'Anthropic Messages API' : 'OpenAI Chat API';
               const displayName = cliKey.toLowerCase() === 'antigravity' ? 'ANTIGRAVITY (AGY)' : cliKey.toUpperCase();
-              const rawVer = (c.version || '').replace(/^(v|codex-cli\s*|hermes\s*agent\s*v?|aider\s*v?|opencode\s*v?)/i, '').trim();
-              const verText = rawVer ? (rawVer.startsWith('v') ? rawVer.split(' ')[0] : `v${rawVer.split(' ')[0]}`) : (isInstalled ? 'installed' : 'not found');
+              let verText = isInstalled ? 'installed' : 'not found';
+              if (c.version && c.version !== 'available') {
+                const match = c.version.match(/\b\d+\.\d+(?:\.\d+)?\b/);
+                if (match) {
+                  verText = `v${match[0]}`;
+                } else {
+                  const rawVer = c.version.replace(/^(v|codex-cli\s*|hermes\s*agent\s*v?|aider\s*v?|opencode\s*v?)/i, '').trim();
+                  verText = rawVer ? (rawVer.startsWith('v') ? rawVer.split(' ')[0] : `v${rawVer.split(' ')[0]}`) : (isInstalled ? 'installed' : 'not found');
+                }
+              }
               return `
                 <div style="background:#090d1f;border:1px solid var(--card-border);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:space-between">
                   <div>
@@ -8184,12 +8192,18 @@ async function executeDeveloperGatedAction() {
     const data = await res.json();
     if (pinInput) pinInput.value = ''; // Always clear PIN after execution
     if (out) {
+      const traceStr = Array.isArray(data.failover_trace) && data.failover_trace.length > 0
+        ? `\n\nFailover Trace:\n${data.failover_trace.map(t => `  • ${t.step}: ${t.status}${t.reason ? ` (${t.reason})` : ''}${t.file ? ` -> ${t.file}` : ''}`).join('\n')}`
+        : '';
+      const spoken = data.spoken_announcement ? `\n\n🗣️ Spoken Announcement: "${data.spoken_announcement}"` : '';
+
       if (data.status === 'ok') {
-        out.textContent = `[SUCCESS] Action completed.\n\n${data.output || JSON.stringify(data, null, 2)}`;
+        out.textContent = `[SUCCESS] Action completed.\n\n${data.output || JSON.stringify(data, null, 2)}${traceStr}${spoken}`;
       } else {
         const code = data.code || (data.error && data.error.includes('timed out') ? 'TIMEOUT' : 'FAILED');
-        const label = code === 'TIMEOUT' ? '[TIMEOUT]' : (code === 'AUTHENTICATION_FAILED' ? '[ACCESS DENIED]' : '[CLI ERROR / FAILED]');
-        out.textContent = `${label} ${data.error || data.message || 'Execution failed'}\n\n${JSON.stringify(data, null, 2)}`;
+        const isQuota = code === 'QUOTA_EXHAUSTED' || (data.error && /429|quota|RESOURCE_EXHAUSTED/i.test(data.error));
+        const label = isQuota ? '[FAILED – QUOTA EXHAUSTED]' : (code === 'TIMEOUT' ? '[TIMEOUT]' : (code === 'AUTHENTICATION_FAILED' ? '[ACCESS DENIED]' : '[CLI ERROR / FAILED]'));
+        out.textContent = `${label} ${data.error || data.message || 'Execution failed'}\n\n${data.output || ''}${traceStr}${spoken}\n\n${JSON.stringify(data, null, 2)}`;
       }
     }
   } catch (e) {

@@ -193,6 +193,41 @@ JARVIS_TOOLS: List[Dict] = [
         }
     },
     {
+        "name": "open_url",
+        "description": "Open a web URL or website in Google Chrome on the local desktop display (DISPLAY=:0).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The URL to open, e.g. 'https://www.youtube.com' or 'https://github.com'"},
+                "browser": {"type": "string", "default": "chrome", "description": "Browser to use (default: chrome)"}
+            },
+            "required": ["url"]
+        }
+    },
+    {
+        "name": "open_youtube",
+        "description": "Open YouTube in Google Chrome on the local desktop display (DISPLAY=:0), or search and play a video query.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Optional video query to search and play on YouTube, or leave empty to open home page"},
+                "url": {"type": "string", "description": "Optional direct YouTube video URL"}
+            }
+        }
+    },
+    {
+        "name": "open_desktop_app",
+        "description": "Launch an allowlisted desktop application (Google Chrome, Terminal, VS Code, File Manager) on DISPLAY=:0.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "app_name": {"type": "string", "description": "Name of app to launch: 'chrome', 'terminal', 'vs code', 'file manager'"},
+                "target": {"type": "string", "description": "Optional file path or URL to open in the app"}
+            },
+            "required": ["app_name"]
+        }
+    },
+    {
         "name": "run_code",
         "description": "Run Python or Bash code directly and get output.",
         "parameters": {

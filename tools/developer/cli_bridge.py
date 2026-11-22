@@ -17,7 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("JARVIS.Developer.CliBridge")
 
-_SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|token|password|secret|pin)(\s*[=:]\s*)[^\s,;]+")
+_SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|\bkey\b|token|password|secret|pin)(\s*[=:]\s*)[^\s,;]+")
 
 
 def redact(value: Any) -> str:
@@ -51,7 +51,7 @@ def is_image_task(prompt: str) -> bool:
         return False
     p = prompt.lower()
     img_ext = bool(re.search(r"\.(jpg|jpeg|png|webp|svg|gif|bmp)\b", p))
-    img_word = bool(re.search(r"\b(image|picture|photo|drawing|illustration|sketch|wallpaper|render)\b", p))
+    img_word = bool(re.search(r"\b(image|picture|photo|drawing|illustration|sketch|wallpaper|render|landscape|portrait)\b", p))
     create_word = bool(re.search(r"\b(generate|create|make|draw|paint|render|save|produce|fetch)\b", p))
     return (img_word and create_word) or (img_ext and create_word) or (img_ext and img_word)
 
@@ -236,7 +236,7 @@ class DeveloperCliBridge:
             if bin_path:
                 installed_list.append(name)
                 try:
-                    res = subprocess.run([bin_path] + ver_cmd, capture_output=True, text=True, timeout=3, check=False)
+                    res = subprocess.run([bin_path] + ver_cmd, capture_output=True, text=True, timeout=6, check=False)
                     if res.returncode == 0:
                         info["version"] = res.stdout.strip().splitlines()[0]
                     else:
@@ -267,6 +267,118 @@ class DeveloperCliBridge:
         self._clis_cache = result
         self._clis_cache_time = now
         return result
+
+    def generate_image_via_freellmapi(
+        self,
+        prompt: str,
+        target_file: Optional[str] = None,
+        timeout: int = 60,
+    ) -> Dict[str, Any]:
+        """Generate image using FreeLLMAPI /v1/images/generations and write directly to disk."""
+        import requests
+
+        gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+        gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+        if not gateway_key:
+            try:
+                from dotenv import load_dotenv
+                env_file = self.repo_root / ".env"
+                if env_file.exists():
+                    load_dotenv(env_file)
+                    gateway_url = os.getenv("FREELLMAPI_BASE_URL", "http://localhost:3001/v1").rstrip("/")
+                    gateway_key = os.getenv("FREELLMAPI_API_KEY", "").strip()
+            except Exception:
+                pass
+
+        if not gateway_key:
+            return {
+                "status": "error",
+                "code": "MISSING_KEY",
+                "error": "FREELLMAPI_API_KEY is not configured.",
+                "message": "FreeLLMAPI API key missing for image generation fallback.",
+            }
+
+        endpoint = f"{gateway_url}/images/generations"
+        logger.info("Calling FreeLLMAPI image endpoint at %s", endpoint)
+
+        payload = {"prompt": prompt}
+        headers = {
+            "Authorization": f"Bearer {gateway_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        try:
+            resp = requests.post(endpoint, json=payload, headers=headers, timeout=timeout)
+            if resp.status_code != 200:
+                return {
+                    "status": "error",
+                    "code": "HTTP_ERROR",
+                    "http_status": resp.status_code,
+                    "error": f"FreeLLMAPI image endpoint returned HTTP {resp.status_code}: {resp.text[:300]}",
+                    "message": f"FreeLLMAPI image generation HTTP {resp.status_code}",
+                }
+
+            data = resp.json()
+            raw_data = data.get("data", []) if isinstance(data, dict) else []
+            if not raw_data or not isinstance(raw_data, list):
+                return {
+                    "status": "error",
+                    "code": "EMPTY_RESPONSE",
+                    "error": "No image data returned from FreeLLMAPI image endpoint.",
+                    "message": "Empty response from FreeLLMAPI image endpoint.",
+                }
+
+            first_item = raw_data[0]
+            b64_str = first_item.get("b64_json")
+            img_bytes: Optional[bytes] = None
+
+            if b64_str:
+                img_bytes = base64.b64decode(b64_str)
+            elif first_item.get("url"):
+                url = first_item["url"]
+                img_resp = requests.get(url, timeout=timeout)
+                if img_resp.status_code == 200:
+                    img_bytes = img_resp.content
+
+            if not img_bytes:
+                return {
+                    "status": "error",
+                    "code": "NO_IMAGE_BYTES",
+                    "error": "Could not extract image data from FreeLLMAPI response.",
+                    "message": "Failed to decode image from FreeLLMAPI response.",
+                }
+
+            out_path = Path(os.path.expanduser(target_file)) if target_file else (self.repo_root / "generated_image.jpg")
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_path.write_bytes(img_bytes)
+
+            size_bytes = out_path.stat().st_size
+            if size_bytes == 0:
+                return {
+                    "status": "error",
+                    "code": "ZERO_BYTE_FILE",
+                    "error": f"Written image file {out_path} is 0 bytes.",
+                    "message": "Image write resulted in 0-byte file.",
+                }
+
+            logger.info("Successfully saved generated image to %s (%d bytes)", out_path, size_bytes)
+            return {
+                "status": "ok",
+                "provider": "freellmapi_images",
+                "output_file": str(out_path),
+                "size_bytes": size_bytes,
+                "output": f"Image successfully generated via FreeLLMAPI and saved to {out_path} ({size_bytes} bytes).",
+                "message": f"Image successfully generated via FreeLLMAPI and saved to {out_path}.",
+            }
+        except Exception as exc:
+            logger.error("FreeLLMAPI image generation exception: %s", exc)
+            return {
+                "status": "error",
+                "code": "EXCEPTION",
+                "error": str(exc),
+                "message": f"FreeLLMAPI image generation failed: {exc}",
+            }
 
     def diagnose_system(self) -> Dict[str, Any]:
         """Run safe, read-only system inspection across services, audio, git, and processes."""
@@ -455,13 +567,26 @@ class DeveloperCliBridge:
         clis = self.detect_clis()
 
         # 2. Handle built-in safe repair actions
+        # 2. Handle built-in safe repair actions
         if act == "unmute_audio":
             try:
                 res = subprocess.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "0"], timeout=2, check=False)
+                spoken = None
+                try:
+                    from apps.voice.task_announcer import announce_task_completion
+                    spoken = announce_task_completion(
+                        status="success",
+                        action_or_name="unmute_audio",
+                        output_summary="Default audio sink unmuted successfully."
+                    )
+                except Exception as ann_e:
+                    logger.warning("Spoken announcement failed: %s", ann_e)
+
                 return {
                     "status": "ok",
                     "action": "unmute_audio",
                     "message": "Default audio sink unmuted successfully.",
+                    "spoken_announcement": spoken,
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Failed to unmute: {e}"}
@@ -469,18 +594,32 @@ class DeveloperCliBridge:
         elif act == "restart_core":
             try:
                 res = subprocess.run(["systemctl", "--user", "restart", "jarvis-core"], timeout=5, check=False)
+                spoken = None
+                try:
+                    from apps.voice.task_announcer import announce_task_completion
+                    spoken = announce_task_completion(
+                        status="success",
+                        action_or_name="restart_core",
+                        output_summary="jarvis-core service restarted successfully."
+                    )
+                except Exception as ann_e:
+                    logger.warning("Spoken announcement failed: %s", ann_e)
+
                 return {
                     "status": "ok",
                     "action": "restart_core",
                     "message": "jarvis-core.service restarted successfully.",
+                    "spoken_announcement": spoken,
                 }
             except Exception as e:
                 return {"status": "error", "message": f"Failed to restart service: {e}"}
 
         elif act in ("run_cli", "cli_fix", "propose_fix", "run_coding_task"):
+            target_file = detect_requested_output_file(prompt or "")
+            is_image = is_image_task(prompt or "")
+            failover_trace: List[Dict[str, Any]] = []
+
             chosen_cli = cli.lower().strip()
-            if chosen_cli == "auto":
-                chosen_cli = clis.get("primary", "antigravity")
             if chosen_cli == "agy":
                 chosen_cli = "antigravity"
 
@@ -495,69 +634,199 @@ class DeveloperCliBridge:
                 "cline": [clis.get("cline", {}).get("path") or "cline", "-p", prompt or "Diagnose repository and suggest fixes"],
             }
 
-            if chosen_cli in cli_cmd_map and clis.get(chosen_cli, {}).get("installed"):
-                cmd = cli_cmd_map[chosen_cli]
+            from apps.voice.task_announcer import announce_task_completion
+
+            # Branch A: Image generation flow with automatic FreeLLMAPI fallback
+            if is_image:
+                first_cli = "antigravity" if chosen_cli == "auto" else chosen_cli
+                if first_cli in cli_cmd_map and clis.get(first_cli, {}).get("installed"):
+                    try:
+                        logger.info("Attempting image task with primary CLI %s", first_cli)
+                        env = self.get_agent_env(first_cli)
+                        cmd = cli_cmd_map[first_cli]
+                        proc = subprocess.run(
+                            cmd,
+                            cwd=str(self.repo_root),
+                            env=env,
+                            capture_output=True,
+                            text=True,
+                            timeout=timeout,
+                            check=False,
+                        )
+                        stdout_clean = redact(proc.stdout.strip()[:4096])
+                        stderr_clean = redact(proc.stderr.strip()[:2048])
+                        output = stdout_clean or stderr_clean
+
+                        failed, fail_reason = is_soft_failure(output, proc.returncode, target_file)
+                        if not failed:
+                            failover_trace.append({"step": first_cli, "status": "success", "file": target_file})
+                            spoken = announce_task_completion(
+                                status="success",
+                                action_or_name=act,
+                                output_file=target_file,
+                                output_summary=output,
+                                failover_trace=failover_trace,
+                            )
+                            return {
+                                "status": "ok",
+                                "cli": first_cli,
+                                "action": act,
+                                "output": output,
+                                "exit_code": 0,
+                                "output_file": target_file,
+                                "failover_trace": failover_trace,
+                                "spoken_announcement": spoken,
+                                "message": f"Executed image generation task with {first_cli.title()}.",
+                            }
+                        else:
+                            failover_trace.append({"step": first_cli, "status": "failed", "reason": fail_reason})
+                            logger.warning("%s image generation soft-failed (%s). Failing over to FreeLLMAPI...", first_cli, fail_reason)
+                    except Exception as e:
+                        failover_trace.append({"step": first_cli, "status": "failed", "reason": str(e)})
+                        logger.warning("%s execution error: %s. Failing over to FreeLLMAPI...", first_cli, e)
+                else:
+                    failover_trace.append({"step": first_cli, "status": "skipped", "reason": "not installed"})
+
+                # Failover to FreeLLMAPI image endpoint
+                logger.info("Executing image failover to FreeLLMAPI...")
+                img_res = self.generate_image_via_freellmapi(prompt=prompt or "", target_file=target_file, timeout=min(timeout, 60))
+                if img_res.get("status") == "ok":
+                    saved_path = img_res.get("output_file")
+                    failover_trace.append({"step": "freellmapi_images", "status": "success", "file": saved_path})
+                    spoken = announce_task_completion(
+                        status="success",
+                        action_or_name=act,
+                        output_file=saved_path,
+                        output_summary=img_res.get("output"),
+                        failover_trace=failover_trace,
+                    )
+                    return {
+                        "status": "ok",
+                        "cli": "freellmapi_images",
+                        "action": act,
+                        "output": img_res.get("output", ""),
+                        "exit_code": 0,
+                        "output_file": saved_path,
+                        "failover_trace": failover_trace,
+                        "spoken_announcement": spoken,
+                        "message": f"Successfully generated image via FreeLLMAPI and saved to {saved_path}.",
+                    }
+                else:
+                    failover_trace.append({"step": "freellmapi_images", "status": "failed", "reason": img_res.get("error", "Generation failed")})
+
+                # If all image options failed
+                spoken = announce_task_completion(
+                    status="quota_exhausted",
+                    action_or_name=act,
+                    failover_trace=failover_trace,
+                    error="model quota is exhausted",
+                )
+                return {
+                    "status": "error",
+                    "code": "QUOTA_EXHAUSTED",
+                    "action": act,
+                    "output": "[FAILED – QUOTA/PROVIDER UNAVAILABLE] Could not generate or save requested image file across Antigravity and FreeLLMAPI.",
+                    "failover_trace": failover_trace,
+                    "spoken_announcement": spoken,
+                    "error": "Model quota exhausted or image provider unavailable across Antigravity and FreeLLMAPI.",
+                    "message": "[FAILED – QUOTA/PROVIDER UNAVAILABLE] Model quota exhausted or image provider unavailable.",
+                }
+
+            # Branch B: Coding / General Remediations Failover Chain
+            candidate_order = ["antigravity", "claude", "codex", "hermes", "aider", "opencode", "cline"]
+            if chosen_cli != "auto" and chosen_cli in candidate_order:
+                candidates = [chosen_cli] + [c for c in candidate_order if c != chosen_cli]
             else:
+                candidates = candidate_order
+
+            installed_candidates = [c for c in candidates if clis.get(c, {}).get("installed")]
+            if not installed_candidates:
                 return {
                     "status": "error",
                     "code": "CLI_UNAVAILABLE",
-                    "error": f"Requested CLI '{chosen_cli}' is not installed or available on this system.",
-                    "message": f"Requested CLI '{chosen_cli}' is not installed or available on this system.",
+                    "error": "No developer coding CLIs are installed or available on this system.",
+                    "message": "No developer coding CLIs are installed or available on this system.",
                 }
 
-            try:
-                env = self.get_agent_env(chosen_cli)
-                proc = subprocess.run(
-                    cmd,
-                    cwd=str(self.repo_root),
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout,
-                    check=False
-                )
-                stdout_clean = redact(proc.stdout.strip()[:4096])
-                stderr_clean = redact(proc.stderr.strip()[:2048])
-                output = stdout_clean or stderr_clean
+            last_output = ""
+            for c_name in installed_candidates:
+                cmd = cli_cmd_map.get(c_name)
+                if not cmd:
+                    continue
+                try:
+                    logger.info("Executing remediation task via candidate CLI: %s", c_name)
+                    env = self.get_agent_env(c_name)
+                    proc = subprocess.run(
+                        cmd,
+                        cwd=str(self.repo_root),
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        timeout=timeout,
+                        check=False,
+                    )
+                    stdout_clean = redact(proc.stdout.strip()[:4096])
+                    stderr_clean = redact(proc.stderr.strip()[:2048])
+                    output = stdout_clean or stderr_clean
+                    last_output = output
 
-                if proc.returncode == 0:
-                    return {
-                        "status": "ok",
-                        "cli": chosen_cli,
-                        "action": act,
-                        "output": output,
-                        "exit_code": 0,
-                        "message": f"Executed task with {chosen_cli.title()} (Exit code: 0).",
-                    }
-                else:
-                    return {
-                        "status": "error",
-                        "code": "CLI_ERROR",
-                        "cli": chosen_cli,
-                        "action": act,
-                        "output": output,
-                        "exit_code": proc.returncode,
-                        "error": stderr_clean or stdout_clean or f"CLI exited with code {proc.returncode}",
-                        "message": f"CLI {chosen_cli.title()} exited with code {proc.returncode}.",
-                    }
-            except subprocess.TimeoutExpired:
-                return {
-                    "status": "error",
-                    "code": "TIMEOUT",
-                    "cli": chosen_cli,
-                    "action": act,
-                    "error": f"Execution timed out after {timeout}s",
-                    "message": f"CLI {chosen_cli.title()} execution timed out after {timeout}s.",
-                }
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "code": "EXECUTION_FAILED",
-                    "cli": chosen_cli,
-                    "action": act,
-                    "error": str(e),
-                    "message": f"CLI execution error: {e}",
-                }
+                    failed, fail_reason = is_soft_failure(output, proc.returncode, target_file)
+                    if not failed:
+                        failover_trace.append({"step": c_name, "status": "success", "file": target_file})
+                        spoken = announce_task_completion(
+                            status="success",
+                            action_or_name=act,
+                            output_file=target_file,
+                            output_summary=output,
+                            failover_trace=failover_trace,
+                        )
+                        return {
+                            "status": "ok",
+                            "cli": c_name,
+                            "action": act,
+                            "output": output,
+                            "exit_code": 0,
+                            "output_file": target_file,
+                            "failover_trace": failover_trace,
+                            "spoken_announcement": spoken,
+                            "message": f"Executed task with {c_name.title()} (Exit code: 0).",
+                        }
+                    else:
+                        failover_trace.append({"step": c_name, "status": "failed", "reason": fail_reason})
+                        logger.warning("CLI %s soft-failed (%s). Trying next candidate...", c_name, fail_reason)
+
+                except subprocess.TimeoutExpired:
+                    failover_trace.append({"step": c_name, "status": "failed", "reason": f"Timeout after {timeout}s"})
+                    logger.warning("CLI %s timed out after %ds", c_name, timeout)
+                except Exception as e:
+                    failover_trace.append({"step": c_name, "status": "failed", "reason": str(e)})
+                    logger.warning("CLI %s error: %s", c_name, e)
+
+            # All candidate CLIs failed
+            is_quota = any(
+                "quota" in str(t.get("reason", "")).lower()
+                or "429" in str(t.get("reason", "")).lower()
+                or "resource_exhausted" in str(t.get("reason", "")).lower()
+                for t in failover_trace
+            )
+            err_code = "QUOTA_EXHAUSTED" if is_quota else "CLI_ERROR"
+            spoken = announce_task_completion(
+                status="quota_exhausted" if is_quota else "error",
+                action_or_name=act,
+                failover_trace=failover_trace,
+                error="model quota is exhausted" if is_quota else f"CLI execution failed across {len(failover_trace)} agents",
+            )
+            label = "[FAILED – QUOTA EXHAUSTED]" if is_quota else "[FAILED]"
+            return {
+                "status": "error",
+                "code": err_code,
+                "action": act,
+                "output": last_output or f"Failed across all candidate CLIs: {', '.join(t['step'] for t in failover_trace)}",
+                "failover_trace": failover_trace,
+                "spoken_announcement": spoken,
+                "error": f"Task failed across all attempted CLIs ({', '.join(t['step'] for t in failover_trace)}).",
+                "message": f"{label} Task failed across all attempted CLIs.",
+            }
 
         return {
             "status": "error",

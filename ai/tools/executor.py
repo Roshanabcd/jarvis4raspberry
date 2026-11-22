@@ -515,4 +515,30 @@ class ToolExecutor:
         from tools.desktop.unified_computer_service import unified_computer_service
         return unified_computer_service.emergency_stop()
 
+    def _tool_open_url(self, url: str, browser: str = "chrome") -> Dict[str, Any]:
+        from tools.browser.browser_agent import browser_agent
+        clean = (url or "").strip()
+        if clean.lower() in ("youtube", "youtube.com"):
+            clean = "https://www.youtube.com"
+        elif clean.lower() in ("google", "google.com"):
+            clean = "https://www.google.com"
+        elif not clean.startswith(("http://", "https://", "about:", "chrome://")):
+            clean = f"https://{clean}"
+        return browser_agent.open_url(clean, browser=browser, new_tab=True)
+
+    def _tool_open_youtube(self, query: str = "", url: str = "") -> Dict[str, Any]:
+        from tools.browser.youtube_controller import youtube_controller
+        from tools.browser.browser_agent import browser_agent
+        if url:
+            return browser_agent.open_url(url, browser="chrome", new_tab=True)
+        clean_q = (query or "").strip()
+        if clean_q and clean_q.lower() not in ("youtube", "none", "null", "all"):
+            return youtube_controller.play_direct_query(clean_q, browser="chrome")
+        return browser_agent.open_url("https://www.youtube.com", browser="chrome", new_tab=True)
+
+    def _tool_open_desktop_app(self, app_name: str, target: Optional[str] = None, new_window: bool = False) -> Dict[str, Any]:
+        from tools.desktop.action_engine import desktop_action_engine
+        return desktop_action_engine.open_application(app_name, target=target, new_window=new_window)
+
+
 

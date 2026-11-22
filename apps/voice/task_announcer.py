@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("JARVIS.Voice.TaskAnnouncer")
 
-_SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|token|password|secret|pin)(\s*[=:]\s*)[^\s,;]+")
+_SECRET_PATTERN = re.compile(r"(?i)(api[_-]?key|\bkey\b|token|password|secret|pin)(\s*[=:]\s*)[^\s,;]+")
 
 
 def clean_spoken_text(text: str) -> str:
