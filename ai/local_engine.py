@@ -154,6 +154,10 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:auto\s+accept|auto\s+approve|accept\s+option\s*1|allow\s+running\s+this\s+command|allow\s+antigravity|antigravity\s+auto)\b', text_lower):
             return "antigravity_auto_approve", {"instruction": text, "text": text}
 
+        # Browser UI Action: Switch Account / YouTube Account Switcher
+        if re.search(r'\b(?:switch\s+(?:to\s+)?(?:another\s+)?account|switch\s+account|change\s+account|account\s+switcher)\b', text_lower):
+            return "browser_switch_account", {"action": "switch_youtube_account", "text": text}
+
         # 1. Computer Control Session Toggles & Emergency Stop
         if re.search(r'\b(?:enable|start|resume)\s+(?:computer\s+control|desktop\s+control|controlling\s+(?:the\s+|my\s+)?computer)\b', cmd_clean) or re.search(r'\b(?:start|begin)\s+(?:a\s+)?computer\s+session\b', cmd_clean):
             return "computer_command", {"instruction": text, "text": text}
@@ -420,10 +424,11 @@ class LocalIntelligenceEngine:
         # Screen observation ("inspect the current screen and tell me what is displayed", "look at my screen", "observe screen", "what is on my screen", "describe what you see on my screen")
         if re.search(
             r'\b(?:'
-            r'(?:inspect|examine|analyze|check|view|observe|look\s+at)\s+(?:the\s+|my\s+)?(?:current\s+)?screen(?:\s+and\s+tell\s+me\s+what\s+(?:is\s+)?(?:displayed|shown|on\s+it))?|'
+            r'(?:inspect|examine|analyze|check|view|observe|look\s+at)\s+(?:the\s+|my\s+)?(?:current\s+)?screen|'
             r'what\s+(?:is\s+)?(?:currently\s+)?(?:displayed|shown|open|visible)\s+(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
             r'what\s+is\s+(?:currently\s+)?(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
             r'what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|'
+            r'what\s+window\s+is\s+active|active\s+window\s+on\s+screen|which\s+window\s+is\s+active|'
             r'describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window)|'
             r'screen\s+inspect(?:ion)?'
             r')\b',
@@ -431,8 +436,10 @@ class LocalIntelligenceEngine:
         ):
             return "screen_observe", {"text": text}
 
-        # Check displayed errors ("check whether any errors are displayed", "are there any errors on screen", "inspect errors")
-        if re.search(r'\b(?:check|inspect|find|are\s+there|see\s+if)\s+(?:whether\s+)?(?:any\s+)?(?:errors?|exceptions?|warnings?|bugs?)\s+(?:are\s+)?(?:displayed|shown|visible|on\s+(?:the\s+|my\s+)?screen|in\s+(?:the\s+)?(?:browser|page|dashboard))\b', text_lower):
+        # Check displayed errors ("check whether any errors are displayed", "are there any errors on screen", "inspect errors", "what is the problem on my screen", "diagnose screen")
+        if re.search(r'\b(?:check|inspect|find|are\s+there|see\s+if)\s+(?:whether\s+)?(?:any\s+)?(?:errors?|exceptions?|warnings?|bugs?|problems?)\s+(?:are\s+)?(?:displayed|shown|visible|on\s+(?:the\s+|my\s+)?screen|in\s+(?:the\s+)?(?:browser|page|dashboard))\b', text_lower) or \
+           re.search(r'\b(?:what(?:\'s|\s+is)\s+(?:the\s+)?(?:problem|issue|wrong)|diagnose|detect\s+problems?)\s+(?:on|with|in)\s+(?:the\s+|my\s+)?(?:screen|display|desktop|computer)\b', text_lower) or \
+           re.search(r'\b(?:diagnose\s+(?:the\s+|my\s+)?screen|screen\s+diagnos(?:is|e))\b', text_lower):
             return "screen_check_errors", {"text": text}
 
         # Explain error ("if there is an error, explain it", "explain the error", "analyze the error")
@@ -844,6 +851,9 @@ class LocalIntelligenceEngine:
 
             elif intent == "running_apps_processes":
                 return self._respond_running_apps_processes(ctx)
+
+            elif intent == "browser_switch_account":
+                return self._respond_browser_switch_account(ctx)
 
             # Phase 4 Visual Computer-Use Dispatches
             elif intent == "screen_observe":
@@ -2383,65 +2393,32 @@ if __name__ == "__main__":
             "raw": overview,
         }
 
+    def _respond_browser_switch_account(self, ctx: Dict) -> Dict:
+        from tools.desktop.unified_computer_service import unified_computer_service
+        on_progress = ctx.get("on_progress")
+        res = unified_computer_service.browser_ui_action(action="switch_youtube_account", on_progress=on_progress)
+        return {
+            "response": res.get("response", "Opened YouTube account switcher in Google Chrome."),
+            "spoken_summary": res.get("spoken_summary", "I have focused YouTube in Google Chrome and opened the account switcher for you."),
+            "tools_used": ["browser_ui_action"],
+            "raw": res,
+        }
+
     # Phase 4 Response Handlers
     def _respond_screen_observe(self, ctx: Dict) -> Dict:
-        from tools.desktop.desktop_perception import desktop_perception
-        obs = desktop_perception.observe_desktop()
-        act = obs.get("active_window", {})
-        res = obs.get("resolution", {})
-        wins = obs.get("open_windows", [])
-        top_wins = [w for w in wins if w.get("desktop", 0) != -1]
-        win_bullets = "\n".join(f"- `{w.get('title')}` (App: **{w.get('app')}**)" for w in top_wins[:5])
-        tools_used = ["desktop_perception_observe"]
-
-        # Capture fullscreen visual description via local Moondream VLM
-        visual_desc = None
-        snap_path = obs.get("screenshot_path")
-        if not snap_path:
-            snap = desktop_perception.capture_fullscreen()
-            snap_path = snap.get("filepath")
-
-        if snap_path and os.path.exists(snap_path):
-            try:
-                from tools.vision.vision_vlm import vision_vlm
-                if vision_vlm.is_available():
-                    vlm_res = vision_vlm.describe_scene(
-                        snap_path,
-                        prompt="Describe what is displayed on this computer desktop screen concisely in 2-3 sentences, noting the main visible windows, content, or applications."
-                    )
-                    if vlm_res.get("success") and vlm_res.get("description"):
-                        visual_desc = vlm_res["description"].strip()
-                        tools_used.append("vision_vlm_moondream")
-            except Exception as e:
-                logger.debug("Moondream screen scene description error: %s", e)
-
-        resp_lines = [
-            "👁️ **Desktop Screen Inspection Summary**",
-            "",
-            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `DISPLAY=:0`)",
-            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`",
-            f"- **Focused Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)",
-        ]
-
-        if visual_desc:
-            resp_lines.extend([
-                "",
-                "**Visual Screen Content (Moondream VLM):**",
-                visual_desc,
-            ])
-
-        resp_lines.extend([
-            "",
-            f"**Currently Open Applications ({len(top_wins)}):**",
-            win_bullets or "- *No open application windows*",
-            "",
-            f"*Visual snapshot captured on DISPLAY=:0 in {obs.get('total_ms', 0)}ms.*",
-        ])
+        from tools.desktop.unified_computer_service import unified_computer_service
+        query = ctx.get("text") or ctx.get("query")
+        res = unified_computer_service.inspect_screen(query=query)
+        act = res.get("active_window", {})
+        app_name = act.get("app", "Desktop") if isinstance(act, dict) else "Desktop"
+        has_err = res.get("has_error", False)
+        spoken = res.get("spoken_summary") or f"Active window is {app_name}. {'An issue was detected on screen.' if has_err else 'Screen is clear.'}"
 
         return {
-            "response": "\n".join(resp_lines),
-            "tools_used": tools_used,
-            "raw": obs,
+            "response": res.get("response", "Screen inspection complete."),
+            "spoken_summary": spoken,
+            "tools_used": ["inspect_screen"],
+            "raw": res,
         }
 
     def _respond_screen_screenshot(self, ctx: Dict) -> Dict:
@@ -2610,23 +2587,23 @@ if __name__ == "__main__":
         }
 
     def _respond_screen_check_errors(self, ctx: Dict) -> Dict:
-        from tools.desktop.screen_intelligence import screen_intelligence
-        result = screen_intelligence.check_screen_errors()
-        if result.get("error_found"):
-            err_text = result.get("error", "Unknown error")
-            count = result.get("count", 1)
-            msg = (
-                f"🚨 {result.get('message')}\n\n"
-                f"```text\n{err_text[:300]}\n```\n\n"
-                "You can say *\"explain this error\"* or *\"fix it using my available coding agent\"*."
-            )
+        from tools.desktop.unified_computer_service import unified_computer_service
+        res = unified_computer_service.inspect_screen()
+        has_err = res.get("has_error", False)
+        if has_err:
+            err_details = res.get("error_details", [])
+            err_str = "; ".join(err_details[:2]) if err_details else "Unspecified issue"
+            msg = f"🚨 **Issues Detected on Screen**\n\n```text\n{err_str[:300]}\n```\n\n{res.get('response', '')}"
+            spoken = res.get("spoken_summary") or "Issues were detected on screen."
         else:
             msg = "✅ No errors are currently displayed on the screen or in the active application."
+            spoken = res.get("spoken_summary") or "No errors are currently displayed on the screen."
 
         return {
             "response": msg,
-            "tools_used": ["screen_check_errors"],
-            "raw": result,
+            "spoken_summary": spoken,
+            "tools_used": ["inspect_screen"],
+            "raw": res,
         }
 
     def _respond_screen_explain_error(self, ctx: Dict) -> Dict:

@@ -19,6 +19,27 @@ class ToolExecutor:
 
     def execute(self, name: str, args: Dict[str, Any], confirmed: bool = True) -> str:
         """Dispatch a tool call through ToolRegistry or fallback executor methods."""
+        norm_name = name.lower().strip()
+        method = None
+        if norm_name in ("capture_image", "take_screenshot", "inspect_screen", "capture_screen", "screen_inspect"):
+            if "screen" in norm_name or "screenshot" in norm_name:
+                method = self._tool_screen_capture
+            elif norm_name == "capture_image":
+                is_screen = any("screen" in str(v).lower() or "desktop" in str(v).lower() for v in args.values())
+                method = self._tool_screen_capture if is_screen else self._tool_camera_capture
+        elif norm_name in ("running_apps_processes", "get_running_apps", "list_running_processes", "running_processes"):
+            method = self._tool_running_apps_processes
+        elif norm_name in ("developer_escalation", "diagnose_cli", "run_cli_diagnosis"):
+            method = self._tool_developer_escalation
+
+        if method is not None:
+            try:
+                result = method(**args)
+                return json.dumps(result, default=str) if isinstance(result, dict) else str(result)
+            except Exception as e:
+                logger.error(f"Tool {name} failed: {e}")
+                return json.dumps({"error": str(e), "tool": name})
+
         from tools.registry import tool_registry
         if tool_registry.has_tool(name):
             try:
@@ -30,19 +51,6 @@ class ToolExecutor:
                 logger.warning(f"Tool registry execution error for {name}: {e}")
 
         method = getattr(self, f"_tool_{name}", None)
-        if method is None:
-            norm_name = name.lower().strip()
-            if norm_name in ("capture_image", "take_screenshot", "inspect_screen", "capture_screen", "screen_inspect"):
-                if "screen" in norm_name or "screenshot" in norm_name:
-                    method = self._tool_screen_capture
-                elif norm_name == "capture_image":
-                    is_screen = any("screen" in str(v).lower() or "desktop" in str(v).lower() for v in args.values())
-                    method = self._tool_screen_capture if is_screen else self._tool_camera_capture
-            elif norm_name in ("running_apps_processes", "get_running_apps", "list_running_processes", "running_processes"):
-                method = self._tool_running_apps_processes
-            elif norm_name in ("developer_escalation", "diagnose_cli", "run_cli_diagnosis"):
-                method = self._tool_developer_escalation
-
         if method is None:
             return json.dumps({"error": f"Unknown tool: {name}"})
         try:

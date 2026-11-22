@@ -1612,6 +1612,88 @@ class ToolRegistry:
             "execute": lambda url, **_: browser_backend.navigate(url),
         })
 
+        # ── Vision-Guided Desktop Computer-Use Tools ─────────────────
+        self.register_tool({
+            "name": "inspect_screen",
+            "description": "Inspect current screen on DISPLAY=:0: active window, window list, preview thumbnail, error detection, and target element resolution",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["desktop:inspect", "screen:read"],
+            "execute": lambda query=None, **_: unified_computer_service.inspect_screen(query=query),
+        })
+
+        self.register_tool({
+            "name": "monitor_screen",
+            "description": "Query continuous screen monitoring telemetry and diagnostic status on DISPLAY=:0",
+            "schema": {},
+            "risk_level": 0,
+            "permissions": ["desktop:inspect", "screen:read"],
+            "execute": lambda **_: unified_computer_service.monitor_screen(),
+        })
+
+        self.register_tool({
+            "name": "focus_window",
+            "description": "Bring target window to foreground on DISPLAY=:0 by title keyword or hex window ID",
+            "schema": {"target": "str", "window_name": "str", "window_id": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:window"],
+            "execute": lambda target=None, window_name=None, window_id=None, **_: unified_computer_service.focus_window(target or window_name or window_id or ""),
+        })
+
+        self.register_tool({
+            "name": "desktop_click",
+            "description": "Bounded, coordinate-validated X11 mouse click on DISPLAY=:0 with visual verification and instant abort support",
+            "schema": {"x": "int", "y": "int", "button": "str", "clicks": "int", "target_element": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda x=None, y=None, button="left", clicks=1, target_element=None, **_: unified_computer_service.desktop_click(x=x, y=y, button=button, clicks=clicks, target_element=target_element),
+        })
+
+        self.register_tool({
+            "name": "desktop_type",
+            "description": "Safe text entry into focused control or target window on DISPLAY=:0",
+            "schema": {"text": "str", "target_window": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda text="", target_window=None, **_: unified_computer_service.desktop_type(text=text, target_window=target_window),
+        })
+
+        self.register_tool({
+            "name": "desktop_hotkey",
+            "description": "Press keyboard shortcut on DISPLAY=:0 (e.g. 'ctrl+w', 'ctrl+shift+a', 'alt+Tab')",
+            "schema": {"hotkey": "str", "key": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:keyboard"],
+            "execute": lambda hotkey=None, key=None, **_: unified_computer_service.desktop_hotkey(hotkey or key or ""),
+        })
+
+        self.register_tool({
+            "name": "desktop_scroll",
+            "description": "Scroll mouse wheel up or down on DISPLAY=:0",
+            "schema": {"direction": "str", "clicks": "int"},
+            "risk_level": 1,
+            "permissions": ["desktop:mouse"],
+            "execute": lambda direction="down", clicks=5, **_: unified_computer_service.desktop_scroll(direction=direction, clicks=clicks),
+        })
+
+        self.register_tool({
+            "name": "browser_ui_action",
+            "description": "Interact with active Chrome window on DISPLAY=:0: focus tab, switch YouTube account, click visible UI elements found via screen vision, scroll, or switch tabs",
+            "schema": {"action": "str", "target": "str", "url": "str", "clicks": "int"},
+            "risk_level": 1,
+            "permissions": ["browser:ui", "desktop:execute"],
+            "execute": lambda action="focus", target=None, url=None, clicks=1, on_progress=None, **_: unified_computer_service.browser_ui_action(action=action, target=target, url=url, clicks=clicks, on_progress=on_progress),
+        })
+
+        self.register_tool({
+            "name": "run_safe_terminal_task",
+            "description": "Run read-only terminal diagnostics freely or execute mutating tasks with operator confirmation/PIN gate",
+            "schema": {"command": "str", "session_id": "str", "confirm": "bool", "pin": "str"},
+            "risk_level": 2,
+            "permissions": ["terminal:execute"],
+            "execute": lambda command="", session_id="default", confirm=False, pin=None, **_: unified_computer_service.run_safe_terminal_task(command=command, session_id=session_id, confirm=confirm, pin=pin),
+        })
+
 
 
 # Global tool registry instances for compatibility

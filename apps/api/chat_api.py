@@ -25,6 +25,7 @@ class ChatRequest(BaseModel):
     audio_output: Literal["browser", "system"] = "system"
     role: Optional[str] = None
     user_id: Optional[str] = None
+    thinking_mode: bool = False
 
 
 class ModelSwitchRequest(BaseModel):
@@ -96,6 +97,7 @@ def chat_endpoint(req: ChatRequest) -> Dict[str, Any]:
         model_name=req.model,
         allow_fallback=req.allow_fallback,
         max_provider_retries=req.max_provider_retries,
+        thinking_mode=req.thinking_mode,
     )
 
     # Text-first: only synthesize speech if explicitly requested (speak=True)
@@ -156,6 +158,7 @@ def chat_stream_endpoint(req: ChatRequest):
                 use_tools=req.use_tools,
                 allow_fallback=req.allow_fallback,
                 max_provider_retries=req.max_provider_retries,
+                thinking_mode=req.thinking_mode,
             )
             for event in events:
                 if event.get("type") == "token":
@@ -189,8 +192,9 @@ def chat_stream_endpoint(req: ChatRequest):
 
         except Exception as e:
             logger.error(f"Event stream error: {e}")
-            err_payload = json.dumps({"type": "error", "message": "The reply was interrupted. Check task results before retrying."})
-            yield f"data: {err_payload}\n\n"
+            err_msg = f"Task execution error: {e}"
+            yield f"data: {json.dumps({'type': 'error', 'message': err_msg})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'status': 'failed', 'error': str(e), 'response': err_msg})}\n\n"
         finally:
             if events is not None and hasattr(events, 'close'):
                 events.close()

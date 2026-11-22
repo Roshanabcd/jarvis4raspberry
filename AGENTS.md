@@ -74,3 +74,9 @@ The provider-independent UI regression command is `venv/bin/python tests/browser
 - Distinguish implemented, verified_offline, verified_live and resolved. HTTP 200, route registration and a passing mock test do not establish working inference, authorized actions or hardware operation.
 - Preserve historical evidence. New captures belong in a new evidence directory with source revision, viewport, fixture/live classification and result; never overwrite baseline screenshots.
 - Run focused checks after relevant changes. Run broader regressions at integration milestones, not repeatedly without a new reason. Keep incomplete or blocked issues open.
+
+## Persistent feature roadmap · 22 November 2026
+
+Read root `PLAN.md` at every continuation. It is the feature ledger and handoff index; `docs/jarvis-ui/PLAN.md` retains the UI phase gates and historical evidence. Preserve both. Review existing implementations before building a ledger item. Skip evidence-backed COMPLETE items, record regressions as REOPENED, and update status/evidence/next action after each cohesive change. The ledger does not override approval rules or mark blocked UI gates passed.
+
+Reconciled roadmap files: root PLAN.md, JARVIS_PLAN_FEATURES.json and NEXT_AGENT_PROMPT.md are canonical; their 2 copies are mirrors. Run `venv/bin/python scripts/plan_tracker.py --validate` on handoff. After intentional plan status edits run --sync, then --validate. Read docs/jarvis-execution/HANDOFF.md before selecting the next ID. Do not equate JRV/JF overlaps or promote legacy evidence beyond its tested scope.

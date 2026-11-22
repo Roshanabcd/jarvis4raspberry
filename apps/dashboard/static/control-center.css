@@ -42,7 +42,7 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 .cc-list-row { padding:8px 0; border-bottom:1px solid #183344; display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.85rem; overflow-wrap:anywhere; }
 .cc-list-row:last-child { border-bottom:0; }
 .cc-badge { border:1px solid #236278; border-radius:20px; padding:4px 9px; color:#8ee9fa; font-size:.72rem; white-space:nowrap; }
-.cc-hero { text-align:center; min-width:0; position:relative; padding:0 0 8px; }
+.cc-hero { text-align:center; min-width:0; position:relative; padding:0 0 8px; overflow:hidden; }
 .cc-chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-bottom:8px; }
 .cc-chips span { font-size:.74rem; border:1px solid #215c6b; padding:7px 10px; border-radius:20px; color:#a7e3e9; background:#06202a80; }
 .cc-orbital-core {
@@ -196,12 +196,240 @@ body > main { margin-left:172px; padding:16px 20px; width:calc(100% - 172px); ma
 .cc-integrations button { background:#0a202d; border:1px solid #224b5b; color:#d4edf5; border-radius:9px; padding:12px 6px; cursor:pointer; }
 .cc-stat-number { color:#60e9ef; font-size:2rem; margin:10px 0; }
 #tab-home > details { margin-top:20px; }
-#tab-home > details summary { cursor:pointer; margin:12px 0; color:#9bc6d9; }
 @keyframes cc-wave { to { transform:scaleY(.35); } }
 @keyframes cc-glow { to { filter:saturate(1.15) brightness(1.15); } }
+@keyframes cc-mic-pulse { from { transform:scale(1); box-shadow:0 0 16px #00e5ff88; } to { transform:scale(1.08); box-shadow:0 0 32px #ff3366cc, 0 0 50px #00e5ffaa; } }
+.cc-hero[data-state=listening] .cc-mic { border-color:#ff3366; animation:cc-mic-pulse .8s infinite alternate ease-in-out; }
 @media(min-width:1600px) { .cc-metrics { grid-template-columns:repeat(4,minmax(0,1fr)); } .cc-avatar { max-height:460px; } }
 @media(max-width:1150px) { .status-center { display:none; } .cc-grid { grid-template-columns:minmax(230px,1fr) minmax(280px,1.3fr); } .cc-grid > .cc-stack:last-child { grid-column:1/-1; grid-template-columns:repeat(3,minmax(0,1fr)); } .cc-bottom { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:720px) { body > nav { position:sticky; top:62px; width:100%; height:auto; flex-direction:row; padding:8px; border-bottom:1px solid #173d51; } body > nav::before { display:none; } body > nav button { white-space:nowrap; padding:8px 10px; } body > main { margin:0; width:100%; padding:14px; } body > header { flex-wrap:nowrap; } .header-actions { gap:4px; } .ws-badge { display:none; } .cc-grid { grid-template-columns:1fr; } .cc-hero { grid-row:1; } .cc-avatar { max-width:430px; margin:auto; } .cc-grid > .cc-stack:last-child { grid-column:auto; grid-template-columns:1fr; } .cc-bottom { grid-template-columns:1fr; } .cc-masthead h1 { font-size:2rem; } .cc-clock time { font-size:1.15rem; } }
+@media(max-width:720px) { body > nav { position:sticky; top:62px; width:100%; max-width:100%; box-sizing:border-box; height:auto; flex-direction:row; padding:8px; border-bottom:1px solid #173d51; overflow-x:auto; } body > nav::before { display:none; } body > nav button { white-space:nowrap; padding:8px 10px; } body > main { margin:0; width:100%; max-width:100%; box-sizing:border-box; padding:14px; } body > header { flex-wrap:wrap; overflow:hidden; } .header-actions { gap:4px; flex-wrap:wrap; } .ws-badge { display:none; } .cc-grid { grid-template-columns:1fr; } .cc-hero { grid-row:1; } .cc-avatar { max-width:430px; margin:auto; } .cc-grid > .cc-stack:last-child { grid-column:auto; grid-template-columns:1fr; } .cc-bottom { grid-template-columns:1fr; } .cc-masthead h1 { font-size:2rem; } .cc-clock time { font-size:1.15rem; } }
 @media(prefers-reduced-motion:reduce) { .cc-hero *, .cc-hero::before { animation:none!important; } }
 @media(max-width:1150px) { .cc-topnav { display:none; } }
 @media(max-width:720px) { .cc-masthead { justify-content:space-between; } .cc-masthead > div:first-child { text-align:left; } .cc-masthead .cc-clock { position:static; } .cc-eyebrow { display:none; } }
+
+/* ==========================================================================
+   ChatGPT-Style Pill Message Bar Component
+   ========================================================================== */
+.chatgpt-pill-composer {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: #1b222c;
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: 9999px;
+  padding: 6px 10px;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.chatgpt-pill-composer:focus-within {
+  border-color: rgba(0, 229, 255, 0.65);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.25), 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Left + Button & Popover */
+.pill-plus-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.pill-plus-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #252f3d;
+  border: 1px solid #364759;
+  color: #b0c4d8;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.pill-plus-btn:hover {
+  background: #2e3e52;
+  color: #00e5ff;
+  border-color: rgba(0, 229, 255, 0.4);
+}
+.pill-popover-menu {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  background: #151b24;
+  border: 1px solid #28394a;
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
+  padding: 6px;
+  min-width: 210px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pill-popover-menu[hidden] {
+  display: none !important;
+}
+.pill-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: #d1e2f0;
+  font-size: 0.82rem;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pill-menu-item:hover, .pill-menu-item:focus-visible {
+  background: rgba(0, 229, 255, 0.12);
+  color: #00e5ff;
+  outline: none;
+}
+.pill-menu-item span.icon {
+  font-size: 1rem;
+  display: inline-flex;
+}
+
+/* Center Input Field */
+.pill-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: #f0f6fc !important;
+  font-size: 0.92rem;
+  font-family: inherit;
+  padding: 4px 8px !important;
+  margin: 0;
+}
+.pill-input::placeholder {
+  color: #647d96;
+}
+
+/* Right Inline Controls */
+.pill-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 1. Think Toggle Button */
+.pill-think-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid rgba(141, 164, 184, 0.25);
+  border-radius: 9999px;
+  padding: 4px 10px;
+  color: #8da4b8;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+.pill-think-btn:hover {
+  color: #d4e7f5;
+  border-color: rgba(141, 164, 184, 0.5);
+}
+.pill-think-btn.active {
+  background: rgba(0, 229, 255, 0.14);
+  color: #00e5ff;
+  border-color: rgba(0, 229, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
+}
+.pill-think-btn .brain-icon {
+  font-size: 0.85rem;
+}
+
+/* 2. Dictate Button */
+.pill-dictate-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #8da4b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+.pill-dictate-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d4e7f5;
+}
+@keyframes dictate-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.5); }
+  70% { transform: scale(1.08); box-shadow: 0 0 0 8px rgba(255, 51, 102, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 51, 102, 0); }
+}
+.pill-dictate-btn.pulsing {
+  background: rgba(255, 51, 102, 0.18);
+  color: #ff3366;
+  border-color: #ff3366;
+  animation: dictate-pulse 1.2s infinite ease-in-out;
+}
+
+/* 3. Circular Waveform Mode / Send Button */
+.pill-circle-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* Mode: Real-Time Voice Waveform */
+.pill-circle-btn.waveform-mode {
+  background: linear-gradient(135deg, #0099dd, #00e5ff);
+  color: #031525;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.45);
+}
+.pill-circle-btn.waveform-mode:hover {
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.7);
+  transform: scale(1.04);
+}
+/* Mode: Send Button (when input text is entered) */
+.pill-circle-btn.send-mode {
+  background: #f0f6fc;
+  color: #0d1117;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+.pill-circle-btn.send-mode:hover {
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  transform: scale(1.04);
+}
+.pill-circle-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+}
+.pill-circle-btn svg {
+  width: 18px;
+  height: 18px;
+}
+

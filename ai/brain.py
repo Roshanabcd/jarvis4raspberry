@@ -342,13 +342,18 @@ class JARVISBrain:
 
     def stream_chat(
         self,
-        user_message: str,
+        user_message: str = "",
         session_id: Optional[str] = None,
+        role: Optional[str] = None,
+        user_id: Optional[str] = None,
         provider_name: Optional[str] = None,
         model_name: Optional[str] = None,
         use_tools: bool = True,
         allow_fallback: bool = False,
         max_provider_retries: int = 1,
+        thinking_mode: bool = False,
+        message: Optional[str] = None,
+        **kwargs: Any,
     ):
         """
         Stream chat response token-by-token with progressive SSE rendering,
@@ -356,12 +361,13 @@ class JARVISBrain:
         Agent mode emits a start event then the verified final response; use_tools=False
         preserves direct token streaming without executing actions.
         """
+        user_message = user_message or message or kwargs.get("message", "")
         if use_tools:
             started = time.monotonic()
             request_id = f"req_{uuid.uuid4().hex[:12]}"
             message_id = f"msg_{uuid.uuid4().hex[:12]}"
             yield {"request_id": request_id, "message_id": message_id, "type": "start", "session_id": session_id or "default",
-                   "provider": provider_name or "agent", "model": model_name or ""}
+                   "provider": provider_name or "agent", "model": model_name or "", "thinking_mode": thinking_mode}
 
             import queue
             import concurrent.futures
@@ -376,10 +382,13 @@ class JARVISBrain:
                     user_message,
                     use_tools=True,
                     session_id=session_id,
+                    user_id=user_id,
+                    role=role,
                     provider_name=provider_name,
                     model_name=model_name,
                     allow_fallback=allow_fallback,
                     max_provider_retries=max_provider_retries,
+                    thinking_mode=thinking_mode,
                     _request_id=request_id,
                     _message_id=message_id,
                     on_progress=progress_callback,
@@ -408,9 +417,23 @@ class JARVISBrain:
                         yield {**evt, "request_id": request_id, "message_id": message_id, "session_id": session_id or "default"}
                     except queue.Empty:
                         break
-
-                result = future.result()
-                finished = True
+                try:
+                    result = future.result()
+                    finished = True
+                except Exception as fe:
+                    logger.error(f"Error during async chat task execution: {fe}")
+                    result = {
+                        "response": f"I encountered an error executing this task: {fe}",
+                        "status": "failed",
+                        "error": str(fe),
+                        "request_id": request_id,
+                        "message_id": message_id,
+                        "session_id": session_id or "default",
+                        "provider": provider_name or "agent",
+                        "model": model_name or "",
+                        "tools_used": [],
+                    }
+                    finished = True
             finally:
                 if not finished:
                     self.cancel_request(request_id)
@@ -814,7 +837,7 @@ class JARVISBrain:
             if stream is not None and hasattr(stream, 'close'):
                 stream.close()
 
-    def chat(self, user_message: str, use_tools: bool = True,
+    def chat(self, user_message: str = "", use_tools: bool = True,
              session_id: Optional[str] = None,
              user_id: Optional[str] = None,
              role: Optional[str] = None,
@@ -822,11 +845,14 @@ class JARVISBrain:
              model_name: Optional[str] = None,
              allow_fallback: bool = False,
              max_provider_retries: int = 0,
+             thinking_mode: bool = False,
              _request_id: Optional[str] = None,
              _message_id: Optional[str] = None,
              on_progress: Optional[Callable[[Dict[str, Any]], None]] = None,
              _authorization_check: Optional[Callable[[], bool]] = None,
-             _allow_compound: bool = True) -> Dict[str, Any]:
+             _allow_compound: bool = True,
+             message: Optional[str] = None,
+             **kwargs: Any) -> Dict[str, Any]:
         """
         Synchronous chat processing with session isolation, exact response preservation,
         multi-task orchestration, deterministic hardware tools, and authenticated identity roles.
@@ -834,10 +860,14 @@ class JARVISBrain:
         Provider fallback is only used when explicitly authorized for this request
         (allow_fallback=True). Explicit provider selection is never silently switched.
         """
+        user_message = user_message or message or kwargs.get("message", "")
         sid = session_id or "default"
         request_id = _request_id or f"req_{uuid.uuid4().hex[:12]}"
         user_msg_id = f"msg_{uuid.uuid4().hex[:12]}"
         asst_msg_id = _message_id or f"msg_{uuid.uuid4().hex[:12]}"
+
+        if thinking_mode and not user_message.startswith("[Thinking Mode"):
+            user_message = f"[Thinking Mode: Enabled — Reason step-by-step and provide a multi-step plan]\n{user_message}"
 
         if _authorization_check is not None and not _authorization_check():
             return {
@@ -1083,15 +1113,20 @@ class JARVISBrain:
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories",
-            "audio_diagnostics", "developer_escalation", "running_apps_processes"
+            "audio_diagnostics", "developer_escalation", "running_apps_processes",
+            "browser_switch_account", "inspect_screen",
         }
 
         explicit_provider = bool(provider_name) or bool(self._active and self._active.name in ("freellmapi", "openai", "gemini", "anthropic", "openrouter", "nvidia"))
-        is_direct_desktop = intent in ("desktop_open_url", "desktop_search_youtube", "desktop_open_app", "open_app")
+        is_direct_desktop = intent in (
+            "desktop_open_url", "desktop_search_youtube", "desktop_open_app", "open_app",
+            "browser_switch_account", "screen_observe", "screen_check_errors", "inspect_screen"
+        )
         if use_tools and intent in FAST_PATH_INTENTS and (not explicit_provider or is_direct_desktop):
             logger.info(f"Fast-path execution for intent: {intent}")
             local_res = engine.respond(cleaned_message)
             resp_text = local_res.get("response", "Action completed.")
+            spoken_summary = local_res.get("spoken_summary")
             db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
             db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
                             provider="edge_fastpath", model="deterministic_hardware_engine",
@@ -1100,6 +1135,7 @@ class JARVISBrain:
             history.append({"role": "assistant", "content": resp_text})
             return {
                 "response": resp_text,
+                "spoken_summary": spoken_summary,
                 "provider": "edge_fastpath",
                 "model": "deterministic_hardware_engine",
                 "tools_used": [{"tool": t} for t in local_res.get("tools_used", [])],
@@ -1151,7 +1187,7 @@ class JARVISBrain:
         attempted_providers = {provider.name}
         tools_used = []
         rounds = 0
-        inference_deadline = time.monotonic() + 75.0
+        inference_deadline = time.monotonic() + 180.0
         failure_telemetry: List[Dict[str, Any]] = []
         provider_attempts = 0
         max_provider_retries = max(0, int(max_provider_retries))

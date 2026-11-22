@@ -437,6 +437,22 @@ class PlaywrightBrowserBackend:
                 return {"status": "error", "message": str(e)}
 
     @_on_browser_thread
+    def observe_youtube_accounts(self, target: Optional[str] = None) -> Dict[str, Any]:
+        """Inspect only this managed page; never open a browser or send input."""
+        from tools.desktop.youtube_account_observation import ACCOUNT_SNAPSHOT_JS, account_result, supported_origin
+        with self._lock:
+            if not self.is_running() or self._page is None:
+                return {"status": "unavailable", "verified": False, "scope": "managed_browser_only",
+                        "response": "Not available: no managed browser session is active."}
+            try:
+                if not supported_origin(self._page.url):
+                    return account_result({})
+                return account_result(self._page.evaluate(ACCOUNT_SNAPSHOT_JS), target)
+            except Exception:
+                return {"status": "unavailable", "verified": False, "scope": "managed_browser_only",
+                        "response": "Not available: account labels could not be observed."}
+
+    @_on_browser_thread
     def detect_ambiguity(self, query: str, element_type: Optional[str] = None) -> Dict[str, Any]:
         """Check if multiple visible elements match the target query."""
         dom = self.inspect_dom()

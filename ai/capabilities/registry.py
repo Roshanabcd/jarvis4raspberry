@@ -228,6 +228,23 @@ class CapabilityRegistry:
                             CapabilityParameter(name="window_name", type="string", description="Title or application name of window", required=True),
                         ],
                     ),
+                    CapabilityAction(
+                        action_id="inspect_screen",
+                        name="Inspect Screen",
+                        description="Inspect current screen on DISPLAY=:0: active window, window list, preview thumbnail, and error detection.",
+                        parameters=[
+                            CapabilityParameter(name="query", type="string", description="Optional screen inspection target or query", required=False),
+                        ],
+                    ),
+                    CapabilityAction(
+                        action_id="browser_ui_action",
+                        name="Browser UI Action",
+                        description="Interact with active Chrome window: switch YouTube account, focus, scroll, or click.",
+                        parameters=[
+                            CapabilityParameter(name="action", type="string", description="Browser action; list_youtube_accounts and resolve_youtube_account inspect the managed browser read-only", required=False),
+                            CapabilityParameter(name="target", type="string", description="Exact visible account label; required when resolving or requesting account selection", required=False),
+                        ],
+                    ),
                 ],
             ),
         ]

@@ -21,13 +21,15 @@ import threading
 import time
 from typing import Any, Deque, Dict, List, Optional
 
+from core.paths import NOTEBOOKS_DIR, VOICE_SAMPLES_DIR
+
 logger = logging.getLogger("JARVIS.Voice.ColabRunner")
 
 GRADIO_URL_PATTERN = re.compile(r"https?://[a-zA-Z0-9\-]+\.gradio\.live")
-DEFAULT_NOTEBOOK_PATH = "/home/roshan/Downloads/Super_Eleven_Lab_Lite_2_1.ipynb"
+DEFAULT_NOTEBOOK_PATH = str(NOTEBOOKS_DIR / "Super_Eleven_Lab_Lite_2_1.ipynb")
 DEFAULT_SESSION_NAME = "testColab"
-DEFAULT_VOICE_SAMPLE = "/home/roshan/Downloads/myvoice_clean.wav"
-FALLBACK_VOICE_SAMPLE = "/home/roshan/Downloads/myvoice.mp3"
+DEFAULT_VOICE_SAMPLE = str(VOICE_SAMPLES_DIR / "myvoice_ref_clean.wav")
+FALLBACK_VOICE_SAMPLE = str(VOICE_SAMPLES_DIR / "myvoice.mp3")
 
 
 class ColabAutoRunner:

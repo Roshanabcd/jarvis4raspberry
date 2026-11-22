@@ -386,3 +386,58 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
     - Test 5 (All 22 tabs API hydration & E-STOP check): PASSED on all 22 tabs (`home`, `chat`, `voice`, `aistudio`, `vision`, `robot`, `sensors`, `memory`, `automations`, `tools`, `integrations`, `system`, `logs`, `desktop`, `computer`, `agents`, `apps`, `developer`, `youtube`, `documents`, `research`, `settings`).
   - Evidence: Screenshots and JSON report saved under `docs/jarvis-ui/evidence/functional-e2e/report.json`. Overall Passed: `True`.
 
+### Master Phase 1 Handoff — Branch Unification & Single-Root Containment · 22 November 2026
+- Verified `feature/jarvis-unified-brain` unified in `feature/jarvis-ui` (merge `1089f32`) with all fixes (`c7da101`, `aac43fe`, `b7f030b`).
+- Single-root canonical `JARVIS_ROOT` enforced in `core/paths.py` with zero hardcoded references to external Downloads or `.gemini/antigravity-cli`.
+- Verified system services `jarvis-core.service` and `jarvis-voice.service` point strictly to `/home/roshan/.gemini/antigravity/scratch/jarvis-os`.
+- Phase 1 Gate passed 100%: 9/9 single-root unit tests green (`test_single_root_containment.py`), 26/26 capability unit/integration tests green (5 test suites).
+- Live verification: `GET http://127.0.0.1:8000/api/capabilities` returns HTTP 200 OK with all 57 auto-discovered capabilities.
+- Evidence recorded: `docs/jarvis-ui/evidence/master-phase-1/verification_report.json`.
+- Next: Phase 2 (Real-Time Voice Assistant, Ready Mic Button & Single-Voice Preemption).
+
+### Master Phase 2 Handoff — Real-Time Voice Assistant & Preemption · 22 November 2026
+- Verified single device ownership: `jarvis-voice.service` owns PipeWire ReSpeaker Lite (`pw-record`, card 2 device 0).
+- Cross-process `#cc-speak` push-to-talk IPC verified (<100ms dispatch to daemon; journal logs confirm immediate `LISTENING_SPEECH`).
+- Real speech STT verified with "hello jarvis what is running on my pc"; one-shot & two-step wake phrase commands extracted cleanly.
+- Real-time voice stages broadcast over `/ws` to Home Dashboard (Listening... -> Heard -> Thinking... -> Speaking... -> Ready).
+- Single-voice mutex enforced: browser suppressed (`playback_target: system`), stale speech preempted, task announcer active.
+- Phase 2 Gate passed 100%: 33/33 unit tests green, live Playwright `#cc-speak` click verified in journalctl, live TTS playback via `pw-play` completed cleanly (returncode 0).
+- Evidence recorded: `docs/jarvis-ui/evidence/master-phase-2/verification_report.json` and screenshot `phase2_voice_ready_click.png`.
+- Next: Phase 3 (Real-Time Screen Sharing, Screen Capture & Problem Detection `DISPLAY=:0`).
+
+
+### Pi control review and proposed workstream · 22 November 2026
+- Reviewed instruction pairs, current dirty Git state, audit/roadmap, terminal engine and browser/desktop paths.
+- Added `docs/JARVIS_PI_CONTROL_PHASES.md`: prioritized findings, architecture proposal, C0–C6 Antigravity prompts and Claude/Codex fallback.
+- Updated CLAUDE.md and CLAUDE2.md together; AGENTS rules unchanged.
+- Source review found unchecked account-switch clicks marked verified and terminal-engine confirmation limitations; API exploitability and live behavior remain unverified.
+- No runtime source changed, service restarted, provider called or device operated. No gate marked verified.
+- Next: reconcile original phase gates with master-phase handoffs and approve the concrete eligible control/security scope before implementation.
+
+### Master feature ledger · 22 November 2026
+- User requested an expanded persistent roadmap and continuation; root `PLAN.md` now tracks 180 acceptance units.
+- Original UI statuses/evidence are preserved. Root plan does not replace these gates.
+- Current bounded follow-up: truthful account-action reporting, no auth/privilege/device changes.
+- Full account selection and remaining avatar/voice/final gates stay open.
+- Root-ledger J001: unconditional account success changed to unverified; four focused fake-backend tests passed (1.94s).
+- Evidence: `docs/jarvis-ui/evidence/control-roadmap-2026-11-22/verification.json`. No live acceptance or phase gate completion claimed.
+- Next scoped item: J002/J003 focus/input failure handling; original UI gate statuses unchanged.
+
+### Account focus/input continuation · 22 November 2026
+- Root J002/J003 account-path checks implemented; J007 account-step cancellation covered.
+- Dispatcher preserves outcome and target through chat/voice request paths; no permissions changes.
+- Focused command and source hashes saved in `docs/jarvis-ui/evidence/control-focus-input-2026-11-22/verification.json`; 37 passed in 2.58s.
+- No real browser/device actions or service restart; no original UI phase marked verified.
+- Next: observed page targets and explicit account identity (J004–J006); remaining cancellation paths (J007).
+
+### Imported roadmap reconciliation · 22 November 2026
+- Main PLAN/FEATURES/PROMPT and 2 copies synchronized; old ledger and original imports preserved under docs/jarvis-execution/imports/.
+- 1420 JRV primary and 1020 JF supplemental contracts retained; old 180 J IDs retain scoped evidence. No completion inferred from import.
+- Offline checker plus account-target clarification: 51 focused tests passed in 2.37s. Evidence docs/jarvis-execution/evidence/2026-11-22-plan-merge/verification.json.
+- Existing UI gates unchanged; no stored memory migration or deployment. Next per root PLAN/HANDOFF: observed candidate disambiguation.
+
+### Managed account observation checkpoint · 22 November 2026
+- Root JRV-0528/0539: read-only managed-session labels and duplicate clarification integrated with chat/voice routing.
+- 76 focused offline checks passed in 5.90s; evidence docs/jarvis-execution/evidence/2026-11-22-account-observation/verification.json.
+- No live account verification, native input, deployment or gate completion. Managed session is not assumed to be personal Chrome.
+- Next: root PLAN/HANDOFF session-bound menu observation and subsequent identity verification.

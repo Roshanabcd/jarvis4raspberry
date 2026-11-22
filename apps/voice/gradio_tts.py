@@ -134,14 +134,19 @@ class GradioVoiceCloner:
         if reference_voice_path is not None:
             self.reference_voice_path = reference_voice_path
         else:
+            from core.paths import VOICE_SAMPLES_DIR
             project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
             raw_candidates = [
                 os.environ.get("GRADIO_VOICE_SAMPLE"),
                 v_cfg.get("reference_audio_path"),
+                str(VOICE_SAMPLES_DIR / "myvoice_ref_clean.wav"),
+                str(VOICE_SAMPLES_DIR / "myvoice.wav"),
+                str(VOICE_SAMPLES_DIR / "myvoice.mp3"),
+                str(VOICE_SAMPLES_DIR / "myvoice.mpeg"),
                 os.path.join(project_root, "data", "voice_samples", "myvoice_ref_clean.wav"),
+                os.path.join(project_root, "data", "voice_samples", "myvoice.wav"),
                 "/home/roshan/Downloads/myvoice_clean.wav",
                 "/home/roshan/Downloads/myvoice_ref_clean.wav",
-                os.path.join(project_root, "data", "voice_samples", "myvoice.wav"),
                 "/home/roshan/Downloads/myvoice.mp3",
                 "/home/roshan/Downloads/myvoice.mpeg",
                 "/home/roshan/Downloads/myvoice.wav",

@@ -240,7 +240,7 @@ class ScreenIntelligence:
             try:
                 import pytesseract
                 from PIL import Image
-                raw_ocr = pytesseract.image_to_string(Image.open(filepath))
+                raw_ocr = pytesseract.image_to_string(Image.open(filepath), config="--psm 11")
                 error_patterns = [
                     r'(?:Error|Exception|Traceback|Failed|CRITICAL|FATAL|SyntaxError|TypeError|ValueError|NameError|ImportError|AttributeError|ZeroDivisionError)[:\s]+([^\n\r]+)',
                     r'(?:HTTP\s+(?:404|500|502|503)[^\n\r]*)',
@@ -280,6 +280,42 @@ class ScreenIntelligence:
             "count": 0,
             "message": "No errors are currently displayed on the screen or in the active application.",
             "timestamp": time.time(),
+        }
+
+    def inspect_screen_with_diagnosis(self) -> Dict[str, Any]:
+        """Perform real-time desktop problem diagnosis: inspect open windows, active app, errors via OCR and DOM."""
+        from tools.desktop.desktop_perception import desktop_perception
+
+        obs = desktop_perception.observe_desktop()
+        err_check = self.check_screen_errors()
+
+        active_win = obs.get("active_window", {})
+        open_wins = obs.get("open_windows", [])
+        has_err = err_check.get("error_found", False)
+
+        act_app = active_win.get("app", "desktop")
+        act_title = active_win.get("title", "Desktop")
+
+        if has_err:
+            err_msg = err_check.get("error", "Unknown error")
+            spoken_summary = f"Detected problem in {act_title}: {err_msg}."
+            recommendation = "Check the application console, terminal tracebacks, or restart the failing service."
+        else:
+            spoken_summary = f"Screen is clear. You are viewing {act_app} ({act_title}). No errors found in {len(open_wins)} active windows."
+            recommendation = "Everything is running smoothly. Ready for your next command."
+
+        return {
+            "status": "ok",
+            "has_error": has_err,
+            "active_window": active_win,
+            "open_windows_count": len(open_wins),
+            "open_windows": open_wins,
+            "errors": err_check.get("errors", []),
+            "spoken_summary": spoken_summary,
+            "recommendation": recommendation,
+            "thumbnail_url": obs.get("snapshot", {}).get("thumbnail_url"),
+            "resolution": obs.get("resolution"),
+            "timestamp": obs.get("timestamp", time.time()),
         }
 
     def explain_detected_error(self, error_text: Optional[str] = None) -> Dict[str, Any]:
@@ -328,6 +364,42 @@ class ScreenIntelligence:
             "cause": cause,
             "remediation": remediation,
         }
+
+    def inspect_screen(self, query: Optional[str] = None) -> Dict[str, Any]:
+        """Inspect current screen on DISPLAY=:0: active window, wmctrl window list, problem/error detection, and target resolution."""
+        diag = self.inspect_screen_with_diagnosis()
+        active_win = diag.get("active_window", {})
+        open_wins = diag.get("open_windows", [])
+        act_title = active_win.get("title", "Desktop")
+        act_app = active_win.get("app", "desktop")
+
+        target_info = None
+        if query and query.strip():
+            target_info = self.resolve_target(query.strip())
+
+        win_list_str = "\n".join([f"- {w.get('app', 'app')} ({w.get('title', 'untitled')}) [id: {w.get('id', '')}]" for w in open_wins[:10]])
+        has_err = diag.get("has_error", False)
+
+        desc = (
+            f"🖥️ Screen Status on DISPLAY=:0:\n"
+            f"• Active Window: {act_app} — \"{act_title}\"\n"
+            f"• Open Windows ({len(open_wins)}):\n{win_list_str}\n"
+            f"• Problem Detection: {'⚠️ Error visible: ' + diag.get('errors', [{}])[0].get('error_text', 'Unknown') if has_err else '✅ No errors detected'}\n"
+            f"• Recommendation: {diag.get('recommendation')}"
+        )
+        if target_info and target_info.get("status") == "ok":
+            el = target_info.get("element", {})
+            desc += f"\n• Resolved Target for '{query}': {el.get('type', 'element')} at ({el.get('x', 0)}, {el.get('y', 0)})"
+
+        return {
+            **diag,
+            "description": desc,
+            "target_resolution": target_info,
+        }
+
+    def monitor_screen(self) -> Dict[str, Any]:
+        """Continuous monitor screen status query."""
+        return self.inspect_screen()
 
 
 # Global singleton instance

@@ -178,6 +178,10 @@ class DesktopAppLauncher:
             "window": win_info,
         }
 
+    def launch(self, app_name: str, target: Optional[str] = None, **kwargs: Any) -> Dict[str, Any]:
+        """Convenience alias for launch_app."""
+        return self.launch_app(app_name, target=target, **kwargs)
+
     def launch_app(
         self,
         app_name: str,

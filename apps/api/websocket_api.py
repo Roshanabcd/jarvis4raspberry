@@ -50,6 +50,41 @@ def broadcast_chat_message(
         asyncio.run_coroutine_threadsafe(broadcast_event(payload), _main_loop)
 
 
+def broadcast_voice_state(
+    state: str,
+    detail: Optional[str] = None,
+    mic_level: Optional[float] = None,
+) -> None:
+    """Thread-safe trigger to broadcast live voice state transitions over WebSocket."""
+    global _main_loop
+    payload = {
+        "type": "voice_status",
+        "state": state,
+        "detail": detail,
+        "mic_level": mic_level,
+        "timestamp": time.time(),
+    }
+    if _main_loop and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_event(payload), _main_loop)
+
+
+def broadcast_voice_stage(
+    stage: str,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Thread-safe trigger to broadcast live voice stages (Listening, Heard, Thinking, Speaking, Ready) over WebSocket."""
+    global _main_loop
+    payload = {
+        "type": "voice_stage",
+        "stage": stage,
+        **(details or {}),
+        "timestamp": time.time(),
+    }
+    if _main_loop and _main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(broadcast_event(payload), _main_loop)
+
+
+
 @ws_router.websocket("/ws")
 async def websocket_telemetry(websocket: WebSocket):
     global _main_loop
@@ -69,10 +104,12 @@ async def websocket_telemetry(websocket: WebSocket):
                 robot_state = getattr(robot, "state", "UNKNOWN")
             except Exception:
                 robot_state = "UNKNOWN"
+            mic_level = None
             try:
                 from apps.voice.service import voice_service
                 voice_info = voice_service.get_state()
                 voice_state = voice_info["state"]
+                mic_level = (voice_info.get("wake_engine") or {}).get("audio_level_rms")
             except Exception:
                 voice_state = "STANDBY"
 
@@ -91,6 +128,7 @@ async def websocket_telemetry(websocket: WebSocket):
                 "robot_state": robot_state,
                 "ai_provider": active_prov,
                 "voice_state": voice_state,
+                "mic_level":   mic_level,
                 "timestamp":  time.time(),
             }
             await websocket.send_json(payload)

@@ -203,6 +203,95 @@
 
   // Microphone capture with real status reporting, active turn monitoring, and barge-in
   let voiceMonitorInterval = null;
+  let isDictating = false;
+
+  root.addEventListener('jarvis:voice_stage', (e) => {
+    const d = e.detail;
+    const stage = d?.stage;
+    const details = d?.details || {};
+    if (!stage) return;
+    if (stage === 'LISTENING_SPEECH') {
+      state('listening', 'Listening…');
+      text('cc-caption', details.rms ? ('Listening to microphone (RMS: ' + Math.round(details.rms) + ')… Speak now.') : 'Listening to ReSpeaker microphone… Speak now.');
+      text('cc-chat-feedback', 'Listening… Speak your command.');
+    } else if (stage === 'HEARD') {
+      state('listening', 'Hearing speech…');
+      const heardText = details.text || details.transcript || '';
+      text('cc-caption', heardText ? ('Heard: "' + heardText + '"') : 'Speech detected… Transcribing…');
+      text('cc-chat-feedback', heardText ? ('Heard: "' + heardText + '"') : 'Speech detected… Transcribing…');
+      if (details.is_dictation || isDictating) {
+        if (heardText) {
+          const targetInput = (doc.activeElement?.id === 'chat-in') ? byId('chat-in') : byId('cc-message');
+          if (targetInput) {
+            targetInput.value = (targetInput.value ? targetInput.value + ' ' : '') + heardText;
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            targetInput.focus();
+          }
+        }
+        isDictating = false;
+        [byId('cc-dictate-btn'), byId('chat-dictate-btn')].forEach(b => b?.classList.remove('pulsing'));
+        text('cc-chat-feedback', heardText ? `Dictated: "${heardText}"` : 'Dictation finished');
+      }
+    } else if (stage === 'THINKING') {
+      state('thinking', 'Thinking…');
+      text('cc-caption', 'Thinking… Processing your voice command.');
+      text('cc-chat-feedback', 'Thinking… Processing command.');
+    } else if (stage === 'SPEAKING') {
+      state('speaking', 'Speaking');
+      if (details.text) text('cc-caption', details.text);
+      text('cc-chat-feedback', 'Speaking response…');
+    } else if (stage === 'READY') {
+      if (isDictating) {
+        isDictating = false;
+        [byId('cc-dictate-btn'), byId('chat-dictate-btn')].forEach(b => b?.classList.remove('pulsing'));
+      }
+      syncConversation();
+      idleState();
+    } else if (stage === 'ERROR') {
+      if (isDictating) {
+        isDictating = false;
+        [byId('cc-dictate-btn'), byId('chat-dictate-btn')].forEach(b => b?.classList.remove('pulsing'));
+      }
+      state('error', 'Voice error');
+      text('cc-caption', '⚠️ Voice error: ' + (details.error || 'Failed'));
+      text('cc-chat-feedback', '⚠️ Voice error: ' + (details.error || 'Failed'));
+    }
+  });
+
+  root.addEventListener('jarvis:voice_state', (e) => {
+    const d = e.detail;
+    const wsState = d?.state || d?.voice_state;
+    if (!wsState) return;
+    wakeState = wsState;
+    text('h-voice', wakeState.replaceAll('_', ' '));
+    text('cc-wake', 'Voice: ' + wakeState.replaceAll('_', ' ').toLowerCase());
+
+    if (wsState === 'LISTENING_SPEECH') {
+      state('listening', 'Listening…');
+      text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
+      text('cc-chat-feedback', 'Listening… Speak your command.');
+    } else if (wsState === 'STREAMING_TRANSCRIPTION') {
+      state('listening', 'Hearing speech…');
+      text('cc-caption', 'Hearing speech…');
+      text('cc-chat-feedback', 'Hearing speech…');
+    } else if (wsState === 'SILENCE_COUNTDOWN') {
+      text('cc-caption', 'Silence detected, finalizing command…');
+    } else if (wsState === 'COMMAND_SUBMITTED' || wsState === 'PROCESSING_AGENT') {
+      state('thinking', 'Thinking…');
+      text('cc-caption', 'Thinking… Processing your voice command.');
+      text('cc-chat-feedback', 'Processing voice command…');
+    } else if (wsState === 'SPEAKING_RESPONSE') {
+      state('speaking', 'Speaking');
+    } else if (wsState === 'FOLLOW_UP_STANDBY') {
+      state('listening', 'Listening (follow-up)');
+      text('cc-caption', 'Listening for follow-up command…');
+    } else if (wsState === 'STANDBY_LISTENING') {
+      if (!speaking) idleState();
+    } else if (wsState === 'ERROR') {
+      state('error', 'Voice error');
+      text('cc-caption', '⚠️ Microphone capture error — check ReSpeaker Lite connection.');
+    }
+  });
 
   byId('cc-speak')?.addEventListener('click', async () => {
     // 1. Barge-in: if currently speaking, interrupt immediately
@@ -215,9 +304,11 @@
       } catch (_) {}
       speaking = false;
       state('listening', 'Listening…');
+      text('cc-caption', 'Barge-in: speech stopped. Listening…');
       text('cc-chat-feedback', 'Barge-in: speech stopped. Listening…');
     } else {
       state('listening', 'Listening…');
+      text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
       text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
     }
 
@@ -233,7 +324,8 @@
         text('cc-chat-feedback', 'Listening to ReSpeaker microphone… Speak now.');
 
         let pollCount = 0;
-        const maxPolls = 60; // 30 seconds at 500ms
+        let hasStartedTurn = false;
+        const maxPolls = 100; // 30 seconds at 300ms
         voiceMonitorInterval = setInterval(async () => {
           pollCount++;
           if (pollCount > maxPolls) {
@@ -251,35 +343,56 @@
               text('h-voice', wakeState.replaceAll('_', ' '));
               text('cc-wake', 'Voice: ' + wakeState.replaceAll('_', ' ').toLowerCase());
             }
+            if (st?.mic_disconnected || (st?.capture_status === 'failed' && st?.recorder_failures >= 3)) {
+              state('error', 'Mic error');
+              text('cc-caption', '⚠️ Microphone disconnected — check ReSpeaker Lite USB cable.');
+              text('cc-chat-feedback', '⚠️ Microphone disconnected — check ReSpeaker Lite USB cable.');
+              return;
+            }
+            if (['LISTENING_SPEECH', 'STREAMING_TRANSCRIPTION', 'SILENCE_COUNTDOWN', 'COMMAND_SUBMITTED', 'PROCESSING_AGENT', 'SPEAKING_RESPONSE'].includes(wsState)) {
+              hasStartedTurn = true;
+            }
             if (wsState === 'LISTENING_SPEECH') {
               state('listening', 'Listening…');
+              text('cc-caption', 'Listening to ReSpeaker microphone… Speak now.');
               text('cc-chat-feedback', 'Listening… Speak your command.');
             } else if (wsState === 'STREAMING_TRANSCRIPTION') {
-              state('listening', 'Listening…');
+              state('listening', 'Hearing speech…');
+              text('cc-caption', 'Hearing speech…');
               text('cc-chat-feedback', 'Hearing speech…');
             } else if (wsState === 'SILENCE_COUNTDOWN') {
+              text('cc-caption', 'Silence detected, finalizing command…');
               text('cc-chat-feedback', 'Silence detected, finalizing command…');
             } else if (wsState === 'COMMAND_SUBMITTED' || wsState === 'PROCESSING_AGENT') {
               state('thinking', 'Thinking…');
+              text('cc-caption', 'Thinking… Processing your voice command.');
               text('cc-chat-feedback', 'Processing voice command…');
             } else if (wsState === 'SPEAKING_RESPONSE') {
               state('speaking', 'Speaking');
               text('cc-chat-feedback', 'Speaking response…');
+              if (st?.last_response) text('cc-caption', st.last_response);
             } else if (wsState === 'FOLLOW_UP_STANDBY' || wsState === 'STANDBY_LISTENING') {
-              clearInterval(voiceMonitorInterval);
-              voiceMonitorInterval = null;
-              syncConversation();
-              idleState();
+              if (hasStartedTurn) {
+                clearInterval(voiceMonitorInterval);
+                voiceMonitorInterval = null;
+                syncConversation();
+                if (st?.last_response) text('cc-caption', st.last_response);
+                idleState();
+              }
             }
           } catch (_) {}
-        }, 500);
+        }, 300);
       } else {
-        text('cc-chat-feedback', outcome?.message || 'Voice outcome unavailable.');
+        const msg = outcome?.message || 'Voice outcome unavailable.';
+        text('cc-caption', msg);
+        text('cc-chat-feedback', msg);
         syncConversation();
         idleState();
       }
     } catch (err) {
-      text('cc-chat-feedback', 'Microphone error: ' + (err.message || 'Check microphone'));
+      const msg = 'Microphone error: ' + (err.message || 'Check microphone');
+      text('cc-caption', msg);
+      text('cc-chat-feedback', msg);
       syncConversation();
       idleState();
     }
@@ -287,8 +400,12 @@
 
   byId('cc-chat-form')?.addEventListener('submit', async event => {
     event.preventDefault();
-    const input = byId('cc-message'), message = input.value.trim();
-    if (!message) return;
+    const input = byId('cc-message'), message = input ? input.value.trim() : '';
+    if (!message) {
+      // Empty input: engage Real-Time Voice Chat
+      byId('cc-speak')?.click();
+      return;
+    }
     if (byId('chat-send-btn')?.disabled) {
       text('cc-chat-feedback', 'A reply is still in progress. Wait or stop it in Chat.');
       return;
@@ -304,8 +421,14 @@
       speaking = false;
     }
     const chatIn = byId('chat-in');
-    if (chatIn) chatIn.value = message;
-    input.value = '';
+    if (chatIn) {
+      chatIn.value = message;
+      chatIn.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (input) {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     const sendBtn = byId('cc-send');
     if (sendBtn) sendBtn.disabled = true;
     text('cc-chat-feedback', 'Message received. Working on it…');
@@ -328,12 +451,22 @@
       const area = byId('cc-conversation');
       if (area) {
         area.replaceChildren();
+        let lastRenderedText = null;
+        let lastRenderedRole = null;
         for (const message of messages) {
           const contentEl = message.querySelector('.msg-content');
           const body = contentEl ? (contentEl.innerText || contentEl.textContent || '') : '';
           const assistant = message.classList.contains('jarvis');
+          const role = assistant ? 'assistant' : 'user';
+          // Deduplicate consecutive identical messages in Home conversation area
+          if (role === lastRenderedRole && body.trim() === lastRenderedText?.trim()) {
+            continue;
+          }
+          lastRenderedRole = role;
+          lastRenderedText = body;
+
           const row = doc.createElement('p');
-          row.dataset.role = assistant ? 'assistant' : 'user';
+          row.dataset.role = role;
           const label = doc.createElement('strong');
           label.textContent = assistant ? (activeChar === 'atlas' ? 'ATLAS' : 'JARVIS') : 'You';
           row.appendChild(label);
@@ -347,6 +480,263 @@
     }
     idleState();
   }
+
+  // --- ChatGPT-Style Pill Composers Controller ---
+  function updatePillState(inputEl, btnEl) {
+    if (!inputEl || !btnEl) return;
+    const hasText = inputEl.value.trim().length > 0;
+    const waveformIcon = btnEl.querySelector('.icon-waveform');
+    const sendIcon = btnEl.querySelector('.icon-send');
+    if (hasText) {
+      btnEl.classList.remove('waveform-mode');
+      btnEl.classList.add('send-mode');
+      btnEl.title = 'Send message';
+      btnEl.setAttribute('aria-label', 'Send message');
+      if (waveformIcon) waveformIcon.style.display = 'none';
+      if (sendIcon) sendIcon.style.display = 'block';
+    } else {
+      btnEl.classList.add('waveform-mode');
+      btnEl.classList.remove('send-mode');
+      btnEl.title = 'Real-Time Voice Chat';
+      btnEl.setAttribute('aria-label', 'Real-Time Voice Chat');
+      if (waveformIcon) waveformIcon.style.display = 'block';
+      if (sendIcon) sendIcon.style.display = 'none';
+    }
+  }
+
+  function initPillComposers() {
+    const ccInput = byId('cc-message');
+    const ccSendBtn = byId('cc-send');
+    const chatInput = byId('chat-in');
+    const chatSendBtn = byId('chat-send-btn');
+
+    // Input listeners to toggle waveform vs send mode
+    if (ccInput && ccSendBtn) {
+      ccInput.addEventListener('input', () => updatePillState(ccInput, ccSendBtn));
+      updatePillState(ccInput, ccSendBtn);
+    }
+    if (chatInput && chatSendBtn) {
+      chatInput.addEventListener('input', () => updatePillState(chatInput, chatSendBtn));
+      updatePillState(chatInput, chatSendBtn);
+    }
+
+    // Enter key handling
+    ccInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (ccInput.value.trim()) {
+          byId('cc-chat-form')?.requestSubmit();
+        }
+      }
+    });
+
+    chatInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (chatInput.value.trim() && root.sendChat) {
+          root.sendChat();
+        }
+      }
+    });
+
+    // Chat tab send / waveform button click
+    chatSendBtn?.addEventListener('click', (e) => {
+      const msg = chatInput ? chatInput.value.trim() : '';
+      if (!msg) {
+        e.preventDefault();
+        // Engage Real-Time Voice Chat
+        const mic = byId('mic-btn');
+        if (mic) mic.click();
+        else byId('cc-speak')?.click();
+      } else {
+        if (root.sendChat) root.sendChat();
+      }
+    });
+
+    // Think Toggle Controller
+    function toggleThink() {
+      root.jarvisThinkingMode = !root.jarvisThinkingMode;
+      const active = Boolean(root.jarvisThinkingMode);
+      ['cc-think-btn', 'chat-think-btn'].forEach(id => {
+        const b = byId(id);
+        if (b) {
+          b.classList.toggle('active', active);
+          b.setAttribute('aria-pressed', active ? 'true' : 'false');
+        }
+      });
+      text('cc-chat-feedback', active ? 'Thinking mode enabled (deep reasoning)' : 'Thinking mode disabled');
+    }
+    byId('cc-think-btn')?.addEventListener('click', toggleThink);
+    byId('chat-think-btn')?.addEventListener('click', toggleThink);
+
+    // Dictate Controller
+    async function handleDictateToggle(target) {
+      const dictateBtns = [byId('cc-dictate-btn'), byId('chat-dictate-btn')];
+      const inputEl = target === 'home' ? ccInput : chatInput;
+
+      if (isDictating) {
+        isDictating = false;
+        dictateBtns.forEach(b => b?.classList.remove('pulsing'));
+        text('cc-chat-feedback', 'Dictation stopped.');
+        try {
+          await root.fetch('/api/voice/dictate/stop', {
+            method: 'POST',
+            headers: { 'X-Jarvis-Client': 'dashboard' }
+          });
+        } catch (_) {}
+        return;
+      }
+
+      isDictating = true;
+      dictateBtns.forEach(b => b?.classList.add('pulsing'));
+      text('cc-chat-feedback', 'Listening for dictation… Speak now.');
+      state('listening', 'Dictating…');
+
+      try {
+        const res = await root.fetch('/api/voice/dictate', {
+          method: 'POST',
+          headers: { 'X-Jarvis-Client': 'dashboard' }
+        });
+        if (!res.ok) throw new Error('Dictate request failed');
+        const data = await res.json();
+        if (data.mode === 'standalone_dictate' && data.text) {
+          if (inputEl) {
+            inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + data.text;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+            inputEl.focus();
+          }
+          isDictating = false;
+          dictateBtns.forEach(b => b?.classList.remove('pulsing'));
+          text('cc-chat-feedback', `Transcribed: "${data.text}"`);
+          idleState();
+        }
+      } catch (err) {
+        isDictating = false;
+        dictateBtns.forEach(b => b?.classList.remove('pulsing'));
+        text('cc-chat-feedback', 'Dictation unavailable: ' + err.message);
+        idleState();
+      }
+    }
+
+    byId('cc-dictate-btn')?.addEventListener('click', () => handleDictateToggle('home'));
+    byId('chat-dictate-btn')?.addEventListener('click', () => handleDictateToggle('chat'));
+
+    // Plus popover toggle
+    function togglePlusMenu(menuId, btnId) {
+      const menu = byId(menuId);
+      const btn = byId(btnId);
+      if (!menu || !btn) return;
+      const isHidden = menu.hidden;
+      doc.querySelectorAll('.pill-popover-menu').forEach(m => m.hidden = true);
+      doc.querySelectorAll('.pill-plus-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+      if (isHidden) {
+        menu.hidden = false;
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    byId('cc-plus-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePlusMenu('cc-plus-menu', 'cc-plus-btn');
+    });
+    byId('chat-plus-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      togglePlusMenu('chat-plus-menu', 'chat-plus-btn');
+    });
+
+    doc.addEventListener('click', (e) => {
+      if (!e.target.closest('.pill-plus-wrapper')) {
+        doc.querySelectorAll('.pill-popover-menu').forEach(m => m.hidden = true);
+        doc.querySelectorAll('.pill-plus-btn').forEach(b => b.setAttribute('aria-expanded', 'false'));
+      }
+    });
+  }
+
+  root.triggerPillAttach = function(target) {
+    let fileIn = byId('pill-file-input');
+    if (!fileIn) {
+      fileIn = doc.createElement('input');
+      fileIn.type = 'file';
+      fileIn.id = 'pill-file-input';
+      fileIn.style.display = 'none';
+      doc.body.appendChild(fileIn);
+    }
+    fileIn.onchange = (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const inputEl = target === 'home' ? byId('cc-message') : byId('chat-in');
+      if (inputEl) {
+        inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + `[Attached: ${file.name}]`;
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.focus();
+      }
+      text('cc-chat-feedback', `Attached: ${file.name}`);
+    };
+    fileIn.click();
+    doc.querySelectorAll('.pill-popover-menu').forEach(m => m.hidden = true);
+  };
+
+  root.triggerPillScreenShot = async function(target) {
+    doc.querySelectorAll('.pill-popover-menu').forEach(m => m.hidden = true);
+    text('cc-chat-feedback', 'Capturing screen…');
+    if (target === 'chat' && typeof root.diagnoseDesktopScreen === 'function') {
+      await root.diagnoseDesktopScreen();
+    } else {
+      try {
+        const res = await root.fetch('/api/active-desktop/diagnose-screen', {
+          method: 'POST',
+          headers: { 'X-Jarvis-Client': 'dashboard' }
+        });
+        if (res.ok) {
+          const d = await res.json();
+          const inputEl = byId('cc-message');
+          if (inputEl) {
+            inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + `[Screen: ${d.active_window?.title || 'Desktop'}]`;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          text('cc-chat-feedback', d.spoken_summary || 'Screen captured.');
+        } else {
+          text('cc-chat-feedback', 'Screen capture failed.');
+        }
+      } catch (err) {
+        text('cc-chat-feedback', 'Screen capture unavailable.');
+      }
+    }
+  };
+
+  root.triggerPillAppsCheck = async function(target) {
+    doc.querySelectorAll('.pill-popover-menu').forEach(m => m.hidden = true);
+    text('cc-chat-feedback', 'Checking running PC apps…');
+    try {
+      const res = await root.fetch('/api/active-desktop/snapshot', {
+        headers: { 'X-Jarvis-Client': 'dashboard' }
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const openCount = d.open_windows_count || (d.open_windows ? d.open_windows.length : 0);
+        const appName = d.active_window?.app || 'Desktop';
+        const msg = `Running apps: ${openCount} windows detected (Active: ${appName}).`;
+        if (target === 'home') {
+          const inputEl = byId('cc-message');
+          if (inputEl) {
+            inputEl.value = (inputEl.value ? inputEl.value + ' ' : '') + `Check open apps: active is ${appName}`;
+            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          text('cc-chat-feedback', msg);
+        } else {
+          if (typeof root.addMsg === 'function') {
+            root.addMsg('jarvis', `🖥️ **Running PC Apps Report**\n\n- **Active Window:** ${appName} (${d.active_window?.title || ''})\n- **Open Windows:** ${openCount} windows active.`);
+          }
+        }
+      } else {
+        text('cc-chat-feedback', 'Could not inspect running apps.');
+      }
+    } catch (err) {
+      text('cc-chat-feedback', 'Apps check unavailable.');
+    }
+  };
+
+  initPillComposers();
 
   const chatBox = byId('chat-box');
   if (chatBox) new root.MutationObserver(syncConversation).observe(chatBox, { subtree: true, childList: true, characterData: true });

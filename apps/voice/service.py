@@ -289,15 +289,30 @@ class VoiceService:
     def get_state(self) -> Dict[str, Any]:
         """Return the current active voice service status dictionary."""
         try:
-            from apps.voice.wake_word_engine import wake_word_engine
-            ww_status = wake_word_engine.get_status()
-            active = bool(self.listening and wake_word_engine._is_running)
-            if self.simulation_mode:
+            from apps.voice.daemon_status import read_status
+            daemon_telemetry = read_status()
+        except Exception:
+            daemon_telemetry = None
+
+        try:
+            from apps.voice.wake_word_engine import wake_word_engine, is_voice_service_daemon_running
+            is_daemon = is_voice_service_daemon_running()
+            if is_daemon and daemon_telemetry:
+                curr_state = daemon_telemetry.get("state", "STANDBY")
+                active = bool(daemon_telemetry.get("is_running", True))
+                ww_status = daemon_telemetry
+            elif self.simulation_mode:
+                active = self.listening
                 curr_state = "MUTED" if self._muted else ("LISTENING" if self.listening else "STANDBY")
+                ww_status = {}
             elif wake_word_engine._is_running:
+                ww_status = wake_word_engine.get_status()
+                active = bool(self.listening and wake_word_engine._is_running)
                 curr_state = ww_status.get("state", "STANDBY")
             else:
+                active = self.listening
                 curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
+                ww_status = {}
         except Exception:
             active = self.listening
             curr_state = "MUTED" if self._muted else ("LISTENING" if active else "STANDBY")
@@ -483,16 +498,27 @@ class VoiceService:
         session_id: Optional[str] = None,
         role: Optional[str] = None,
         speak: bool = True,
+        turn_id: Optional[str] = None,
+        broadcast_user: bool = True,
+        broadcast_assistant: bool = True,
     ) -> str:
         """Process a spoken or text command through the JARVIS Brain and speak the reply."""
         self.stop_playback()
         logger.info("Processing voice command: '%s'", text)
+        tid = turn_id or f"vcmd_{uuid.uuid4().hex[:10]}"
         self.conversation.add_turn(role="user", text=text)
-        try:
-            from apps.api.websocket_api import broadcast_chat_message
-            broadcast_chat_message(role="user", text=text)
-        except Exception as e:
-            logger.debug("Failed to broadcast user chat message: %s", e)
+        if broadcast_user:
+            try:
+                from apps.api.websocket_api import broadcast_chat_message
+                broadcast_chat_message(
+                    role="user",
+                    text=text,
+                    message_id=f"user_{tid}",
+                    turn_id=tid,
+                    playback_target="none",
+                )
+            except Exception as e:
+                logger.debug("Failed to broadcast user chat message: %s", e)
 
         # The identity used for authorization is always resolved locally.  Do
         # not trust optional identity arguments supplied by a caller: a voice
@@ -524,19 +550,19 @@ class VoiceService:
         if not response:
             response = "The AI service returned no answer. Completion could not be verified."
 
-        turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
         self.conversation.add_turn(role="assistant", text=response)
         spoken_text = (result.get("spoken_summary") or response) if isinstance(result, dict) else response
+        self._last_spoken_summary = spoken_text
         if speak:
-            self.speak_response(spoken_text, turn_id=turn_id)
-        else:
+            self.speak_response(spoken_text, turn_id=tid)
+        elif broadcast_assistant:
             try:
                 from apps.api.websocket_api import broadcast_chat_message
                 broadcast_chat_message(
                     role="assistant",
                     text=response,
-                    message_id=turn_id,
-                    turn_id=turn_id,
+                    message_id=tid,
+                    turn_id=tid,
                     playback_target="system",
                 )
             except Exception:

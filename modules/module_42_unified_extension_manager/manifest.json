@@ -43,7 +43,7 @@
     "JARVIS_M42_HOST": { "type": "string", "default": "0.0.0.0" },
     "JARVIS_M42_PORT": { "type": "integer", "default": 8142 },
     "JARVIS_M42_DB_PATH": { "type": "string", "default": "./data/jarvis_extensions.db" },
-    "JARVIS_M42_ARCHIVES_DIR": { "type": "string", "default": "/home/roshan/Downloads/module-jarvis" },
+    "JARVIS_M42_ARCHIVES_DIR": { "type": "string", "default": "/home/roshan/.gemini/antigravity/scratch/jarvis-os/data/module_archives" },
     "JARVIS_M42_MAX_UNCOMPRESSED_MB": { "type": "integer", "default": 200 },
     "JARVIS_M42_MAX_COMPRESSION_RATIO": { "type": "number", "default": 100.0 },
     "JARVIS_M42_MAX_ARCHIVE_FILES": { "type": "integer", "default": 2500 },

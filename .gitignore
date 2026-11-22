@@ -73,6 +73,7 @@ package-lock.json
 data/photos/
 data/voice_samples/
 data/module_archives/
+data/archives/
 .claude-flow/
 .playwright-mcp/
 .swarm/

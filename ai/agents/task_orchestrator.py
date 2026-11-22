@@ -10,6 +10,8 @@ import re
 import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+from core.paths import JARVIS_ROOT
+
 logger = logging.getLogger("JARVIS.CompoundTaskOrchestrator")
 
 
@@ -115,8 +117,8 @@ class CompoundTaskOrchestrator:
                         last_context_project = "/home/roshan/UnityGameWorkspace/GameProject"
                     elif "UnityGameWorkspace" in content:
                         last_context_project = "/home/roshan/UnityGameWorkspace"
-                    elif "jarvis-os" in content:
-                        last_context_project = "/home/roshan/.gemini/antigravity/scratch/jarvis-os"
+                    elif "jarvis-os" in content or "jarvis" in content:
+                        last_context_project = str(JARVIS_ROOT)
                 if "firefox" in c_low:
                     last_context_browser = "firefox"
                 elif "chrome" in c_low:
@@ -326,7 +328,7 @@ class CompoundTaskOrchestrator:
 
             # 6. File Searching in project/workspace (e.g. "find all Python scripts in it", "find its Python files")
             elif re.search(r'\b(?:find|search)\b.*\b(?:python|scripts?|files?)\b', task_lower):
-                search_dir = last_context_project or ("/home/roshan/UnityGameWorkspace" if "unity" in task_lower else "/home/roshan/UnityGameWorkspace")
+                search_dir = last_context_project or ("/home/roshan/UnityGameWorkspace" if "unity" in task_lower else str(JARVIS_ROOT))
                 ext = ".py" if "python" in task_lower or "script" in task_lower else None
                 s_files = file_search.search_files(directory=search_dir, extension=ext, max_results=10)
                 all_tools_used.append({"tool": "desktop_search_files"})
@@ -386,7 +388,7 @@ class CompoundTaskOrchestrator:
 
             # Phase 4: Inspect README in project
             elif re.search(r'\b(?:inspect|read|show|cat)\b.*\breadme\b', task_lower):
-                proj_dir = last_context_project or "/home/roshan/UnityGameWorkspace"
+                proj_dir = last_context_project or str(JARVIS_ROOT)
                 readme_path = None
                 for cand in ["README.md", "readme.md", "README.txt", "README"]:
                     p = os.path.join(proj_dir, cand)
