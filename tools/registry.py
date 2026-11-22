@@ -1376,6 +1376,57 @@ class ToolRegistry:
         from tools.desktop.action_engine import desktop_action_engine
         from tools.terminal.terminal_manager import terminal_engine
 
+        def _exec_open_url(url: str, browser: str = "chrome", **kwargs):
+            from tools.browser.browser_agent import browser_agent
+            clean = (url or "").strip()
+            if clean.lower() in ("youtube", "youtube.com"):
+                clean = "https://www.youtube.com"
+            elif clean.lower() in ("google", "google.com"):
+                clean = "https://www.google.com"
+            elif not clean.startswith(("http://", "https://", "about:", "chrome://")):
+                clean = f"https://{clean}"
+            return browser_agent.open_url(clean, browser=browser, new_tab=True)
+
+        def _exec_open_youtube(query: str = "", url: str = "", **kwargs):
+            from tools.browser.youtube_controller import youtube_controller
+            from tools.browser.browser_agent import browser_agent
+            if url:
+                return browser_agent.open_url(url, browser="chrome", new_tab=True)
+            clean_q = (query or "").strip()
+            if clean_q and clean_q.lower() not in ("youtube", "none", "null", "all"):
+                return youtube_controller.play_direct_query(clean_q, browser="chrome")
+            return browser_agent.open_url("https://www.youtube.com", browser="chrome", new_tab=True)
+
+        def _exec_open_desktop_app(app_name: str, target=None, new_window: bool = False, **kwargs):
+            return desktop_action_engine.open_application(app_name, target=target, new_window=new_window)
+
+        self.register_tool({
+            "name": "open_url",
+            "description": "Open a web URL or website in Google Chrome on the local desktop display (DISPLAY=:0)",
+            "schema": {"url": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:open"],
+            "execute": _exec_open_url,
+        })
+
+        self.register_tool({
+            "name": "open_youtube",
+            "description": "Open YouTube or search and play a video query in Google Chrome on DISPLAY=:0",
+            "schema": {"query": "str"},
+            "risk_level": 0,
+            "permissions": ["browser:youtube"],
+            "execute": _exec_open_youtube,
+        })
+
+        self.register_tool({
+            "name": "open_desktop_app",
+            "description": "Launch an allowlisted desktop application (Chrome, VS Code, Terminal, etc.) on DISPLAY=:0",
+            "schema": {"app_name": "str"},
+            "risk_level": 1,
+            "permissions": ["desktop:launch"],
+            "execute": _exec_open_desktop_app,
+        })
+
         self.register_tool({
             "name": "desktop_open_app",
             "description": "Launch installed desktop application (Chrome, Firefox, VS Code, Antigravity, LXTerminal, PCManFM)",

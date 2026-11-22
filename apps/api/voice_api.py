@@ -543,15 +543,19 @@ def cancel_voice_job(job_id: str):
 @voice_router.post("/command")
 def run_command(req: CommandRequest, background_tasks: BackgroundTasks = None):
     """Execute inference once and submit exactly one bounded voice reply job."""
+    import uuid
+    turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
     response = voice_service.process_command(req.text, speak=False)
     try:
-        job = voice_service.enqueue_response(response, broadcast=False, preempt=True)
+        job = voice_service.enqueue_response(
+            response, broadcast=False, preempt=True, turn_id=turn_id, message_id=turn_id
+        )
     except (RuntimeError, ValueError) as exc:
         # Inference may already have performed an action: keep its confirmed
         # response and report only delivery rejection, so callers do not replay it.
         return {"status": "ok", "response": response, "job_id": None,
-                "job_status": "rejected", "audio_error": str(exc)}
-    return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status}
+                "job_status": "rejected", "audio_error": str(exc), "turn_id": turn_id}
+    return {"status": "ok", "response": response, "job_id": job.job_id, "job_status": job.status, "turn_id": turn_id}
 
 
 @voice_router.post("/synthesize")

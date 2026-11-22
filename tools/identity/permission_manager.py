@@ -43,6 +43,13 @@ ROLE_ALLOWED_TOOLS: Dict[str, Set[str]] = {
         "running_apps_processes",
         "inspect_screen",
         "screen_observe",
+        # Safe browser and desktop launch tools
+        "open_url",
+        "open_youtube",
+        "open_desktop_app",
+        "desktop_open_url",
+        "desktop_search_youtube",
+        "desktop_open_app",
     },
     UserRole.USER.value: {
         "chat",
@@ -91,6 +98,13 @@ ROLE_ALLOWED_TOOLS: Dict[str, Set[str]] = {
         "browser_click",
         "browser_type",
         "browser_navigate",
+        # Safe browser and desktop launch tools
+        "open_url",
+        "open_youtube",
+        "open_desktop_app",
+        "desktop_open_url",
+        "desktop_search_youtube",
+        "desktop_open_app",
         # Desktop & Media
         "app_launcher",
         "file_search",

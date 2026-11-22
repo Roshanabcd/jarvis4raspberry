@@ -84,7 +84,15 @@ class VoiceService:
             self.simulation_mode,
         )
 
-    def enqueue_response(self, response: str, *, broadcast: bool = False, preempt: bool = False) -> VoiceJob:
+    def enqueue_response(
+        self,
+        response: str,
+        *,
+        broadcast: bool = False,
+        preempt: bool = False,
+        turn_id: Optional[str] = None,
+        message_id: Optional[str] = None,
+    ) -> VoiceJob:
         """Queue one tracked reply, refusing capacity rather than evicting live work unless preempt is True."""
         if not isinstance(response, str) or not response.strip():
             raise ValueError("response must be a non-empty string")
@@ -95,12 +103,24 @@ class VoiceService:
             if self._reply_queue.full():
                 raise RuntimeError("Voice reply queue is full")
             current_gen = getattr(self, "_speech_generation", 0)
-            job = self._job_manager.create_job(response, preserve_active=True, generation=current_gen)
+            job = self._job_manager.create_job(
+                response,
+                preserve_active=True,
+                generation=current_gen,
+                turn_id=turn_id,
+                message_id=message_id,
+            )
             self._reply_queue.put_nowait(job)
         if broadcast:
             try:
                 from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="assistant", text=response)
+                broadcast_chat_message(
+                    role="assistant",
+                    text=response,
+                    message_id=message_id or turn_id or job.job_id,
+                    turn_id=turn_id or job.job_id,
+                    playback_target="system",
+                )
             except Exception as exc:
                 logger.debug("Failed to broadcast queued assistant reply: %s", exc)
         return job
@@ -194,6 +214,11 @@ class VoiceService:
                         role="assistant",
                         text=job.text,
                         audio_url=staged.get("audio_url"),
+                        message_id=getattr(job, "message_id", None) or getattr(job, "turn_id", None) or job.job_id,
+                        turn_id=getattr(job, "turn_id", None) or job.job_id,
+                        playback_target="system",
+                        provider_label=staged.get("provider_label"),
+                        is_cloned=bool(staged.get("is_cloned", False)),
                     )
                 except Exception as b_err:
                     logger.debug("Failed to broadcast staged audio URL: %s", b_err)
@@ -498,28 +523,33 @@ class VoiceService:
         if not response:
             response = "The AI service returned no answer. Completion could not be verified."
 
+        turn_id = f"vcmd_{uuid.uuid4().hex[:10]}"
         self.conversation.add_turn(role="assistant", text=response)
         if speak:
-            self.speak_response(response)
-        else:
-            try:
-                from apps.api.websocket_api import broadcast_chat_message
-                broadcast_chat_message(role="assistant", text=response)
-            except Exception:
-                logger.debug("Could not broadcast voice reply")
+            self.speak_response(response, turn_id=turn_id)
         return response
 
-    def speak_response(self, response: str, *, broadcast: bool = True) -> Dict[str, Any]:
+    def speak_response(self, response: str, *, broadcast: bool = True, turn_id: Optional[str] = None) -> Dict[str, Any]:
         """Synthesize and stage a reply for browser and system delivery."""
         self._last_staged = {}
         try:
             from apps.voice.speech_manager import speech_manager
             staged = speech_manager.synthesize_and_stage(response)
             self._last_staged = staged or {}
+            tid = turn_id or f"vcmd_{uuid.uuid4().hex[:10]}"
             if broadcast:
                 try:
                     from apps.api.websocket_api import broadcast_chat_message
-                    broadcast_chat_message(role="assistant", text=response)
+                    broadcast_chat_message(
+                        role="assistant",
+                        text=response,
+                        audio_url=staged.get("audio_url") if isinstance(staged, dict) else None,
+                        message_id=tid,
+                        turn_id=tid,
+                        playback_target="system",
+                        provider_label=staged.get("provider_label") if isinstance(staged, dict) else None,
+                        is_cloned=bool(staged.get("is_cloned", False)) if isinstance(staged, dict) else False,
+                    )
                 except Exception:
                     pass
             return dict(self._last_staged)

@@ -170,6 +170,7 @@ def chat_stream_endpoint(req: ChatRequest):
                         "type": "audio",
                         "audio_id": audio_info.get("audio_id"),
                         "audio_url": audio_info.get("audio_url"),
+                        "playback_target": req.audio_output,
                         "provider": audio_info.get("provider"),
                         "provider_label": audio_info.get("provider_label"),
                         "is_cloned": audio_info.get("is_cloned", False),

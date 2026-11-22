@@ -528,10 +528,15 @@ class WakeWordEngine:
 
     def _command_after_wake_phrase(self, text: str) -> str:
         """Keep commands spoken in the same breath as the wake phrase."""
+        if not text:
+            return ""
         for pattern in self.wake_phrases:
             match = re.search(pattern, text, flags=re.IGNORECASE)
             if match:
-                return text[match.end():].lstrip(" ,.!?:;-").strip()
+                cmd = text[match.end():].lstrip(" ,.!?:;-").strip()
+                cmd = re.sub(r"^(?:please\s+|could\s+you\s+|can\s+you\s+)+", "", cmd, flags=re.IGNORECASE).strip()
+                cmd = re.sub(r"[,\s]+(?:hello|hi|please|thank\s+you|thanks)\s*$", "", cmd, flags=re.IGNORECASE).strip()
+                return cmd
         return ""
 
     def _is_tts_playing(self, playback_path: Optional[Any] = None) -> bool:
@@ -634,6 +639,14 @@ class WakeWordEngine:
                     if acoustic_score >= self._wake_threshold:
                         logger.info(">>> ACOUSTIC WAKE WORD DETECTED! (score: %.3f >= threshold: %.2f) <<<",
                                     acoustic_score, self._wake_threshold)
+                        text = self._transcribe(standby_chunk, fallback_to_whisper=False)
+                        after_wake = self._command_after_wake_phrase(text) if text else ""
+                        if after_wake:
+                            logger.info(">>> ONE-SHOT COMMAND DETECTED WITH ACOUSTIC WAKE: '%s' <<<", after_wake)
+                            self._current_transcript = after_wake
+                            self._prev_standby_frames = None
+                            self.set_state(WakeState.LISTENING_SPEECH)
+                            continue
                         self._current_transcript = ""
                         self._prev_standby_frames = None
                         self.set_state(WakeState.WAKE_DETECTED)
@@ -653,6 +666,14 @@ class WakeWordEngine:
                             if combined_score >= self._wake_threshold:
                                 logger.info(">>> ACOUSTIC WAKE WORD DETECTED (across boundary, score: %.3f)! <<<",
                                             combined_score)
+                                comb_text = self._transcribe(combined_path, fallback_to_whisper=False)
+                                after_wake = self._command_after_wake_phrase(comb_text) if comb_text else ""
+                                if after_wake:
+                                    logger.info(">>> ONE-SHOT COMMAND DETECTED ACROSS BOUNDARY: '%s' <<<", after_wake)
+                                    self._current_transcript = after_wake
+                                    self._prev_standby_frames = None
+                                    self.set_state(WakeState.LISTENING_SPEECH)
+                                    continue
                                 self._current_transcript = ""
                                 self._prev_standby_frames = None
                                 self.set_state(WakeState.WAKE_DETECTED)
@@ -798,7 +819,8 @@ class WakeWordEngine:
                         if has_heard_speech:
                             self.set_state(WakeState.SILENCE_COUNTDOWN)
                             logger.info("Silence countdown: %.1fs / %.1fs", elapsed_silence, self.silence_timeout_s)
-                            if elapsed_silence >= self.silence_timeout_s:
+                            effective_silence = 1.5 if (self._current_transcript and len(self._current_transcript.split()) >= 2) else self.silence_timeout_s
+                            if elapsed_silence >= effective_silence:
                                 logger.info("Continuous silence reached (%.1fs)! Finalizing command.", elapsed_silence)
                                 self.set_state(WakeState.COMMAND_SUBMITTED)
                                 break
@@ -821,7 +843,6 @@ class WakeWordEngine:
                             full_transcript = self._transcribe(accumulated_path, fallback_to_whisper=True)
                             if full_transcript and full_transcript.strip():
                                 final_cmd = full_transcript.strip()
-                                self._current_transcript = final_cmd
                         except Exception as e:
                             logger.debug("Accumulated transcription error: %s", e)
                         finally:
@@ -833,6 +854,12 @@ class WakeWordEngine:
 
                     if not final_cmd and self._current_transcript:
                         final_cmd = self._current_transcript.strip()
+                    elif self._current_transcript and final_cmd:
+                        extracted_acc = self._command_after_wake_phrase(final_cmd) or final_cmd
+                        if len(extracted_acc.split()) == 0 or (len(self._current_transcript.split()) >= 2 and len(extracted_acc.split()) <= 1):
+                            final_cmd = self._current_transcript.strip()
+                        else:
+                            final_cmd = extracted_acc
 
                     cleaned_cmd = self._command_after_wake_phrase(final_cmd) or final_cmd
                     self._last_command = cleaned_cmd

@@ -402,6 +402,16 @@ class BackgroundTasks:
                         self._update(job_id, status, error=error)
                         if response is not None:
                             self._results[job_id] = response
+                        try:
+                            from apps.voice.task_announcer import announce_task_completion
+                            announce_task_completion(
+                                status=status,
+                                action_or_name=f"Task {job_id[-6:]}",
+                                output_summary=response,
+                                error=self._error_details.get(job_id) or error,
+                            )
+                        except Exception as ann_err:
+                            logger.debug("Task announcement notice: %s", ann_err)
                 except Exception:
                     self._broken = True  # Durable running record becomes interrupted on restart.
                 finally:

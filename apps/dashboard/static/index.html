@@ -4507,6 +4507,24 @@ async function loadChatHistory() {
 }
 
 // ─── WebSocket Live Telemetry ────────────────────────────────
+const renderedMessageIds = new Set();
+
+function interruptAllAudio() {
+  try {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  } catch (_) {}
+  try {
+    const player = document.getElementById('jarvis-audio-player');
+    if (player) {
+      player.pause();
+      player.currentTime = 0;
+    }
+  } catch (_) {}
+  try {
+    fetch('/api/voice/interrupt', { method: 'POST', keepalive: true }).catch(() => {});
+  } catch (_) {}
+}
+
 let ws, wsRetries = 0;
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -4529,13 +4547,26 @@ function connectWS() {
     try {
       const d = JSON.parse(e.data);
       if (d.type === 'chat_message') {
+        const msgId = d.message_id || d.turn_id;
+        if (msgId && renderedMessageIds.has(msgId)) {
+          const existing = document.querySelector(`[data-message-id="${msgId}"]`);
+          if (existing && d.audio_url) {
+            attachAudioToBubble(existing, d.audio_url, d.provider_label, d.is_cloned);
+          }
+          return;
+        }
+        if (currentChatAbort && d.role === 'assistant') {
+          return;
+        }
+        if (msgId) renderedMessageIds.add(msgId);
         const role = d.role === 'assistant' ? 'jarvis' : (d.role || 'user');
         addMsg(role, d.text, {
           audio_url: d.audio_url,
           provider_label: d.provider_label,
-          is_cloned: d.is_cloned
+          is_cloned: d.is_cloned,
+          message_id: msgId
         });
-        if (role === 'jarvis' && d.audio_url) {
+        if (role === 'jarvis' && d.audio_url && d.playback_target !== 'system') {
           const autoSpeak = document.getElementById('chat-auto-speak');
           if (!autoSpeak || autoSpeak.checked) {
             playJarvisAudio(d.audio_url);
@@ -4705,6 +4736,7 @@ async function sendChat() {
 
   lastUserMessage = msg;
   inp.value = '';
+  interruptAllAudio();
   addMsg('user', msg);
 
   setChatStatus('loading', 'Sending your message…');
@@ -4771,6 +4803,10 @@ async function sendChat() {
               requestId = event.request_id;
               if (currentChatAbort === controller) currentChatRequestId = requestId;
             }
+            if (event.message_id) {
+              assistantMsgElem.dataset.messageId = event.message_id;
+              renderedMessageIds.add(event.message_id);
+            }
             progress.textContent = 'Message received. I’m working on it.';
             updateStatus('loading', 'Working…');
           } else if (event.type === 'progress') {
@@ -4804,7 +4840,7 @@ async function sendChat() {
           } else if (event.type === 'audio') {
             attachAudioToBubble(assistantMsgElem, event.audio_url, event.provider_label, event.is_cloned);
             const autoSpeak = document.getElementById('chat-auto-speak');
-            if (currentChatAbort === controller && (!autoSpeak || autoSpeak.checked)) {
+            if (currentChatAbort === controller && (!autoSpeak || autoSpeak.checked) && event.playback_target !== 'system') {
               playJarvisAudio(event.audio_url);
             }
           } else if (event.type === 'audio_error') {
@@ -4877,10 +4913,38 @@ function createStreamingBubble() {
 
 function addMsg(cls, text, audioInfo) {
   const box = document.getElementById('chat-box');
+  if (!box) return null;
+
+  const msgId = audioInfo?.message_id;
+  if (msgId) {
+    if (renderedMessageIds.has(msgId)) {
+      const existing = box.querySelector(`[data-message-id="${msgId}"]`);
+      if (existing && audioInfo.audio_url) {
+        attachAudioToBubble(existing, audioInfo.audio_url, audioInfo.provider_label, audioInfo.is_cloned);
+      }
+      return existing;
+    }
+    renderedMessageIds.add(msgId);
+  }
+
+  // Deduplicate identical consecutive messages
+  const lastContainer = box.lastElementChild;
+  const lastMsg = lastContainer?.querySelector('.msg');
+  if (lastMsg && lastMsg.classList.contains(cls)) {
+    const lastContent = lastMsg.querySelector('.msg-content')?.textContent?.trim();
+    if (lastContent && text && lastContent === text.trim()) {
+      if (audioInfo?.audio_url) {
+        attachAudioToBubble(lastMsg, audioInfo.audio_url, audioInfo.provider_label, audioInfo.is_cloned);
+      }
+      return lastMsg;
+    }
+  }
+
   const container = document.createElement('div');
   container.className = 'msg-container';
   const div = document.createElement('div');
   div.className = 'msg ' + cls;
+  if (msgId) div.dataset.messageId = msgId;
   const author = cls === 'user' ? '👤 Operator' : (cls === 'jarvis' ? '⚡ JARVIS' : '⚠️ System');
   div.innerHTML = `<span class="msg-author" style="font-size:0.75rem;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span>${author}</span><span class="voice-badge"></span></span><div class="msg-content">${renderMarkdown(text)}</div>`;
   const meta = document.createElement('div');
@@ -4894,6 +4958,7 @@ function addMsg(cls, text, audioInfo) {
   if (cls === 'jarvis' && audioInfo && audioInfo.audio_url) {
     attachAudioToBubble(div, audioInfo.audio_url, audioInfo.provider_label, audioInfo.is_cloned);
   }
+  return div;
 }
 
 function attachAudioToBubble(bubbleElem, audioUrl, providerLabel, isCloned) {
