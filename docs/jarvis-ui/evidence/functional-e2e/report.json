@@ -1,6 +1,6 @@
 {
-  "timestamp": 1795347668.0852876,
-  "date": "2026-11-22 11:41:08 UTC",
+  "timestamp": 1795348836.5466259,
+  "date": "2026-11-22 12:00:36 UTC",
   "base_url": "http://127.0.0.1:8000",
   "viewports": {
     "1440x900": {
@@ -25,12 +25,12 @@
       "details": {
         "1440x900": {
           "has_freellmapi_model": true,
-          "response_length": 5480,
+          "response_length": 5467,
           "contains_process_info": true
         },
         "1280x720": {
           "has_freellmapi_model": true,
-          "response_length": 5487,
+          "response_length": 5467,
           "contains_process_info": true
         }
       }
