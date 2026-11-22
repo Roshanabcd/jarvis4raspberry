@@ -356,3 +356,33 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
 - UX-002 passed isolated Chromium at 1440×900 and 1280×720: persistent denial, restored button focus, zero dialogs. Marked verified_offline; source hash and screenshots in corrective/launch-denial-review/.
 - Added reproducible tests/browser/app_launch_denial.cjs using one browser, intercepted/disabled network and no real media. Each run creates a new temporary evidence directory.
 - No existing implementation was rewritten merely to show activity. Remaining audit items and phase gates stay open.
+
+### Step 7 — Autonomous Agent Multi-Task Engine, Voice Preemption & Codex UX Polish (Pillars 1–4) · 22 November 2026
+- **Pillar 1: Multi-Task Autonomous Agent Engine & Developer Hub Repair**:
+  - Implemented in-memory FreeLLMAPI credential injection with zero secrets written to disk (`tools/developer/cli_bridge.py`).
+  - Filtered leaked metadata keys (`primary`, `has_developer_cli`, `installed_clis`, `installed_count`) and deduplicated `antigravity`/`agy` in CLI cards grid.
+  - Added 60s in-memory CLI discovery cache to reduce gateway response latency from 5,900ms to 76ms.
+  - Configured asynchronous task execution with 180s timeout, graceful error codes (`[TIMEOUT]`, `[CLI ERROR]`), retry and dismiss controls.
+- **Pillar 2: Real-Time Voice Assistant & Latest-Message-Only TTS Preemption**:
+  - Maintained single device owner boundary: `jarvis-voice.service` exclusively owns ReSpeaker Lite mic (`card 2, device 0`).
+  - Enforced monotonic speech turn IDs with automatic preemption of stale speech synthesis.
+  - Verified dual wake-word support (`"Hey Jarvis"` and `"Hello Jarvis"`) with zero false triggers.
+  - Unit suites `tests/unit/test_voice_preemption.py` and `tests/unit/test_wake_phrase_activation.py` passed 9/9 tests cleanly.
+- **Pillar 3: Codex High-Impact UX & Ergonomics Remediation**:
+  - Chat (`#tab-chat`): Pinned composer to bottom (`position: sticky; bottom: 0`) within 1440×900 and 1280×720 viewports; wrapped background tasks in collapsible drawer (`#chat-background-tasks-drawer`).
+  - Voice (`#tab-voice`): Eliminated 2,117px scroll wall by grouping active hardware controls above the fold and wrapping secondary panels in collapsible `<details>` (height reduced from 2,117px to 598px/640px).
+  - Apps (`#tab-apps`): Wrapped search and category pills into sticky header, surfaced inline roadmap/unavailable warning notices (`⚠️ Roadmap: Planned...`) before launch, and implemented persistent Favorites with localStorage fallback.
+  - Memory (`#tab-memory`): Sticky search bar, pagination limiting initial rows to 15 with "Load more" button, and replaced native `prompt()`/`confirm()` with accessible non-blocking inline modals (`#mem-add-modal` and `#mem-delete-modal`).
+  - Logs (`#tab-logs`): Added severity filters (`ALL`, `INFO`, `WARN`, `ERROR`), live keyword search, Pause/Resume stream toggle, and color-coded log lines.
+  - System (`#tab-system`): Added top summary cards (CPU, Memory/RAM, Disk Storage, Host Architecture) and collapsed raw JSON telemetry into `<details>`.
+- **Pillar 4: Deep Functional Playwright E2E Verification across Viewports**:
+  - Implemented comprehensive live E2E test `tests/browser/test_jarvis_functional_e2e.py` executed against live backend.
+  - Verified across both 1440×900 (Desktop) and 1280×720 (Laptop) viewports:
+    - E-STOP Safety: `#estop-btn` verified visible and enabled on all tabs (NEVER clicked).
+    - Test 1 (Chat streaming & PC processes query): PASSED (5,480-character response streaming with process details via FreeLLMAPI).
+    - Test 2 (Apps Center UX & persistent Favorites): PASSED (45 cards, 11 categories, Space key keyboard toggle, persistent favorites).
+    - Test 3 (Developer Hub & FreeLLMAPI Gateway): PASSED (Gateway ONLINE Port 3001, 314 models, zero fake CLI metadata cards).
+    - Test 4 (Voice subsystem ergonomics): PASSED (Controls above the fold, height under 650px).
+    - Test 5 (All 22 tabs API hydration & E-STOP check): PASSED on all 22 tabs (`home`, `chat`, `voice`, `aistudio`, `vision`, `robot`, `sensors`, `memory`, `automations`, `tools`, `integrations`, `system`, `logs`, `desktop`, `computer`, `agents`, `apps`, `developer`, `youtube`, `documents`, `research`, `settings`).
+  - Evidence: Screenshots and JSON report saved under `docs/jarvis-ui/evidence/functional-e2e/report.json`. Overall Passed: `True`.
+

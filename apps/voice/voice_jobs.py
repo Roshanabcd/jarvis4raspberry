@@ -49,6 +49,9 @@ class VoiceJob(BaseModel):
     error: Optional[str] = None
     latency_ms: Optional[float] = None
     generation: int = 0
+    turn_id: Optional[str] = None
+    message_id: Optional[str] = None
+
 
 
 class VoiceJobManager:
@@ -218,10 +221,10 @@ class VoiceJobManager:
                 self._store_lock_fd = None
             self._closed = True
 
-    def create_job(self, text: str, *, preserve_active: bool = False, generation: int = 0) -> VoiceJob:
+    def create_job(self, text: str, *, preserve_active: bool = False, generation: int = 0, turn_id: Optional[str] = None, message_id: Optional[str] = None) -> VoiceJob:
         """Create a job; delivery callers may refuse eviction of active history."""
         job_id = f"vjob_{int(time.time())}_{uuid.uuid4().hex[:8]}"
-        job = VoiceJob(job_id=job_id, text=text, status="queued", generation=generation)
+        job = VoiceJob(job_id=job_id, text=text, status="queued", generation=generation, turn_id=turn_id, message_id=message_id)
         with self._lock:
             self._ensure_store()
             jobs = self._jobs.copy()

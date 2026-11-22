@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("JARVIS.Developer.CliBridge")
@@ -28,6 +29,8 @@ class DeveloperCliBridge:
 
     def __init__(self, repo_root: Optional[Path] = None):
         self.repo_root = repo_root or Path("/home/roshan/.gemini/antigravity/scratch/jarvis-os")
+        self._clis_cache: Optional[Dict[str, Any]] = None
+        self._clis_cache_time: float = 0.0
 
     def get_freellmapi_config(self) -> Dict[str, Any]:
         """Check FreeLLMAPI gateway status and model count without exposing secrets."""
@@ -110,10 +113,16 @@ class DeveloperCliBridge:
 
         return env
 
-    def detect_clis(self) -> Dict[str, Any]:
+    def detect_clis(self, force_refresh: bool = False) -> Dict[str, Any]:
         """Detect installed local developer CLIs and their FreeLLMAPI connection readiness."""
+        now = time.time()
         freellm = self.get_freellmapi_config()
         fl_ready = freellm["configured"] and freellm["reachable"]
+
+        if not force_refresh and self._clis_cache is not None and (now - self._clis_cache_time) < 60.0:
+            cached = dict(self._clis_cache)
+            cached["freellmapi"] = freellm
+            return cached
 
         cli_specs = [
             ("antigravity", ["antigravity", "agy", "/home/roshan/.local/bin/agy"], ["--version"], "antigravity"),
@@ -169,7 +178,7 @@ class DeveloperCliBridge:
             )
         )
 
-        return {
+        result = {
             **detected,
             "primary": primary,
             "has_developer_cli": len(installed_list) > 0,
@@ -177,6 +186,9 @@ class DeveloperCliBridge:
             "installed_count": len(installed_list),
             "freellmapi": freellm,
         }
+        self._clis_cache = result
+        self._clis_cache_time = now
+        return result
 
     def diagnose_system(self) -> Dict[str, Any]:
         """Run safe, read-only system inspection across services, audio, git, and processes."""

@@ -109,6 +109,18 @@ INTENTS = [
 ]
 
 
+def strip_command_noise(text: str) -> str:
+    """Strip leading/trailing greetings, wake phrases, and polite filler from commands."""
+    if not text:
+        return ""
+    cleaned = text.strip()
+    leading_pat = r"^(?:(?:hey|hello|hi|ok)\s+jarvis[,\s]*|(?:hey|hello|hi)[,\s]+|jarvis[,\s]+|please\s+)+"
+    cleaned = re.sub(leading_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    trailing_pat = r"[,\s]+(?:hello|hi|please|thank\s+you|thanks)\s*$"
+    cleaned = re.sub(trailing_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    return cleaned or text.strip()
+
+
 class LocalIntelligenceEngine:
     """
     Full JARVIS intelligence without an LLM.
@@ -121,9 +133,9 @@ class LocalIntelligenceEngine:
 
     def classify_intent(self, text: str) -> Tuple[str, Dict]:
         """Returns (intent_name, extracted_args)"""
-        text_lower = text.lower().strip()
-        # Clean leading wake word or direct greeting prefixes ("jarvis, ", "hey jarvis, ", "ok jarvis, ")
-        cmd_clean = re.sub(r'^(?:(?:hey|ok|hello|hi)\s+)?(?:jarvis|javis|jarves)[,\s:]*\s*', '', text_lower).strip() or text_lower
+        clean_text = strip_command_noise(text)
+        text_lower = clean_text.lower().strip()
+        cmd_clean = text_lower
 
         # 0. Standalone number check (Test 5: "2020")
         if re.match(r"^\s*\d+(?:\.\d+)?\s*$", text.strip()):

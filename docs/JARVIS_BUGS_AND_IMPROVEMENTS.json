@@ -309,5 +309,48 @@
       "docs/jarvis-ui/evidence/phase-6/corrective/catalog-restart-verification.json"
     ],
     "verified_revision": "c25be13"
+  },
+  {
+    "id": "UX-007",
+    "category": "ui_ux",
+    "severity": "P1-High",
+    "page": "Shell / Cross-Tab",
+    "selector": "#tab-chat, #tab-voice, #tab-apps, #tab-memory, #tab-logs, #tab-system, #tab-developer",
+    "source_files": [
+      "apps/dashboard/static/index.html",
+      "tools/developer/cli_bridge.py",
+      "apps/api/hybrid_developer_api.py"
+    ],
+    "screenshot": "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1440x900.png",
+    "summary": "Pillars 1–4 ergonomics, voice preemption, multi-task loop, and developer hub repairs across 1440x900 and 1280x720 viewports.",
+    "detailed_description": "Remediated major Codex audit flaws: eliminated 2,117px Voice tab scroll wall by grouping active hardware controls above the fold and collapsing persona/daemon panels; pinned Chat composer to viewport bottom with collapsible background tasks; added sticky filters, roadmap warning notices, and persistent favorites to Apps; added non-blocking accessible modals and pagination to Memory; added severity filters and stream pause to Logs; added summary cards to System; injected FreeLLMAPI credentials in-memory with zero disk leakage, filtered leaked CLI metadata, and added 60s CLI discovery cache.",
+    "repro_steps": [
+      "Load dashboard at 1440x900 and 1280x720 viewports.",
+      "Check Chat composer position while scrolling messages.",
+      "Check Voice panel height and verify controls are above fold.",
+      "Verify Apps favorites persistence and category filter navigation.",
+      "Verify FreeLLMAPI gateway status, model count, and CLI cards without leaked metadata."
+    ],
+    "expected_behavior": "Compact vertical layout, pinned composer, sticky controls, accessible modals, truthful telemetry, and fast response times across viewports without E-STOP compromise.",
+    "recommended_fix": "Implement responsive layout restructuring, collapsible details drawers, in-memory credential injection, and in-memory CLI discovery cache.",
+    "verification_test": "tests/browser/test_jarvis_functional_e2e.py testing all 5 functional suites and 22 tabs with DOM and API assertions.",
+    "status": "verified_live",
+    "evidence_type": "live Playwright E2E verification across 1440x900 and 1280x720 viewports",
+    "implementation_note": "Verified live against running jarvis-backend on port 8000 and jarvis-voice on PipeWire: Test 1 (Chat dialogue & PC processes), Test 2 (Apps UX & Favorites), Test 3 (Developer Hub & FreeLLMAPI Gateway), Test 4 (Voice ergonomics & preemption, height ~600px), Test 5 (All 22 tabs API hydration & E-STOP check). Overall Passed: True.",
+    "verification_scope": "live_browser_playwright",
+    "evidence_paths": [
+      "docs/jarvis-ui/evidence/functional-e2e/report.json",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1440x900.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/00_init_dashboard_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/01_chat_response_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/02_apps_center_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/03_developer_hub_1280x720.png",
+      "docs/jarvis-ui/evidence/functional-e2e/screenshots/04_voice_tab_1280x720.png"
+    ],
+    "verified_revision": "HEAD"
   }
 ]

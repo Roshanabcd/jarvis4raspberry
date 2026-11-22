@@ -40,6 +40,8 @@ Your capabilities include:
 - Storing and retrieving memories
 - Getting system status (CPU, RAM, temperature, disk)
 - Running safe shell commands
+- Opening websites, web applications, and YouTube in Google Chrome on the local desktop display (DISPLAY=:0) using open_url and open_youtube
+- Launching allowlisted desktop applications (Google Chrome, Terminal, VS Code, File Manager) using open_desktop_app
 - Scheduling recurring tasks
 - Speaking aloud via text-to-speech
 
@@ -60,7 +62,19 @@ RULES:
 10. When asked to write, create, or explain code, functions, scripts, or programs (e.g. Python), provide
     the complete code directly in markdown code blocks (```python ... ```) with explanation. Do not call shell
     or command execution tools to run or test the user's requested code unless the user explicitly asks you to run or execute it.
+11. You HAVE real desktop control and browser tools (open_url, open_youtube, open_desktop_app). When asked to open YouTube, open a website, or launch an app, ALWAYS call the corresponding tool (open_youtube, open_url, open_desktop_app). Never say you cannot open applications or websites on the desktop environment.
 """
+
+def strip_command_noise(text: str) -> str:
+    """Strip leading/trailing greetings, wake phrases, and polite filler from commands."""
+    if not text:
+        return ""
+    cleaned = text.strip()
+    leading_pat = r"^(?:(?:hey|hello|hi|ok)\s+jarvis[,\s]*|(?:hey|hello|hi)[,\s]+|jarvis[,\s]+|please\s+)+"
+    cleaned = re.sub(leading_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    trailing_pat = r"[,\s]+(?:hello|hi|please|thank\s+you|thanks)\s*$"
+    cleaned = re.sub(trailing_pat, "", cleaned, flags=re.IGNORECASE).strip()
+    return cleaned or text.strip()
 
 MAX_TOOL_ROUNDS = 5  # Prevent infinite loops
 STREAM_HEARTBEAT_SECONDS = 2.0
@@ -848,7 +862,8 @@ class JARVISBrain:
                     pass
             from ai.local_engine import LocalIntelligenceEngine
             engine = LocalIntelligenceEngine()
-            intent, ctx = engine.classify_intent(user_message)
+            cleaned_message = strip_command_noise(user_message)
+            intent, ctx = engine.classify_intent(cleaned_message)
 
         # 3. Conversational history recall (Test 8: "What was my first question?")
         if intent == "history_recall":
@@ -909,9 +924,10 @@ class JARVISBrain:
         }
 
         explicit_provider = bool(provider_name) or bool(self._active and self._active.name in ("freellmapi", "openai", "gemini", "anthropic", "openrouter", "nvidia"))
-        if use_tools and intent in FAST_PATH_INTENTS and not explicit_provider:
+        is_direct_desktop = intent in ("desktop_open_url", "desktop_search_youtube", "desktop_open_app", "open_app")
+        if use_tools and intent in FAST_PATH_INTENTS and (not explicit_provider or is_direct_desktop):
             logger.info(f"Fast-path execution for intent: {intent}")
-            local_res = engine.respond(user_message)
+            local_res = engine.respond(cleaned_message)
             resp_text = local_res.get("response", "Action completed.")
             db.save_message(sid, user_msg_id, "user", user_message, request_id=request_id)
             db.save_message(sid, asst_msg_id, "assistant", resp_text, request_id=request_id,
