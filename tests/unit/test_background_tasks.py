@@ -287,3 +287,26 @@ def test_api_accept_poll_duplicate_cancel_and_missing(client):
     assert http.get('/api/task-jobs/' + job['job_id'], headers=HEADERS).status_code == 200
     assert http.post('/api/task-jobs/' + job['job_id'] + '/cancel', headers=HEADERS).json()['status'] == 'cancelled'
     assert http.get('/api/task-jobs/unknown', headers=HEADERS).status_code == 404
+
+
+def test_api_dismiss_and_retry_workflow(client):
+    http, manager = client
+    res = http.post('/api/task-jobs', json={'transcript': 'run diagnostic'}, headers=HEADERS)
+    assert res.status_code == 202
+    job_id = res.json()['job_id']
+    
+    # Retry task
+    retry_res = http.post(f'/api/task-jobs/{job_id}/retry', headers=HEADERS)
+    assert retry_res.status_code == 200
+    retried_job = retry_res.json()
+    assert retried_job['status'] == 'accepted'
+    assert retried_job['job_id'] != job_id
+
+    # Dismiss original task
+    del_res = http.delete(f'/api/task-jobs/{job_id}', headers=HEADERS)
+    assert del_res.status_code == 200
+    assert del_res.json()['dismissed'] is True
+
+    # Check original task is gone
+    assert http.get(f'/api/task-jobs/{job_id}', headers=HEADERS).status_code == 404
+

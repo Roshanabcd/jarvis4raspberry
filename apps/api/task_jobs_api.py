@@ -89,3 +89,14 @@ def get_job(job_id: str, manager: BackgroundTasks = Depends(get_manager), who: I
 @router.post('/{job_id}/cancel')
 def cancel_job(job_id: str, manager: BackgroundTasks = Depends(get_manager), who: Identity = Depends(identity)):
     return call(manager.cancel, job_id, who)
+
+
+@router.delete('/{job_id}')
+def dismiss_job(job_id: str, manager: BackgroundTasks = Depends(get_manager), who: Identity = Depends(identity)):
+    ok = call(manager.dismiss, job_id, who)
+    return {'status': 'ok', 'dismissed': ok, 'job_id': job_id}
+
+
+@router.post('/{job_id}/retry')
+def retry_job(job_id: str, manager: BackgroundTasks = Depends(get_manager), who: Identity = Depends(identity)):
+    return call(manager.retry, job_id, who)

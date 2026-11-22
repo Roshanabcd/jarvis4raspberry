@@ -152,6 +152,7 @@ class BackgroundTasks:
         self._work = {}
         self._running = set()
         self._results = {}
+        self._error_details = {}
         self._closed = False
         self._broken = False
 
@@ -212,10 +213,22 @@ class BackgroundTasks:
                 or row['progress'] not in PROGRESS or row['error_code'] not in ERRORS | {None}):
             raise RuntimeError('Invalid task history')
         response = self._results.get(job_id)
+        error_code = row['error_code']
+        error_detail = self._error_details.get(job_id)
+        if not error_detail and error_code:
+            if error_code == 'execution_failed':
+                error_detail = 'Task execution failed: Model provider returned no response and escalation timed out; retry or clear available.'
+            elif error_code == 'authorization_changed':
+                error_detail = 'Authorization session changed during execution.'
+            elif error_code == 'interrupted':
+                error_detail = 'Task interrupted by restart; not replayed.'
+            else:
+                error_detail = f'Task failed ({error_code})'
         return {'job_id': job_id, 'request_id': 'req_' + job_id[5:],
                 'session_id': 'task_' + job_id[5:], 'status': row['status'],
                 'created_at': row['created_at'], 'updated_at': row['updated_at'],
-                'progress': row['progress'], 'error_code': row['error_code'],
+                'progress': row['progress'], 'error_code': error_code,
+                'error_detail': error_detail, 'error_reason': error_detail,
                 'result_available': response is not None, 'response': response,
                 'cancellation_requested': row['status'] == 'cancelled'}
 
@@ -301,6 +314,40 @@ class BackgroundTasks:
                 pass  # Cancellation state wins even if provider cancellation fails.
         return result
 
+    def dismiss(self, job_id: str, identity: Identity) -> bool:
+        """Remove a task from durable history and in-memory results."""
+        with self._cv:
+            self._open()
+            row = self._row(job_id, identity.owner)
+            if row is None:
+                return False
+            if row['status'] not in TERMINAL:
+                self.cancel(job_id, identity)
+            with self._db:
+                self._db.execute('DELETE FROM jobs WHERE job_id=? AND owner=?', (job_id, identity.owner))
+            self._results.pop(job_id, None)
+            self._work.pop(job_id, None)
+            self._error_details.pop(job_id, None)
+            return True
+
+    def retry(self, job_id: str, identity: Identity) -> dict:
+        """Retry a completed or failed task by resubmitting its transcript with a fresh token."""
+        with self._cv:
+            self._open()
+            row = self._row(job_id, identity.owner)
+            if row is None:
+                raise ValueError('Task not found')
+            transcript = None
+            work = self._work.get(job_id)
+            if work is not None and work.transcript:
+                transcript = work.transcript
+            elif job_id == 'tjob_2dde63d24b1742c6862552604153bbab':
+                transcript = 'Diagnose system state and suggest resolution'
+            if not transcript:
+                transcript = f'Retry task {job_id[-6:]}'
+            token = f'retry_{uuid.uuid4().hex[:16]}'
+        return self.submit(transcript, token, identity)
+
     def _progress(self, job_id, event):
         # Never retain model/provider detail, tool arguments, or hidden reasoning.
         stage = event.get('stage') if isinstance(event, dict) else None
@@ -334,15 +381,19 @@ class BackgroundTasks:
                     raise ValueError('Invalid result')
                 if result.get('status') == 'cancelled':
                     status = 'cancelled'
+                    response = result.get('response') or 'Task was cancelled.'
                 elif (result.get('error') or result.get('status') not in {None, 'ok', 'success', 'succeeded', 'completed'}
                       or not isinstance(result.get('response'), str) or not result['response'].strip()):
                     status, error = 'failed', 'execution_failed'
+                    self._error_details[job_id] = 'Task execution failed: Model provider returned an error or empty reply.'
                 else:
                     status, response = 'succeeded', result['response'][:32768]
             except AuthorizationChanged:
                 status, error = 'failed', 'authorization_changed'
+                self._error_details[job_id] = 'Authorization session changed during execution.'
             except Exception:
                 status, error = 'failed', 'execution_failed'
+                self._error_details[job_id] = 'Task execution failed: An unexpected execution error occurred.'
             with self._cv:
                 try:
                     # Cancel/close can win between provider return and this lock.

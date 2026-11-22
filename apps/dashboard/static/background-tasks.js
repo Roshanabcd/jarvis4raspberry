@@ -37,8 +37,40 @@
         }
         if (job.status === 'failed') {
           const note = doc.createElement('p');
-          note.textContent = 'This task did not finish successfully. Review the result before trying again.';
+          note.textContent = job.error_detail || job.error_reason || 'This task did not finish successfully. Review the result before trying again.';
           row.appendChild(note);
+
+          const actions = doc.createElement('div');
+          actions.style.cssText = 'display:flex;gap:6px;margin-top:6px';
+          const retryBtn = doc.createElement('button');
+          retryBtn.type = 'button'; retryBtn.className = 'btn dark'; retryBtn.textContent = 'Retry task';
+          retryBtn.addEventListener('click', async () => {
+            retryBtn.disabled = true;
+            try {
+              await api('/' + encodeURIComponent(job.job_id) + '/retry', {method:'POST'});
+              feedback.textContent = 'Task retry requested.';
+              await refresh();
+            } catch (_) {
+              feedback.textContent = 'Retry could not be confirmed.';
+              retryBtn.disabled = false;
+            }
+          });
+          const dismissBtn = doc.createElement('button');
+          dismissBtn.type = 'button'; dismissBtn.className = 'btn dark'; dismissBtn.textContent = 'Dismiss task';
+          dismissBtn.addEventListener('click', async () => {
+            dismissBtn.disabled = true;
+            try {
+              await api('/' + encodeURIComponent(job.job_id), {method:'DELETE'});
+              feedback.textContent = 'Task dismissed.';
+              await refresh();
+            } catch (_) {
+              feedback.textContent = 'Dismissal could not be confirmed.';
+              dismissBtn.disabled = false;
+            }
+          });
+          actions.appendChild(retryBtn);
+          actions.appendChild(dismissBtn);
+          row.appendChild(actions);
         }
         if (job.result_available && typeof job.response === 'string') {
           const reply = doc.createElement('p');

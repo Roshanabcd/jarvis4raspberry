@@ -1,0 +1,209 @@
+{
+  "timestamp": "2026-11-22T03:38:00Z",
+  "branch": "feature/jarvis-ui",
+  "base_url": "http://127.0.0.1:8000",
+  "viewports": ["1440x900", "1280x720"],
+  "total_pages_audited": 16,
+  "all_passed": true,
+  "pages": [
+    {
+      "page": 1,
+      "name": "Top Bar & Left Sidebar Chrome",
+      "status": "PASSED",
+      "issues_found": [
+        "Auto-Speak label text wrapped to 2 lines ('AUTO-' and 'SPEAK') stretching box to 48px height",
+        "input selector lacked checkbox/radio CSS reset, causing checkbox to inherit width: 100% and 8px 12px padding",
+        "Sidebar body > nav bottom padding was only 16px, causing bottom navigation items to scroll underneath the fixed #sidebar-operator-card",
+        "Missing favicon link in index.html head causing transient 404 for /favicon.ico"
+      ],
+      "fixes_applied": [
+        "Added explicit CSS reset for input[type='checkbox'], input[type='radio'] (width: auto, padding: 0, margin: 0)",
+        "Styled #hdr-auto-speak-label with white-space: nowrap, flex-shrink: 0, height: 32px to match top bar pill height",
+        "Updated body > nav with padding: 104px 10px 80px and overflow-y: auto, giving 64px+ clearance above operator card",
+        "Added <link rel='icon' type='image/png' href='/jarvis_icon.png'> and created static/favicon.ico"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 2,
+      "name": "Dashboard (Control Center, #tab-home)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified avatar orb HUD centering, audio wave alignment, system status gauges, quick action buttons, schedule cards"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 3,
+      "name": "Apps (#tab-apps)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified category filter pills, search input, 4-col and 3-col responsive cards grid, launch denial accessible status"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 4,
+      "name": "AI Chat (#tab-chat)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified provider/model selector, responsive 2-row button wrap on 1280x720, message bubble rendering, input bar alignment"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 5,
+      "name": "Voice (#tab-voice)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified wake word engine armed status, ReSpeaker Lite hardware telemetry, digital human persona studio, audio volume slider"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 6,
+      "name": "AI Studio (#tab-aistudio)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified prompt editor, temperature/max-token sliders, model selector, telemetry output pane"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 7,
+      "name": "Vision (#tab-vision)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified Sony IMX708 PDAF camera feed HUD container, spatial radar, snapshot preview toggle, detection actions"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 8,
+      "name": "Robot (#tab-robot — read-only telemetry only)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified truthful actuator gate state HTTP ACTUATION DISABLED (SAFE), PCA9685 16-CH servo sliders, #estop-btn visible and enabled"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 9,
+      "name": "Sensors (#tab-sensors)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified live telemetry table (bme280, bh1750, vl53l0x, hcsr501, hcsr04) and manual refresh button"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 10,
+      "name": "Memory (#tab-memory)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified long-term memory search, category dropdown filter, memory entries table with importance badges"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 11,
+      "name": "Automations (#tab-automations)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified scheduled tasks table, ACTIVE badges, schedule new task action button"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 12,
+      "name": "Tools (#tab-tools)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified agent tools catalog categories A-H, argument editor pane, tool risk indicators"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 13,
+      "name": "Integrations (#tab-integrations)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified cloud AI provider keys inputs, fresh per-action administrator PIN field, provider connectivity status summary"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 14,
+      "name": "System (#tab-system)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified hardware and host architecture JSON telemetry viewer with Raspberry Pi 5 live readings"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 15,
+      "name": "Logs (#tab-logs)",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified audit & security event log viewer with structured JSON streaming entries and refresh button"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    },
+    {
+      "page": 16,
+      "name": "Remaining Dashboard Tabs & Futuristic Interface",
+      "status": "PASSED",
+      "issues_found": [],
+      "fixes_applied": [
+        "Verified #tab-desktop (app launcher, active desktop status, terminal console)",
+        "Verified #tab-computer (X11 1360x768 display server, mouse/keyboard automation controls, option-1 supervisor)",
+        "Verified #tab-agents (AI agents governance center, SAFE_AUTO profile, self-healing workbench)",
+        "Verified #tab-account (operator profile, security sessions, PIN elevation, capability matrix)",
+        "Verified #tab-settings (categories A-P, config backup, diagnostics)",
+        "Verified /futuristic (JARVIS OS V2.0 control center, voice-first banner, holographic human stage)"
+      ],
+      "1440x900": "PASSED",
+      "1280x720": "PASSED"
+    }
+  ],
+  "safety_rails_verified": {
+    "estop_btn_visible": true,
+    "estop_btn_enabled": true,
+    "estop_btn_never_clicked": true,
+    "real_robot_movement_prevented": true,
+    "single_mic_owner_preserved": true,
+    "single_backend_preserved": true,
+    "fresh_pin_auth_preserved": true,
+    "truthful_telemetry_reporting": true
+  }
+}

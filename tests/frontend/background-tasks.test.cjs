@@ -67,3 +67,22 @@ test('restored interruption exposes no retry or false completion and polls only 
   assert.doesNotMatch(ui.nodes['background-task-list'].textContent,/sensitive upstream|Completed/);
   assert.equal(ui.timers.length,0);
 });
+
+test('failed task exposes error reason, working retry and dismiss actions',async()=>{
+  const ui=setup((url,init)=>{
+    if(init?.method==='POST') return response({job_id:'retried-1',status:'accepted'});
+    if(init?.method==='DELETE') return response({status:'ok',dismissed:true});
+    return response({jobs:[{job_id:'tjob_failed_1',status:'failed',error_detail:'Model provider returned no response'}]});
+  });
+  await settle();
+  assert.match(ui.nodes['background-task-list'].textContent,/Model provider returned no response/);
+  const actions=ui.nodes['background-task-list'].children[0].children.find(c=>c.children&&c.children.some(b=>b.textContent==='Retry task'));
+  assert.ok(actions,'Actions container must be present for failed task');
+  const retryBtn=actions.children.find(c=>c.textContent==='Retry task');
+  const dismissBtn=actions.children.find(c=>c.textContent==='Dismiss task');
+  await retryBtn.listeners.click();
+  assert.ok(ui.calls.some(c=>c.url==='/api/task-jobs/tjob_failed_1/retry'&&c.init.method==='POST'));
+  await dismissBtn.listeners.click();
+  assert.ok(ui.calls.some(c=>c.url==='/api/task-jobs/tjob_failed_1'&&c.init.method==='DELETE'));
+});
+
