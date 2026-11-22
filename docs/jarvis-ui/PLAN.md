@@ -386,3 +386,12 @@ Apps Center (UX-006): replaced hardcoded catalog and host status with measured v
     - Test 5 (All 22 tabs API hydration & E-STOP check): PASSED on all 22 tabs (`home`, `chat`, `voice`, `aistudio`, `vision`, `robot`, `sensors`, `memory`, `automations`, `tools`, `integrations`, `system`, `logs`, `desktop`, `computer`, `agents`, `apps`, `developer`, `youtube`, `documents`, `research`, `settings`).
   - Evidence: Screenshots and JSON report saved under `docs/jarvis-ui/evidence/functional-e2e/report.json`. Overall Passed: `True`.
 
+### Master Phase 1 Handoff — Branch Unification & Single-Root Containment · 22 November 2026
+- Verified `feature/jarvis-unified-brain` unified in `feature/jarvis-ui` (merge `1089f32`) with all fixes (`c7da101`, `aac43fe`, `b7f030b`).
+- Single-root canonical `JARVIS_ROOT` enforced in `core/paths.py` with zero hardcoded references to external Downloads or `.gemini/antigravity-cli`.
+- Verified system services `jarvis-core.service` and `jarvis-voice.service` point strictly to `/home/roshan/.gemini/antigravity/scratch/jarvis-os`.
+- Phase 1 Gate passed 100%: 9/9 single-root unit tests green (`test_single_root_containment.py`), 26/26 capability unit/integration tests green (5 test suites).
+- Live verification: `GET http://127.0.0.1:8000/api/capabilities` returns HTTP 200 OK with all 57 auto-discovered capabilities.
+- Evidence recorded: `docs/jarvis-ui/evidence/master-phase-1/verification_report.json`.
+- Next: Phase 2 (Real-Time Voice Assistant, Ready Mic Button & Single-Voice Preemption).
+

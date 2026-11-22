@@ -25,9 +25,11 @@ from .models import (
     YouTubeVideoInfo,
 )
 
+from core.paths import DATA_DIR
+
 logger = logging.getLogger("JARVIS.YouTube.Database")
 
-DEFAULT_DB_PATH = "/home/roshan/.gemini/antigravity/scratch/jarvis-os/data/youtube_notes.sqlite3"
+DEFAULT_DB_PATH = str(DATA_DIR / "youtube_notes.sqlite3")
 
 
 class YouTubeDatabase:

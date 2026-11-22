@@ -1,0 +1,43 @@
+{
+  "phase": "Phase 1: Branch Unification & Single-Root Containment (JARVIS_ROOT)",
+  "timestamp": "2026-11-22T13:19:37Z",
+  "git_state": {
+    "branch": "feature/jarvis-ui",
+    "feature_jarvis_unified_brain_merged": true,
+    "merge_commit": "1089f32",
+    "head_commit": "39ea5ac"
+  },
+  "single_root_containment_tests": {
+    "exit_code": 0,
+    "passed": true,
+    "stderr": [
+      "----------------------------------------------------------------------",
+      "Ran 9 tests in 1.434s",
+      "",
+      "OK",
+      "<sys>:0: ResourceWarning: unclosed database in <sqlite3.Connection object at 0x7fafd03a60>"
+    ]
+  },
+  "capability_test_suites": {
+    "exit_code": 0,
+    "passed": true,
+    "summary": "26 passed, 38 warnings in 13.56s"
+  },
+  "live_capabilities_endpoint": {
+    "status_code": 200,
+    "total_capabilities": 57,
+    "capabilities_count": 57,
+    "sample_capabilities": [
+      "youtube-summarizer",
+      "document-qa",
+      "research-assistant",
+      "face-recognition",
+      "system-telemetry"
+    ]
+  },
+  "services": {
+    "jarvis_core_service_working_dir": true,
+    "jarvis_voice_service_working_dir": true
+  },
+  "gate_passed": true
+}
