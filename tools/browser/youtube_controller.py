@@ -415,10 +415,15 @@ class YouTubeController:
             browser_agent.send_shortcut("k", browser=browser)
 
         # Verification step
-        verify_res = self.verify_playback(video.video_id, timeout=3.0, attempt_unlock=autoplay, browser=browser)
+        verify_res = self.verify_playback(video.video_id, timeout=5.0, attempt_unlock=autoplay, browser=browser)
 
-        final_state = STATE_PLAYING_VERIFIED if autoplay else STATE_OPENED_PAUSED
         if not verify_res.get("window_verified"):
+            final_state = STATE_FAILED
+        elif not autoplay:
+            final_state = STATE_OPENED_PAUSED
+        elif verify_res.get("audio_stream_detected"):
+            final_state = STATE_PLAYING_VERIFIED
+        else:
             final_state = STATE_PLAYBACK_BLOCKED
 
         if session:
@@ -432,7 +437,7 @@ class YouTubeController:
             msg = f"Now playing option #{video.rank} '{video.title}' by {video.channel} on YouTube in Google Chrome."
         elif final_state == STATE_PLAYBACK_BLOCKED:
             action_label = "Opened in Google Chrome (Playback Blocked)"
-            msg = f"Opened option #{video.rank} '{video.title}' by {video.channel} in Google Chrome, but audio is blocked by browser autoplay policy or awaiting interaction on DISPLAY=:0."
+            msg = f"Opened option #{video.rank} '{video.title}' by {video.channel} in Google Chrome, but audio stream is not detected (playback blocked by browser autoplay policy on DISPLAY=:0)."
         elif final_state == STATE_OPENED_PAUSED:
             action_label = "Opened in Google Chrome (paused)"
             msg = f"Opened option #{video.rank} '{video.title}' by {video.channel} on YouTube in Google Chrome (paused)."
@@ -459,7 +464,7 @@ class YouTubeController:
     def verify_playback(
         self,
         video_id: str,
-        timeout: float = 3.0,
+        timeout: float = 5.0,
         attempt_unlock: bool = False,
         browser: str = "chrome",
     ) -> Dict[str, Any]:
@@ -467,11 +472,11 @@ class YouTubeController:
         from tools.browser.browser_agent import browser_agent
         from tools.media.audio_stream_manager import audio_stream_manager
 
-        deadline = time.time() + max(0.5, timeout)
+        deadline = time.time() + max(1.0, timeout)
         window_found = False
         proc_running = False
         chrome_stream = False
-        unlocked = False
+        attempts = 0
 
         while True:
             windows = browser_agent.find_browser_windows(browser)
@@ -496,15 +501,29 @@ class YouTubeController:
             if chrome_stream:
                 break
 
-            # Attempt autoplay unlock if window exists and half the timeout elapsed
-            if window_found and attempt_unlock and not unlocked and (deadline - time.time() <= timeout * 0.5):
-                unlocked = True
-                try:
-                    browser_agent.send_shortcut("k", browser=browser)
-                    time.sleep(0.1)
-                    browser_agent.send_shortcut("m", browser=browser)
-                except Exception:
-                    pass
+            elapsed = timeout - (deadline - time.time())
+            # Progressive autoplay unlock sequence if window exists
+            if window_found and attempt_unlock:
+                if attempts == 0 and elapsed >= 1.5:
+                    attempts = 1
+                    try:
+                        win_match = "Google Chrome" if "chrome" in browser.lower() else "Mozilla Firefox"
+                        browser_agent.activate_window(win_match)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("k", browser=browser)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("m", browser=browser)
+                    except Exception:
+                        pass
+                elif attempts == 1 and elapsed >= 3.0:
+                    attempts = 2
+                    try:
+                        win_match = "Google Chrome" if "chrome" in browser.lower() else "Mozilla Firefox"
+                        browser_agent.activate_window(win_match)
+                        time.sleep(0.1)
+                        browser_agent.send_shortcut("space", browser=browser)
+                    except Exception:
+                        pass
 
             if time.time() >= deadline:
                 break

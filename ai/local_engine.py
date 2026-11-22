@@ -382,7 +382,21 @@ class LocalIntelligenceEngine:
             loc_arg = m_prog.group(2).strip() if m_prog.lastindex >= 2 and m_prog.group(2) else None
             return "desktop_run_program", {"program": prog_arg, "location": loc_arg, "text": text}
 
-        # 3g. Desktop Awareness
+        # 3g. Running Software & Desktop Processes Inspection
+        if re.search(
+            r'\b(?:'
+            r'what\s+(?:are\s+|is\s+)?(?:the\s+)?(?:things\s+|software\s+|apps\s+|applications\s+|programs\s+|processes\s+)(?:are\s+)?running(?:\s+on\s+(?:my\s+)?(?:pc|computer|system|machine))?|'
+            r'can\s+you\s+(?:see|tell\s+me|list)\s+what\s+(?:are\s+)?(?:the\s+things\s+)?(?:is\s+|are\s+)?running\s+on\s+(?:my\s+)?(?:pc|computer|system|machine)|'
+            r'what\s+is\s+running\s+on\s+(?:my\s+)?(?:pc|computer|system|machine)|'
+            r'what\s+(?:apps|applications|software|programs|processes)\s+are\s+running|'
+            r'running\s+(?:software|apps|applications|processes|programs)(?:\s+on\s+(?:my\s+)?(?:pc|computer))?|'
+            r'list\s+running\s+(?:software|apps|applications|processes|programs)'
+            r')\b',
+            text_lower
+        ):
+            return "running_apps_processes", {"text": text}
+
+        # 3h. Desktop Awareness
         if re.search(r'\b(which application is open|what is the active window|show the current active window|active window|running applications)\b', text_lower) or re.search(r'\bis\s+(vs\s*code|vscode|chrome|firefox|antigravity)\s+running\b', text_lower):
             return "desktop_awareness", {"text": text}
 
@@ -391,8 +405,18 @@ class LocalIntelligenceEngine:
         if re.search(r'\b(?:which|what)\s+(?:browser\s+)?tab\s+is\s+(?:currently\s+)?active\b', text_lower):
             return "screen_active_tab", {"text": text}
 
-        # Screen observation ("look at my screen", "observe screen", "what is on my screen", "tell me which applications are open", "describe what you see on my screen")
-        if re.search(r'\b(?:(?:look\s+at|observe)\s+(?:my\s+|the\s+)?screen|what\s+is\s+(?:currently\s+)?open(?:\s+on\s+(?:my\s+)?screen)?|tell\s+me\s+which\s+applications\s+are\s+open|what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window))\b', text_lower):
+        # Screen observation ("inspect the current screen and tell me what is displayed", "look at my screen", "observe screen", "what is on my screen", "describe what you see on my screen")
+        if re.search(
+            r'\b(?:'
+            r'(?:inspect|examine|analyze|check|view|observe|look\s+at)\s+(?:the\s+|my\s+)?(?:current\s+)?screen(?:\s+and\s+tell\s+me\s+what\s+(?:is\s+)?(?:displayed|shown|on\s+it))?|'
+            r'what\s+(?:is\s+)?(?:currently\s+)?(?:displayed|shown|open|visible)\s+(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
+            r'what\s+is\s+(?:currently\s+)?(?:on|in)\s+(?:the\s+|my\s+)?screen(?:\s+right\s+now)?|'
+            r'what\s+do\s+you\s+see\s+on\s+(?:my\s+|the\s+)?screen|'
+            r'describe\s+(?:my\s+|the\s+)?(?:current\s+)?(?:screen|window)|'
+            r'screen\s+inspect(?:ion)?'
+            r')\b',
+            text_lower
+        ):
             return "screen_observe", {"text": text}
 
         # Check displayed errors ("check whether any errors are displayed", "are there any errors on screen", "inspect errors")
@@ -805,6 +829,9 @@ class LocalIntelligenceEngine:
 
             elif intent == "theme_control":
                 return self._respond_theme_control(ctx)
+
+            elif intent == "running_apps_processes":
+                return self._respond_running_apps_processes(ctx)
 
             # Phase 4 Visual Computer-Use Dispatches
             elif intent == "screen_observe":
@@ -2335,6 +2362,15 @@ if __name__ == "__main__":
             "raw": res,
         }
 
+    def _respond_running_apps_processes(self, ctx: Dict) -> Dict:
+        from tools.system.process_inspector import process_inspector
+        overview = process_inspector.get_running_overview()
+        return {
+            "response": overview.get("markdown", "Running processes and open windows inspected."),
+            "tools_used": ["process_inspector_running_overview"],
+            "raw": overview,
+        }
+
     # Phase 4 Response Handlers
     def _respond_screen_observe(self, ctx: Dict) -> Dict:
         from tools.desktop.desktop_perception import desktop_perception
@@ -2344,20 +2380,55 @@ if __name__ == "__main__":
         wins = obs.get("open_windows", [])
         top_wins = [w for w in wins if w.get("desktop", 0) != -1]
         win_bullets = "\n".join(f"- `{w.get('title')}` (App: **{w.get('app')}**)" for w in top_wins[:5])
+        tools_used = ["desktop_perception_observe"]
 
-        resp = (
-            f"👁️ **Screen Observation Summary**\n\n"
-            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `:0`)\n"
-            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`\n"
-            f"- **Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)\n"
-            f"- **Window Dimensions:** {act.get('geometry', {}).get('width')} × {act.get('geometry', {}).get('height')} at pos ({act.get('geometry', {}).get('x')}, {act.get('geometry', {}).get('y')})\n\n"
-            f"**Currently Open Applications ({len(top_wins)}):**\n"
-            f"{win_bullets}\n\n"
-            f"Visual snapshot captured in {obs.get('total_ms', 0)}ms."
-        )
+        # Capture fullscreen visual description via local Moondream VLM
+        visual_desc = None
+        snap_path = obs.get("screenshot_path")
+        if not snap_path:
+            snap = desktop_perception.capture_fullscreen()
+            snap_path = snap.get("filepath")
+
+        if snap_path and os.path.exists(snap_path):
+            try:
+                from tools.vision.vision_vlm import vision_vlm
+                if vision_vlm.is_available():
+                    vlm_res = vision_vlm.describe_scene(
+                        snap_path,
+                        prompt="Describe what is displayed on this computer desktop screen concisely in 2-3 sentences, noting the main visible windows, content, or applications."
+                    )
+                    if vlm_res.get("success") and vlm_res.get("description"):
+                        visual_desc = vlm_res["description"].strip()
+                        tools_used.append("vision_vlm_moondream")
+            except Exception as e:
+                logger.debug("Moondream screen scene description error: %s", e)
+
+        resp_lines = [
+            "👁️ **Desktop Screen Inspection Summary**",
+            "",
+            f"- **Display Resolution:** {res.get('width', 1360)} × {res.get('height', 768)} (Native X11 on `DISPLAY=:0`)",
+            f"- **Active Window:** `{act.get('title', 'Desktop Root')}`",
+            f"- **Focused Application:** **{act.get('app', 'desktop')}** (Window ID: `{act.get('id', 'N/A')}`)",
+        ]
+
+        if visual_desc:
+            resp_lines.extend([
+                "",
+                "**Visual Screen Content (Moondream VLM):**",
+                visual_desc,
+            ])
+
+        resp_lines.extend([
+            "",
+            f"**Currently Open Applications ({len(top_wins)}):**",
+            win_bullets or "- *No open application windows*",
+            "",
+            f"*Visual snapshot captured on DISPLAY=:0 in {obs.get('total_ms', 0)}ms.*",
+        ])
+
         return {
-            "response": resp,
-            "tools_used": ["desktop_perception_observe"],
+            "response": "\n".join(resp_lines),
+            "tools_used": tools_used,
             "raw": obs,
         }
 

@@ -74,12 +74,17 @@ JARVIS_TOOLS: List[Dict] = [
     },
     {
         "name": "camera_capture",
-        "description": "Capture a photo from the camera and describe what is seen.",
+        "description": "Capture a photo from the physical Raspberry Pi camera looking at the real world and describe what is seen.",
         "parameters": {"type": "object", "properties": {}}
     },
     {
         "name": "screen_capture",
-        "description": "Capture the current desktop screen or window and analyze its visual content, code, or displayed error messages.",
+        "description": "Capture the current computer desktop display (DISPLAY=:0) or active window and analyze its visual content, code, or displayed error messages.",
+        "parameters": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "running_apps_processes",
+        "description": "List open desktop windows, top running software/processes, and core JARVIS service status.",
         "parameters": {"type": "object", "properties": {}}
     },
     {

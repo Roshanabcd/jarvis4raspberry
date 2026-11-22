@@ -298,5 +298,86 @@ class DeveloperCliBridge:
             "message": f"Unrecognized remediation action '{action}'.",
         }
 
+    def run_diagnostic_cli(
+        self,
+        prompt: str,
+        preferred_cli: str = "auto",
+        timeout: int = 40,
+    ) -> Dict[str, Any]:
+        """Run safe, non-interactive diagnostic reasoning using agy (primary) or claude (fallback).
+        
+        Used for task escalation and deep troubleshooting fallback without requiring root privileges.
+        """
+        clis = self.detect_clis()
+        clean_prompt = (prompt or "Diagnose system state and suggest resolution").strip()
+
+        # Determine CLI order: primary first, fallback second
+        order: List[Tuple[str, List[str]]] = []
+        if preferred_cli in ("antigravity", "agy") or (preferred_cli == "auto" and clis["antigravity"]["installed"]):
+            if clis["antigravity"]["installed"]:
+                order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
+            if clis["claude"]["installed"]:
+                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
+        elif preferred_cli == "claude" or (preferred_cli == "auto" and clis["claude"]["installed"]):
+            if clis["claude"]["installed"]:
+                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
+            if clis["antigravity"]["installed"]:
+                order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
+        else:
+            # Try whichever is installed
+            if clis["antigravity"]["installed"]:
+                order.append(("antigravity", [clis["antigravity"]["path"], "-p", clean_prompt, "--sandbox"]))
+            if clis["claude"]["installed"]:
+                order.append(("claude", [clis["claude"]["path"], "-p", clean_prompt]))
+
+        if not order:
+            return {
+                "status": "error",
+                "code": "NO_CLI_AVAILABLE",
+                "output": "",
+                "message": "Neither Antigravity ('agy') nor Claude ('claude') CLI is installed.",
+            }
+
+        last_error = ""
+        for cli_name, cmd in order:
+            try:
+                logger.info("Executing diagnostic CLI escalation via %s", cli_name)
+                proc = subprocess.run(
+                    cmd,
+                    cwd=str(self.repo_root),
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                )
+                raw_out = (proc.stdout or "").strip()
+                if not raw_out and proc.stderr:
+                    raw_out = proc.stderr.strip()
+
+                if raw_out:
+                    clean_output = redact(raw_out[:4096])
+                    return {
+                        "status": "ok" if proc.returncode == 0 else "error",
+                        "cli": cli_name,
+                        "output": clean_output,
+                        "exit_code": proc.returncode,
+                        "message": f"Diagnostic reasoning completed via {cli_name.title()}.",
+                    }
+                last_error = f"{cli_name} returned empty output (exit {proc.returncode})"
+            except subprocess.TimeoutExpired:
+                last_error = f"{cli_name} timed out after {timeout}s"
+                logger.warning("Diagnostic CLI %s timed out", cli_name)
+            except Exception as e:
+                last_error = f"{cli_name} execution error: {e}"
+                logger.warning("Diagnostic CLI %s failed: %s", cli_name, e)
+
+        return {
+            "status": "error",
+            "code": "CLI_EXECUTION_FAILED",
+            "output": "",
+            "message": f"Diagnostic CLI escalation failed: {last_error}",
+        }
+
 
 developer_cli_bridge = DeveloperCliBridge()
+

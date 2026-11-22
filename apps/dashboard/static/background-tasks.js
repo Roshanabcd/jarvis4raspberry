@@ -43,6 +43,9 @@
         if (job.result_available && typeof job.response === 'string') {
           const reply = doc.createElement('p');
           reply.style.whiteSpace = 'pre-wrap';
+          if (job.status === 'failed') {
+            reply.style.cssText = 'white-space:pre-wrap;background:rgba(255,75,75,0.08);padding:8px 10px;border-radius:4px;border-left:3px solid #ff5555;margin-top:6px;font-family:monospace;font-size:0.9em;';
+          }
           reply.textContent = job.response;
           row.appendChild(reply);
         } else if (job.status === 'succeeded') {

@@ -31,6 +31,19 @@ class ToolExecutor:
 
         method = getattr(self, f"_tool_{name}", None)
         if method is None:
+            norm_name = name.lower().strip()
+            if norm_name in ("capture_image", "take_screenshot", "inspect_screen", "capture_screen", "screen_inspect"):
+                if "screen" in norm_name or "screenshot" in norm_name:
+                    method = self._tool_screen_capture
+                elif norm_name == "capture_image":
+                    is_screen = any("screen" in str(v).lower() or "desktop" in str(v).lower() for v in args.values())
+                    method = self._tool_screen_capture if is_screen else self._tool_camera_capture
+            elif norm_name in ("running_apps_processes", "get_running_apps", "list_running_processes", "running_processes"):
+                method = self._tool_running_apps_processes
+            elif norm_name in ("developer_escalation", "diagnose_cli", "run_cli_diagnosis"):
+                method = self._tool_developer_escalation
+
+        if method is None:
             return json.dumps({"error": f"Unknown tool: {name}"})
         try:
             result = method(**args)
@@ -139,6 +152,23 @@ class ToolExecutor:
             return frame
         except Exception as e:
             return {"error": str(e), "description": "Camera unavailable.", "simulated": False}
+
+    def _tool_inspect_screen(self) -> Dict:
+        return self._tool_screen_capture()
+
+    def _tool_running_apps_processes(self) -> Dict:
+        try:
+            from tools.system.process_inspector import process_inspector
+            return process_inspector.get_running_overview()
+        except Exception as e:
+            return {"error": str(e)}
+
+    def _tool_developer_escalation(self, prompt: str = "") -> Dict:
+        try:
+            from tools.developer.cli_bridge import developer_cli_bridge
+            return developer_cli_bridge.run_diagnostic_cli(prompt=prompt)
+        except Exception as e:
+            return {"error": str(e)}
 
     def _tool_detect_objects(self) -> Dict:
         try:

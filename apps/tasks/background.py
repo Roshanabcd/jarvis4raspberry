@@ -12,6 +12,7 @@ from collections import OrderedDict, deque
 from dataclasses import dataclass, field
 import fcntl
 import hashlib
+import logging
 import os
 from pathlib import Path
 import re
@@ -21,6 +22,8 @@ import threading
 import time
 from typing import Callable
 import uuid
+
+logger = logging.getLogger("JARVIS.Tasks.Background")
 
 TERMINAL = frozenset({'succeeded', 'failed', 'cancelled', 'interrupted'})
 STATUSES = TERMINAL | {'accepted', 'running'}
@@ -86,12 +89,41 @@ def run_brain(work: Work, on_progress: Callable) -> dict:
     if work.cancelled.is_set():
         return {'status': 'cancelled'}
     # Tool execution keeps its existing live authorization/confirmation checks.
-    return brain.chat(user_message=work.transcript, user_id=work.identity.user_id,
-                      role=work.identity.role, session_id=work.session_id,
-                      _request_id=work.request_id, on_progress=on_progress,
-                      allow_fallback=False, max_provider_retries=0,
-                      _authorization_check=lambda: not work.cancelled.is_set() and resolve_identity() == work.identity,
-                      _allow_compound=False)
+    chat_res = brain.chat(
+        user_message=work.transcript,
+        user_id=work.identity.user_id,
+        role=work.identity.role,
+        session_id=work.session_id,
+        _request_id=work.request_id,
+        on_progress=on_progress,
+        allow_fallback=False,
+        max_provider_retries=0,
+        _authorization_check=lambda: not work.cancelled.is_set() and resolve_identity() == work.identity,
+        _allow_compound=False,
+    )
+
+    # Wire developer CLI escalation fallback (agy primary, claude secondary)
+    # If brain chat produced an error or no provider was reachable, attempt developer CLI escalation
+    if isinstance(chat_res, dict) and (chat_res.get('error') or chat_res.get('status') == 'failed'):
+        try:
+            from tools.developer.cli_bridge import developer_cli_bridge
+            clis = developer_cli_bridge.detect_clis()
+            if clis.get("has_developer_cli") and not work.cancelled.is_set():
+                on_progress({"stage": "working", "detail": "Escalating to developer CLI (agy)"})
+                esc_res = developer_cli_bridge.run_diagnostic_cli(work.transcript, timeout=35)
+                if esc_res.get("status") == "ok" and esc_res.get("output"):
+                    cli_name = esc_res.get("cli", "antigravity").title()
+                    resp_body = f"🛠️ **Developer CLI Escalation ({cli_name})**\n\n{esc_res['output']}"
+                    return {
+                        "status": "succeeded",
+                        "response": resp_body,
+                        "provider": f"developer_cli_{esc_res.get('cli')}",
+                        "escalated": True,
+                    }
+        except Exception as e:
+            logger.warning("Background task CLI escalation attempt failed: %s", e)
+
+    return chat_res
 
 
 def cancel_brain(request_id: str):

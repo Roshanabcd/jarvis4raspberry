@@ -556,7 +556,7 @@ class JARVISBrain:
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories",
-            "audio_diagnostics", "developer_escalation"
+            "audio_diagnostics", "developer_escalation", "running_apps_processes"
         }
 
         if use_tools and intent in FAST_PATH_INTENTS:
@@ -904,7 +904,7 @@ class JARVISBrain:
             "agents_discover", "agents_stuck_check", "agents_permissions_pending", "agents_permissions_profile", "agents_restore_checkpoint", "agents_repair_project",
             "camera_describe", "detect_objects", "identify_user",
             "apps_list", "apps_open", "apps_status", "apps_categories",
-            "audio_diagnostics", "developer_escalation"
+            "audio_diagnostics", "developer_escalation", "running_apps_processes"
         }
 
         if use_tools and intent in FAST_PATH_INTENTS:
